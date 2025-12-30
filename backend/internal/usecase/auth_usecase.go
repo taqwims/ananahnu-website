@@ -1,0 +1,228 @@
+package usecase
+
+import (
+	"ananahnu/internal/domain"
+	"ananahnu/pkg/utils"
+	"ananahnu/pkg/email"
+	"errors"
+	"fmt"
+	"os"
+	"strconv"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type AuthUsecase interface {
+	Login(email, password string) (string, string, error) // AccessToken, RefreshToken, Error
+	RegisterClient(input RegisterClientInput) error
+	GenerateAccount(input GenerateAccountInput) (string, error) // Returns plaintext password
+	ForgotPassword(email string) error
+	ResetPassword(token, newPassword string) error
+}
+
+type RegisterClientInput struct {
+	BusinessName string
+	Email        string
+	NIB          string
+	Password     string
+	Address      string
+	Phone        string
+}
+
+type GenerateAccountInput struct {
+	Name  string
+	Email string
+	Role  string
+}
+
+type authUsecase struct {
+	userRepo   domain.UserRepository
+	roleRepo   domain.RoleRepository
+	clientRepo domain.ClientRepository
+	tokenRepo  domain.PasswordTokenRepository
+	emailSender email.EmailSender
+}
+
+func NewAuthUsecase(u domain.UserRepository, r domain.RoleRepository, c domain.ClientRepository, t domain.PasswordTokenRepository, e email.EmailSender) AuthUsecase {
+	return &authUsecase{
+		userRepo:   u,
+		roleRepo:   r,
+		clientRepo: c,
+		tokenRepo:  t,
+		emailSender: e,
+	}
+}
+
+func (uc *authUsecase) Login(email, password string) (string, string, error) {
+	user, err := uc.userRepo.FindByEmail(email)
+	if err != nil {
+		return "", "", errors.New("invalid credentials")
+	}
+
+	if !utils.CheckPasswordHash(password, user.PasswordHash) {
+		return "", "", errors.New("invalid credentials")
+	}
+
+	// Token Expiration
+	expHours, _ := strconv.Atoi(os.Getenv("JWT_EXPIRATION_HOURS"))
+	if expHours == 0 {
+		expHours = 24
+	}
+
+	token, err := utils.GenerateToken(user.ID.String(), user.Role.Name, expHours)
+	if err != nil {
+		return "", "", err
+	}
+	
+	// Refresh Token (simplified, reusing same generation logic but longer)
+	refreshExp, _ := strconv.Atoi(os.Getenv("REFRESH_TOKEN_EXPIRATION_DAYS"))
+	if refreshExp == 0 {
+		refreshExp = 7
+	}
+	refreshToken, err := utils.GenerateToken(user.ID.String(), user.Role.Name, refreshExp*24)
+	
+	return token, refreshToken, err
+}
+
+func (uc *authUsecase) RegisterClient(input RegisterClientInput) error {
+	// 1. Check if email exists
+	if _, err := uc.userRepo.FindByEmail(input.Email); err == nil {
+		return errors.New("email already exists")
+	}
+
+	// 2. Hash Password
+	hash, err := utils.HashPassword(input.Password)
+	if err != nil {
+		return err
+	}
+
+	// 3. Get CLIENT Role ID
+	role, err := uc.roleRepo.FindByName("CLIENT")
+	if err != nil {
+		return errors.New("role CLIENT not found, please seed roles")
+	}
+
+	// 4. Create User
+	userID := uuid.New()
+	user := &domain.User{
+		ID:           userID,
+		Username:     input.Email,
+		Email:        input.Email,
+		PasswordHash: hash,
+		FullName:     input.BusinessName,
+		RoleID:       role.ID,
+	}
+
+	if err := uc.userRepo.Create(user); err != nil {
+		return err
+	}
+
+	// 5. Create Client Profile
+	client := &domain.Client{
+		ID:           uuid.New(),
+		NIB:          input.NIB,
+		BusinessName: input.BusinessName,
+		Address:      input.Address,
+		ContactPerson: input.BusinessName, // default to business name for now
+		Phone:        input.Phone,
+		CreatedBy:    userID,
+	}
+	
+	return uc.clientRepo.Create(client)
+}
+
+func (uc *authUsecase) GenerateAccount(input GenerateAccountInput) (string, error) {
+	// 1. Generate Random Password
+	password := utils.RandomString(10)
+	
+	// 2. Check Email
+	if _, err := uc.userRepo.FindByEmail(input.Email); err == nil {
+		return "", errors.New("email already exists")
+	}
+
+	// 3. Hash
+	hash, err := utils.HashPassword(password)
+	if err != nil {
+		return "", err
+	}
+
+	// 4. Find Role
+	role, err := uc.roleRepo.FindByName(input.Role)
+	if err != nil {
+		return "", errors.New("role not found: " + input.Role)
+	}
+
+	// 5. Create User
+	user := &domain.User{
+		ID:           uuid.New(),
+		Username:     input.Email,
+		Email:        input.Email,
+		PasswordHash: hash,
+		FullName:     input.Name,
+		RoleID:       role.ID,
+	}
+	
+	if err := uc.userRepo.Create(user); err != nil {
+		return "", err
+	}
+	
+	return password, nil
+}
+
+func (uc *authUsecase) ForgotPassword(emailAddr string) error {
+	user, err := uc.userRepo.FindByEmail(emailAddr)
+	if err != nil {
+		return errors.New("email not found") // Or return nil to avoid enumeration
+	}
+
+	token := utils.RandomString(32) // Generate secure token
+	
+	// Expire in 1 hour
+	resetToken := &domain.PasswordResetToken{
+		Token:     token,
+		UserID:    user.ID,
+		ExpiresAt: time.Now().Add(1 * time.Hour),
+	}
+
+	if err := uc.tokenRepo.Create(resetToken); err != nil {
+		return err
+	}
+
+	// Send Email
+	link := fmt.Sprintf("%s/reset-password?token=%s", os.Getenv("APP_URL"), token)
+	body := fmt.Sprintf("<p>Click here to reset your password: <a href='%s'>%s</a></p>", link, link)
+	
+	// Async send? For now sync
+	return uc.emailSender.SendEmail([]string{emailAddr}, "Reset Password Request", body)
+}
+
+func (uc *authUsecase) ResetPassword(tokenStr, newPassword string) error {
+	token, err := uc.tokenRepo.FindByToken(tokenStr)
+	if err != nil {
+		return errors.New("invalid token")
+	}
+
+	if time.Now().After(token.ExpiresAt) {
+		uc.tokenRepo.Delete(tokenStr)
+		return errors.New("token expired")
+	}
+
+	user, err := uc.userRepo.FindByID(token.UserID)
+	if err != nil {
+		return err
+	}
+
+	hash, err := utils.HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+	user.PasswordHash = hash
+
+	if err := uc.userRepo.Update(user); err != nil {
+		return err
+	}
+
+	// Invalidate token
+	return uc.tokenRepo.Delete(tokenStr)
+}
