@@ -6,26 +6,45 @@ import {
     LogOut,
     X,
     CreditCard,
-    BookOpen
+    BookOpen,
+    UserCheck,
+    UsersRound,
+    GraduationCap,
+    Receipt,
+    Settings,
+    MapPin,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { motion, AnimatePresence } from 'framer-motion';
 
+interface SidebarLink {
+    name: string;
+    to: string;
+    icon: React.ComponentType<{ className?: string }>;
+    roles?: string[];
+}
+
 const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) => {
     const logout = useAuthStore(state => state.logout);
-    // const role = useAuthStore(state => state.user?.role);
+    const user = useAuthStore(state => state.user);
+    const roleName = user?.role || '';
 
-    const links = [
+    const links: SidebarLink[] = [
         { name: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-        { name: 'Clients', to: '/dashboard/clients', icon: Users, roles: ['ADMIN', 'DIRECTOR', 'MARKETING', 'VERVAL_PENDAMPING'] }, // Example roles
-        { name: 'Submissions', to: '/dashboard/submissions', icon: FileText },
-        { name: 'CMS', to: '/dashboard/cms', icon: BookOpen, roles: ['ADMIN'] },
-        { name: 'Payments', to: '/dashboard/payments', icon: CreditCard, roles: ['ADMIN', 'FINANCE'] },
+        { name: 'Klien', to: '/dashboard/clients', icon: Users, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN'] },
+        { name: 'Pengajuan', to: '/dashboard/submissions', icon: FileText, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'QC_OFFICER', 'DRAFTER'] },
+        { name: 'Profil Konsultan', to: '/dashboard/consultant-profile', icon: UserCheck, roles: ['HALAL_KONSULTAN'] },
+        { name: 'Tim Saya', to: '/dashboard/team', icon: UsersRound, roles: ['KOORDINATOR'] },
+        { name: 'Pelatihan', to: '/dashboard/training', icon: GraduationCap, roles: ['ADMIN_PELATIHAN', 'KOORDINATOR', 'DIRECTOR', 'MANAGER'] },
+        { name: 'Keuangan', to: '/dashboard/finance', icon: Receipt, roles: ['ADMIN_KEUANGAN', 'FINANCE', 'DIRECTOR'] },
+        { name: 'Pengaturan Form', to: '/dashboard/form-config', icon: Settings, roles: ['DIRECTOR', 'MANAGER'] },
+        { name: 'Wilayah & Tarif', to: '/dashboard/geography', icon: MapPin, roles: ['DIRECTOR', 'MANAGER', 'ADMIN_KEUANGAN'] },
+        { name: 'Pembayaran', to: '/dashboard/payments', icon: CreditCard, roles: ['FINANCE', 'ADMIN_KEUANGAN', 'DIRECTOR'] },
+        { name: 'CMS', to: '/dashboard/cms', icon: BookOpen, roles: ['DIRECTOR'] },
     ];
 
-    // Filter links based on role (simple check)
-    // In real app, complex permission check
-    const filteredLinks = links;
+    // Filter links based on role
+    const filteredLinks = links.filter(l => !l.roles || l.roles.includes(roleName));
 
     return (
         <>
@@ -56,12 +75,21 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
                         </button>
                     </div>
 
+                    {/* User Info */}
+                    {user && (
+                        <div className="px-4 py-3 border-b border-glass-border">
+                            <p className="text-sm font-medium text-gray-800 truncate">{user.full_name}</p>
+                            <p className="text-xs text-gray-500 truncate">{roleName.replace(/_/g, ' ')}</p>
+                        </div>
+                    )}
+
                     {/* Navigation */}
                     <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
                         {filteredLinks.map((link) => (
                             <NavLink
                                 key={link.to}
                                 to={link.to}
+                                end={link.to === '/dashboard'}
                                 className={({ isActive }) => `
                             flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors
                             ${isActive

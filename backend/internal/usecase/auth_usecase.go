@@ -14,7 +14,7 @@ import (
 )
 
 type AuthUsecase interface {
-	Login(email, password string) (string, string, error) // AccessToken, RefreshToken, Error
+	Login(email, password string) (string, string, *domain.User, error) // AccessToken, RefreshToken, User, Error
 	RegisterClient(input RegisterClientInput) error
 	GenerateAccount(input GenerateAccountInput) (string, error) // Returns plaintext password
 	ForgotPassword(email string) error
@@ -54,14 +54,14 @@ func NewAuthUsecase(u domain.UserRepository, r domain.RoleRepository, c domain.C
 	}
 }
 
-func (uc *authUsecase) Login(email, password string) (string, string, error) {
+func (uc *authUsecase) Login(email, password string) (string, string, *domain.User, error) {
 	user, err := uc.userRepo.FindByEmail(email)
 	if err != nil {
-		return "", "", errors.New("invalid credentials")
+		return "", "", nil, errors.New("invalid credentials")
 	}
 
 	if !utils.CheckPasswordHash(password, user.PasswordHash) {
-		return "", "", errors.New("invalid credentials")
+		return "", "", nil, errors.New("invalid credentials")
 	}
 
 	// Token Expiration
@@ -72,7 +72,7 @@ func (uc *authUsecase) Login(email, password string) (string, string, error) {
 
 	token, err := utils.GenerateToken(user.ID.String(), user.Role.Name, expHours)
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
 	
 	// Refresh Token (simplified, reusing same generation logic but longer)
@@ -82,7 +82,7 @@ func (uc *authUsecase) Login(email, password string) (string, string, error) {
 	}
 	refreshToken, err := utils.GenerateToken(user.ID.String(), user.Role.Name, refreshExp*24)
 	
-	return token, refreshToken, err
+	return token, refreshToken, user, err
 }
 
 func (uc *authUsecase) RegisterClient(input RegisterClientInput) error {

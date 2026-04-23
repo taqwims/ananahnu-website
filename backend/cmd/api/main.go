@@ -4,12 +4,15 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 	"github.com/joho/godotenv"
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
+
 	"ananahnu/internal/domain"
 	"ananahnu/pkg/database"
 	"ananahnu/pkg/email"
 	"ananahnu/pkg/midtrans"
+
 	"ananahnu/internal/repository"
 	"ananahnu/internal/usecase"
 	httpDelivery "ananahnu/internal/delivery/http"
@@ -30,22 +33,45 @@ func main() {
 	// 3. Auto Migrate
 	log.Println("Running AutoMigrate...")
 	err = db.AutoMigrate(
+		// Auth & Users
 		&domain.Role{},
 		&domain.Permission{},
 		&domain.RolePermission{},
 		&domain.User{},
 		&domain.PasswordResetToken{},
+		// Client & Submission
 		&domain.Client{},
 		&domain.Submission{},
 		&domain.SubmissionFile{},
+		// Payment
 		&domain.Payment{},
+		// Notifications
 		&domain.Notification{},
+		// KPI
 		&domain.KPIPerformance{},
+		// Audit
 		&domain.AuditLog{},
+		// CMS
 		&domain.ContentBlock{},
 		&domain.News{},
 		&domain.Affiliate{},
 		&domain.CertifiedProduct{},
+		// Dynamic Form Config
+		&domain.FormFieldConfig{},
+		&domain.FormFieldValue{},
+		// Geography & Billing
+		&domain.Province{},
+		&domain.Regency{},
+		&domain.District{},
+		&domain.BillingRate{},
+		// Training
+		&domain.Training{},
+		&domain.TrainingParticipant{},
+		// Consultant
+		&domain.ConsultantProfile{},
+		// Invoice & Billing Config
+		&domain.Invoice{},
+		&domain.PaymentConfig{},
 	)
 	if err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
@@ -54,7 +80,12 @@ func main() {
 
 	// 4. Seed Roles (Idempotent)
 	log.Println("Seeding Roles...")
-	roles := []string{"DIRECTOR", "MANAGER", "QC_OFFICER", "DRAFTER", "HALAL_KONSULTAN", "MARKETING", "VERIFIKATOR", "CLIENT", "FINANCE"}
+	roles := []string{
+		"DIRECTOR", "MANAGER", "QC_OFFICER", "DRAFTER",
+		"HALAL_KONSULTAN", "MARKETING", "VERIFIKATOR",
+		"CLIENT", "FINANCE",
+		"KOORDINATOR", "ADMIN_PELATIHAN", "ADMIN_KEUANGAN",
+	}
 	for _, roleName := range roles {
 		var r domain.Role
 		if err := db.FirstOrCreate(&r, domain.Role{Name: roleName}).Error; err != nil {
@@ -88,6 +119,9 @@ func main() {
 		}
 	}
 
+	// 4.6 Seed Default Form Configs (Idempotent)
+	seedFormConfigs(db)
+
 	// 5. Setup Repositories
 	userRepo := repository.NewUserRepository(db)
 	roleRepo := repository.NewRoleRepository(db)
@@ -98,7 +132,16 @@ func main() {
 	tokenRepo := repository.NewPasswordTokenRepository(db)
 	notifRepo := repository.NewNotificationRepository(db)
 	cmsRepo := repository.NewCMSRepository(db)
-	
+	formConfigRepo := repository.NewFormConfigRepository(db)
+	formValueRepo := repository.NewFormFieldValueRepository(db)
+	geoRepo := repository.NewGeographyRepository(db)
+	billingRateRepo := repository.NewBillingRateRepository(db)
+	trainingRepo := repository.NewTrainingRepository(db)
+	participantRepo := repository.NewTrainingParticipantRepository(db)
+	consultantRepo := repository.NewConsultantProfileRepository(db)
+	invoiceRepo := repository.NewInvoiceRepository(db)
+	paymentConfigRepo := repository.NewPaymentConfigRepository(db)
+
 	// Services
 	emailSender := email.NewGmailSender()
 	midtransGateway := midtrans.NewMidtransGateway()
@@ -113,10 +156,18 @@ func main() {
 	cmsUC := usecase.NewCMSUsecase(cmsRepo)
 	clientCRUDUC := usecase.NewClientUsecase(clientRepo)
 	dashboardUC := usecase.NewDashboardUsecase(submissionRepo, clientRepo)
+	formConfigUC := usecase.NewFormConfigUsecase(formConfigRepo, formValueRepo)
+	geographyUC := usecase.NewGeographyUsecase(geoRepo, billingRateRepo)
+	trainingUC := usecase.NewTrainingUsecase(trainingRepo, participantRepo)
+	consultantUC := usecase.NewConsultantUsecase(consultantRepo)
+	billingUC := usecase.NewBillingUsecase(invoiceRepo, paymentConfigRepo, billingRateRepo)
+
+	// Suppress unused variable warnings
+	_ = userRepo
 
 	// 7. Setup Router & Handlers
 	r := gin.Default()
-	
+
 	// CORS Middleware (simplified)
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -130,6 +181,7 @@ func main() {
 		c.Next()
 	})
 
+	// Existing handlers
 	httpDelivery.NewAuthHandler(r, authUC)
 	httpDelivery.NewSubmissionHandler(r, submissionUC)
 	httpDelivery.NewImportHandler(r, importUC)
@@ -140,6 +192,13 @@ func main() {
 	httpDelivery.NewClientHandler(r, clientCRUDUC)
 	httpDelivery.NewDashboardHandler(r, dashboardUC)
 
+	// New handlers
+	httpDelivery.NewFormConfigHandler(r, formConfigUC)
+	httpDelivery.NewGeographyHandler(r, geographyUC)
+	httpDelivery.NewTrainingHandler(r, trainingUC)
+	httpDelivery.NewConsultantHandler(r, consultantUC)
+	httpDelivery.NewBillingHandler(r, billingUC)
+
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message": "pong",
@@ -148,4 +207,52 @@ func main() {
 
 	// 8. Run
 	r.Run(":8080")
+}
+
+// seedFormConfigs seeds default form field configurations.
+func seedFormConfigs(db *gorm.DB) {
+	type seedEntry struct {
+		FormType, FieldKey, FieldLabel, InputType, Description string
+		IsRequired                                             bool
+		SortOrder                                              int
+	}
+
+	defaults := []seedEntry{
+		// SELF_DECLARE
+		{"SELF_DECLARE", "nib", "NIB", "FILE_UPLOAD", "Upload dokumen NIB (opsional)", false, 1},
+		{"SELF_DECLARE", "foto_produk", "Foto Produk", "FILE_UPLOAD", "Upload foto produk", true, 2},
+		{"SELF_DECLARE", "ktp", "KTP", "FILE_UPLOAD", "Upload KTP penanggung jawab", true, 3},
+		{"SELF_DECLARE", "foto_verval", "Foto Verval", "FILE_UPLOAD", "Upload foto verifikasi lapangan", true, 4},
+		{"SELF_DECLARE", "catatan_pph", "Catatan Bahan PPH", "TEXT", "Catatan bahan PPH (opsional)", false, 5},
+		// REGULER
+		{"REGULER", "data_kontrak", "Data Kontrak", "FILE_UPLOAD", "Upload data kontrak pendampingan", true, 1},
+		{"REGULER", "bukti_bayar", "Bukti Bayar", "FILE_UPLOAD", "Upload bukti pembayaran", true, 2},
+		{"REGULER", "template_kontrak", "Template Kontrak", "LINK", "Link template kontrak pendampingan", true, 3},
+		// RECRUITMENT
+		{"RECRUITMENT", "ktp", "KTP", "FILE_UPLOAD", "Upload KTP", true, 1},
+		{"RECRUITMENT", "foto_3x4", "Foto 3x4 Latar Merah", "FILE_UPLOAD", "Upload foto 3x4 latar belakang merah", true, 2},
+		{"RECRUITMENT", "ijazah_sta", "Ijazah STA", "FILE_UPLOAD", "Upload ijazah STA", true, 3},
+		{"RECRUITMENT", "buku_rekening", "Buku Rekening", "FILE_UPLOAD", "Upload halaman depan buku rekening", true, 4},
+		{"RECRUITMENT", "npwp", "NPWP", "FILE_UPLOAD", "Upload NPWP (opsional)", false, 5},
+	}
+
+	for _, d := range defaults {
+		var existing domain.FormFieldConfig
+		result := db.Where("form_type = ? AND field_key = ?", d.FormType, d.FieldKey).First(&existing)
+		if result.Error != nil {
+			// Not found, create it
+			cfg := domain.FormFieldConfig{
+				FormType:    d.FormType,
+				FieldKey:    d.FieldKey,
+				FieldLabel:  d.FieldLabel,
+				InputType:   d.InputType,
+				IsRequired:  d.IsRequired,
+				SortOrder:   d.SortOrder,
+				Description: d.Description,
+			}
+			db.Create(&cfg)
+		}
+	}
+
+	log.Println("Form config seeding completed.")
 }

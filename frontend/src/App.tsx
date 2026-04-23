@@ -22,6 +22,14 @@ import CMSDashboard from './pages/dashboard/CMSDashboard';
 import PublicLayout from './components/layout/PublicLayout';
 import LandingPage from './pages/landing/LandingPage';
 
+// New pages
+import FormConfigAdmin from './pages/dashboard/FormConfigAdmin';
+import ConsultantProfilePage from './pages/dashboard/ConsultantProfile';
+import TrainingAdmin from './pages/dashboard/TrainingAdmin';
+import FinanceDashboard from './pages/dashboard/FinanceDashboard';
+import GeographyAdmin from './pages/dashboard/GeographyAdmin';
+import CoordinatorDashboard from './pages/dashboard/CoordinatorDashboard';
+
 function App() {
   return (
     <BrowserRouter>
@@ -42,6 +50,14 @@ function App() {
           <Route path="submissions/:id" element={<SubmissionDetail />} />
 
           <Route path="cms" element={<CMSDashboard />} />
+
+          {/* New Routes */}
+          <Route path="form-config" element={<FormConfigAdmin />} />
+          <Route path="consultant-profile" element={<ConsultantProfilePage />} />
+          <Route path="training" element={<TrainingAdmin />} />
+          <Route path="finance" element={<FinanceDashboard />} />
+          <Route path="geography" element={<GeographyAdmin />} />
+          <Route path="team" element={<CoordinatorDashboard />} />
         </Route>
 
         {/* Public Routes */}

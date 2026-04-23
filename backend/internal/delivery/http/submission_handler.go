@@ -29,7 +29,8 @@ func NewSubmissionHandler(r *gin.Engine, uc usecase.SubmissionWorkflowUsecase) {
 
 func (h *SubmissionHandler) CreateDraft(c *gin.Context) {
 	var input struct {
-		ClientID string `json:"client_id" binding:"required"`
+		ClientID    string `json:"client_id" binding:"required"`
+		ServiceType string `json:"service_type" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -42,7 +43,7 @@ func (h *SubmissionHandler) CreateDraft(c *gin.Context) {
 		return
 	}
 
-	sub, err := h.workflowUC.CreateDraft(clientID)
+	sub, err := h.workflowUC.CreateDraft(clientID, input.ServiceType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

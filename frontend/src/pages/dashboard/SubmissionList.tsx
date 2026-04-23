@@ -18,8 +18,12 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function SubmissionList() {
     const [submissions, setSubmissions] = useState<Submission[]>([]);
+    const [clients, setClients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('');
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [creating, setCreating] = useState(false);
+    const [newSub, setNewSub] = useState({ clientId: '', serviceType: 'SELF_DECLARE' });
 
     const fetchSubmissions = async () => {
         setLoading(true);
@@ -28,10 +32,29 @@ export default function SubmissionList() {
                 params: { status: statusFilter }
             });
             setSubmissions(res.data);
+            const clientsRes = await api.get('/clients');
+            setClients(clientsRes.data);
         } catch (err) {
-            console.error("Failed to fetch submissions", err);
+            console.error("Failed to fetch data", err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleCreate = async () => {
+        setCreating(true);
+        try {
+            await api.post('/submissions/draft', {
+                client_id: newSub.clientId,
+                service_type: newSub.serviceType
+            });
+            setShowCreateModal(false);
+            setNewSub({ clientId: '', serviceType: 'SELF_DECLARE' });
+            fetchSubmissions();
+        } catch (err: any) {
+            alert(err.response?.data?.error || "Gagal membuat pengajuan");
+        } finally {
+            setCreating(false);
         }
     };
 
@@ -47,7 +70,12 @@ export default function SubmissionList() {
                     <p className="text-gray-500 text-sm">Track and manage halal certification requests</p>
                 </div>
                 <div className="flex gap-2">
-                    {/* Create Submission usually comes from Client context, but generic button here if needed */}
+                    <button 
+                        onClick={() => setShowCreateModal(true)}
+                        className="glass-button text-sm"
+                    >
+                        Buat Pengajuan Baru
+                    </button>
                 </div>
             </div>
 
@@ -90,6 +118,7 @@ export default function SubmissionList() {
                                     <div>
                                         <h4 className="font-semibold text-gray-800">{sub.client?.business_name || 'Unknown Client'}</h4>
                                         <div className="text-xs text-gray-500 font-mono mt-1">ID: {sub.client?.nib}</div>
+                                        <div className="text-xs text-gray-500 mt-1">Service: <span className="font-semibold">{sub.service_type || 'Unknown'}</span></div>
                                         <div className="text-xs text-gray-400 mt-1">Submitted: {new Date(sub.created_at).toLocaleDateString()}</div>
                                     </div>
                                 </div>
@@ -98,7 +127,7 @@ export default function SubmissionList() {
                                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${STATUS_COLORS[sub.status] || 'bg-gray-100'}`}>
                                         {sub.status.replace(/_/g, ' ')}
                                     </span>
-                                    <Link to={`/dashboard/submissions/${sub.id}`} className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
+                                    <Link to={`/dashboard/submissions/${sub.id}`} className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                                         <Eye className="w-5 h-5" />
                                     </Link>
                                 </div>
@@ -107,6 +136,51 @@ export default function SubmissionList() {
                     </div>
                 )}
             </div>
+            
+            {/* Create Modal */}
+            {showCreateModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+                        <h3 className="text-lg font-bold mb-4">Buat Pengajuan Baru</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Pilih Klien</label>
+                                <select 
+                                    className="glass-input w-full"
+                                    value={newSub.clientId}
+                                    onChange={e => setNewSub({...newSub, clientId: e.target.value})}
+                                >
+                                    <option value="">-- Pilih Klien --</option>
+                                    {clients.map(c => (
+                                        <option key={c.id} value={c.id}>{c.business_name} ({c.nib})</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Jenis Layanan</label>
+                                <select 
+                                    className="glass-input w-full"
+                                    value={newSub.serviceType}
+                                    onChange={e => setNewSub({...newSub, serviceType: e.target.value})}
+                                >
+                                    <option value="SELF_DECLARE">Self Declare</option>
+                                    <option value="REGULER">Reguler</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" onClick={() => setShowCreateModal(false)}>Batal</button>
+                            <button 
+                                className="glass-button" 
+                                disabled={!newSub.clientId || creating}
+                                onClick={handleCreate}
+                            >
+                                {creating ? 'Menyimpan...' : 'Buat Pengajuan'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

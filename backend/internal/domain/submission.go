@@ -25,8 +25,12 @@ type Submission struct {
 	ClientID            uuid.UUID        `gorm:"type:uuid" json:"client_id"`
 	Client              Client           `gorm:"foreignKey:ClientID" json:"client"`
 	Status              SubmissionStatus `json:"status"`
+	ServiceType         string           `json:"service_type"` // REGULER, SELF_DECLARE
 	CurrentAssigneeRole int              `json:"current_assignee_role"` // Role ID
+	RegencyID           *int64           `json:"regency_id,omitempty"`
+	DistrictID          *int64           `json:"district_id,omitempty"`
 	Payments            []Payment        `gorm:"foreignKey:SubmissionID" json:"payments"`
+	FieldValues         []FormFieldValue `gorm:"foreignKey:SubmissionID" json:"field_values,omitempty"`
 	CreatedAt           time.Time        `json:"created_at"`
 	UpdatedAt           time.Time        `json:"updated_at"`
 }

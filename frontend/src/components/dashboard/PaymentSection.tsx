@@ -1,135 +1,328 @@
-import { useState } from 'react';
-import { CreditCard, Upload, CheckCircle, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { CreditCard, Upload, CheckCircle, Loader2, AlertCircle, Clock, ExternalLink, RefreshCw } from 'lucide-react';
 import api from '../../services/api';
-import type { Submission } from '../../types';
+import { loadSnapJs, isSnapReady } from '../../utils/midtrans';
+import { useAuthStore } from '../../store/authStore';
+import type { Submission, Payment } from '../../types';
 
 interface PaymentSectionProps {
     submission: Submission;
     onPaymentSuccess: () => void;
 }
 
-declare global {
-    interface Window {
-        snap: any;
-    }
-}
-
 export default function PaymentSection({ submission, onPaymentSuccess }: PaymentSectionProps) {
     const [loading, setLoading] = useState(false);
     const [method, setMethod] = useState<'MANUAL' | 'MIDTRANS'>('MIDTRANS');
-    const [proofUrl, setProofUrl] = useState(''); // Simple text input for now, ideally file upload
+    const [proofUrl, setProofUrl] = useState('');
+    const [amount, setAmount] = useState(500000); // Default, can be made dynamic
+    const [snapLoading, setSnapLoading] = useState(false);
+    const [snapError, setSnapError] = useState<string | null>(null);
+    const [paymentHistory, setPaymentHistory] = useState<Payment[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+
+    const user = useAuthStore((state) => state.user);
+
+    // Load payment history for this submission
+    const loadHistory = useCallback(async () => {
+        setHistoryLoading(true);
+        try {
+            const res = await api.get(`/payments/submission/${submission.id}`);
+            setPaymentHistory(res.data || []);
+        } catch (err) {
+            console.error('Failed to load payment history:', err);
+        } finally {
+            setHistoryLoading(false);
+        }
+    }, [submission.id]);
+
+    useEffect(() => {
+        loadHistory();
+    }, [loadHistory]);
+
+    // Pre-load Snap.js when MIDTRANS method is selected
+    useEffect(() => {
+        if (method === 'MIDTRANS' && !isSnapReady()) {
+            setSnapLoading(true);
+            loadSnapJs()
+                .then(() => {
+                    setSnapLoading(false);
+                    setSnapError(null);
+                })
+                .catch((err) => {
+                    setSnapLoading(false);
+                    setSnapError(err.message);
+                });
+        }
+    }, [method]);
 
     const handlePay = async () => {
         setLoading(true);
         try {
             if (method === 'MIDTRANS') {
+                // Ensure Snap.js is loaded
+                if (!isSnapReady()) {
+                    await loadSnapJs();
+                }
+
                 const res = await api.post('/payments/midtrans', {
                     submission_id: submission.id,
-                    amount: 500000, // Fixed amount for example
-                    email: 'customer@example.com' // Should come from client data
+                    amount: amount,
+                    email: user?.email || submission.client?.phone || '',
+                    customer_name: user?.full_name || submission.client?.business_name || '',
+                    phone: submission.client?.phone || '',
                 });
-                const snapToken = res.data.snap_token;
 
-                window.snap.pay(snapToken, {
-                    onSuccess: function (result: any) {
-                        console.log('success', result);
-                        onPaymentSuccess();
-                    },
-                    onPending: function (result: any) {
-                        console.log('pending', result);
-                    },
-                    onError: function (result: any) {
-                        console.log('error', result);
-                        alert("Payment Failed");
-                    },
-                    onClose: function () {
-                        console.log('customer closed the popup without finishing the payment');
-                    }
-                });
+                const { snap_token: snapToken, snap_url: snapUrl } = res.data;
+
+                // Try Snap popup first
+                if (isSnapReady()) {
+                    window.snap.pay(snapToken, {
+                        onSuccess: function (_result: Record<string, unknown>) {
+                            onPaymentSuccess();
+                            loadHistory();
+                        },
+                        onPending: function (_result: Record<string, unknown>) {
+                            alert('Pembayaran sedang diproses. Status akan diperbarui secara otomatis.');
+                            loadHistory();
+                        },
+                        onError: function (_result: Record<string, unknown>) {
+                            alert('Pembayaran gagal. Silakan coba lagi.');
+                            loadHistory();
+                        },
+                        onClose: function () {
+                            // Customer closed the popup without finishing payment
+                            loadHistory();
+                        },
+                    });
+                } else if (snapUrl) {
+                    // Fallback: redirect to Midtrans payment page
+                    window.open(snapUrl, '_blank');
+                }
             } else {
+                // Manual payment
                 await api.post('/payments/manual', {
                     submission_id: submission.id,
-                    amount: 500000,
+                    amount: amount,
                     proof_url: proofUrl,
                 });
-                alert("Payment proof uploaded. Waiting for verification.");
+                alert('Bukti pembayaran berhasil dikirim. Menunggu verifikasi admin.');
                 onPaymentSuccess();
+                loadHistory();
             }
         } catch (err) {
             console.error(err);
-            alert("Payment creation failed");
+            alert('Gagal membuat pembayaran. Silakan coba lagi.');
         } finally {
             setLoading(false);
         }
     };
 
-    const paidPayment = submission.payments?.find(p => p.status === 'PAID');
-    const pendingPayment = submission.payments?.find(p => p.status === 'PENDING');
+    // Check for existing paid/pending payments
+    const paidPayment = paymentHistory.find(p => p.status === 'PAID') || submission.payments?.find(p => p.status === 'PAID');
+    const pendingPayment = paymentHistory.find(p => p.status === 'PENDING') || submission.payments?.find(p => p.status === 'PENDING');
 
+    // Show "Payment Completed" state
     if (paidPayment) {
         return (
-            <div className="glass-panel p-6 bg-green-50 border-green-200">
+            <div className="glass-panel p-6 bg-green-50 border-green-200 space-y-4">
                 <div className="flex items-center gap-3 text-green-800">
                     <CheckCircle className="w-6 h-6" />
-                    <h3 className="text-lg font-bold">Payment Completed</h3>
+                    <h3 className="text-lg font-bold">Pembayaran Selesai</h3>
                 </div>
-                <p className="text-sm text-green-700 mt-2">Amount: Rp {paidPayment.amount.toLocaleString()}</p>
+                <div className="space-y-1">
+                    <p className="text-sm text-green-700">
+                        Jumlah: <span className="font-semibold">Rp {paidPayment.amount.toLocaleString('id-ID')}</span>
+                    </p>
+                    {paidPayment.payment_type && (
+                        <p className="text-sm text-green-700">
+                            Metode: <span className="font-semibold capitalize">{paidPayment.payment_type.replace(/_/g, ' ')}</span>
+                        </p>
+                    )}
+                    {paidPayment.paid_at && (
+                        <p className="text-sm text-green-600">
+                            Dibayar: {new Date(paidPayment.paid_at).toLocaleDateString('id-ID', {
+                                day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                            })}
+                        </p>
+                    )}
+                </div>
             </div>
         );
     }
 
-    // If pending, show status
+    // Show "Waiting for Verification" state (manual payment pending)
     if (pendingPayment && pendingPayment.method === 'MANUAL') {
         return (
-            <div className="glass-panel p-6 bg-yellow-50 border-yellow-200">
-                <h3 className="text-lg font-bold text-yellow-800">Waiting For Verification</h3>
-                <p className="text-sm text-yellow-700">Manual payment proof uploaded. Please wait for admin approval.</p>
+            <div className="glass-panel p-6 bg-yellow-50 border-yellow-200 space-y-3">
+                <div className="flex items-center gap-3 text-yellow-800">
+                    <Clock className="w-6 h-6" />
+                    <h3 className="text-lg font-bold">Menunggu Verifikasi</h3>
+                </div>
+                <p className="text-sm text-yellow-700">Bukti pembayaran manual telah dikirim. Menunggu persetujuan admin.</p>
+                <p className="text-sm text-yellow-600">Jumlah: Rp {pendingPayment.amount.toLocaleString('id-ID')}</p>
             </div>
         );
     }
 
-    return (
-        <div className="glass-panel p-6 space-y-4">
-            <h3 className="text-lg font-semibold text-gray-800">Payment Required</h3>
-            <p className="text-sm text-gray-500">Please complete the payment to proceed with verification.</p>
+    // Show "Midtrans Payment Pending" state
+    if (pendingPayment && pendingPayment.method === 'MIDTRANS') {
+        return (
+            <div className="glass-panel p-6 bg-blue-50 border-blue-200 space-y-4">
+                <div className="flex items-center gap-3 text-blue-800">
+                    <Clock className="w-6 h-6" />
+                    <h3 className="text-lg font-bold">Pembayaran Sedang Diproses</h3>
+                </div>
+                <p className="text-sm text-blue-700">Transaksi online sedang menunggu pembayaran.</p>
+                <div className="flex gap-2">
+                    {pendingPayment.snap_url && (
+                        <a
+                            href={pendingPayment.snap_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                        >
+                            <ExternalLink className="w-4 h-4" />
+                            Lanjutkan Pembayaran
+                        </a>
+                    )}
+                    <button
+                        onClick={loadHistory}
+                        className="flex items-center gap-2 px-4 py-2 border border-blue-300 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
+                    >
+                        <RefreshCw className="w-4 h-4" />
+                        Refresh Status
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
+    // Default: Show payment form
+    return (
+        <div className="glass-panel p-6 space-y-5">
+            <div>
+                <h3 className="text-lg font-semibold text-gray-800">Pembayaran Diperlukan</h3>
+                <p className="text-sm text-gray-500 mt-1">Silakan selesaikan pembayaran untuk melanjutkan proses verifikasi.</p>
+            </div>
+
+            {/* Amount input */}
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah Pembayaran (Rp)</label>
+                <input
+                    type="number"
+                    className="glass-input"
+                    value={amount}
+                    onChange={(e) => setAmount(Number(e.target.value))}
+                    min={1}
+                />
+            </div>
+
+            {/* Method selector */}
             <div className="flex gap-4">
                 <button
                     onClick={() => setMethod('MIDTRANS')}
-                    className={`flex-1 p-4 rounded-xl border-2 flex flex-col items-center gap-2 ${method === 'MIDTRANS' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-gray-200 hover:border-gray-300'}`}
+                    className={`flex-1 p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${method === 'MIDTRANS'
+                            ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-sm'
+                            : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                        }`}
                 >
                     <CreditCard className="w-6 h-6" />
-                    <span className="font-medium">Online Payment</span>
+                    <span className="font-medium text-sm">Bayar Online</span>
+                    <span className="text-xs opacity-70">QRIS, Transfer, E-Wallet</span>
                 </button>
                 <button
                     onClick={() => setMethod('MANUAL')}
-                    className={`flex-1 p-4 rounded-xl border-2 flex flex-col items-center gap-2 ${method === 'MANUAL' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-gray-200 hover:border-gray-300'}`}
+                    className={`flex-1 p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${method === 'MANUAL'
+                            ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-sm'
+                            : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                        }`}
                 >
                     <Upload className="w-6 h-6" />
-                    <span className="font-medium">Manual Transfer</span>
+                    <span className="font-medium text-sm">Transfer Manual</span>
+                    <span className="text-xs opacity-70">Upload bukti transfer</span>
                 </button>
             </div>
 
-            {method === 'MANUAL' && (
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">Proof URL (Simulated)</label>
-                    <input
-                        type="text"
-                        className="glass-input"
-                        placeholder="https://example.com/receipt.jpg"
-                        value={proofUrl}
-                        onChange={(e) => setProofUrl(e.target.value)}
-                    />
+            {/* Snap.js loading indicator */}
+            {method === 'MIDTRANS' && snapLoading && (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Loader2 className="animate-spin w-4 h-4" />
+                    Memuat sistem pembayaran...
+                </div>
+            )}
+            {method === 'MIDTRANS' && snapError && (
+                <div className="flex items-center gap-2 text-sm text-red-600">
+                    <AlertCircle className="w-4 h-4" />
+                    {snapError}. Anda akan diarahkan ke halaman pembayaran Midtrans.
                 </div>
             )}
 
+            {/* Manual payment: proof URL input */}
+            {method === 'MANUAL' && (
+                <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">URL Bukti Pembayaran</label>
+                    <input
+                        type="text"
+                        className="glass-input"
+                        placeholder="https://example.com/bukti-transfer.jpg"
+                        value={proofUrl}
+                        onChange={(e) => setProofUrl(e.target.value)}
+                    />
+                    <p className="text-xs text-gray-400">Upload bukti transfer ke cloud storage lalu tempelkan URL-nya di sini.</p>
+                </div>
+            )}
+
+            {/* Pay button */}
             <button
                 onClick={handlePay}
-                disabled={loading || (method === 'MANUAL' && !proofUrl)}
-                className="w-full glass-button bg-brand-600 text-white hover:bg-brand-700 font-bold py-3 flex items-center justify-center gap-2"
+                disabled={loading || (method === 'MANUAL' && !proofUrl) || amount <= 0}
+                className="w-full glass-button bg-brand-600 text-white hover:bg-brand-700 font-bold py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
-                {loading ? <Loader2 className="animate-spin w-5 h-5" /> : `Pay Rp 500,000`}
+                {loading ? (
+                    <Loader2 className="animate-spin w-5 h-5" />
+                ) : (
+                    <>
+                        <CreditCard className="w-5 h-5" />
+                        Bayar Rp {amount.toLocaleString('id-ID')}
+                    </>
+                )}
             </button>
+
+            {/* Payment History */}
+            {paymentHistory.length > 0 && (
+                <div className="border-t border-gray-100 pt-4 mt-4">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Riwayat Pembayaran</h4>
+                    <div className="space-y-2">
+                        {paymentHistory.map((p) => (
+                            <div key={p.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm">
+                                <div className="flex items-center gap-2">
+                                    <span className={`w-2 h-2 rounded-full ${p.status === 'PAID' ? 'bg-green-500' :
+                                            p.status === 'PENDING' ? 'bg-yellow-500' : 'bg-red-500'
+                                        }`} />
+                                    <span className="text-gray-700 capitalize">
+                                        {p.method === 'MIDTRANS' ? 'Online' : 'Manual'}
+                                        {p.payment_type && ` (${p.payment_type.replace(/_/g, ' ')})`}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <span className="font-medium text-gray-800">Rp {p.amount.toLocaleString('id-ID')}</span>
+                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${p.status === 'PAID' ? 'bg-green-100 text-green-800' :
+                                            p.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                                                'bg-red-100 text-red-800'
+                                        }`}>
+                                        {p.status}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    {historyLoading && (
+                        <div className="flex items-center justify-center py-2">
+                            <Loader2 className="animate-spin w-4 h-4 text-gray-400" />
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

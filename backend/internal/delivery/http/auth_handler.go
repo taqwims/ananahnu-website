@@ -42,7 +42,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	accessToken, refreshToken, err := h.authUseCase.Login(input.Email, input.Password)
+	accessToken, refreshToken, user, err := h.authUseCase.Login(input.Email, input.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
@@ -51,6 +51,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
+		"user": gin.H{
+			"id":        user.ID,
+			"email":     user.Email,
+			"full_name": user.FullName,
+			"role":      user.Role.Name,
+		},
 	})
 }
 

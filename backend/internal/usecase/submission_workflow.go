@@ -8,7 +8,7 @@ import (
 )
 
 type SubmissionWorkflowUsecase interface {
-	CreateDraft(clientID uuid.UUID) (*domain.Submission, error)
+	CreateDraft(clientID uuid.UUID, serviceType string) (*domain.Submission, error)
 	Submit(id uuid.UUID, userID uuid.UUID, userRole string) error
 	Approve(id uuid.UUID, userID uuid.UUID, userRole string) error
 	Reject(id uuid.UUID, userID uuid.UUID, userRole string, note string) error
@@ -43,11 +43,12 @@ func (uc *submissionWorkflowUsecase) logChange(id uuid.UUID, userID uuid.UUID, a
 	})
 }
 
-func (uc *submissionWorkflowUsecase) CreateDraft(clientID uuid.UUID) (*domain.Submission, error) {
+func (uc *submissionWorkflowUsecase) CreateDraft(clientID uuid.UUID, serviceType string) (*domain.Submission, error) {
 	submission := &domain.Submission{
-		ID:       uuid.New(),
-		ClientID: clientID,
-		Status:   domain.StatusDraft,
+		ID:          uuid.New(),
+		ClientID:    clientID,
+		Status:      domain.StatusDraft,
+		ServiceType: serviceType,
 	}
 	// Default Assignee: Pendamping (who creates it) or Client? 
 	// For now let's say Pendamping creates it.
@@ -68,33 +69,12 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 		return errors.New("submission is not in DRAFT or REVISION state")
 	}
 
-	// Transition: DRAFT -> VERVAL_PENDAMPING
-	// Assignee: Pendamping (Self) or QC? Check plan.
-	// Plan: DRAFT -> Submit -> VERVAL_PENDAMPING. 
-	// NOTE: VERVAL_PENDAMPING means "Waiting for Pendamping Verification" or "In Pendamping Verification"?
-	// If Pendamping submits, it implies they are done? Or maybe Client submits -> Pendamping Verifies.
-	// Let's assume: Client/Marketing Submits -> VERVAL_PENDAMPING.
-	
-	// Target Status: VERVAL_PENDAMPING
-	nextStatus := domain.StatusVervalPendamping
-	
-	// Find Role ID for who needs to act next (Pendamping)
-	// Assuming Pendamping = FACILITATOR or similar.
-	// Wait, the Actors in plan are: Pendamping, QC Officer, Drafter, Fatwa.
-	// So if status is VERVAL_PENDAMPING, the assignee is Pendamping.
-	
-	// But if Pendamping is the one submitting, shouldn't it go to QC?
-	// Plan table: 
-	// DRAFT | Submit | Pendamping | VERVAL_PENDAMPING ??
-	// This implies Pendamping starts from Draft, and moves to "Verval Mode".
-	
-	// Or maybe: Client submits -> DRAFT. Pendamping picks up -> VERVAL.
-	// Let's stick to the Table literally.
-	// "Submit" action triggers DRAFT -> VERVAL_PENDAMPING.
-	
-	// We need Role ID for "PENDAMPING" (FACILITATOR?) or maybe we don't strictly assign ID yet if dynamic.
-	// Let's just update Status.
-	
+	// Transition: DRAFT -> WAITING_PAYMENT
+	// Payment must be completed before moving to VERVAL_PENDAMPING.
+	// The payment usecase (HandleMidtransNotification or VerifyManualPayment)
+	// will transition the submission to VERVAL_PENDAMPING upon successful payment.
+	nextStatus := domain.StatusWaitingPayment
+
 	err = uc.submissionRepo.UpdateStatus(id, nextStatus, 0)
 	if err == nil {
 		uc.logChange(id, userID, "SUBMIT", sub.Status, nextStatus, "")
@@ -159,10 +139,7 @@ func (uc *submissionWorkflowUsecase) Reject(id uuid.UUID, userID uuid.UUID, user
 	case domain.StatusQCOfficer:
 		nextStatus = domain.StatusVervalPendamping // Back to Pendamping
 	case domain.StatusDrafter:
-		nextStatus = domain.StatusQCOfficer // Back to QC? Or Revision?
-		// Plan says: "Verify failed, back to Drafter" -> Wait, Verifikator -> Drafter.
-		// Detailed Plan:
-		// QC Reject -> VERVAL_PENDAMPING
+		nextStatus = domain.StatusVervalPendamping // Drafter sends back to Pendamping for fixes
 	default:
 		// Default fallback
 		nextStatus = domain.StatusRevision

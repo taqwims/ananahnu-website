@@ -30,12 +30,8 @@ export default function LoginPage() {
         setError('');
         try {
             const response = await api.post('/auth/login', data);
-            const { user, access_token } = response.data; // Ensure backend returns this structure
-            // Wait, backend returns { token, refresh_token } usually.
-            // Need to verify backend response structure from auth_handler.go
-            // Assuming { access_token, refresh_token, user: {...} } or simply checking/decoding token.
-            // For now, let's assume standard response.
-            setAuth(user || { id: '1', email: data.email, full_name: 'User', role: 'ADMIN' }, access_token);
+            const { user, access_token } = response.data;
+            setAuth(user, access_token);
             navigate('/dashboard');
         } catch (err: any) {
             setError(err.response?.data?.error || 'Login failed. Please check your credentials.');

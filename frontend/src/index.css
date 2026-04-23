@@ -1,40 +1,40 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-50: #f0fdf4;
-  --color-brand-100: #dcfce7;
-  --color-brand-200: #bbf7d0;
-  --color-brand-300: #86efac;
-  --color-brand-400: #4ade80;
-  --color-brand-500: #22c55e;
-  --color-brand-600: #16a34a;
-  --color-brand-700: #15803d;
-  --color-brand-800: #166534;
-  --color-brand-900: #14532d;
+  --color-brand-50: #fafafa;
+  --color-brand-100: #f4f4f5;
+  --color-brand-200: #e4e4e7;
+  --color-brand-300: #d4d4d8;
+  --color-brand-400: #a1a1aa;
+  --color-brand-500: #71717a;
+  --color-brand-600: #52525b;
+  --color-brand-700: #3f3f46;
+  --color-brand-800: #27272a;
+  --color-brand-900: #18181b;
 
-  --color-glass-100: rgba(255, 255, 255, 0.2);
-  --color-glass-200: rgba(255, 255, 255, 0.4);
-  --color-glass-300: rgba(255, 255, 255, 0.6);
-  --color-glass-border: rgba(255, 255, 255, 0.4);
-  --color-glass-text: rgba(0, 0, 0, 0.8);
+  --color-glass-100: rgba(255, 255, 255, 0.8);
+  --color-glass-200: rgba(255, 255, 255, 0.9);
+  --color-glass-300: rgba(255, 255, 255, 1);
+  --color-glass-border: rgba(228, 228, 231, 0.6);
+  --color-glass-text: rgba(24, 24, 27, 0.9);
 }
 
 @layer base {
   body {
-    @apply bg-gradient-to-br from-brand-50 to-brand-100 min-h-screen text-gray-800 antialiased font-sans;
+    @apply bg-brand-50 min-h-screen text-gray-800 antialiased font-sans;
   }
 }
 
 @layer components {
   .glass-panel {
-    @apply bg-glass-100 backdrop-blur-md border border-glass-border rounded-xl shadow-lg;
+    @apply bg-white border border-gray-200 rounded-xl shadow-sm;
   }
 
   .glass-button {
-    @apply px-4 py-2 rounded-lg bg-brand-500 text-white font-medium shadow-md hover:bg-brand-600 transition-all active:scale-95;
+    @apply px-4 py-2 rounded-lg bg-gray-900 text-white font-medium shadow-sm hover:bg-gray-800 transition-all active:scale-95;
   }
 
   .glass-input {
-    @apply w-full px-4 py-2 rounded-lg bg-white/50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all;
+    @apply w-full px-4 py-2 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all;
   }
 }

@@ -38,3 +38,11 @@ func (r *userRepository) FindByID(id uuid.UUID) (*domain.User, error) {
 func (r *userRepository) Update(user *domain.User) error {
 	return r.db.Save(user).Error
 }
+
+func (r *userRepository) FindByLeaderID(leaderID uuid.UUID) ([]domain.User, error) {
+	var users []domain.User
+	if err := r.db.Preload("Role").Where("leader_id = ?", leaderID).Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
+}
