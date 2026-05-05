@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { GraduationCap, Plus, Loader2, Users, CheckCircle, Clock, MapPin, Calendar, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 import type { Training, TrainingParticipant } from '../../types';
+import { useAuthStore } from '../../store/authStore';
 
 export default function TrainingAdmin() {
     const [trainings, setTrainings] = useState<Training[]>([]);
@@ -13,6 +14,8 @@ export default function TrainingAdmin() {
     const [saving, setSaving] = useState(false);
     const [form, setForm] = useState({ title: '', description: '', start_date: '', end_date: '', location: '' });
     const [newUserID, setNewUserID] = useState('');
+    const user = useAuthStore(state => state.user);
+    const isCoordinator = user?.role === 'KOORDINATOR';
 
     const loadTrainings = () => {
         setLoading(true);
@@ -97,9 +100,11 @@ export default function TrainingAdmin() {
                     </h1>
                     <p className="text-sm text-gray-500 mt-1">Kelola jadwal pelatihan dan peserta</p>
                 </div>
-                <button onClick={() => setShowForm(true)} className="glass-button flex items-center gap-2 text-sm">
-                    <Plus className="w-4 h-4" /> Buat Pelatihan
-                </button>
+                {!isCoordinator && (
+                    <button onClick={() => setShowForm(true)} className="glass-button flex items-center gap-2 text-sm">
+                        <Plus className="w-4 h-4" /> Buat Pelatihan
+                    </button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -119,12 +124,14 @@ export default function TrainingAdmin() {
                         >
                             <div className="flex items-start justify-between">
                                 <h3 className="font-semibold text-gray-800 text-sm">{t.title}</h3>
-                                <button
-                                    onClick={e => { e.stopPropagation(); handleDelete(t.id); }}
-                                    className="p-1 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                                {!isCoordinator && (
+                                    <button
+                                        onClick={e => { e.stopPropagation(); handleDelete(t.id); }}
+                                        className="p-1 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                )}
                             </div>
                             <div className="mt-2 space-y-1 text-xs text-gray-500">
                                 <p className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {formatDate(t.start_date)} - {formatDate(t.end_date)}</p>

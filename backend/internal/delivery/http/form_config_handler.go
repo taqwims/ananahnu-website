@@ -1,6 +1,7 @@
 package http
 
 import (
+	"ananahnu/internal/delivery/middleware"
 	"ananahnu/internal/domain"
 	"ananahnu/internal/usecase"
 	"net/http"
@@ -26,9 +27,13 @@ func NewFormConfigHandler(r *gin.Engine, uc usecase.FormConfigUsecase) {
 		g.DELETE("/:id", handler.DeleteField)
 	}
 
-	// Submission field values (separate path to avoid conflict with /submissions/:id)
-	r.POST("/submission-fields/:submissionId", handler.SubmitFieldValues)
-	r.GET("/submission-fields/:submissionId", handler.GetFieldValues)
+	// Submission field values
+	f := r.Group("/submission-fields")
+	f.Use(middleware.AuthMiddleware())
+	{
+		f.POST("/:submissionId", handler.SubmitFieldValues)
+		f.GET("/:submissionId", handler.GetFieldValues)
+	}
 }
 
 // GetConfig returns all form field configs for a given form type.
@@ -111,8 +116,7 @@ func (h *FormConfigHandler) SubmitFieldValues(c *gin.Context) {
 		return
 	}
 
-	// TODO: Extract uploaderID from JWT context when auth middleware is implemented
-	uploaderID := uuid.Nil
+	uploaderID := middleware.GetUserID(c)
 
 	if err := h.formConfigUC.SubmitFieldValues(subID, uploaderID, inputs); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

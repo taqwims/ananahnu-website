@@ -47,7 +47,9 @@ func (r *paymentRepository) FindAll(filter map[string]interface{}, page, limit i
 	var payments []domain.Payment
 	var count int64
 
-	query := r.db.Model(&domain.Payment{})
+	query := r.db.Model(&domain.Payment{}).
+		Preload("Invoices.Submission.Client").
+		Preload("Invoices.Payer")
 	if len(filter) > 0 {
 		query = query.Where(filter)
 	}

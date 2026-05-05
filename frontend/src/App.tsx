@@ -17,18 +17,25 @@ import DashboardHome from './pages/dashboard/DashboardHome';
 import ClientList from './pages/dashboard/ClientList';
 import ClientForm from './pages/dashboard/ClientForm';
 import SubmissionList from './pages/dashboard/SubmissionList';
+import SubmissionCreate from './pages/dashboard/SubmissionCreate';
 import SubmissionDetail from './pages/dashboard/SubmissionDetail';
+import CoordinatorRates from './pages/dashboard/CoordinatorRates';
+import MyInvoices from './pages/dashboard/MyInvoices';
+import InvoiceList from './pages/dashboard/InvoiceList';
 import CMSDashboard from './pages/dashboard/CMSDashboard';
 import PublicLayout from './components/layout/PublicLayout';
 import LandingPage from './pages/landing/LandingPage';
 
-// New pages
+// Feature pages
 import FormConfigAdmin from './pages/dashboard/FormConfigAdmin';
+import BillingConfigAdmin from './pages/dashboard/BillingConfigAdmin';
 import ConsultantProfilePage from './pages/dashboard/ConsultantProfile';
 import TrainingAdmin from './pages/dashboard/TrainingAdmin';
 import FinanceDashboard from './pages/dashboard/FinanceDashboard';
 import GeographyAdmin from './pages/dashboard/GeographyAdmin';
 import CoordinatorDashboard from './pages/dashboard/CoordinatorDashboard';
+import PaymentDashboard from './pages/dashboard/PaymentDashboard';
+import UserManagement from './pages/dashboard/UserManagement';
 
 function App() {
   return (
@@ -47,17 +54,24 @@ function App() {
           <Route path="clients/:id" element={<ClientForm />} />
 
           <Route path="submissions" element={<SubmissionList />} />
+          <Route path="submissions/new" element={<SubmissionCreate />} />
           <Route path="submissions/:id" element={<SubmissionDetail />} />
+          <Route path="coordinator-rates" element={<CoordinatorRates />} />
+          <Route path="my-invoices" element={<MyInvoices />} />
 
           <Route path="cms" element={<CMSDashboard />} />
 
-          {/* New Routes */}
+          {/* Feature Routes */}
           <Route path="form-config" element={<FormConfigAdmin />} />
+          <Route path="billing-config" element={<BillingConfigAdmin />} />
           <Route path="consultant-profile" element={<ConsultantProfilePage />} />
           <Route path="training" element={<TrainingAdmin />} />
           <Route path="finance" element={<FinanceDashboard />} />
           <Route path="geography" element={<GeographyAdmin />} />
           <Route path="team" element={<CoordinatorDashboard />} />
+          <Route path="payments" element={<PaymentDashboard />} />
+          <Route path="all-invoices" element={<InvoiceList />} />
+          <Route path="users" element={<UserManagement />} />
         </Route>
 
         {/* Public Routes */}

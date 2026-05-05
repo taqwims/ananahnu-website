@@ -28,6 +28,8 @@ type PaymentUsecase interface {
 	VerifyManualPayment(paymentID int64, approved bool, verifierID uuid.UUID) error
 	GetPaymentsBySubmission(submissionID uuid.UUID) ([]domain.Payment, error)
 	GetAllPayments(filter map[string]interface{}, page, limit int) ([]domain.Payment, int64, error)
+	SyncPaymentStatus(paymentID int64) error
+	InitiateBulkPayment(invoiceIDs []int64, payerID uuid.UUID) (*domain.Payment, error)
 }
 
 // --- Implementation ---
@@ -35,21 +37,35 @@ type PaymentUsecase interface {
 type paymentUsecase struct {
 	paymentRepo    domain.PaymentRepository
 	submissionRepo domain.SubmissionRepository
+	auditRepo      domain.AuditLogRepository
 	midtrans       midtransPkg.PaymentGateway
+	invoiceRepo    domain.InvoiceRepository
 }
 
-func NewPaymentUsecase(p domain.PaymentRepository, s domain.SubmissionRepository, m midtransPkg.PaymentGateway) PaymentUsecase {
+func NewPaymentUsecase(p domain.PaymentRepository, s domain.SubmissionRepository, a domain.AuditLogRepository, m midtransPkg.PaymentGateway, i domain.InvoiceRepository) PaymentUsecase {
 	return &paymentUsecase{
 		paymentRepo:    p,
 		submissionRepo: s,
+		auditRepo:      a,
 		midtrans:       m,
+		invoiceRepo:    i,
 	}
+}
+
+func (uc *paymentUsecase) logPaymentActivity(submissionID uuid.UUID, action, note string) {
+	uc.auditRepo.Create(&domain.AuditLog{
+		UserID:     uuid.Nil, // System or current user
+		Action:     action,
+		EntityType: "SUBMISSION",
+		EntityID:   submissionID.String(),
+		Notes:      note,
+	})
 }
 
 // CreateManualPayment creates a manual transfer payment with a proof URL.
 func (uc *paymentUsecase) CreateManualPayment(submissionID uuid.UUID, amount float64, proofURL string) error {
 	payment := &domain.Payment{
-		SubmissionID: submissionID,
+		SubmissionID: &submissionID,
 		Amount:       amount,
 		Method:       domain.PaymentMethodManual,
 		Status:       domain.PaymentStatusPending,
@@ -86,11 +102,12 @@ func (uc *paymentUsecase) CreateMidtransPayment(submissionID uuid.UUID, amount f
 
 	result, err := uc.midtrans.CreateSnapTransaction(orderID, int64(amount), customer, items)
 	if err != nil {
+		log.Printf("[MIDTRANS] Failed to create transaction for order %s: %v", orderID, err)
 		return nil, fmt.Errorf("failed to create snap transaction: %w", err)
 	}
 
 	payment := &domain.Payment{
-		SubmissionID: submissionID,
+		SubmissionID: &submissionID,
 		Amount:       amount,
 		Method:       domain.PaymentMethodMidtrans,
 		Status:       domain.PaymentStatusPending,
@@ -102,6 +119,8 @@ func (uc *paymentUsecase) CreateMidtransPayment(submissionID uuid.UUID, amount f
 	if err := uc.paymentRepo.Create(payment); err != nil {
 		return nil, fmt.Errorf("failed to save payment record: %w", err)
 	}
+
+	uc.logPaymentActivity(submissionID, "PAYMENT_INITIATED", fmt.Sprintf("Pembayaran Midtrans dimulai: Rp %.2f (Order ID: %s)", amount, orderID))
 
 	return &MidtransPaymentResult{
 		SnapToken: result.Token,
@@ -183,13 +202,21 @@ func (uc *paymentUsecase) HandleMidtransNotification(payload map[string]interfac
 	log.Printf("[MIDTRANS WEBHOOK] Order %s: %s -> %s (midtrans: %s)",
 		orderID, previousStatus, payment.Status, txStatus.TransactionStatus)
 
-	// Step 6: If payment succeeded, transition submission to next state
+	// Step 6: If payment succeeded, update invoices and transition submission
 	if payment.Status == domain.PaymentStatusPaid && previousStatus != domain.PaymentStatusPaid {
-		if err := uc.submissionRepo.UpdateStatus(payment.SubmissionID, domain.StatusVervalPendamping, 0); err != nil {
-			log.Printf("[MIDTRANS WEBHOOK] Failed to transition submission %s: %v", payment.SubmissionID, err)
-			return fmt.Errorf("failed to transition submission: %w", err)
+		// Update linked invoices
+		if err := uc.updateLinkedInvoices(payment.ID); err != nil {
+			log.Printf("[MIDTRANS WEBHOOK] Failed to update linked invoices for payment %d: %v", payment.ID, err)
 		}
-		log.Printf("[MIDTRANS WEBHOOK] Submission %s transitioned to VERVAL_PENDAMPING", payment.SubmissionID)
+
+		if payment.SubmissionID != nil {
+			if err := uc.submissionRepo.UpdateStatus(*payment.SubmissionID, domain.StatusVervalPendamping, 0); err != nil {
+				log.Printf("[MIDTRANS WEBHOOK] Failed to transition submission %s: %v", *payment.SubmissionID, err)
+				return fmt.Errorf("failed to transition submission: %w", err)
+			}
+			uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_SUCCESS", fmt.Sprintf("Pembayaran Midtrans berhasil: Rp %.2f", payment.Amount))
+			log.Printf("[MIDTRANS WEBHOOK] Submission %s transitioned to VERVAL_PENDAMPING", *payment.SubmissionID)
+		}
 	}
 
 	return nil
@@ -222,14 +249,22 @@ func (uc *paymentUsecase) VerifyManualPayment(paymentID int64, approved bool, ve
 		return fmt.Errorf("failed to update payment: %w", err)
 	}
 
-	// Transition submission on approval
+	// Transition and Update Invoices on approval
 	if approved {
-		if err := uc.submissionRepo.UpdateStatus(payment.SubmissionID, domain.StatusVervalPendamping, 0); err != nil {
-			log.Printf("[MANUAL VERIFY] Failed to transition submission %s: %v", payment.SubmissionID, err)
-			return fmt.Errorf("failed to transition submission: %w", err)
+		// Update linked invoices
+		uc.updateLinkedInvoices(payment.ID)
+
+		if payment.SubmissionID != nil {
+			if err := uc.submissionRepo.UpdateStatus(*payment.SubmissionID, domain.StatusVervalPendamping, 0); err != nil {
+				log.Printf("[MANUAL VERIFY] Failed to transition submission %s: %v", *payment.SubmissionID, err)
+				return fmt.Errorf("failed to transition submission: %w", err)
+			}
+			uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_APPROVED", fmt.Sprintf("Pembayaran manual disetujui: Rp %.2f", payment.Amount))
+			log.Printf("[MANUAL VERIFY] Payment %d approved by %s, submission %s -> VERVAL_PENDAMPING",
+				paymentID, verifierID, *payment.SubmissionID)
 		}
-		log.Printf("[MANUAL VERIFY] Payment %d approved by %s, submission %s -> VERVAL_PENDAMPING",
-			paymentID, verifierID, payment.SubmissionID)
+	} else if !approved && payment.SubmissionID != nil {
+		uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_REJECTED", fmt.Sprintf("Pembayaran manual ditolak: Rp %.2f", payment.Amount))
 	}
 
 	return nil
@@ -243,4 +278,122 @@ func (uc *paymentUsecase) GetPaymentsBySubmission(submissionID uuid.UUID) ([]dom
 // GetAllPayments returns a paginated list of all payments (for admin/finance dashboard).
 func (uc *paymentUsecase) GetAllPayments(filter map[string]interface{}, page, limit int) ([]domain.Payment, int64, error) {
 	return uc.paymentRepo.FindAll(filter, page, limit)
+}
+
+// SyncPaymentStatus manually queries Midtrans API to update the local payment status.
+func (uc *paymentUsecase) SyncPaymentStatus(paymentID int64) error {
+	payment, err := uc.paymentRepo.FindByID(paymentID)
+	if err != nil {
+		return err
+	}
+
+	if payment.Status == domain.PaymentStatusPaid {
+		return nil // Already paid
+	}
+
+	txStatus, err := uc.midtrans.CheckTransactionStatus(payment.ExternalID)
+	if err != nil {
+		return err
+	}
+
+	previousStatus := payment.Status
+	
+	// Map status (Reuse logic from webhook or extract to helper)
+	switch txStatus.TransactionStatus {
+	case "capture", "settlement":
+		if txStatus.FraudStatus == "accept" || txStatus.FraudStatus == "" {
+			payment.Status = domain.PaymentStatusPaid
+		}
+	case "deny", "cancel", "expire":
+		payment.Status = domain.PaymentStatusFailed
+	}
+
+	if payment.Status == domain.PaymentStatusPaid {
+		now := time.Now()
+		payment.PaidAt = &now
+		payment.PaymentType = txStatus.PaymentType
+		payment.MidtransID = txStatus.TransactionID
+		
+		if err := uc.paymentRepo.Update(payment); err != nil {
+			return err
+		}
+
+		// Transition and Update Invoices
+		if previousStatus != domain.PaymentStatusPaid {
+			// Update linked invoices
+			uc.updateLinkedInvoices(payment.ID)
+
+			if payment.SubmissionID != nil {
+				uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_SYNCED", fmt.Sprintf("Status pembayaran disinkronisasi: PAID (Rp %.2f)", payment.Amount))
+				return uc.submissionRepo.UpdateStatus(*payment.SubmissionID, domain.StatusVervalPendamping, 0)
+			}
+		}
+	}
+	return nil
+}
+
+func (uc *paymentUsecase) InitiateBulkPayment(invoiceIDs []int64, payerID uuid.UUID) (*domain.Payment, error) {
+	invoices, err := uc.invoiceRepo.FindByIDs(invoiceIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(invoices) == 0 {
+		return nil, errors.New("no invoices found")
+	}
+
+	var totalAmount float64
+	for _, inv := range invoices {
+		if inv.Status == domain.InvoiceStatusPaid {
+			return nil, fmt.Errorf("invoice %d is already paid", inv.ID)
+		}
+		totalAmount += inv.Amount
+	}
+
+	// Create Payment record
+	payment := &domain.Payment{
+		Amount:     totalAmount,
+		Method:     domain.PaymentMethodMidtrans,
+		Status:     domain.PaymentStatusPending,
+		ExternalID: fmt.Sprintf("BULK-%d", time.Now().UnixNano()),
+	}
+
+	// Midtrans request
+	midtransRes, err := uc.midtrans.CreateSnapTransaction(payment.ExternalID, int64(totalAmount), midtransPkg.CustomerDetail{
+		FirstName: "Coordinator",
+		Email:     "coordinator@ananahnu.com",
+	}, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	payment.SnapToken = midtransRes.Token
+	payment.SnapURL = midtransRes.RedirectURL
+
+	if err := uc.paymentRepo.Create(payment); err != nil {
+		return nil, err
+	}
+
+	// Link Invoices to this Payment
+	for _, inv := range invoices {
+		inv.PaymentID = &payment.ID
+		uc.invoiceRepo.Update(&inv)
+	}
+
+	return payment, nil
+}
+
+func (uc *paymentUsecase) updateLinkedInvoices(paymentID int64) error {
+	invoices, _, err := uc.invoiceRepo.FindAll(map[string]interface{}{"payment_id": paymentID}, 1, 1000)
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	for _, inv := range invoices {
+		inv.Status = domain.InvoiceStatusPaid
+		inv.PaidAt = &now
+		uc.invoiceRepo.Update(&inv)
+	}
+	return nil
 }

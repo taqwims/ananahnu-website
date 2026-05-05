@@ -3,24 +3,33 @@ import { CreditCard, Upload, CheckCircle, Loader2, AlertCircle, Clock, ExternalL
 import api from '../../services/api';
 import { loadSnapJs, isSnapReady } from '../../utils/midtrans';
 import { useAuthStore } from '../../store/authStore';
-import type { Submission, Payment } from '../../types';
+import { formatRupiah } from '../../utils/format';
+import type { Submission, Payment, FormFieldValue } from '../../types';
 
 interface PaymentSectionProps {
     submission: Submission;
+    fieldValues?: FormFieldValue[];
     onPaymentSuccess: () => void;
 }
 
-export default function PaymentSection({ submission, onPaymentSuccess }: PaymentSectionProps) {
+export default function PaymentSection({ submission, fieldValues = [], onPaymentSuccess }: PaymentSectionProps) {
     const [loading, setLoading] = useState(false);
     const [method, setMethod] = useState<'MANUAL' | 'MIDTRANS'>('MIDTRANS');
     const [proofUrl, setProofUrl] = useState('');
-    const [amount, setAmount] = useState(500000); // Default, can be made dynamic
+    const [amount, setAmount] = useState(submission.cost_detail?.total_amount || 0);
     const [snapLoading, setSnapLoading] = useState(false);
     const [snapError, setSnapError] = useState<string | null>(null);
     const [paymentHistory, setPaymentHistory] = useState<Payment[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
 
     const user = useAuthStore((state) => state.user);
+
+    // Sync amount if submission cost detail changes
+    useEffect(() => {
+        if (submission.cost_detail?.total_amount) {
+            setAmount(submission.cost_detail.total_amount);
+        }
+    }, [submission.cost_detail?.total_amount]);
 
     // Load payment history for this submission
     const loadHistory = useCallback(async () => {
@@ -34,6 +43,20 @@ export default function PaymentSection({ submission, onPaymentSuccess }: Payment
             setHistoryLoading(false);
         }
     }, [submission.id]);
+
+    const handleSync = async (paymentId: number) => {
+        setLoading(true);
+        try {
+            await api.post(`/payments/${paymentId}/sync`);
+            await loadHistory();
+            onPaymentSuccess();
+        } catch (err) {
+            console.error('Failed to sync payment:', err);
+            alert('Gagal sinkronisasi status. Silakan coba lagi nanti.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
         loadHistory();
@@ -56,6 +79,12 @@ export default function PaymentSection({ submission, onPaymentSuccess }: Payment
     }, [method]);
 
     const handlePay = async () => {
+        // Prerequisites check
+        if (submission.service_type === 'REGULER' && !fieldValues.find(fv => fv.form_field.field_key === 'data_kontrak' && fv.file_url)) {
+            alert('Silakan unggah Dokumen Kontrak terlebih dahulu.');
+            return;
+        }
+
         setLoading(true);
         try {
             if (method === 'MIDTRANS') {
@@ -67,9 +96,9 @@ export default function PaymentSection({ submission, onPaymentSuccess }: Payment
                 const res = await api.post('/payments/midtrans', {
                     submission_id: submission.id,
                     amount: amount,
-                    email: user?.email || submission.client?.phone || '',
-                    customer_name: user?.full_name || submission.client?.business_name || '',
-                    phone: submission.client?.phone || '',
+                    email: user?.email || 'admin@ananahnu.id', // Ensure valid email format
+                    customer_name: user?.full_name || submission.client?.business_name || 'Customer',
+                    phone: submission.client?.phone || '08123456789',
                 });
 
                 const { snap_token: snapToken, snap_url: snapUrl } = res.data;
@@ -109,9 +138,10 @@ export default function PaymentSection({ submission, onPaymentSuccess }: Payment
                 onPaymentSuccess();
                 loadHistory();
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            alert('Gagal membuat pembayaran. Silakan coba lagi.');
+            const msg = err.response?.data?.error || err.message || 'Gagal membuat pembayaran';
+            alert(`Error: ${msg}`);
         } finally {
             setLoading(false);
         }
@@ -131,7 +161,7 @@ export default function PaymentSection({ submission, onPaymentSuccess }: Payment
                 </div>
                 <div className="space-y-1">
                     <p className="text-sm text-green-700">
-                        Jumlah: <span className="font-semibold">Rp {paidPayment.amount.toLocaleString('id-ID')}</span>
+                        Jumlah: <span className="font-semibold">{formatRupiah(paidPayment.amount)}</span>
                     </p>
                     {paidPayment.payment_type && (
                         <p className="text-sm text-green-700">
@@ -159,7 +189,7 @@ export default function PaymentSection({ submission, onPaymentSuccess }: Payment
                     <h3 className="text-lg font-bold">Menunggu Verifikasi</h3>
                 </div>
                 <p className="text-sm text-yellow-700">Bukti pembayaran manual telah dikirim. Menunggu persetujuan admin.</p>
-                <p className="text-sm text-yellow-600">Jumlah: Rp {pendingPayment.amount.toLocaleString('id-ID')}</p>
+                <p className="text-sm text-yellow-600">Jumlah: {formatRupiah(pendingPayment.amount)}</p>
             </div>
         );
     }
@@ -186,10 +216,11 @@ export default function PaymentSection({ submission, onPaymentSuccess }: Payment
                         </a>
                     )}
                     <button
-                        onClick={loadHistory}
-                        className="flex items-center gap-2 px-4 py-2 border border-blue-300 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
+                        onClick={() => handleSync(pendingPayment.id)}
+                        disabled={loading}
+                        className="flex items-center gap-2 px-4 py-2 border border-blue-300 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors disabled:opacity-50"
                     >
-                        <RefreshCw className="w-4 h-4" />
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                         Refresh Status
                     </button>
                 </div>
@@ -207,7 +238,10 @@ export default function PaymentSection({ submission, onPaymentSuccess }: Payment
 
             {/* Amount input */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah Pembayaran (Rp)</label>
+                <div className="flex justify-between items-center mb-1">
+                    <label className="block text-sm font-medium text-gray-700">Jumlah Pembayaran</label>
+                    <span className="text-xs font-bold text-brand-600">{formatRupiah(amount)}</span>
+                </div>
                 <input
                     type="number"
                     className="glass-input"
@@ -272,10 +306,30 @@ export default function PaymentSection({ submission, onPaymentSuccess }: Payment
                 </div>
             )}
 
+            {/* Prerequisites check */}
+            {submission.service_type === 'REGULER' && !fieldValues.find(fv => fv.form_field.field_key === 'data_kontrak' && fv.file_url) && (
+                <div className="p-3 bg-red-50 text-red-600 text-xs rounded-lg flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>Anda belum mengunggah Dokumen Kontrak. Silakan edit Dokumen & Data di atas terlebih dahulu.</span>
+                </div>
+            )}
+
+            {amount <= 0 && (
+                <div className="p-3 bg-yellow-50 text-yellow-700 text-xs rounded-lg flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>Nominal biaya belum ditentukan oleh bagian Keuangan.</span>
+                </div>
+            )}
+
             {/* Pay button */}
             <button
                 onClick={handlePay}
-                disabled={loading || (method === 'MANUAL' && !proofUrl) || amount <= 0}
+                disabled={
+                    loading || 
+                    (method === 'MANUAL' && !proofUrl) || 
+                    amount <= 0 ||
+                    (submission.service_type === 'REGULER' && !fieldValues.find(fv => fv.form_field.field_key === 'data_kontrak' && fv.file_url))
+                }
                 className="w-full glass-button bg-brand-600 text-white hover:bg-brand-700 font-bold py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
                 {loading ? (
@@ -283,7 +337,7 @@ export default function PaymentSection({ submission, onPaymentSuccess }: Payment
                 ) : (
                     <>
                         <CreditCard className="w-5 h-5" />
-                        Bayar Rp {amount.toLocaleString('id-ID')}
+                        {amount > 0 ? `Bayar Rp ${amount.toLocaleString('id-ID')}` : 'Belum Ada Tagihan'}
                     </>
                 )}
             </button>

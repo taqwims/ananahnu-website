@@ -25,3 +25,12 @@ func (r *roleRepository) FindByName(name string) (*domain.Role, error) {
 func (r *roleRepository) Create(role *domain.Role) error {
 	return r.db.Create(role).Error
 }
+
+func (r *roleRepository) FindAll() ([]domain.Role, error) {
+	var roles []domain.Role
+	if err := r.db.Order("name ASC").Find(&roles).Error; err != nil {
+		return nil, err
+	}
+	return roles, nil
+}
+

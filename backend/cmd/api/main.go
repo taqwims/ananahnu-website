@@ -72,6 +72,13 @@ func main() {
 		// Invoice & Billing Config
 		&domain.Invoice{},
 		&domain.PaymentConfig{},
+		// Dynamic Cost/Billing
+		&domain.ProductCategory{},
+		&domain.BusinessScale{},
+		&domain.HalalAgency{},
+		&domain.BillingComponent{},
+		&domain.SubmissionCostDetail{},
+		&domain.CoordinatorRate{},
 	)
 	if err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
@@ -141,6 +148,8 @@ func main() {
 	consultantRepo := repository.NewConsultantProfileRepository(db)
 	invoiceRepo := repository.NewInvoiceRepository(db)
 	paymentConfigRepo := repository.NewPaymentConfigRepository(db)
+	billingConfigRepo := repository.NewBillingConfigRepository(db)
+	coordinatorRateRepo := repository.NewCoordinatorRateRepository(db)
 
 	// Services
 	emailSender := email.NewGmailSender()
@@ -148,22 +157,21 @@ func main() {
 
 	// 6. Setup Usecases
 	authUC := usecase.NewAuthUsecase(userRepo, roleRepo, clientRepo, tokenRepo, emailSender)
-	submissionUC := usecase.NewSubmissionWorkflowUsecase(submissionRepo, roleRepo, auditRepo)
+	notificationUC := usecase.NewNotificationUsecase(notifRepo)
+	submissionUC := usecase.NewSubmissionWorkflowUsecase(submissionRepo, clientRepo, roleRepo, auditRepo, userRepo, notificationUC, invoiceRepo, coordinatorRateRepo, formValueRepo)
 	importUC := usecase.NewImportUsecase(clientRepo)
 	exportUC := usecase.NewExportUsecase(clientRepo)
-	paymentUC := usecase.NewPaymentUsecase(paymentRepo, submissionRepo, midtransGateway)
-	notificationUC := usecase.NewNotificationUsecase(notifRepo)
+	paymentUC := usecase.NewPaymentUsecase(paymentRepo, submissionRepo, auditRepo, midtransGateway, invoiceRepo)
 	cmsUC := usecase.NewCMSUsecase(cmsRepo)
 	clientCRUDUC := usecase.NewClientUsecase(clientRepo)
-	dashboardUC := usecase.NewDashboardUsecase(submissionRepo, clientRepo)
+	dashboardUC := usecase.NewDashboardUsecase(submissionRepo, clientRepo, auditRepo)
 	formConfigUC := usecase.NewFormConfigUsecase(formConfigRepo, formValueRepo)
 	geographyUC := usecase.NewGeographyUsecase(geoRepo, billingRateRepo)
 	trainingUC := usecase.NewTrainingUsecase(trainingRepo, participantRepo)
 	consultantUC := usecase.NewConsultantUsecase(consultantRepo)
-	billingUC := usecase.NewBillingUsecase(invoiceRepo, paymentConfigRepo, billingRateRepo)
-
-	// Suppress unused variable warnings
-	_ = userRepo
+	billingUC := usecase.NewBillingUsecase(invoiceRepo, paymentConfigRepo, billingRateRepo, userRepo, notificationUC)
+	userMgmtUC := usecase.NewUserManagementUsecase(userRepo, roleRepo)
+	billingConfigUC := usecase.NewBillingConfigUsecase(billingConfigRepo, coordinatorRateRepo)
 
 	// 7. Setup Router & Handlers
 	r := gin.Default()
@@ -189,7 +197,7 @@ func main() {
 	httpDelivery.NewPaymentHandler(r, paymentUC)
 	httpDelivery.NewNotificationHandler(r, notificationUC)
 	httpDelivery.NewCMSHandler(r, cmsUC)
-	httpDelivery.NewClientHandler(r, clientCRUDUC)
+	httpDelivery.NewClientHandler(r, clientCRUDUC, userRepo)
 	httpDelivery.NewDashboardHandler(r, dashboardUC)
 
 	// New handlers
@@ -197,7 +205,13 @@ func main() {
 	httpDelivery.NewGeographyHandler(r, geographyUC)
 	httpDelivery.NewTrainingHandler(r, trainingUC)
 	httpDelivery.NewConsultantHandler(r, consultantUC)
-	httpDelivery.NewBillingHandler(r, billingUC)
+	httpDelivery.NewBillingHandler(r, billingUC, paymentUC, invoiceRepo)
+	httpDelivery.NewUserManagementHandler(r, userMgmtUC)
+	httpDelivery.NewBillingConfigHandler(r, billingConfigUC)
+	httpDelivery.NewMediaHandler(r)
+
+	// Static files
+	r.Static("/uploads", "./uploads")
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -223,7 +237,9 @@ func seedFormConfigs(db *gorm.DB) {
 		{"SELF_DECLARE", "foto_produk", "Foto Produk", "FILE_UPLOAD", "Upload foto produk", true, 2},
 		{"SELF_DECLARE", "ktp", "KTP", "FILE_UPLOAD", "Upload KTP penanggung jawab", true, 3},
 		{"SELF_DECLARE", "foto_verval", "Foto Verval", "FILE_UPLOAD", "Upload foto verifikasi lapangan", true, 4},
-		{"SELF_DECLARE", "catatan_pph", "Catatan Bahan PPH", "TEXT", "Catatan bahan PPH (opsional)", false, 5},
+		{"SELF_DECLARE", "foto_bersama_consultant", "Foto Bersama Consultant", "FILE_UPLOAD", "Upload foto bersama consultant", true, 5},
+		{"SELF_DECLARE", "resep", "Resep", "FILE_UPLOAD", "Upload dokumen resep (opsional)", false, 6},
+		{"SELF_DECLARE", "catatan_pph", "Catatan Bahan PPH", "TEXT", "Catatan bahan PPH (opsional)", false, 7},
 		// REGULER
 		{"REGULER", "data_kontrak", "Data Kontrak", "FILE_UPLOAD", "Upload data kontrak pendampingan", true, 1},
 		{"REGULER", "bukti_bayar", "Bukti Bayar", "FILE_UPLOAD", "Upload bukti pembayaran", true, 2},

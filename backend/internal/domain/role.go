@@ -19,5 +19,6 @@ type RolePermission struct {
 
 type RoleRepository interface {
 	FindByName(name string) (*Role, error)
+	FindAll() ([]Role, error)
 	Create(role *Role) error
 }

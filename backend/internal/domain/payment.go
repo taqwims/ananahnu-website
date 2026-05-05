@@ -23,7 +23,7 @@ const (
 
 type Payment struct {
 	ID           int64         `gorm:"primaryKey" json:"id"`
-	SubmissionID uuid.UUID     `gorm:"type:uuid" json:"submission_id"`
+	SubmissionID *uuid.UUID    `gorm:"type:uuid" json:"submission_id,omitempty"`
 	Amount       float64       `json:"amount"`
 	Method       PaymentMethod `json:"method"`
 	Status       PaymentStatus `json:"status"`
@@ -34,6 +34,7 @@ type Payment struct {
 	MidtransID   string        `json:"midtrans_id,omitempty"`   // Midtrans transaction_id
 	PaymentType  string        `json:"payment_type,omitempty"`  // e.g. "bank_transfer", "gopay", "qris"
 	PaidAt       *time.Time    `json:"paid_at,omitempty"`
+	Invoices     []Invoice     `gorm:"foreignKey:PaymentID" json:"invoices,omitempty"`
 	CreatedAt    time.Time     `json:"created_at"`
 	UpdatedAt    time.Time     `json:"updated_at"`
 }

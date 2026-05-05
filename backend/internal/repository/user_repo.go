@@ -46,3 +46,37 @@ func (r *userRepository) FindByLeaderID(leaderID uuid.UUID) ([]domain.User, erro
 	}
 	return users, nil
 }
+
+func (r *userRepository) FindAll(filter map[string]interface{}, page, limit int) ([]domain.User, int64, error) {
+	var users []domain.User
+	var total int64
+
+	query := r.db.Model(&domain.User{}).Preload("Role")
+
+	if roleID, ok := filter["role_id"]; ok {
+		query = query.Where("users.role_id = ?", roleID)
+	}
+	if roleName, ok := filter["role_name"]; ok {
+		query = query.Joins("JOIN roles ON roles.id = users.role_id").
+			Where("roles.name = ?", roleName)
+	}
+	if search, ok := filter["search"]; ok {
+		s := "%" + search.(string) + "%"
+		query = query.Where("users.full_name ILIKE ? OR users.email ILIKE ?", s, s)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * limit
+	if err := query.Order("created_at DESC").Offset(offset).Limit(limit).Find(&users).Error; err != nil {
+		return nil, 0, err
+	}
+	return users, total, nil
+}
+
+func (r *userRepository) Delete(id uuid.UUID) error {
+	return r.db.Delete(&domain.User{}, "id = ?", id).Error
+}
+

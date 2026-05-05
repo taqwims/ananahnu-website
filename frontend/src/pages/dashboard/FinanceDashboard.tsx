@@ -20,7 +20,7 @@ export default function FinanceDashboard() {
             if (filterStatus) params.set('status', filterStatus);
             if (filterService) params.set('service_type', filterService);
 
-            const res = await api.get(`/invoices/?${params}`);
+            const res = await api.get(`/billing/all-invoices?${params}`);
             setInvoices(res.data.data || []);
             setTotal(res.data.total || 0);
         } catch { setInvoices([]); }
@@ -32,7 +32,7 @@ export default function FinanceDashboard() {
     const markPaid = async (id: number) => {
         if (!confirm('Tandai tagihan ini sebagai LUNAS?')) return;
         try {
-            await api.put(`/invoices/${id}/mark-paid`);
+            await api.put(`/billing/${id}/mark-paid`);
             loadInvoices();
         } catch (err: any) {
             alert(err.response?.data?.error || 'Gagal update status');

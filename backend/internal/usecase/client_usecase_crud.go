@@ -30,6 +30,12 @@ func (uc *clientUsecase) GetClient(id uuid.UUID) (*domain.Client, error) {
 }
 
 func (uc *clientUsecase) CreateClient(client *domain.Client) error {
+	// Check if NIB already exists
+	existing, _ := uc.clientRepo.FindByNIB(client.NIB)
+	if existing != nil {
+		return domain.ErrNIBExists
+	}
+
 	client.ID = uuid.New()
 	return uc.clientRepo.Create(client)
 }

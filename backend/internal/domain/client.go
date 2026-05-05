@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -9,6 +10,7 @@ import (
 type Client struct {
 	ID            uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()" json:"id"`
 	NIB           string    `gorm:"unique;column:nib" json:"nib"`
+	NIK           string    `gorm:"column:nik" json:"nik"`
 	BusinessName  string    `gorm:"column:business_name" json:"business_name"`
 	Address       string    `gorm:"column:address" json:"address"`
 	ProductName   string    `gorm:"column:product_name" json:"product_name"`
@@ -27,5 +29,10 @@ type ClientRepository interface {
 	ImportBulk(clients []Client) error
 	FindAll(filter map[string]interface{}, page, limit int) ([]Client, int64, error)
 	FindByID(id uuid.UUID) (*Client, error)
+	FindByNIB(nib string) (*Client, error)
 	Update(client *Client) error
 }
+
+var (
+	ErrNIBExists = errors.New("NIB already registered")
+)

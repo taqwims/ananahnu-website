@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Filter, Eye, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import api from '../../services/api';
 import type { Submission } from '../../types';
+import { useAuthStore } from '../../store/authStore';
 
 // Map status to colors
 const STATUS_COLORS: Record<string, string> = {
@@ -18,12 +19,12 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function SubmissionList() {
     const [submissions, setSubmissions] = useState<Submission[]>([]);
-    const [clients, setClients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [creating, setCreating] = useState(false);
-    const [newSub, setNewSub] = useState({ clientId: '', serviceType: 'SELF_DECLARE' });
+    const [newSub, setNewSub] = useState({ clientId: '', businessName: '', serviceType: 'SELF_DECLARE' });
+    const navigate = useNavigate();
+    const user = useAuthStore(state => state.user);
 
     const fetchSubmissions = async () => {
         setLoading(true);
@@ -32,8 +33,6 @@ export default function SubmissionList() {
                 params: { status: statusFilter }
             });
             setSubmissions(res.data);
-            const clientsRes = await api.get('/clients');
-            setClients(clientsRes.data);
         } catch (err) {
             console.error("Failed to fetch data", err);
         } finally {
@@ -41,21 +40,8 @@ export default function SubmissionList() {
         }
     };
 
-    const handleCreate = async () => {
-        setCreating(true);
-        try {
-            await api.post('/submissions/draft', {
-                client_id: newSub.clientId,
-                service_type: newSub.serviceType
-            });
-            setShowCreateModal(false);
-            setNewSub({ clientId: '', serviceType: 'SELF_DECLARE' });
-            fetchSubmissions();
-        } catch (err: any) {
-            alert(err.response?.data?.error || "Gagal membuat pengajuan");
-        } finally {
-            setCreating(false);
-        }
+    const handleCreate = () => {
+        navigate(`/dashboard/submissions/new?type=${newSub.serviceType}&name=${newSub.businessName}`);
     };
 
     useEffect(() => {
@@ -70,12 +56,14 @@ export default function SubmissionList() {
                     <p className="text-gray-500 text-sm">Track and manage halal certification requests</p>
                 </div>
                 <div className="flex gap-2">
-                    <button 
-                        onClick={() => setShowCreateModal(true)}
-                        className="glass-button text-sm"
-                    >
-                        Buat Pengajuan Baru
-                    </button>
+                    {user?.role !== 'DRAFTER' && user?.role !== 'QC_OFFICER' && (
+                        <button 
+                            onClick={() => setShowCreateModal(true)}
+                            className="glass-button text-sm"
+                        >
+                            Buat Pengajuan Baru
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -144,17 +132,15 @@ export default function SubmissionList() {
                         <h3 className="text-lg font-bold mb-4">Buat Pengajuan Baru</h3>
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium mb-1">Pilih Klien</label>
-                                <select 
+                                <label className="block text-sm font-medium mb-1">Nama Usaha / Produk</label>
+                                <input 
+                                    type="text"
                                     className="glass-input w-full"
-                                    value={newSub.clientId}
-                                    onChange={e => setNewSub({...newSub, clientId: e.target.value})}
-                                >
-                                    <option value="">-- Pilih Klien --</option>
-                                    {clients.map(c => (
-                                        <option key={c.id} value={c.id}>{c.business_name} ({c.nib})</option>
-                                    ))}
-                                </select>
+                                    placeholder="Masukkan nama usaha atau produk..."
+                                    value={newSub.businessName}
+                                    onChange={e => setNewSub({...newSub, businessName: e.target.value})}
+                                />
+                                <p className="text-[10px] text-gray-500 mt-1">Data NIB & NIK akan dilengkapi oleh Drafter kemudian.</p>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium mb-1">Jenis Layanan</label>
@@ -164,19 +150,19 @@ export default function SubmissionList() {
                                     onChange={e => setNewSub({...newSub, serviceType: e.target.value})}
                                 >
                                     <option value="SELF_DECLARE">Self Declare</option>
+                                    <option value="SELF_DECLARE_MANDIRI">Self Declare Mandiri</option>
                                     <option value="REGULER">Reguler</option>
                                 </select>
                             </div>
                         </div>
                         <div className="flex justify-end gap-3 mt-6">
                             <button className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" onClick={() => setShowCreateModal(false)}>Batal</button>
-                            <button 
-                                className="glass-button" 
-                                disabled={!newSub.clientId || creating}
-                                onClick={handleCreate}
-                            >
-                                {creating ? 'Menyimpan...' : 'Buat Pengajuan'}
-                            </button>
+                                <button
+                                    onClick={handleCreate}
+                                    className="px-6 py-2 bg-brand-600 text-white rounded-lg font-bold hover:bg-brand-700 transition-colors"
+                                >
+                                    Lanjut Isi Data
+                                </button>
                         </div>
                     </div>
                 </div>

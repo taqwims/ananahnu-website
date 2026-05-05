@@ -21,7 +21,7 @@ func (r *invoiceRepository) FindAll(filter map[string]interface{}, page, limit i
 	var invoices []domain.Invoice
 	var count int64
 
-	query := r.db.Model(&domain.Invoice{}).Preload("Submission.Client")
+	query := r.db.Model(&domain.Invoice{}).Preload("Payer").Preload("Submission.Client")
 	if len(filter) > 0 {
 		query = query.Where(filter)
 	}
@@ -47,6 +47,14 @@ func (r *invoiceRepository) FindBySubmissionID(submissionID uuid.UUID) (*domain.
 		return nil, err
 	}
 	return &invoice, nil
+}
+
+func (r *invoiceRepository) FindByIDs(ids []int64) ([]domain.Invoice, error) {
+	var invoices []domain.Invoice
+	if err := r.db.Preload("Payer").Preload("Submission.Client").Where("id IN ?", ids).Find(&invoices).Error; err != nil {
+		return nil, err
+	}
+	return invoices, nil
 }
 
 func (r *invoiceRepository) Create(invoice *domain.Invoice) error {
@@ -93,4 +101,34 @@ func (r *paymentConfigRepository) Update(config *domain.PaymentConfig) error {
 
 func (r *paymentConfigRepository) Delete(id int64) error {
 	return r.db.Delete(&domain.PaymentConfig{}, id).Error
+}
+
+// --- CoordinatorRateRepository ---
+
+type coordinatorRateRepository struct {
+	db *gorm.DB
+}
+
+func NewCoordinatorRateRepository(db *gorm.DB) domain.CoordinatorRateRepository {
+	return &coordinatorRateRepository{db: db}
+}
+
+func (r *coordinatorRateRepository) FindByCoordinatorID(coordinatorID uuid.UUID) (*domain.CoordinatorRate, error) {
+	var rate domain.CoordinatorRate
+	if err := r.db.Where("coordinator_id = ?", coordinatorID).First(&rate).Error; err != nil {
+		return nil, err
+	}
+	return &rate, nil
+}
+
+func (r *coordinatorRateRepository) FindAll() ([]domain.CoordinatorRate, error) {
+	var rates []domain.CoordinatorRate
+	if err := r.db.Preload("Coordinator").Find(&rates).Error; err != nil {
+		return nil, err
+	}
+	return rates, nil
+}
+
+func (r *coordinatorRateRepository) Save(rate *domain.CoordinatorRate) error {
+	return r.db.Save(rate).Error
 }

@@ -3,17 +3,33 @@ export interface User {
     email: string;
     full_name: string;
     role: string;
+    role_id?: number;
     leader_id?: string;
+    leader?: User;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface Role {
+    id: number;
+    name: string;
 }
 
 export interface Client {
     id: string;
     nib: string;
+    nik: string;
     business_name: string;
     address: string;
     product_name: string;
     service_type: string;
+    facilitator_id: string;
+    facilitator?: User;
+    contact_person: string;
     phone: string;
+    created_by: string;
+    created_at?: string;
+    updated_at?: string;
 }
 
 export type SubmissionStatus = 'DRAFT' | 'WAITING_PAYMENT' | 'VERVAL_PENDAMPING' | 'QC_OFFICER' | 'DRAFTER' | 'SIDANG_FATWA' | 'SH_TERBIT' | 'REJECTED' | 'REVISION';
@@ -31,6 +47,7 @@ export interface Payment {
     midtrans_id?: string;
     payment_type?: string;
     paid_at?: string;
+    invoices?: Invoice[];
     created_at: string;
     updated_at: string;
 }
@@ -46,24 +63,45 @@ export interface Submission {
     district_id?: number;
     payments?: Payment[];
     field_values?: FormFieldValue[];
+    cost_detail?: SubmissionCostDetail;
     created_at: string;
     updated_at: string;
 }
 
+// --- CMS --- (Fixed to match backend domain)
+
 export interface News {
     id: number;
     title: string;
+    slug: string;
     content: string;
-    category: string;
-    author: string;
-    created_at: string;
+    thumbnail_url: string;
+    published_at: string;
+    tags: string;
 }
 
 export interface ContentBlock {
     id: number;
-    key: string;
-    section: string;
-    content: string;
+    section_key: string;
+    title: string;
+    body: string;
+    image_url: string;
+}
+
+export interface Affiliate {
+    id: number;
+    name: string;
+    logo_url: string;
+    website_url: string;
+}
+
+export interface CertifiedProduct {
+    id: number;
+    name: string;
+    company_name: string;
+    certificate_number: string;
+    valid_until: string;
+    photo_url: string;
 }
 
 // --- Dynamic Form Config ---
@@ -131,6 +169,8 @@ export interface Invoice {
     id: number;
     submission_id: string;
     submission?: Submission;
+    payer_id?: string;
+    payer?: User;
     service_type: string;
     amount: number;
     status: 'UNPAID' | 'PAID';
@@ -179,4 +219,25 @@ export interface BillingRate {
     amount: number;
     description: string;
 }
+export interface AuditLog {
+    id: number;
+    user_id: string;
+    action: string;
+    entity_type: string;
+    entity_id: string;
+    notes: string;
+    created_at: string;
+}
 
+export interface SubmissionCostDetail {
+    id: number;
+    submission_id: string;
+    product_category_id?: number;
+    business_scale_id?: number;
+    halal_agency_id?: number;
+    product_count: number;
+    branch_count: number;
+    mandays: number;
+    total_amount: number;
+    cost_breakdown_data: string; // JSON string
+}

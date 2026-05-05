@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, ChevronLeft, ChevronRight, Plus, Download } from 'lucide-react';
 import type { Client } from '../../types';
 import api from '../../services/api';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { Search, Filter, ChevronLeft, ChevronRight, Plus, Download, FileText, Loader2 } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
 
 export default function ClientList() {
     const [clients, setClients] = useState<Client[]>([]);
@@ -11,6 +12,9 @@ export default function ClientList() {
     const [totalPages, setTotalPages] = useState(1);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
+    const [creatingSub, setCreatingSub] = useState<string | null>(null);
+    const navigate = useNavigate();
+    const user = useAuthStore(state => state.user);
 
     const fetchClients = async () => {
         setLoading(true);
@@ -56,6 +60,22 @@ export default function ClientList() {
         }
     };
 
+    const handleCreateSubmission = async (client: Client) => {
+        setCreatingSub(client.id);
+        try {
+            const res = await api.post('/submissions/draft', {
+                client_id: client.id,
+                service_type: client.service_type
+            });
+            navigate(`/dashboard/submissions/${res.data.id}`);
+        } catch (err) {
+            console.error(err);
+            alert("Gagal membuat pengajuan");
+        } finally {
+            setCreatingSub(null);
+        }
+    };
+
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchClients();
@@ -71,10 +91,12 @@ export default function ClientList() {
                     <p className="text-gray-500 text-sm">Manage business actors and submissions</p>
                 </div>
                 <div className="flex gap-2">
-                    <Link to="/dashboard/clients/new" className="glass-button flex items-center gap-2">
-                        <Plus className="w-4 h-4" />
-                        Add Client
-                    </Link>
+                    {user?.role !== 'VIEWER' && (
+                        <Link to="/dashboard/clients/new" className="glass-button flex items-center gap-2">
+                            <Plus className="w-4 h-4" />
+                            Add Client
+                        </Link>
+                    )}
                 </div>
             </div>
 
@@ -148,7 +170,19 @@ export default function ClientList() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <button className="text-brand-600 hover:text-brand-800 font-medium">View</button>
+                                            <div className="flex items-center gap-3">
+                                                <Link to={`/dashboard/clients/${client.id}`} className="text-brand-600 hover:text-brand-800 font-medium">View</Link>
+                                                {user?.role !== 'VIEWER' && (
+                                                    <button 
+                                                       onClick={() => handleCreateSubmission(client)}
+                                                       disabled={creatingSub === client.id}
+                                                       className="flex items-center gap-1 text-xs bg-brand-50 text-brand-700 px-2 py-1 rounded hover:bg-brand-100 transition disabled:opacity-50"
+                                                    >
+                                                       {creatingSub === client.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
+                                                       Buat Pengajuan
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))

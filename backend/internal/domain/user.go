@@ -31,7 +31,9 @@ type UserRepository interface {
 	FindByEmail(email string) (*User, error)
 	FindByID(id uuid.UUID) (*User, error)
 	FindByLeaderID(leaderID uuid.UUID) ([]User, error)
+	FindAll(filter map[string]interface{}, page, limit int) ([]User, int64, error)
 	Update(user *User) error
+	Delete(id uuid.UUID) error
 }
 
 type PasswordTokenRepository interface {

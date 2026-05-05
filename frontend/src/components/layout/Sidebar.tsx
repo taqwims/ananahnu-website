@@ -13,6 +13,7 @@ import {
     Receipt,
     Settings,
     MapPin,
+    DollarSign,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,15 +32,17 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
 
     const links: SidebarLink[] = [
         { name: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-        { name: 'Klien', to: '/dashboard/clients', icon: Users, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN'] },
-        { name: 'Pengajuan', to: '/dashboard/submissions', icon: FileText, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'QC_OFFICER', 'DRAFTER'] },
+        { name: 'Klien', to: '/dashboard/clients', icon: Users, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'KOORDINATOR', 'DRAFTER', 'QC_OFFICER'] },
+        { name: 'Pengajuan', to: '/dashboard/submissions', icon: FileText, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'KOORDINATOR', 'QC_OFFICER', 'DRAFTER'] },
         { name: 'Profil Konsultan', to: '/dashboard/consultant-profile', icon: UserCheck, roles: ['HALAL_KONSULTAN'] },
         { name: 'Tim Saya', to: '/dashboard/team', icon: UsersRound, roles: ['KOORDINATOR'] },
         { name: 'Pelatihan', to: '/dashboard/training', icon: GraduationCap, roles: ['ADMIN_PELATIHAN', 'KOORDINATOR', 'DIRECTOR', 'MANAGER'] },
         { name: 'Keuangan', to: '/dashboard/finance', icon: Receipt, roles: ['ADMIN_KEUANGAN', 'FINANCE', 'DIRECTOR'] },
-        { name: 'Pengaturan Form', to: '/dashboard/form-config', icon: Settings, roles: ['DIRECTOR', 'MANAGER'] },
-        { name: 'Wilayah & Tarif', to: '/dashboard/geography', icon: MapPin, roles: ['DIRECTOR', 'MANAGER', 'ADMIN_KEUANGAN'] },
         { name: 'Pembayaran', to: '/dashboard/payments', icon: CreditCard, roles: ['FINANCE', 'ADMIN_KEUANGAN', 'DIRECTOR'] },
+        { name: 'Pengaturan Form', to: '/dashboard/form-config', icon: Settings, roles: ['DIRECTOR', 'MANAGER'] },
+        { name: 'Master Biaya', to: '/dashboard/billing-config', icon: Receipt, roles: ['DIRECTOR', 'MANAGER'] },
+        { name: 'Wilayah & Tarif', to: '/dashboard/geography', icon: MapPin, roles: ['DIRECTOR', 'MANAGER', 'ADMIN_KEUANGAN'] },
+        { name: 'Manajemen User', to: '/dashboard/users', icon: Users, roles: ['DIRECTOR'] },
         { name: 'CMS', to: '/dashboard/cms', icon: BookOpen, roles: ['DIRECTOR'] },
     ];
 
@@ -104,7 +107,33 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
                     </nav>
 
                     {/* Footer / Logout */}
-                    <div className="p-4 border-t border-glass-border">
+                    {/* Coordinator Billing */}
+                    {(user?.role === 'KOORDINATOR' || user?.role === 'HALAL_KONSULTAN' || user?.role === 'ADMIN') && (
+                        <div className="mt-6 px-4">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-2">Tagihan</p>
+                            <NavLink to="/dashboard/my-invoices" className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-brand-100 text-brand-700 shadow-sm' : 'text-gray-600 hover:bg-white/50 hover:text-gray-900'}`}>
+                                <CreditCard className="w-5 h-5" />
+                                Tagihan Saya
+                            </NavLink>
+                        </div>
+                    )}
+
+                    {/* Finance Specific */}
+                    {(user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
+                        <div className="mt-6 px-4">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-2">Finance & Billing</p>
+                            <NavLink to="/dashboard/coordinator-rates" className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-brand-100 text-brand-700 shadow-sm' : 'text-gray-600 hover:bg-white/50 hover:text-gray-900'}`}>
+                                <DollarSign className="w-5 h-5" />
+                                Tarif Koordinator
+                            </NavLink>
+                            <NavLink to="/dashboard/all-invoices" className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-brand-100 text-brand-700 shadow-sm' : 'text-gray-600 hover:bg-white/50 hover:text-gray-900'}`}>
+                                <FileText className="w-5 h-5" />
+                                Daftar Tagihan
+                            </NavLink>
+                        </div>
+                    )}
+
+                    <div className="mt-auto p-4 border-t border-glass-border">
                         <button
                             onClick={logout}
                             className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition-colors"

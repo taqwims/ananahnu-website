@@ -38,7 +38,17 @@ func NewFormConfigUsecase(c domain.FormConfigRepository, v domain.FormFieldValue
 }
 
 func (uc *formConfigUsecase) GetFormConfig(formType string) ([]domain.FormFieldConfig, error) {
-	return uc.configRepo.FindByFormType(formType)
+	configs, err := uc.configRepo.FindByFormType(formType)
+	if err == nil && len(configs) > 0 {
+		return configs, nil
+	}
+
+	// Fallback for SELF_DECLARE_MANDIRI to use regular SELF_DECLARE form
+	if formType == "SELF_DECLARE_MANDIRI" {
+		return uc.configRepo.FindByFormType("SELF_DECLARE")
+	}
+
+	return configs, err
 }
 
 func (uc *formConfigUsecase) CreateField(config *domain.FormFieldConfig) error {

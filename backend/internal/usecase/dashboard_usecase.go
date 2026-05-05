@@ -7,17 +7,20 @@ import (
 
 type DashboardUsecase interface {
 	GetStats(userID uuid.UUID, role string) (map[string]interface{}, error)
+	GetRecentActivities(limit int) ([]domain.AuditLog, error)
 }
 
 type dashboardUsecase struct {
 	submissionRepo domain.SubmissionRepository
 	clientRepo     domain.ClientRepository
+	auditRepo      domain.AuditLogRepository
 }
 
-func NewDashboardUsecase(s domain.SubmissionRepository, c domain.ClientRepository) DashboardUsecase {
+func NewDashboardUsecase(s domain.SubmissionRepository, c domain.ClientRepository, a domain.AuditLogRepository) DashboardUsecase {
 	return &dashboardUsecase{
 		submissionRepo: s,
 		clientRepo:     c,
+		auditRepo:      a,
 	}
 }
 
@@ -43,4 +46,8 @@ func (uc *dashboardUsecase) GetStats(userID uuid.UUID, role string) (map[string]
 		"sidang_fatwa": 15,
 		"pending": 65,
 	}, nil
+}
+
+func (uc *dashboardUsecase) GetRecentActivities(limit int) ([]domain.AuditLog, error) {
+	return uc.auditRepo.FindLogsByEntity("", "")
 }

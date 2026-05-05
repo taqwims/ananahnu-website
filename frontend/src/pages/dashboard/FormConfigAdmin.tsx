@@ -3,7 +3,7 @@ import { Settings, Plus, Trash2, Save, Loader2, GripVertical } from 'lucide-reac
 import api from '../../services/api';
 import type { FormFieldConfig } from '../../types';
 
-const FORM_TYPES = ['SELF_DECLARE', 'REGULER', 'RECRUITMENT'] as const;
+const FORM_TYPES = ['SELF_DECLARE', 'SELF_DECLARE_MANDIRI', 'REGULER', 'RECRUITMENT'] as const;
 const INPUT_TYPES = ['FILE_UPLOAD', 'LINK', 'TEXT'] as const;
 
 export default function FormConfigAdmin() {

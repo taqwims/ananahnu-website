@@ -6,6 +6,7 @@ interface User {
     email: string;
     full_name: string;
     role: string;
+    leader_id?: string;
 }
 
 interface AuthState {

@@ -8,10 +8,11 @@ import api from '../../services/api';
 
 const clientSchema = z.object({
     nib: z.string().min(13, "NIB must be 13 digits").max(13, "NIB must be 13 digits"),
+    nik: z.string().min(16, "NIK must be 16 digits").max(16, "NIK must be 16 digits"),
     business_name: z.string().min(3, "Business Name is required"),
     address: z.string().min(5, "Address must be at least 5 characters"),
     product_name: z.string().min(3, "Product Name is required"),
-    service_type: z.enum(["REGULER", "SELF_DECLARE"]),
+    service_type: z.enum(["REGULER", "SELF_DECLARE", "SELF_DECLARE_MANDIRI"]),
     contact_person: z.string().min(3, "Contact Person is required"),
     phone: z.string().min(10, "Phone number is required"),
 });
@@ -86,6 +87,12 @@ export default function ClientForm() {
                         </div>
 
                         <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">NIK</label>
+                            <input {...register('nik')} className={`glass-input ${errors.nik ? 'border-red-300' : ''}`} placeholder="16-digit identity number" />
+                            {errors.nik && <p className="text-red-500 text-xs mt-1">{errors.nik.message}</p>}
+                        </div>
+
+                        <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
                             <input {...register('business_name')} className={`glass-input ${errors.business_name ? 'border-red-300' : ''}`} placeholder="UD. Example" />
                             {errors.business_name && <p className="text-red-500 text-xs mt-1">{errors.business_name.message}</p>}
@@ -102,6 +109,7 @@ export default function ClientForm() {
                             <select {...register('service_type')} className="glass-input appearance-none">
                                 <option value="REGULER">Reguler</option>
                                 <option value="SELF_DECLARE">Self Declare</option>
+                                <option value="SELF_DECLARE_MANDIRI">Self Declare Mandiri</option>
                             </select>
                         </div>
 

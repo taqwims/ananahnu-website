@@ -1,6 +1,7 @@
 package http
 
 import (
+	"ananahnu/internal/delivery/middleware"
 	"ananahnu/internal/domain"
 	"ananahnu/internal/usecase"
 	"net/http"
@@ -12,44 +13,53 @@ import (
 
 type BillingHandler struct {
 	billingUC usecase.BillingUsecase
+	paymentUC usecase.PaymentUsecase
+	invoiceRepo domain.InvoiceRepository
 }
 
-func NewBillingHandler(r *gin.Engine, uc usecase.BillingUsecase) {
-	handler := &BillingHandler{billingUC: uc}
-
-	// Invoices
-	inv := r.Group("/invoices")
-	{
-		inv.GET("/", handler.GetInvoices)
-		inv.GET("/submission/:submissionId", handler.GetInvoiceBySubmission)
-		inv.PUT("/:id/mark-paid", handler.MarkInvoicePaid)
+func NewBillingHandler(r *gin.Engine, bUC usecase.BillingUsecase, pUC usecase.PaymentUsecase, invRepo domain.InvoiceRepository) {
+	handler := &BillingHandler{
+		billingUC: bUC,
+		paymentUC: pUC,
+		invoiceRepo: invRepo,
 	}
 
-	// Payment Config
-	cfg := r.Group("/payment-config")
+	g := r.Group("/billing")
+	g.Use(middleware.AuthMiddleware())
 	{
-		cfg.GET("/", handler.GetPaymentConfigs)
-		cfg.POST("/", handler.CreatePaymentConfig)
-		cfg.PUT("/:id", handler.UpdatePaymentConfig)
-		cfg.DELETE("/:id", handler.DeletePaymentConfig)
+		g.GET("/my-invoices", handler.GetMyInvoices)
+		g.POST("/pay-bulk", handler.PayBulk)
+		g.POST("/:id/remind", handler.Remind)
+		
+		// Admin/Finance access
+		adminOnly := g.Group("")
+		adminOnly.Use(middleware.RoleMiddleware("ADMIN", "FINANCE", "ADMIN_KEUANGAN", "DIRECTOR"))
+		{
+			adminOnly.GET("/all-invoices", handler.GetAllInvoices)
+			adminOnly.PUT("/:id/mark-paid", handler.MarkInvoicePaid)
+		}
+		
+		// Admin/Finance only for configs
+		adminGroup := g.Group("/configs")
+		adminGroup.Use(middleware.RoleMiddleware("ADMIN", "FINANCE"))
+		{
+			adminGroup.GET("", handler.GetPaymentConfigs)
+			adminGroup.POST("", handler.CreatePaymentConfig)
+			adminGroup.PUT("/:id", handler.UpdatePaymentConfig)
+			adminGroup.DELETE("/:id", handler.DeletePaymentConfig)
+		}
 	}
 }
 
-// --- Invoices ---
-
-func (h *BillingHandler) GetInvoices(c *gin.Context) {
+func (h *BillingHandler) GetMyInvoices(c *gin.Context) {
+	userID := c.MustGet("userID").(uuid.UUID)
+	roleName := c.MustGet("userRole").(string)
+	
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
+	status := c.Query("status")
 
-	filter := make(map[string]interface{})
-	if status := c.Query("status"); status != "" {
-		filter["status"] = status
-	}
-	if serviceType := c.Query("service_type"); serviceType != "" {
-		filter["service_type"] = serviceType
-	}
-
-	invoices, total, err := h.billingUC.GetInvoices(filter, page, limit)
+	invoices, total, err := h.billingUC.GetMyInvoices(userID, roleName, status, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -58,37 +68,46 @@ func (h *BillingHandler) GetInvoices(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"data":  invoices,
 		"total": total,
-		"page":  page,
-		"limit": limit,
 	})
 }
 
-func (h *BillingHandler) GetInvoiceBySubmission(c *gin.Context) {
-	subID, err := uuid.Parse(c.Param("submissionId"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid submission_id"})
+func (h *BillingHandler) PayBulk(c *gin.Context) {
+	userID := c.MustGet("userID").(uuid.UUID)
+
+	var input struct {
+		InvoiceIDs []int64 `json:"invoice_ids"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	invoice, err := h.billingUC.GetInvoiceBySubmission(subID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "invoice not found"})
+	if len(input.InvoiceIDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no invoices selected"})
 		return
 	}
 
-	c.JSON(http.StatusOK, invoice)
-}
-
-func (h *BillingHandler) MarkInvoicePaid(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err := h.billingUC.MarkInvoicePaid(id); err != nil {
+	payment, err := h.paymentUC.InitiateBulkPayment(input.InvoiceIDs, userID)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "invoice marked as paid"})
+
+	c.JSON(http.StatusOK, payment)
 }
 
-// --- Payment Config ---
+func (h *BillingHandler) Remind(c *gin.Context) {
+	userID := c.MustGet("userID").(uuid.UUID)
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+
+	if err := h.billingUC.RemindPayment(id, userID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "reminder sent"})
+}
+
 
 func (h *BillingHandler) GetPaymentConfigs(c *gin.Context) {
 	configs, err := h.billingUC.GetPaymentConfigs()
@@ -100,31 +119,31 @@ func (h *BillingHandler) GetPaymentConfigs(c *gin.Context) {
 }
 
 func (h *BillingHandler) CreatePaymentConfig(c *gin.Context) {
-	var input domain.PaymentConfig
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var config domain.PaymentConfig
+	if err := c.ShouldBindJSON(&config); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.billingUC.CreatePaymentConfig(&input); err != nil {
+
+	if err := h.billingUC.CreatePaymentConfig(&config); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, input)
+	c.JSON(http.StatusCreated, config)
 }
 
 func (h *BillingHandler) UpdatePaymentConfig(c *gin.Context) {
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
-	var input domain.PaymentConfig
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var config domain.PaymentConfig
+	if err := c.ShouldBindJSON(&config); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = id
-	if err := h.billingUC.UpdatePaymentConfig(&input); err != nil {
+
+	if err := h.billingUC.UpdatePaymentConfig(&config); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "updated"})
+	c.JSON(http.StatusOK, config)
 }
 
 func (h *BillingHandler) DeletePaymentConfig(c *gin.Context) {
@@ -133,5 +152,40 @@ func (h *BillingHandler) DeletePaymentConfig(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	c.JSON(http.StatusOK, gin.H{"message": "config deleted"})
+}
+
+func (h *BillingHandler) GetAllInvoices(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
+	status := c.Query("status")
+	payerID := c.Query("payer_id")
+
+	filter := map[string]interface{}{}
+	if status != "" {
+		filter["status"] = status
+	}
+	if payerID != "" {
+		filter["payer_id"] = payerID
+	}
+
+	invoices, total, err := h.invoiceRepo.FindAll(filter, page, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":  invoices,
+		"total": total,
+	})
+}
+
+func (h *BillingHandler) MarkInvoicePaid(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err := h.billingUC.MarkInvoicePaid(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "invoice marked as paid"})
 }

@@ -32,7 +32,16 @@ func (r *submissionRepository) FindAll(filter map[string]interface{}) ([]domain.
 	db := r.db.Preload("Client")
 	
 	if status, ok := filter["status"]; ok && status != "" {
-		db = db.Where("status = ?", status)
+		db = db.Where("submissions.status = ?", status)
+	}
+
+	// Filter by Facilitator ID (Consultant/Coordinator logic)
+	if fIDs, ok := filter["facilitator_ids"]; ok {
+		ids := fIDs.([]uuid.UUID)
+		if len(ids) > 0 {
+			db = db.Joins("JOIN clients ON clients.id = submissions.client_id").
+				Where("clients.facilitator_id IN ?", ids)
+		}
 	}
 	
 	if err := db.Find(&submissions).Error; err != nil {

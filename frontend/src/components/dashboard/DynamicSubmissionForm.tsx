@@ -17,6 +17,7 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [uploading, setUploading] = useState<Record<number, boolean>>({});
 
     useEffect(() => {
         const load = async () => {
@@ -57,6 +58,27 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
             [fieldId]: { ...prev[fieldId], [key]: value }
         }));
         setSaved(false);
+    };
+
+    const handleFileUpload = async (fieldId: number, file: File) => {
+        if (file.size > 2 * 1024 * 1024) {
+            alert("Ukuran file tidak boleh lebih dari 2MB");
+            return;
+        }
+
+        setUploading(prev => ({ ...prev, [fieldId]: true }));
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const res = await api.post(`/media/upload?subfolder=submission_${submissionId}`, formData);
+            
+            updateValue(fieldId, 'file_url', res.data.url);
+        } catch (err: any) {
+            alert(err.response?.data?.error || "Gagal mengunggah file");
+        } finally {
+            setUploading(prev => ({ ...prev, [fieldId]: false }));
+        }
     };
 
     const handleSubmit = async () => {
@@ -123,19 +145,47 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
 
                         {cfg.input_type === 'FILE_UPLOAD' && (
                             <div className="space-y-2">
-                                <input
-                                    type="text"
-                                    className="glass-input text-sm"
-                                    placeholder="URL file (upload ke cloud lalu tempelkan URL)"
-                                    value={values[cfg.id]?.file_url || ''}
-                                    onChange={e => updateValue(cfg.id, 'file_url', e.target.value)}
-                                    disabled={readOnly}
-                                />
+                                <div className="flex items-center gap-3">
+                                    <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                                        uploading[cfg.id] ? 'bg-gray-50 border-gray-200' : 'bg-white border-brand-200 hover:border-brand-400'
+                                    }`}>
+                                        <input
+                                            type="file"
+                                            className="hidden"
+                                            onChange={e => e.target.files?.[0] && handleFileUpload(cfg.id, e.target.files[0])}
+                                            disabled={readOnly || uploading[cfg.id]}
+                                        />
+                                        {uploading[cfg.id] ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                                                <span className="text-sm text-gray-400">Mengunggah...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Upload className="w-4 h-4 text-brand-600" />
+                                                <span className="text-sm text-brand-600 font-medium">
+                                                    {values[cfg.id]?.file_url ? 'Ganti File' : 'Pilih File (Max 2MB)'}
+                                                </span>
+                                            </>
+                                        )}
+                                    </label>
+                                </div>
+                                
                                 {values[cfg.id]?.file_url && (
-                                    <a href={values[cfg.id].file_url} target="_blank" rel="noopener noreferrer"
-                                        className="text-xs text-brand-600 hover:underline">
-                                        Lihat file →
-                                    </a>
+                                    <div className="flex items-center gap-2 p-2 bg-brand-50 rounded-md border border-brand-100">
+                                        <FileText className="w-4 h-4 text-brand-500" />
+                                        <span className="text-xs text-brand-700 truncate flex-1">
+                                            {values[cfg.id].file_url.split('/').pop()}
+                                        </span>
+                                        <a 
+                                            href={`${import.meta.env.VITE_API_URL}${values[cfg.id].file_url}`} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="text-xs font-bold text-brand-600 hover:underline"
+                                        >
+                                            Lihat
+                                        </a>
+                                    </div>
                                 )}
                             </div>
                         )}

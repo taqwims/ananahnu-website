@@ -10,10 +10,11 @@ import (
 
 type BillingUsecase interface {
 	// Invoice
-	GetInvoices(filter map[string]interface{}, page, limit int) ([]domain.Invoice, int64, error)
+	GetMyInvoices(userID uuid.UUID, roleName string, status string, page, limit int) ([]domain.Invoice, int64, error)
 	GetInvoiceBySubmission(submissionID uuid.UUID) (*domain.Invoice, error)
 	CreateInvoiceForSubmission(submissionID uuid.UUID, serviceType string, regencyID *int64, districtID *int64) error
 	MarkInvoicePaid(invoiceID int64) error
+	RemindPayment(invoiceID int64, senderID uuid.UUID) error
 
 	// Payment Config
 	GetPaymentConfigs() ([]domain.PaymentConfig, error)
@@ -27,10 +28,38 @@ type billingUsecase struct {
 	invoiceRepo domain.InvoiceRepository
 	configRepo  domain.PaymentConfigRepository
 	rateRepo    domain.BillingRateRepository
+	userRepo    domain.UserRepository
+	notifUC     NotificationUsecase
 }
 
-func NewBillingUsecase(i domain.InvoiceRepository, c domain.PaymentConfigRepository, r domain.BillingRateRepository) BillingUsecase {
-	return &billingUsecase{invoiceRepo: i, configRepo: c, rateRepo: r}
+func NewBillingUsecase(i domain.InvoiceRepository, c domain.PaymentConfigRepository, r domain.BillingRateRepository, u domain.UserRepository, n NotificationUsecase) BillingUsecase {
+	return &billingUsecase{invoiceRepo: i, configRepo: c, rateRepo: r, userRepo: u, notifUC: n}
+}
+
+func (uc *billingUsecase) GetMyInvoices(userID uuid.UUID, roleName string, status string, page, limit int) ([]domain.Invoice, int64, error) {
+	filter := map[string]interface{}{}
+	
+	if status != "" {
+		filter["status"] = status
+	}
+
+	if roleName == "KOORDINATOR" {
+		// Get team members
+		team, err := uc.userRepo.FindByLeaderID(userID)
+		if err == nil {
+			ids := []uuid.UUID{userID}
+			for _, member := range team {
+				ids = append(ids, member.ID)
+			}
+			filter["payer_id"] = ids // GORM handles slices as IN clause
+		} else {
+			filter["payer_id"] = userID
+		}
+	} else {
+		filter["payer_id"] = userID
+	}
+
+	return uc.invoiceRepo.FindAll(filter, page, limit)
 }
 
 func (uc *billingUsecase) GetInvoices(filter map[string]interface{}, page, limit int) ([]domain.Invoice, int64, error) {
@@ -94,6 +123,33 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 	invoice.PaidAt = &now
 
 	return uc.invoiceRepo.Update(invoice)
+}
+
+func (uc *billingUsecase) RemindPayment(invoiceID int64, senderID uuid.UUID) error {
+	invoices, _, err := uc.invoiceRepo.FindAll(map[string]interface{}{"id": invoiceID}, 1, 1)
+	if err != nil || len(invoices) == 0 {
+		return fmt.Errorf("invoice not found")
+	}
+
+	invoice := &invoices[0]
+	if invoice.Status == domain.InvoiceStatusPaid {
+		return fmt.Errorf("invoice already paid")
+	}
+
+	if invoice.PayerID == nil {
+		return fmt.Errorf("invoice has no payer")
+	}
+
+	sender, _ := uc.userRepo.FindByID(senderID)
+	senderName := "Koordinator"
+	if sender != nil {
+		senderName = sender.FullName
+	}
+
+	msg := fmt.Sprintf("%s mengingatkan Anda untuk membayar tagihan SH Terbit untuk %s sebesar Rp %.0f", 
+		senderName, invoice.Submission.Client.BusinessName, invoice.Amount)
+	
+	return uc.notifUC.CreateNotification(*invoice.PayerID, "Pengingat Pembayaran", msg, invoice.SubmissionID)
 }
 
 // Payment Config CRUD

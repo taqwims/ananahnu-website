@@ -1,5 +1,6 @@
-import { Bell, Menu, User } from 'lucide-react';
+import { Menu, User } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import NotificationDropdown from '../dashboard/NotificationDropdown';
 
 const Header = ({ toggleSidebar }: { toggleSidebar: () => void }) => {
     const user = useAuthStore(state => state.user);
@@ -16,10 +17,7 @@ const Header = ({ toggleSidebar }: { toggleSidebar: () => void }) => {
             </div>
 
             <div className="flex items-center gap-4">
-                <button className="p-2 relative hover:bg-white/50 rounded-full text-gray-600">
-                    <Bell className="w-5 h-5" />
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
-                </button>
+                <NotificationDropdown />
 
                 <div className="flex items-center gap-3 pl-4 border-l border-glass-border">
                     <div className="text-right hidden sm:block">
