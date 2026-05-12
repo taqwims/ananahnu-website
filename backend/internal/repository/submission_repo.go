@@ -73,3 +73,15 @@ func (r *submissionRepository) UpdateRejectNote(id uuid.UUID, note string) error
 func (r *submissionRepository) UpdateSH(id uuid.UUID, shURL string) error {
 	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("sh_url", shURL).Error
 }
+
+func (r *submissionRepository) UpdateTrackingNumber(id uuid.UUID, trackingNumber string) error {
+	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("tracking_number", trackingNumber).Error
+}
+
+func (r *submissionRepository) FindByTrackingNumber(trackingNumber string) (*domain.Submission, error) {
+	var submission domain.Submission
+	if err := r.db.Preload("Client").Preload("AssignedDrafter").First(&submission, "tracking_number = ?", trackingNumber).Error; err != nil {
+		return nil, err
+	}
+	return &submission, nil
+}

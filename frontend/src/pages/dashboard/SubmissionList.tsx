@@ -42,6 +42,18 @@ const STATUS_CONFIG: Record<string, { color: string, icon: any }> = {
     REVISION: { color: 'bg-orange-100 text-orange-700', icon: AlertCircle },
 };
 
+const STATUS_ORDER = [
+    'DRAFT',
+    'REVISION',
+    'VERVAL_PENDAMPING',
+    'QC_OFFICER',
+    'DRAFTER',
+    'QC_REVIEW',
+    'SIDANG_FATWA',
+    'SH_TERBIT',
+    'REJECTED'
+];
+
 type SortKey = 'business_name' | 'service_type' | 'status' | 'created_at' | 'consultant' | 'coordinator';
 type SortOrder = 'asc' | 'desc';
 
@@ -114,6 +126,13 @@ export default function SubmissionList() {
             group.submissions.sort((a, b) => {
                 let valA: any = '';
                 let valB: any = '';
+
+                if (sortKey === 'status') {
+                    const aIdx = STATUS_ORDER.indexOf(a.status);
+                    const bIdx = STATUS_ORDER.indexOf(b.status);
+                    return sortOrder === 'asc' ? aIdx - bIdx : bIdx - aIdx;
+                }
+
                 if (sortKey === 'business_name') {
                     valA = a.client?.business_name.toLowerCase() || '';
                     valB = b.client?.business_name.toLowerCase() || '';
@@ -203,7 +222,7 @@ export default function SubmissionList() {
                                 onChange={(e) => setStatusFilter(e.target.value)}
                             >
                                 <option value="">Semua Status</option>
-                                {Object.keys(STATUS_CONFIG).map(s => (
+                                {STATUS_ORDER.map(s => (
                                     <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
                                 ))}
                             </select>
@@ -278,6 +297,9 @@ export default function SubmissionList() {
                                                                     Status <SortIcon currentKey="status" activeKey={sortKey} order={sortOrder} />
                                                                 </div>
                                                             </th>
+                                                            <th className="p-4">
+                                                                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No. Resi</div>
+                                                            </th>
                                                             <th onClick={() => handleSort('created_at')} className="p-4 cursor-pointer hover:bg-gray-100 transition-colors">
                                                                 <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                                                                     Tgl Input <SortIcon currentKey="created_at" activeKey={sortKey} order={sortOrder} />
@@ -331,6 +353,11 @@ export default function SubmissionList() {
                                                                     </td>
                                                                     <td className="p-4">
                                                                         <StatusBadge status={sub.status} />
+                                                                    </td>
+                                                                    <td className="p-4">
+                                                                        <div className="text-xs font-mono font-bold text-brand-600 uppercase tracking-tight">
+                                                                            {sub.tracking_number || '-'}
+                                                                        </div>
                                                                     </td>
                                                                     <td className="p-4">
                                                                         <div className="text-xs text-gray-600 font-medium">

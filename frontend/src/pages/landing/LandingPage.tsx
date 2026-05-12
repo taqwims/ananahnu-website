@@ -52,12 +52,12 @@ export default function LandingPage() {
                         <p className="text-xl text-brand-100 mb-8 max-w-2xl leading-relaxed">
                             We help businesses achieve Halal compliance efficiently and transparently. Join thousands of certified partners today.
                         </p>
-                        <div className="flex gap-4">
-                            <a href="#contact" className="px-8 py-4 bg-white text-brand-700 rounded-full font-bold text-lg hover:bg-gray-100 transition-all hover:shadow-xl shadow-lg flex items-center gap-2">
-                                Start Consultation <ArrowRight className="w-5 h-5" />
+                        <div className="flex flex-wrap gap-4">
+                            <a href="/track" className="px-8 py-4 bg-white text-brand-700 rounded-full font-bold text-lg hover:bg-gray-100 transition-all hover:shadow-xl shadow-lg flex items-center gap-2">
+                                Lacak Progres SH <ArrowRight className="w-5 h-5" />
                             </a>
-                            <a href="#about" className="px-8 py-4 border border-brand-400 bg-brand-800/50 backdrop-blur-sm text-white rounded-full font-bold text-lg hover:bg-brand-800 transition-all">
-                                Learn More
+                            <a href="/register" className="px-8 py-4 border border-brand-400 bg-brand-800/50 backdrop-blur-sm text-white rounded-full font-bold text-lg hover:bg-brand-800 transition-all">
+                                Daftar Konsultan
                             </a>
                         </div>
                     </motion.div>
@@ -136,11 +136,11 @@ export default function LandingPage() {
                     <h2 className="text-4xl font-bold mb-6">Ready to Get Certified?</h2>
                     <p className="text-xl text-brand-100 mb-10">Start your journey towards Halal compliance today. Our team is ready to assist you every step of the way.</p>
                     <div className="flex justify-center gap-4">
-                        <a href="/login" className="px-8 py-4 bg-white text-brand-900 rounded-full font-bold text-lg hover:bg-gray-100 transition-all shadow-lg">
-                            Register Now
+                        <a href="/track" className="px-8 py-4 bg-white text-brand-900 rounded-full font-bold text-lg hover:bg-gray-100 transition-all shadow-lg">
+                            Lacak Sekarang
                         </a>
-                        <a href="mailto:info@ananahnu.id" className="px-8 py-4 border border-brand-400 bg-transparent text-white rounded-full font-bold text-lg hover:bg-brand-800 transition-all">
-                            Contact Support
+                        <a href="/register" className="px-8 py-4 border border-brand-400 bg-transparent text-white rounded-full font-bold text-lg hover:bg-brand-800 transition-all">
+                            Gabung Konsultan
                         </a>
                     </div>
                 </div>

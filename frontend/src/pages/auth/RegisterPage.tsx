@@ -1,28 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { User, Mail, Lock, Building, Phone, MapPin, Loader2, ArrowRight, ArrowLeft, Briefcase } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { User, Mail, Lock, Phone, MapPin, Loader2, ArrowRight, ArrowLeft, Briefcase } from 'lucide-react';
 import api from '../../services/api';
 
 const registerSchema = z.object({
     full_name: z.string().min(3, "Nama lengkap harus diisi"),
     email: z.string().email("Email tidak valid"),
     password: z.string().min(6, "Password minimal 6 karakter"),
-    role: z.enum(["HALAL_KONSULTAN", "CLIENT"]),
-    business_name: z.string().optional(),
-    nib: z.string().optional(),
+    role: z.literal("HALAL_KONSULTAN"),
     address: z.string().optional(),
     phone: z.string().optional(),
-    facilitator_id: z.string().optional(),
-}).refine(data => {
-    if (data.role === 'CLIENT' && !data.business_name) return false;
-    return true;
-}, {
-    message: "Nama Bisnis wajib diisi untuk Klien",
-    path: ["business_name"]
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -30,22 +21,15 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function RegisterPage() {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
-    const [facilitators, setFacilitators] = useState<any[]>([]);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
 
-    const { register, handleSubmit, watch, formState: { errors } } = useForm<RegisterFormValues>({
+    const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormValues>({
         resolver: zodResolver(registerSchema),
         defaultValues: {
-            role: 'CLIENT'
+            role: 'HALAL_KONSULTAN'
         }
     });
-
-    useEffect(() => {
-        api.get('/auth/facilitators').then(res => setFacilitators(res.data || [])).catch(() => {});
-    }, []);
-
-    const selectedRole = watch('role');
 
     const onSubmit = async (data: RegisterFormValues) => {
         setIsLoading(true);
@@ -73,7 +57,7 @@ export default function RegisterPage() {
                         <User className="w-10 h-10" />
                     </div>
                     <h2 className="text-2xl font-bold text-gray-800 mb-2">Registrasi Berhasil!</h2>
-                    <p className="text-gray-500 mb-6">Akun Anda telah berhasil dibuat. Mengalihkan Anda ke halaman login...</p>
+                    <p className="text-gray-500 mb-6">Akun Anda sebagai Konsultan telah berhasil dibuat. Mengalihkan Anda ke halaman login...</p>
                     <Loader2 className="w-6 h-6 animate-spin mx-auto text-brand-600" />
                 </motion.div>
             </div>
@@ -91,15 +75,15 @@ export default function RegisterPage() {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="max-w-2xl w-full glass-panel p-8 md:p-12 shadow-2xl border border-white/50"
+                className="max-w-xl w-full glass-panel p-8 md:p-12 shadow-2xl border border-white/50"
             >
                 <div className="flex items-center gap-4 mb-8">
                     <button onClick={() => navigate('/login')} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
                         <ArrowLeft className="w-5 h-5 text-gray-400" />
                     </button>
                     <div>
-                        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Daftar Akun Baru</h1>
-                        <p className="text-gray-500 text-sm">Mulai perjalanan sertifikasi halal Anda bersama kami</p>
+                        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Daftar Konsultan</h1>
+                        <p className="text-gray-500 text-sm">Bergabung sebagai konsultan pendamping halal</p>
                     </div>
                 </div>
 
@@ -111,35 +95,6 @@ export default function RegisterPage() {
                 )}
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                    {/* Role Selection */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <button
-                            type="button"
-                            onClick={() => {}} // Controlled by register
-                            className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
-                                selectedRole === 'CLIENT' 
-                                ? 'border-brand-600 bg-brand-50/50 ring-4 ring-brand-600/10' 
-                                : 'border-gray-100 bg-white hover:border-gray-200'
-                            }`}
-                        >
-                            <input {...register('role')} type="radio" value="CLIENT" className="absolute inset-0 opacity-0 cursor-pointer" />
-                            <Building className={`w-6 h-6 ${selectedRole === 'CLIENT' ? 'text-brand-600' : 'text-gray-400'}`} />
-                            <span className={`text-xs font-black uppercase tracking-widest ${selectedRole === 'CLIENT' ? 'text-brand-700' : 'text-gray-500'}`}>Klien / UMKM</span>
-                        </button>
-                        <button
-                            type="button"
-                            className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
-                                selectedRole === 'HALAL_KONSULTAN' 
-                                ? 'border-brand-600 bg-brand-50/50 ring-4 ring-brand-600/10' 
-                                : 'border-gray-100 bg-white hover:border-gray-200'
-                            }`}
-                        >
-                            <input {...register('role')} type="radio" value="HALAL_KONSULTAN" className="absolute inset-0 opacity-0 cursor-pointer" />
-                            <Briefcase className={`w-6 h-6 ${selectedRole === 'HALAL_KONSULTAN' ? 'text-brand-600' : 'text-gray-400'}`} />
-                            <span className={`text-xs font-black uppercase tracking-widest ${selectedRole === 'HALAL_KONSULTAN' ? 'text-brand-700' : 'text-gray-500'}`}>Konsultan</span>
-                        </button>
-                    </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-6">
                             <div>
@@ -171,62 +126,15 @@ export default function RegisterPage() {
                         </div>
 
                         <div className="space-y-6">
-                            <AnimatePresence mode="wait">
-                                {selectedRole === 'CLIENT' ? (
-                                    <motion.div
-                                        key="client-fields"
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: -20 }}
-                                        className="space-y-6"
-                                    >
-                                        <div>
-                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nama Bisnis / Perusahaan</label>
-                                            <div className="relative">
-                                                <Building className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                                                <input {...register('business_name')} placeholder="Contoh: PT Berkah Halal" className="glass-input pl-11" />
-                                            </div>
-                                            {errors.business_name && <p className="text-red-500 text-[10px] mt-1 font-bold">{errors.business_name.message}</p>}
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Fasilitator / Pendamping</label>
-                                            <div className="relative">
-                                                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                                                <select {...register('facilitator_id')} className="glass-input pl-11">
-                                                    <option value="">-- Pilih Fasilitator --</option>
-                                                    {facilitators.map(f => (
-                                                        <option key={f.id} value={f.id}>{f.full_name}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nomor NIB (Opsional)</label>
-                                            <div className="relative">
-                                                <Building className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                                                <input {...register('nib')} placeholder="Masukkan nomor NIB" className="glass-input pl-11" />
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                ) : (
-                                    <motion.div
-                                        key="consultant-fields"
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: -20 }}
-                                        className="space-y-6"
-                                    >
-                                        <div className="p-6 rounded-2xl bg-brand-50/50 border border-brand-100">
-                                            <h4 className="text-sm font-black text-brand-700 mb-2">Pendaftaran Konsultan</h4>
-                                            <p className="text-xs text-brand-600 leading-relaxed">
-                                                Setelah mendaftar, Anda akan diminta untuk melengkapi profil profesional dan dokumen pendukung seperti KTP dan Sertifikat Pelatihan.
-                                            </p>
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                            <div className="p-6 rounded-2xl bg-brand-50/50 border border-brand-100 mb-6">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Briefcase className="w-4 h-4 text-brand-600" />
+                                    <h4 className="text-sm font-black text-brand-700">Persyaratan Konsultan</h4>
+                                </div>
+                                <p className="text-[11px] text-brand-600 leading-relaxed">
+                                    Setelah mendaftar, Anda wajib melengkapi profil dan mengunggah dokumen pendukung seperti KTP dan Sertifikat Pelatihan untuk proses verifikasi.
+                                </p>
+                            </div>
 
                             <div>
                                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nomor WhatsApp</label>
@@ -256,7 +164,7 @@ export default function RegisterPage() {
                                 <Loader2 className="w-5 h-5 animate-spin" />
                             ) : (
                                 <>
-                                    Daftar Sekarang
+                                    Daftar Sebagai Konsultan
                                     <ArrowRight className="w-5 h-5" />
                                 </>
                             )}

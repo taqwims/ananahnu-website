@@ -36,6 +36,7 @@ type Submission struct {
 	RegencyID           *int64           `json:"regency_id,omitempty"`
 	DistrictID          *int64           `json:"district_id,omitempty"`
 	RejectNote          string           `json:"reject_note,omitempty"`
+	TrackingNumber      string           `gorm:"uniqueIndex" json:"tracking_number,omitempty"`
 	SHURL               string           `json:"sh_url,omitempty"`
 	Payments            []Payment        `gorm:"foreignKey:SubmissionID" json:"payments"`
 	FieldValues         []FormFieldValue `gorm:"foreignKey:SubmissionID" json:"field_values,omitempty"`
@@ -59,4 +60,6 @@ type SubmissionRepository interface {
 	UpdateAssignee(id uuid.UUID, drafterID *uuid.UUID) error
 	UpdateRejectNote(id uuid.UUID, note string) error
 	UpdateSH(id uuid.UUID, shURL string) error
+	UpdateTrackingNumber(id uuid.UUID, trackingNumber string) error
+	FindByTrackingNumber(trackingNumber string) (*Submission, error)
 }

@@ -199,6 +199,12 @@ export default function SubmissionDetail() {
                     <span className="px-4 py-2 rounded-full bg-brand-100 text-brand-800 font-bold text-sm">
                         {submission.status.replace(/_/g, ' ')}
                     </span>
+                    {submission.tracking_number && (
+                        <div className="flex flex-col items-end">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No. Resi</span>
+                            <span className="text-sm font-black text-brand-600 font-mono">{submission.tracking_number}</span>
+                        </div>
+                    )}
                 </div>
             </div>
 

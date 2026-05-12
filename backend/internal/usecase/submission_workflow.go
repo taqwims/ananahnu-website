@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -22,6 +23,7 @@ type SubmissionWorkflowUsecase interface {
 	GetSubmission(id uuid.UUID) (*domain.Submission, error)
 	GetHistory(id uuid.UUID) ([]domain.AuditLog, error)
 	IssueSH(id uuid.UUID, userID uuid.UUID, shURL string) error
+	TrackByNumber(trackingNumber string) (*domain.Submission, error)
 }
 
 type CreateFullInput struct {
@@ -132,6 +134,14 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 	nextStatus := domain.StatusWaitingPayment
 	if sub.ServiceType == "SELF_DECLARE" {
 		nextStatus = domain.StatusVervalPendamping
+	}
+
+	// Generate tracking number if not exists
+	if sub.TrackingNumber == "" {
+		now := time.Now()
+		randomPart := strings.ToUpper(uuid.New().String()[:4])
+		trackingNo := fmt.Sprintf("AN-%s-%s", now.Format("0601"), randomPart)
+		uc.submissionRepo.UpdateTrackingNumber(id, trackingNo)
 	}
 
 	err = uc.submissionRepo.UpdateStatus(id, nextStatus, 0)
@@ -524,7 +534,21 @@ func (uc *submissionWorkflowUsecase) GetSubmissions(userID uuid.UUID, role strin
 }
 
 func (uc *submissionWorkflowUsecase) GetSubmission(id uuid.UUID) (*domain.Submission, error) {
-	return uc.submissionRepo.FindByID(id)
+	sub, err := uc.submissionRepo.FindByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Lazy generate tracking number for existing non-draft submissions
+	if sub.TrackingNumber == "" && sub.Status != domain.StatusDraft {
+		now := time.Now()
+		randomPart := strings.ToUpper(uuid.New().String()[:4])
+		trackingNo := fmt.Sprintf("AN-%s-%s", now.Format("0601"), randomPart)
+		uc.submissionRepo.UpdateTrackingNumber(id, trackingNo)
+		sub.TrackingNumber = trackingNo
+	}
+
+	return sub, nil
 }
 
 func (uc *submissionWorkflowUsecase) GetHistory(id uuid.UUID) ([]domain.AuditLog, error) {
@@ -643,4 +667,8 @@ func (uc *submissionWorkflowUsecase) IssueSH(id uuid.UUID, userID uuid.UUID, shU
 	}
 
 	return nil
+}
+
+func (uc *submissionWorkflowUsecase) TrackByNumber(trackingNumber string) (*domain.Submission, error) {
+	return uc.submissionRepo.FindByTrackingNumber(trackingNumber)
 }

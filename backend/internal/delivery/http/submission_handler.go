@@ -31,6 +31,8 @@ func NewSubmissionHandler(r *gin.Engine, uc usecase.SubmissionWorkflowUsecase) {
 		g.GET("/:id", handler.GetDetail)
 		g.GET("/:id/history", handler.GetHistory)
 	}
+
+	r.GET("/public/track/:tracking_number", handler.TrackSubmission)
 }
 
 func (h *SubmissionHandler) CreateDraft(c *gin.Context) {
@@ -302,4 +304,30 @@ func (h *SubmissionHandler) IssueSH(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "SH issued successfully"})
+}
+
+func (h *SubmissionHandler) TrackSubmission(c *gin.Context) {
+	trackingNo := c.Param("tracking_number")
+	if trackingNo == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tracking number is required"})
+		return
+	}
+
+	sub, err := h.workflowUC.TrackByNumber(trackingNo)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Submission not found with that tracking number"})
+		return
+	}
+
+	// We only return safe info for public tracking
+	c.JSON(http.StatusOK, gin.H{
+		"id":            sub.ID,
+		"business_name": sub.Client.BusinessName,
+		"client_name":   sub.Client.ClientName,
+		"status":        sub.Status,
+		"service_type":  sub.ServiceType,
+		"sh_url":        sub.SHURL,
+		"updated_at":    sub.UpdatedAt,
+		"tracking_no":   sub.TrackingNumber,
+	})
 }

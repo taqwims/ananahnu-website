@@ -40,6 +40,7 @@ import CoordinatorDashboard from './pages/dashboard/CoordinatorDashboard';
 import PaymentDashboard from './pages/dashboard/PaymentDashboard';
 import UserManagement from './pages/dashboard/UserManagement';
 import ConsultantVerification from './pages/dashboard/ConsultantVerification';
+import TrackSubmission from './pages/tracking/TrackSubmission';
 
 function App() {
   return (
@@ -85,6 +86,7 @@ function App() {
         {/* Public Routes */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/track" element={<TrackSubmission />} />
         </Route>
       </Routes>
     </BrowserRouter>

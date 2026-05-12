@@ -26,12 +26,9 @@ type RegisterInput struct {
 	FullName     string `json:"full_name" binding:"required"`
 	Email        string `json:"email" binding:"required,email"`
 	Password     string `json:"password" binding:"required,min=6"`
-	Role         string `json:"role" binding:"required"` // "HALAL_KONSULTAN" or "CLIENT"
-	BusinessName string `json:"business_name"`           // For CLIENT
-	NIB          string `json:"nib"`                     // For CLIENT
+	Role         string `json:"role" binding:"required"` // "HALAL_KONSULTAN"
 	Address       string     `json:"address"`
 	Phone         string     `json:"phone"`
-	FacilitatorID *uuid.UUID `json:"facilitator_id"` // For CLIENT
 }
 
 type GenerateAccountInput struct {
@@ -91,7 +88,7 @@ func (uc *authUsecase) Login(email, password string) (string, string, *domain.Us
 
 func (uc *authUsecase) Register(input RegisterInput) error {
 	// 1. Validate Role
-	if input.Role != "HALAL_KONSULTAN" && input.Role != "CLIENT" {
+	if input.Role != "HALAL_KONSULTAN" {
 		return errors.New("invalid role for registration")
 	}
 
@@ -127,23 +124,6 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 		return err
 	}
 
-	// 6. Role Specific Logic
-	if input.Role == "CLIENT" {
-		client := &domain.Client{
-			ID:            uuid.New(),
-			NIB:           input.NIB,
-			BusinessName:  input.BusinessName,
-			Address:       input.Address,
-			ContactPerson: input.FullName,
-			Phone:         input.Phone,
-			CreatedBy:     userID,
-		}
-		if input.FacilitatorID != nil {
-			client.FacilitatorID = *input.FacilitatorID
-		}
-		return uc.clientRepo.Create(client)
-	}
-
 	return nil
 }
 
@@ -154,9 +134,6 @@ func (uc *authUsecase) ListFacilitators() ([]domain.User, error) {
 	return users, err
 }
 
-func (uc *authUsecase) RegisterClient(input RegisterInput) error {
-	return uc.Register(input)
-}
 
 func (uc *authUsecase) GenerateAccount(input GenerateAccountInput) (string, error) {
 	// 1. Generate Random Password

@@ -69,6 +69,7 @@ export interface Submission {
     field_values?: FormFieldValue[];
     cost_detail?: SubmissionCostDetail;
     sh_url?: string;
+    tracking_number?: string;
     created_at: string;
     updated_at: string;
 }
@@ -284,4 +285,24 @@ export interface SalesSchemePrice {
     is_active: boolean;
     created_at?: string;
     updated_at?: string;
+}
+
+// --- CMS ---
+
+export interface News {
+    id: number;
+    title: string;
+    content: string;
+    category: string;
+    image_url?: string;
+    is_published: boolean;
+    created_at: string;
+}
+
+export interface ContentBlock {
+    id: number;
+    slug: string;
+    title: string;
+    content: string;
+    updated_at: string;
 }
