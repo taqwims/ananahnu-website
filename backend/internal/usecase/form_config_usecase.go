@@ -73,6 +73,7 @@ func (uc *formConfigUsecase) UpdateField(config *domain.FormFieldConfig) error {
 	existing.IsRequired = config.IsRequired
 	existing.SortOrder = config.SortOrder
 	existing.Description = config.Description
+	existing.BusinessTypeID = config.BusinessTypeID
 
 	return uc.configRepo.Update(existing)
 }

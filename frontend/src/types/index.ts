@@ -20,19 +20,20 @@ export interface Client {
     nib: string;
     nik: string;
     business_name: string;
+    client_name: string;
     address: string;
     product_name: string;
     service_type: string;
     facilitator_id: string;
     facilitator?: User;
-    contact_person: string;
+    contact_person?: string;
     phone: string;
     created_by: string;
     created_at?: string;
     updated_at?: string;
 }
 
-export type SubmissionStatus = 'DRAFT' | 'WAITING_PAYMENT' | 'VERVAL_PENDAMPING' | 'QC_OFFICER' | 'DRAFTER' | 'SIDANG_FATWA' | 'SH_TERBIT' | 'REJECTED' | 'REVISION';
+export type SubmissionStatus = 'DRAFT' | 'WAITING_PAYMENT' | 'VERVAL_PENDAMPING' | 'QC_OFFICER' | 'DRAFTER' | 'QC_REVIEW' | 'SIDANG_FATWA' | 'SH_TERBIT' | 'REJECTED' | 'REVISION';
 
 export interface Payment {
     id: number;
@@ -59,6 +60,9 @@ export interface Submission {
     status: SubmissionStatus;
     service_type: string;
     current_assignee_role: number;
+    sales_scheme_id?: number;
+    consultant_id?: string;
+    data_source?: string;
     regency_id?: number;
     district_id?: number;
     payments?: Payment[];
@@ -115,6 +119,7 @@ export interface FormFieldConfig {
     is_required: boolean;
     sort_order: number;
     description: string;
+    business_type_id?: number;
 }
 
 export interface FormFieldValue {
@@ -176,6 +181,9 @@ export interface Invoice {
     status: 'UNPAID' | 'PAID';
     regency_id?: number;
     district_id?: number;
+    pricing_source?: string;   // SCHEME_PRICE, COORDINATOR_RATE, COST_DETAIL, DEFAULT
+    sales_scheme_id?: number;
+    discount_applied?: number;
     notes: string;
     created_at: string;
     paid_at?: string;
@@ -234,10 +242,45 @@ export interface SubmissionCostDetail {
     submission_id: string;
     product_category_id?: number;
     business_scale_id?: number;
-    halal_agency_id?: number;
     product_count: number;
     branch_count: number;
     mandays: number;
     total_amount: number;
     cost_breakdown_data: string; // JSON string
+}
+
+// --- Billing Component (with Category & IsMandatory) ---
+
+export interface BillingComponent {
+    id: number;
+    name: string;
+    category: 'REGISTRASI' | 'PENETAPAN' | 'PENDAMPINGAN' | 'BPJPH' | 'MUI' | 'OPSIONAL' | 'LPH';
+    type: 'FIXED' | 'PER_MANDAY' | 'PER_CABANG' | 'PER_PRODUK';
+    base_amount: number;
+    is_mandatory: boolean;
+    business_scale_id?: number;
+    province_id?: number;
+    business_type_id?: number;
+    product_category_id?: number;
+}
+
+// --- Sales Scheme Price (Direct Sale vs Partnership, Organik vs Marketing) ---
+
+export interface SalesSchemePrice {
+    id: number;
+    sales_scheme_id: number;
+    sales_scheme?: { id: number; name: string };
+    product_category_id?: number;
+    product_category?: { id: number; name: string };
+    business_type_id?: number;
+    business_type?: { id: number; name: string };
+    business_scale_id?: number;
+    business_scale?: { id: number; name: string };
+    data_source: 'ORGANIK' | 'MARKETING';
+    base_price: number;
+    discount_percent: number;
+    description: string;
+    is_active: boolean;
+    created_at?: string;
+    updated_at?: string;
 }

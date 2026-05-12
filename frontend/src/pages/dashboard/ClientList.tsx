@@ -143,8 +143,9 @@ export default function ClientList() {
                         <thead className="bg-gray-50/50 border-b border-gray-100">
                             <tr>
                                 <th className="px-6 py-4 font-semibold text-gray-700">NIB</th>
-                                <th className="px-6 py-4 font-semibold text-gray-700">Business Name</th>
-                                <th className="px-6 py-4 font-semibold text-gray-700">Product</th>
+                                <th className="px-6 py-4 font-semibold text-gray-700">Nama Bisnis</th>
+                                <th className="px-6 py-4 font-semibold text-gray-700">Nama Klien</th>
+                                <th className="px-6 py-4 font-semibold text-gray-700">Produk</th>
                                 <th className="px-6 py-4 font-semibold text-gray-700">Status</th>
                                 <th className="px-6 py-4 font-semibold text-gray-700">Actions</th>
                             </tr>
@@ -163,6 +164,7 @@ export default function ClientList() {
                                     <tr key={client.id} className="hover:bg-gray-50/50 transition-colors">
                                         <td className="px-6 py-4 font-mono text-gray-600">{client.nib}</td>
                                         <td className="px-6 py-4 font-medium text-gray-900">{client.business_name}</td>
+                                        <td className="px-6 py-4 text-gray-600 font-medium">{client.client_name || '-'}</td>
                                         <td className="px-6 py-4 text-gray-600">{client.product_name}</td>
                                         <td className="px-6 py-4">
                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import type { User, TrainingParticipant, ConsultantProfile, Client, Submission } from '../../types';
+import { formatServiceType } from '../../utils/format';
 
 type TabKey = 'team' | 'clients' | 'submissions';
 
@@ -243,7 +244,7 @@ export default function CoordinatorDashboard() {
                                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                                         cl.service_type === 'REGULER' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
                                                     }`}>
-                                                        {cl.service_type}
+                                                        {formatServiceType(cl.service_type)}
                                                     </span>
                                                 </div>
                                             ))}
@@ -317,7 +318,7 @@ export default function CoordinatorDashboard() {
                                         <td className="p-4">
                                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                                 c.service_type === 'REGULER' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                                            }`}>{c.service_type}</span>
+                                            }`}>{formatServiceType(c.service_type)}</span>
                                         </td>
                                         <td className="p-4 text-xs text-gray-500">{c.facilitator?.full_name || '-'}</td>
                                         <td className="p-4 text-xs text-gray-500">{c.phone}</td>
@@ -347,7 +348,7 @@ export default function CoordinatorDashboard() {
                                         </div>
                                         <div>
                                             <h4 className="font-semibold text-gray-800">{sub.client?.business_name || 'Unknown'}</h4>
-                                            <p className="text-xs text-gray-500">NIB: {sub.client?.nib || '-'} | {sub.service_type}</p>
+                                            <p className="text-xs text-gray-500">NIB: {sub.client?.nib || '-'} | {formatServiceType(sub.service_type)}</p>
                                             <p className="text-xs text-gray-400 mt-1">{new Date(sub.created_at).toLocaleDateString('id-ID')}</p>
                                         </div>
                                     </div>

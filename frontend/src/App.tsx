@@ -23,6 +23,8 @@ import CoordinatorRates from './pages/dashboard/CoordinatorRates';
 import MyInvoices from './pages/dashboard/MyInvoices';
 import InvoiceList from './pages/dashboard/InvoiceList';
 import CMSDashboard from './pages/dashboard/CMSDashboard';
+import DistributionAdmin from './pages/dashboard/DistributionAdmin';
+import DrafterMonitoring from './pages/dashboard/DrafterMonitoring';
 import PublicLayout from './components/layout/PublicLayout';
 import LandingPage from './pages/landing/LandingPage';
 
@@ -56,6 +58,8 @@ function App() {
           <Route path="submissions" element={<SubmissionList />} />
           <Route path="submissions/new" element={<SubmissionCreate />} />
           <Route path="submissions/:id" element={<SubmissionDetail />} />
+          <Route path="distribution" element={<DistributionAdmin />} />
+          <Route path="monitoring" element={<DrafterMonitoring />} />
           <Route path="coordinator-rates" element={<CoordinatorRates />} />
           <Route path="my-invoices" element={<MyInvoices />} />
 

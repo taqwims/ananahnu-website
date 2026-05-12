@@ -9,16 +9,17 @@ import (
 // FormFieldConfig defines an admin-configurable field for a specific form type.
 // Admin can set the input type (FILE_UPLOAD, LINK, TEXT) and whether it's required.
 type FormFieldConfig struct {
-	ID          int64     `gorm:"primaryKey" json:"id"`
-	FormType    string    `gorm:"index;not null" json:"form_type"`    // SELF_DECLARE, REGULER, RECRUITMENT
-	FieldKey    string    `gorm:"not null" json:"field_key"`          // nib, ktp, foto_produk, etc.
-	FieldLabel  string    `json:"field_label"`                        // Display label
-	InputType   string    `json:"input_type"`                         // FILE_UPLOAD, LINK, TEXT
-	IsRequired  bool      `json:"is_required"`
-	SortOrder   int       `json:"sort_order"`
-	Description string    `json:"description"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID             int64     `gorm:"primaryKey" json:"id"`
+	FormType       string    `gorm:"index;not null" json:"form_type"`    // SELF_DECLARE, REGULER, RECRUITMENT
+	FieldKey       string    `gorm:"not null" json:"field_key"`          // nib, ktp, foto_produk, etc.
+	FieldLabel     string    `json:"field_label"`                        // Display label
+	InputType      string    `json:"input_type"`                         // FILE_UPLOAD, LINK, TEXT
+	IsRequired     bool      `json:"is_required"`
+	SortOrder      int       `json:"sort_order"`
+	Description    string    `json:"description"`
+	BusinessTypeID *int64    `json:"business_type_id,omitempty"`         // Optional: scoping per jenis bidang
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 // FormFieldValue stores the user-submitted data for a specific form field on a submission.
@@ -36,6 +37,7 @@ type FormFieldValue struct {
 
 type FormConfigRepository interface {
 	FindByFormType(formType string) ([]FormFieldConfig, error)
+	FindByFormTypeAndBusinessType(formType string, businessTypeID *int64) ([]FormFieldConfig, error)
 	FindByID(id int64) (*FormFieldConfig, error)
 	Create(config *FormFieldConfig) error
 	Update(config *FormFieldConfig) error

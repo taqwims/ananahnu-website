@@ -129,14 +129,40 @@ func (h *ClientHandler) Update(c *gin.Context) {
 		return
 	}
 
-	var input domain.Client
+	// Fetch the existing client first
+	existing, err := h.clientUC.GetClient(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "client not found"})
+		return
+	}
+
+	// Only bind the editable fields from the request body
+	var input struct {
+		BusinessName  string `json:"business_name"`
+		ClientName    string `json:"client_name"`
+		NIB           string `json:"nib"`
+		NIK           string `json:"nik"`
+		ProductName   string `json:"product_name"`
+		Address       string `json:"address"`
+		ContactPerson string `json:"contact_person"`
+		Phone         string `json:"phone"`
+	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	input.ID = id // Ensure ID matches
 
-	if err := h.clientUC.UpdateClient(&input); err != nil {
+	// Apply editable fields to the existing client
+	existing.BusinessName = input.BusinessName
+	existing.ClientName = input.ClientName
+	existing.NIB = input.NIB
+	existing.NIK = input.NIK
+	existing.ProductName = input.ProductName
+	existing.Address = input.Address
+	existing.ContactPerson = input.ContactPerson
+	existing.Phone = input.Phone
+
+	if err := h.clientUC.UpdateClient(existing); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

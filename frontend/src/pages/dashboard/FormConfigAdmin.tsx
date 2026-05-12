@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Settings, Plus, Trash2, Save, Loader2, GripVertical } from 'lucide-react';
 import api from '../../services/api';
 import type { FormFieldConfig } from '../../types';
+import { formatServiceType } from '../../utils/format';
 
 const FORM_TYPES = ['SELF_DECLARE', 'SELF_DECLARE_MANDIRI', 'REGULER', 'RECRUITMENT'] as const;
 const INPUT_TYPES = ['FILE_UPLOAD', 'LINK', 'TEXT'] as const;
@@ -12,9 +13,10 @@ export default function FormConfigAdmin() {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [showAdd, setShowAdd] = useState(false);
+    const [businessTypes, setBusinessTypes] = useState<{id: number; name: string}[]>([]);
     const [newField, setNewField] = useState({
         field_key: '', field_label: '', input_type: 'TEXT' as string,
-        is_required: false, sort_order: 0, description: ''
+        is_required: false, sort_order: 0, description: '', business_type_id: '' as string
     });
 
     const loadFields = async (formType: string) => {
@@ -28,6 +30,10 @@ export default function FormConfigAdmin() {
 
     useEffect(() => { loadFields(activeTab); }, [activeTab]);
 
+    useEffect(() => {
+        api.get('/billing-config/business-types').then(res => setBusinessTypes(res.data || [])).catch(() => {});
+    }, []);
+
     const handleAdd = async () => {
         setSaving(true);
         try {
@@ -35,9 +41,10 @@ export default function FormConfigAdmin() {
                 ...newField,
                 form_type: activeTab,
                 sort_order: fields.length + 1,
+                business_type_id: newField.business_type_id ? parseInt(newField.business_type_id) : null,
             });
             setShowAdd(false);
-            setNewField({ field_key: '', field_label: '', input_type: 'TEXT', is_required: false, sort_order: 0, description: '' });
+            setNewField({ field_key: '', field_label: '', input_type: 'TEXT', is_required: false, sort_order: 0, description: '', business_type_id: '' });
             loadFields(activeTab);
         } catch (err: any) {
             alert(err.response?.data?.error || 'Gagal menambahkan field');
@@ -90,7 +97,7 @@ export default function FormConfigAdmin() {
                                 : 'bg-white/50 text-gray-600 hover:bg-white/80'
                         }`}
                     >
-                        {type.replace(/_/g, ' ')}
+                        {formatServiceType(type)}
                     </button>
                 ))}
             </div>
@@ -99,7 +106,7 @@ export default function FormConfigAdmin() {
             <div className="glass-panel p-6 space-y-4">
                 <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-gray-700">
-                        Fields — {activeTab.replace(/_/g, ' ')}
+                        Fields — {formatServiceType(activeTab)}
                     </h2>
                     <button
                         onClick={() => setShowAdd(true)}
@@ -121,7 +128,7 @@ export default function FormConfigAdmin() {
                             <div key={field.id} className="flex items-center gap-3 p-4 bg-white/60 rounded-xl border border-gray-100 group">
                                 <GripVertical className="w-4 h-4 text-gray-300 cursor-grab" />
 
-                                <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-3 items-center">
+                                <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-3 items-center">
                                     <input
                                         className="glass-input text-sm"
                                         value={field.field_label}
@@ -162,6 +169,18 @@ export default function FormConfigAdmin() {
                                             {field.is_required ? 'Wajib' : 'Opsional'}
                                         </span>
                                     </label>
+                                    <select
+                                        className="glass-input text-xs"
+                                        value={field.business_type_id || ''}
+                                        onChange={e => {
+                                            const val = e.target.value ? parseInt(e.target.value) : undefined;
+                                            updateField(field.id, 'business_type_id', val);
+                                            handleUpdate({ ...field, business_type_id: val });
+                                        }}
+                                    >
+                                        <option value="">Semua Bidang</option>
+                                        {businessTypes.map(bt => <option key={bt.id} value={bt.id}>{bt.name}</option>)}
+                                    </select>
                                     <button
                                         onClick={() => handleDelete(field.id)}
                                         className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
@@ -197,6 +216,11 @@ export default function FormConfigAdmin() {
                                     className="w-4 h-4 rounded" />
                                 Wajib diisi
                             </label>
+                            <select className="glass-input text-sm" value={newField.business_type_id}
+                                onChange={e => setNewField(p => ({ ...p, business_type_id: e.target.value }))}>
+                                <option value="">Bidang: Semua (Global)</option>
+                                {businessTypes.map(bt => <option key={bt.id} value={bt.id}>{bt.name}</option>)}
+                            </select>
                         </div>
                         <div className="flex justify-end gap-3 pt-2">
                             <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Batal</button>

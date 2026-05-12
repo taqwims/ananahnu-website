@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Upload, Link as LinkIcon, FileText, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, Link as LinkIcon, FileText, Loader2, CheckCircle, AlertCircle, Camera } from 'lucide-react';
 import api from '../../services/api';
 import type { FormFieldConfig, FormFieldValue } from '../../types';
+import { formatServiceType } from '../../utils/format';
 
 interface DynamicSubmissionFormProps {
     formType: string;
@@ -110,7 +111,7 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
     if (configs.length === 0) {
         return (
             <div className="glass-panel p-6 text-center text-gray-400">
-                Belum ada konfigurasi form untuk {formType.replace(/_/g, ' ')}.
+                Belum ada konfigurasi form untuk {formatServiceType(formType)}.
             </div>
         );
     }
@@ -119,7 +120,7 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
         <div className="glass-panel p-6 space-y-5">
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-800">
-                    Formulir {formType.replace(/_/g, ' ')}
+                    Formulir {formatServiceType(formType)}
                 </h3>
                 {saved && (
                     <span className="flex items-center gap-1 text-sm text-green-600">
@@ -144,47 +145,71 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
                         )}
 
                         {cfg.input_type === 'FILE_UPLOAD' && (
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-3">
-                                    <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                                        uploading[cfg.id] ? 'bg-gray-50 border-gray-200' : 'bg-white border-brand-200 hover:border-brand-400'
+                            <div className="space-y-3">
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    {/* Option 1: Standard File Picker */}
+                                    <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
+                                        uploading[cfg.id] ? 'bg-gray-50 border-gray-200' : 'bg-white border-brand-200 hover:border-brand-400 hover:bg-brand-50/30'
                                     }`}>
                                         <input
                                             type="file"
                                             className="hidden"
                                             onChange={e => e.target.files?.[0] && handleFileUpload(cfg.id, e.target.files[0])}
                                             disabled={readOnly || uploading[cfg.id]}
+                                            accept="image/*,application/pdf"
                                         />
-                                        {uploading[cfg.id] ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-                                                <span className="text-sm text-gray-400">Mengunggah...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Upload className="w-4 h-4 text-brand-600" />
-                                                <span className="text-sm text-brand-600 font-medium">
-                                                    {values[cfg.id]?.file_url ? 'Ganti File' : 'Pilih File (Max 2MB)'}
-                                                </span>
-                                            </>
-                                        )}
+                                        <Upload className="w-4 h-4 text-brand-600" />
+                                        <span className="text-sm text-brand-700 font-medium">Pilih File</span>
+                                    </label>
+
+                                    {/* Option 2: Camera Capture (Mobile Optimized) */}
+                                    <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
+                                        uploading[cfg.id] ? 'bg-gray-50 border-gray-200' : 'bg-white border-blue-200 hover:border-blue-400 hover:bg-blue-50/30'
+                                    }`}>
+                                        <input
+                                            type="file"
+                                            className="hidden"
+                                            onChange={e => e.target.files?.[0] && handleFileUpload(cfg.id, e.target.files[0])}
+                                            disabled={readOnly || uploading[cfg.id]}
+                                            accept="image/*"
+                                            capture="environment"
+                                        />
+                                        <Camera className="w-4 h-4 text-blue-600" />
+                                        <span className="text-sm text-blue-700 font-medium">Ambil Foto</span>
                                     </label>
                                 </div>
+
+                                {uploading[cfg.id] && (
+                                    <div className="flex items-center justify-center gap-2 py-2">
+                                        <Loader2 className="w-4 h-4 animate-spin text-brand-500" />
+                                        <span className="text-xs text-gray-500 font-medium">Sedang mengunggah...</span>
+                                    </div>
+                                )}
                                 
                                 {values[cfg.id]?.file_url && (
-                                    <div className="flex items-center gap-2 p-2 bg-brand-50 rounded-md border border-brand-100">
-                                        <FileText className="w-4 h-4 text-brand-500" />
-                                        <span className="text-xs text-brand-700 truncate flex-1">
-                                            {values[cfg.id].file_url.split('/').pop()}
-                                        </span>
-                                        <a 
-                                            href={`${import.meta.env.VITE_API_URL}${values[cfg.id].file_url}`} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="text-xs font-bold text-brand-600 hover:underline"
-                                        >
-                                            Lihat
-                                        </a>
+                                    <div className="bg-emerald-50 text-emerald-700 p-3 rounded-xl text-xs font-bold border border-emerald-100 flex flex-col gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <FileText className="w-4 h-4" />
+                                            <span className="truncate flex-1">{values[cfg.id].file_url.split('/').pop()}</span>
+                                        </div>
+                                        {values[cfg.id].file_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                                            <div className="mt-1 w-full max-w-[200px] rounded-lg overflow-hidden border border-emerald-200">
+                                                <img 
+                                                    src={`${import.meta.env.VITE_API_URL}${values[cfg.id].file_url}`} 
+                                                    alt="Preview" 
+                                                    className="w-full h-auto object-cover"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <a 
+                                                href={`${import.meta.env.VITE_API_URL}${values[cfg.id].file_url}`} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="text-emerald-600 hover:underline inline-block mt-1"
+                                            >
+                                                Lihat Dokumen
+                                            </a>
+                                        )}
                                     </div>
                                 )}
                             </div>

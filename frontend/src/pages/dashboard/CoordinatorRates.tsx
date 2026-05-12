@@ -9,6 +9,7 @@ export default function CoordinatorRates() {
     const [rates, setRates] = useState<any[]>([]);
     const [coordinators, setCoordinators] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [editableRates, setEditableRates] = useState<Record<string, number>>({});
 
     const fetchData = async () => {
         setLoading(true);
@@ -20,6 +21,14 @@ export default function CoordinatorRates() {
             // userRes.data is directly the array of users in this new endpoint
             setCoordinators(userRes.data || []);
             setRates(rateRes.data || []);
+
+            // Initialize editable rates
+            const initialRates: Record<string, number> = {};
+            (userRes.data || []).forEach((u: any) => {
+                const rate = (rateRes.data || []).find((r: any) => r.coordinator_id === u.id);
+                initialRates[u.id] = rate ? rate.rate_per_sh : 100000;
+            });
+            setEditableRates(initialRates);
         } catch (err) {
             console.error(err);
         } finally {
@@ -106,15 +115,15 @@ export default function CoordinatorRates() {
                                         <input 
                                             type="number" 
                                             className="glass-input pl-10" 
-                                            defaultValue={currentRate}
-                                            id={`rate-${coord.id}`}
+                                            value={editableRates[coord.id] || 0}
+                                            onChange={e => setEditableRates({
+                                                ...editableRates,
+                                                [coord.id]: parseInt(e.target.value) || 0
+                                            })}
                                         />
                                     </div>
                                     <button 
-                                        onClick={() => {
-                                            const val = (document.getElementById(`rate-${coord.id}`) as HTMLInputElement).value;
-                                            handleUpdateRate(coord.id, parseInt(val));
-                                        }}
+                                        onClick={() => handleUpdateRate(coord.id, editableRates[coord.id] || 0)}
                                         disabled={saving === coord.id}
                                         className="p-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 disabled:opacity-50"
                                     >

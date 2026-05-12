@@ -21,15 +21,26 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
     const [snapError, setSnapError] = useState<string | null>(null);
     const [paymentHistory, setPaymentHistory] = useState<Payment[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
+    const [loadingConfig, setLoadingConfig] = useState(false);
 
     const user = useAuthStore((state) => state.user);
+    const isEditable = user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR';
 
     // Sync amount if submission cost detail changes
     useEffect(() => {
         if (submission.cost_detail?.total_amount) {
             setAmount(submission.cost_detail.total_amount);
+        } else if (submission.service_type === 'SELF_DECLARE_MANDIRI') {
+            setLoadingConfig(true);
+            api.get('/system-settings/SD_MANDIRI_COST?default=280000')
+                .then(res => {
+                    const val = parseInt(res.data.value, 10);
+                    if (!isNaN(val)) setAmount(val);
+                })
+                .catch(err => console.error("Failed to load cost config", err))
+                .finally(() => setLoadingConfig(false));
         }
-    }, [submission.cost_detail?.total_amount]);
+    }, [submission.cost_detail?.total_amount, submission.service_type]);
 
     // Load payment history for this submission
     const loadHistory = useCallback(async () => {
@@ -242,13 +253,20 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                     <label className="block text-sm font-medium text-gray-700">Jumlah Pembayaran</label>
                     <span className="text-xs font-bold text-brand-600">{formatRupiah(amount)}</span>
                 </div>
-                <input
-                    type="number"
-                    className="glass-input"
-                    value={amount}
-                    onChange={(e) => setAmount(Number(e.target.value))}
-                    min={1}
-                />
+                {loadingConfig ? (
+                    <div className="flex items-center gap-2 text-sm text-brand-600">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Mengambil tagihan...
+                    </div>
+                ) : (
+                    <input
+                        type="number"
+                        className={`glass-input ${!isEditable ? 'bg-gray-100 text-gray-500 font-bold cursor-not-allowed' : ''}`}
+                        value={amount}
+                        onChange={(e) => setAmount(Number(e.target.value))}
+                        min={1}
+                        readOnly={!isEditable}
+                    />
+                )}
             </div>
 
             {/* Method selector */}
@@ -314,7 +332,7 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                 </div>
             )}
 
-            {amount <= 0 && (
+            {amount <= 0 && !loadingConfig && (
                 <div className="p-3 bg-yellow-50 text-yellow-700 text-xs rounded-lg flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span>Nominal biaya belum ditentukan oleh bagian Keuangan.</span>

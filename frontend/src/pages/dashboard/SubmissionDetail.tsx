@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, CheckCircle, XCircle, Send, FileText, AlertTriangle, Loader2, Upload, Link as LinkIcon, Receipt } from 'lucide-react';
+import { ChevronLeft, CheckCircle, XCircle, Send, FileText, AlertTriangle, Loader2, Upload, Link as LinkIcon, Receipt, UserCheck } from 'lucide-react';
 import api from '../../services/api';
 import type { Submission, FormFieldValue, Invoice, AuditLog } from '../../types';
 import PaymentSection from '../../components/dashboard/PaymentSection';
 import DynamicSubmissionForm from '../../components/dashboard/DynamicSubmissionForm';
 import CostCalculator from '../../components/dashboard/CostCalculator';
+import KalkulatorReguler from '../../components/dashboard/KalkulatorReguler';
 import { useAuthStore } from '../../store/authStore';
+import { formatServiceType } from '../../utils/format';
 
 export default function SubmissionDetail() {
     const { id } = useParams();
@@ -22,10 +24,15 @@ export default function SubmissionDetail() {
     const [history, setHistory] = useState<AuditLog[]>([]);
     const [editingData, setEditingData] = useState(false);
 
+    // Drafter Assignment (for QC)
+    const [drafters, setDrafters] = useState<{id: string; full_name: string}[]>([]);
+    const [selectedDrafterId, setSelectedDrafterId] = useState('');
+
     // Client Edit State
     const [isEditingClient, setIsEditingClient] = useState(false);
     const [clientForm, setClientForm] = useState({
         business_name: '',
+        client_name: '',
         nib: '',
         nik: '',
         product_name: '',
@@ -52,6 +59,7 @@ export default function SubmissionDetail() {
                     if (res.data?.client) {
                         setClientForm({
                             business_name: res.data.client.business_name || '',
+                            client_name: res.data.client.client_name || '',
                             nib: res.data.client.nib || '',
                             nik: res.data.client.nik || '',
                             product_name: res.data.client.product_name || '',
@@ -95,6 +103,18 @@ export default function SubmissionDetail() {
         }
     };
 
+    // Fetch drafters when QC_OFFICER views the detail
+    useEffect(() => {
+        if (submission?.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) {
+            api.get('/admin/users/drafters')
+                .then(res => {
+                    const users = res.data || [];
+                    setDrafters(users.map((u: any) => ({ id: u.id, full_name: u.full_name })));
+                })
+                .catch(() => {});
+        }
+    }, [submission?.status, user?.role]);
+
     const handleAction = async (action: 'submit' | 'approve' | 'reject') => {
         if (!submission) return;
         setProcessing(true);
@@ -102,7 +122,11 @@ export default function SubmissionDetail() {
             if (action === 'submit') {
                 await api.post(`/submissions/${submission.id}/submit`);
             } else if (action === 'approve') {
-                await api.post(`/submissions/${submission.id}/approve`);
+                const body: any = {};
+                if (submission.status === 'QC_OFFICER' && selectedDrafterId) {
+                    body.drafter_id = selectedDrafterId;
+                }
+                await api.post(`/submissions/${submission.id}/approve`, body);
             } else if (action === 'reject') {
                 await api.post(`/submissions/${submission.id}/reject`, { note: rejectNote });
                 setShowRejectModal(false);
@@ -139,7 +163,7 @@ export default function SubmissionDetail() {
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                             serviceType === 'REGULER' || serviceType === 'SELF_DECLARE_MANDIRI' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
                         }`}>
-                            {serviceType.replace(/_/g, ' ')}
+                            {formatServiceType(serviceType)}
                         </span>
                     )}
                     <span className="px-4 py-2 rounded-full bg-brand-100 text-brand-800 font-bold text-sm">
@@ -168,25 +192,37 @@ export default function SubmissionDetail() {
                         {isEditingClient ? (
                             <div className="space-y-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-500 mb-1">Nama Usaha</label>
-                                        <input className="glass-input w-full" value={clientForm.business_name} onChange={e => setClientForm({...clientForm, business_name: e.target.value})} />
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-xs font-medium text-gray-500 mb-1">Nama Usaha <span className="text-red-500">*</span></label>
+                                        <input className="glass-input w-full" value={clientForm.business_name} onChange={e => setClientForm({...clientForm, business_name: e.target.value})} placeholder="Contoh: UD Jaya Abadi" />
+                                    </div>
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-xs font-medium text-gray-500 mb-1">Nama Klien (Pemilik) <span className="text-red-500">*</span></label>
+                                        <input className="glass-input w-full" value={clientForm.client_name} onChange={e => setClientForm({...clientForm, client_name: e.target.value})} placeholder="Nama Lengkap Pemilik" />
                                     </div>
                                     <div>
                                         <label className="block text-xs font-medium text-gray-500 mb-1">NIB</label>
-                                        <input className="glass-input w-full font-mono" value={clientForm.nib} onChange={e => setClientForm({...clientForm, nib: e.target.value})} />
+                                        <input className="glass-input w-full font-mono" value={clientForm.nib} onChange={e => setClientForm({...clientForm, nib: e.target.value})} placeholder="Nomor Induk Berusaha" />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-500 mb-1">NIK</label>
-                                        <input className="glass-input w-full font-mono" value={clientForm.nik} onChange={e => setClientForm({...clientForm, nik: e.target.value})} />
+                                        <label className="block text-xs font-medium text-gray-500 mb-1">NIK <span className="text-red-500">*</span></label>
+                                        <input className="glass-input w-full font-mono" value={clientForm.nik} onChange={e => setClientForm({...clientForm, nik: e.target.value})} placeholder="Nomor Induk Kependudukan" />
                                     </div>
                                     <div>
                                         <label className="block text-xs font-medium text-gray-500 mb-1">Produk</label>
-                                        <input className="glass-input w-full" value={clientForm.product_name} onChange={e => setClientForm({...clientForm, product_name: e.target.value})} />
+                                        <input className="glass-input w-full" value={clientForm.product_name} onChange={e => setClientForm({...clientForm, product_name: e.target.value})} placeholder="Contoh: Keripik Singkong" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 mb-1">Contact Person (Opsional)</label>
+                                        <input className="glass-input w-full" value={clientForm.contact_person} onChange={e => setClientForm({...clientForm, contact_person: e.target.value})} placeholder="Nama CP" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 mb-1">Telepon/WhatsApp (Opsional)</label>
+                                        <input className="glass-input w-full" value={clientForm.phone} onChange={e => setClientForm({...clientForm, phone: e.target.value})} placeholder="08..." />
                                     </div>
                                     <div className="sm:col-span-2">
                                         <label className="block text-xs font-medium text-gray-500 mb-1">Alamat Lengkap</label>
-                                        <textarea className="glass-input w-full" rows={2} value={clientForm.address} onChange={e => setClientForm({...clientForm, address: e.target.value})} />
+                                        <textarea className="glass-input w-full" rows={2} value={clientForm.address} onChange={e => setClientForm({...clientForm, address: e.target.value})} placeholder="Alamat lengkap usaha" />
                                     </div>
                                 </div>
                                 <div className="flex justify-end gap-2">
@@ -198,7 +234,11 @@ export default function SubmissionDetail() {
                             <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
                                 <div>
                                     <dt className="text-sm font-medium text-gray-500">Nama Usaha</dt>
-                                    <dd className="mt-1 text-sm text-gray-900">{submission.client?.business_name}</dd>
+                                    <dd className="mt-1 text-sm text-gray-900 font-bold">{submission.client?.business_name}</dd>
+                                </div>
+                                <div>
+                                    <dt className="text-sm font-medium text-gray-500">Nama Klien</dt>
+                                    <dd className="mt-1 text-sm text-gray-900 font-bold">{submission.client?.client_name || '-'}</dd>
                                 </div>
                                 <div>
                                     <dt className="text-sm font-medium text-gray-500">NIB</dt>
@@ -216,6 +256,14 @@ export default function SubmissionDetail() {
                                     <dt className="text-sm font-medium text-gray-500">Alamat</dt>
                                     <dd className="mt-1 text-sm text-gray-900">{submission.client?.address || '-'}</dd>
                                 </div>
+                                <div>
+                                    <dt className="text-sm font-medium text-gray-500">Telepon</dt>
+                                    <dd className="mt-1 text-sm text-gray-900">{submission.client?.phone || '-'}</dd>
+                                </div>
+                                <div>
+                                    <dt className="text-sm font-medium text-gray-500">Contact Person</dt>
+                                    <dd className="mt-1 text-sm text-gray-900">{submission.client?.contact_person || '-'}</dd>
+                                </div>
                             </dl>
                         )}
                         {submission.service_type === 'REGULER' && (
@@ -224,6 +272,17 @@ export default function SubmissionDetail() {
                                 <a href="/templates/kontrak_reguler.pdf" download className="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-md hover:bg-blue-700 transition-colors">
                                     Unduh Template Kontrak (PDF)
                                 </a>
+                            </div>
+                        )}
+
+                        {/* NIB Validation Warning — sebelum SH Terbit, NIB harus sudah terisi */}
+                        {(submission.status === 'SIDANG_FATWA' || submission.status === 'DRAFTER' || submission.status === 'QC_REVIEW') && !submission.client?.nib?.replace(/^DRAFT-/, '') && (
+                            <div className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-3 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                                <div>
+                                    <p className="text-sm text-amber-800 font-semibold">NIB belum diisi!</p>
+                                    <p className="text-xs text-amber-700">Data NIB wajib dilengkapi sebelum SH dapat diterbitkan. Silakan edit data klien di atas.</p>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -316,11 +375,21 @@ export default function SubmissionDetail() {
                     )}
 
                     {/* Cost Calculator */}
-                    <CostCalculator 
-                        submissionId={submission.id} 
-                        readOnly={user?.role !== 'FINANCE' && user?.role !== 'ADMIN_KEUANGAN'} 
-                        onSaved={refreshSubmission}
-                    />
+                    {serviceType === 'REGULER' ? (
+                        <KalkulatorReguler 
+                            submissionId={submission.id} 
+                            readOnly={(user?.role !== 'FINANCE' && user?.role !== 'ADMIN_KEUANGAN' && user?.role !== 'ADMIN' && user?.role !== 'DIRECTOR') && !(user?.role === 'HALAL_KONSULTAN' && (submission.status === 'DRAFT' || submission.status === 'REVISION'))} 
+                            onSaved={refreshSubmission}
+                            salesSchemeId={submission.sales_scheme_id || undefined}
+                        />
+                    ) : serviceType !== 'SELF_DECLARE' ? (
+                        <CostCalculator 
+                            submissionId={submission.id} 
+                            readOnly={user?.role !== 'FINANCE' && user?.role !== 'ADMIN_KEUANGAN' && user?.role !== 'ADMIN'} 
+                            onSaved={refreshSubmission}
+                            serviceType={serviceType}
+                        />
+                    ) : null}
 
                     {/* Invoice Info — shown when SH_TERBIT */}
                     {invoice && (
@@ -374,18 +443,53 @@ export default function SubmissionDetail() {
                                 </button>
                             )}
 
-                            {(submission.status === 'VERVAL_PENDAMPING' || submission.status === 'QC_OFFICER' || submission.status === 'DRAFTER' || submission.status === 'SIDANG_FATWA') && (
+                            {/* QC Officer: Drafter Assignment */}
+                            {submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
+                                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-2">
+                                    <label className="flex items-center gap-2 text-sm font-semibold text-blue-800">
+                                        <UserCheck className="w-4 h-4" /> Pilih Drafter
+                                    </label>
+                                    <select
+                                        className="glass-input text-sm w-full"
+                                        value={selectedDrafterId}
+                                        onChange={e => setSelectedDrafterId(e.target.value)}
+                                    >
+                                        <option value="">-- Pilih Drafter --</option>
+                                        {drafters.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                                    </select>
+                                    <p className="text-xs text-blue-600">Wajib pilih drafter sebelum distribute.</p>
+                                </div>
+                            )}
+
+                            {/* Assigned Drafter Info */}
+                            {(submission as any).assigned_drafter && (
+                                <div className="p-3 bg-indigo-50 rounded-lg text-sm border border-indigo-200">
+                                    <span className="text-indigo-700 font-medium">Drafter:</span>
+                                    <span className="ml-2 text-indigo-900 font-bold">{(submission as any).assigned_drafter.full_name}</span>
+                                </div>
+                            )}
+
+                            {/* Reject Note */}
+                            {(submission as any).reject_note && (
+                                <div className="p-3 bg-red-50 rounded-lg text-sm border border-red-200">
+                                    <p className="text-red-700 font-medium">Catatan Penolakan:</p>
+                                    <p className="text-red-800 text-xs mt-1">{(submission as any).reject_note}</p>
+                                </div>
+                            )}
+
+                            {(submission.status === 'VERVAL_PENDAMPING' || submission.status === 'QC_OFFICER' || submission.status === 'DRAFTER' || submission.status === 'QC_REVIEW' || submission.status === 'SIDANG_FATWA') && (
                                 <>
                                     <button
                                         onClick={() => handleAction('approve')}
-                                        disabled={processing}
-                                        className="w-full glass-button bg-green-600 text-white hover:bg-green-700 border-green-500 flex justify-center items-center gap-2"
+                                        disabled={processing || (submission.status === 'QC_OFFICER' && !selectedDrafterId)}
+                                        className="w-full glass-button bg-green-600 text-white hover:bg-green-700 border-green-500 flex justify-center items-center gap-2 disabled:opacity-50"
                                     >
                                         {processing ? <Loader2 className="animate-spin w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-                                        {submission.status === 'DRAFTER' ? 'Submit to QC' : 
-                                         submission.status === 'QC_OFFICER' ? 'Approve (to Sidang Fatwa)' :
-                                         submission.status === 'SIDANG_FATWA' ? 'Terbitkan SH' : 
-                                         submission.status === 'VERVAL_PENDAMPING' ? 'Submit to Drafter' : 'Approve / Advance'}
+                                        {submission.status === 'VERVAL_PENDAMPING' ? 'Submit to QC' : 
+                                         submission.status === 'QC_OFFICER' ? 'Distribute to Drafter' :
+                                         submission.status === 'DRAFTER' ? 'Submit to QC Review' : 
+                                         submission.status === 'QC_REVIEW' ? 'Submit to Sidang Fatwa' :
+                                         submission.status === 'SIDANG_FATWA' ? 'Terbitkan SH' : 'Approve / Advance'}
                                     </button>
                                     <button
                                         onClick={() => setShowRejectModal(true)}
@@ -393,8 +497,10 @@ export default function SubmissionDetail() {
                                         className="w-full glass-button bg-red-50 text-red-600 hover:bg-red-100 border-red-200 flex justify-center items-center gap-2"
                                     >
                                         <XCircle className="w-4 h-4" />
-                                        {submission.status === 'QC_OFFICER' ? 'Return to Drafter' : 
-                                         submission.status === 'DRAFTER' ? 'Return to Pendamping' : 'Reject / Revision'}
+                                        {submission.status === 'QC_OFFICER' ? 'Return to Koordinator' : 
+                                         submission.status === 'DRAFTER' ? 'Return to QC Officer' :
+                                         submission.status === 'QC_REVIEW' ? 'Return to Drafter' :
+                                         submission.status === 'SIDANG_FATWA' ? 'Return to Drafter' : 'Reject / Revision'}
                                     </button>
                                 </>
                             )}

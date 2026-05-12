@@ -22,6 +22,7 @@ func NewUserManagementHandler(r *gin.Engine, uc usecase.UserManagementUsecase) {
 	{
 		// Accessible to both Director and Finance
 		g.GET("/coordinators", handler.ListCoordinators)
+		g.GET("/drafters", handler.ListDrafters)
 		
 		// Admin/Director only
 		adminOnly := g.Group("")
@@ -168,6 +169,16 @@ func (h *UserManagementHandler) ListRoles(c *gin.Context) {
 
 func (h *UserManagementHandler) ListCoordinators(c *gin.Context) {
 	filter := map[string]interface{}{"role_name": "KOORDINATOR"}
+	users, _, err := h.userMgmtUC.ListUsers(filter, 1, 100)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, users)
+}
+
+func (h *UserManagementHandler) ListDrafters(c *gin.Context) {
+	filter := map[string]interface{}{"role_name": "DRAFTER"}
 	users, _, err := h.userMgmtUC.ListUsers(filter, 1, 100)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

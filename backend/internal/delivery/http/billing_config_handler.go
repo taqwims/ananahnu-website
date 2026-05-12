@@ -5,6 +5,7 @@ import (
 	"ananahnu/internal/domain"
 	"ananahnu/internal/usecase"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -20,17 +21,26 @@ func NewBillingConfigHandler(r *gin.Engine, uc usecase.BillingConfigUsecase) {
 	g := r.Group("/billing-config")
 	g.Use(middleware.AuthMiddleware())
 	{
+		g.GET("/sales-schemes", handler.GetSalesSchemes)
+		g.POST("/sales-schemes", handler.CreateSalesScheme)
+
+		g.GET("/business-types", handler.GetBusinessTypes)
+		g.POST("/business-types", handler.CreateBusinessType)
+
 		g.GET("/product-categories", handler.GetProductCategories)
 		g.POST("/product-categories", handler.CreateProductCategory)
 
 		g.GET("/business-scales", handler.GetBusinessScales)
 		g.POST("/business-scales", handler.CreateBusinessScale)
 
-		g.GET("/halal-agencies", handler.GetHalalAgencies)
-		g.POST("/halal-agencies", handler.CreateHalalAgency)
 
 		g.GET("/components", handler.GetBillingComponents)
 		g.POST("/components", handler.CreateBillingComponent)
+
+		g.GET("/scheme-prices", handler.GetSalesSchemePrices)
+		g.POST("/scheme-prices", handler.CreateSalesSchemePrice)
+		g.PUT("/scheme-prices/:id", handler.UpdateSalesSchemePrice)
+		g.DELETE("/scheme-prices/:id", handler.DeleteSalesSchemePrice)
 
 		g.GET("/coordinator-rates", handler.GetCoordinatorRates)
 		g.POST("/coordinator-rates", handler.SaveCoordinatorRate)
@@ -44,8 +54,56 @@ func NewBillingConfigHandler(r *gin.Engine, uc usecase.BillingConfigUsecase) {
 	}
 }
 
+func (h *BillingConfigHandler) GetSalesSchemes(c *gin.Context) {
+	data, err := h.uc.GetSalesSchemes()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func (h *BillingConfigHandler) CreateSalesScheme(c *gin.Context) {
+	var input domain.SalesScheme
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.uc.CreateSalesScheme(&input); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, input)
+}
+
+func (h *BillingConfigHandler) GetBusinessTypes(c *gin.Context) {
+	data, err := h.uc.GetBusinessTypes()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func (h *BillingConfigHandler) CreateBusinessType(c *gin.Context) {
+	var input domain.BusinessType
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.uc.CreateBusinessType(&input); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, input)
+}
+
 func (h *BillingConfigHandler) GetProductCategories(c *gin.Context) {
-	data, err := h.uc.GetProductCategories()
+	filter := map[string]interface{}{}
+	if v := c.Query("business_type_id"); v != "" {
+		filter["business_type_id"] = v
+	}
+	data, err := h.uc.GetProductCategoriesFiltered(filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -88,30 +146,41 @@ func (h *BillingConfigHandler) CreateBusinessScale(c *gin.Context) {
 	c.JSON(http.StatusCreated, input)
 }
 
-func (h *BillingConfigHandler) GetHalalAgencies(c *gin.Context) {
-	data, err := h.uc.GetHalalAgencies()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, data)
-}
-
-func (h *BillingConfigHandler) CreateHalalAgency(c *gin.Context) {
-	var input domain.HalalAgency
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	if err := h.uc.CreateHalalAgency(&input); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusCreated, input)
-}
 
 func (h *BillingConfigHandler) GetBillingComponents(c *gin.Context) {
-	data, err := h.uc.GetBillingComponents()
+	filter := map[string]interface{}{}
+	if v := c.Query("type"); v != "" {
+		filter["type"] = v
+	}
+	if v := c.Query("category"); v != "" {
+		filter["category"] = v
+	}
+	if v := c.Query("business_type_id"); v != "" {
+		filter["business_type_id"] = v
+	}
+	if v := c.Query("product_category_id"); v != "" {
+		filter["product_category_id"] = v
+	}
+	if v := c.Query("is_mandatory"); v != "" {
+		filter["is_mandatory"] = v
+	}
+	if v := c.Query("business_scale_id"); v != "" {
+		filter["business_scale_id"] = v
+	}
+	if v := c.Query("province_id"); v != "" {
+		filter["province_id"] = v
+	}
+	if v := c.Query("regency_id"); v != "" {
+		filter["regency_id"] = v
+	}
+	if v := c.Query("district_id"); v != "" {
+		filter["district_id"] = v
+	}
+	if v := c.Query("resolve_geography"); v == "true" {
+		filter["resolve_geography"] = true
+	}
+
+	data, err := h.uc.GetBillingComponentsFiltered(filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -196,4 +265,80 @@ func (h *BillingConfigHandler) SaveCoordinatorRate(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, input)
+}
+
+// --- SalesSchemePrice Handlers ---
+
+func (h *BillingConfigHandler) GetSalesSchemePrices(c *gin.Context) {
+	filter := map[string]interface{}{}
+	if v := c.Query("sales_scheme_id"); v != "" {
+		filter["sales_scheme_id"] = v
+	}
+	if v := c.Query("data_source"); v != "" {
+		filter["data_source"] = v
+	}
+	if v := c.Query("product_category_id"); v != "" {
+		filter["product_category_id"] = v
+	}
+	if v := c.Query("business_type_id"); v != "" {
+		filter["business_type_id"] = v
+	}
+	if v := c.Query("business_scale_id"); v != "" {
+		filter["business_scale_id"] = v
+	}
+
+	data, err := h.uc.GetSalesSchemePrices(filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func (h *BillingConfigHandler) CreateSalesSchemePrice(c *gin.Context) {
+	var input domain.SalesSchemePrice
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.uc.CreateSalesSchemePrice(&input); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, input)
+}
+
+func (h *BillingConfigHandler) UpdateSalesSchemePrice(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var input domain.SalesSchemePrice
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	input.ID = id
+	if err := h.uc.UpdateSalesSchemePrice(&input); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, input)
+}
+
+func (h *BillingConfigHandler) DeleteSalesSchemePrice(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	if err := h.uc.DeleteSalesSchemePrice(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"deleted": true})
 }

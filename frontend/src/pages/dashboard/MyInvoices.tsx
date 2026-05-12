@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Loader2, CreditCard, Clock, CheckSquare, Square } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { formatRupiah } from '../../utils/format';
+import { formatRupiah, formatServiceType } from '../../utils/format';
 import { loadSnapJs, isSnapReady } from '../../utils/midtrans';
 
 interface Invoice {
@@ -136,7 +136,7 @@ export default function MyInvoices() {
                     <p className="text-gray-500 text-sm">
                         {isCoordinator 
                             ? 'Daftar tagihan sertifikasi Anda dan tim konsultan Anda.' 
-                            : 'Daftar tagihan sertifikasi (Self Declare) yang perlu dilunasi.'}
+                            : 'Daftar tagihan sertifikasi (Self Declare Fasilitasi (Gratis)) yang perlu dilunasi.'}
                     </p>
                 </div>
                 {selectedIds.length > 0 && (
@@ -189,7 +189,7 @@ export default function MyInvoices() {
                                             <p className="text-xs text-gray-500">#{inv.id} - {inv.service_type}</p>
                                         </td>
                                         <td className="px-6 py-4 font-medium text-gray-600">
-                                            {inv.service_type === 'SELF_DECLARE' ? 'Sertifikasi Halal SD' : 'Sertifikasi Halal Reguler'}
+                                            {formatServiceType(inv.service_type)}
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-500">
                                             {new Date(inv.created_at).toLocaleDateString('id-ID', {

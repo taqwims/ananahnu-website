@@ -21,7 +21,7 @@ func (r *submissionRepository) Create(submission *domain.Submission) error {
 
 func (r *submissionRepository) FindByID(id uuid.UUID) (*domain.Submission, error) {
 	var submission domain.Submission
-	if err := r.db.Preload("Client").Preload("Payments").First(&submission, "id = ?", id).Error; err != nil {
+	if err := r.db.Preload("Client").Preload("Payments").Preload("AssignedDrafter").First(&submission, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &submission, nil
@@ -29,7 +29,7 @@ func (r *submissionRepository) FindByID(id uuid.UUID) (*domain.Submission, error
 
 func (r *submissionRepository) FindAll(filter map[string]interface{}) ([]domain.Submission, error) {
 	var submissions []domain.Submission
-	db := r.db.Preload("Client")
+	db := r.db.Preload("Client.Facilitator.Leader").Preload("AssignedDrafter")
 	
 	if status, ok := filter["status"]; ok && status != "" {
 		db = db.Where("submissions.status = ?", status)
@@ -43,6 +43,11 @@ func (r *submissionRepository) FindAll(filter map[string]interface{}) ([]domain.
 				Where("clients.facilitator_id IN ?", ids)
 		}
 	}
+
+	// Filter by Assigned Drafter (Drafter role visibility)
+	if drafterID, ok := filter["assigned_drafter_id"]; ok {
+		db = db.Where("submissions.assigned_drafter_id = ?", drafterID)
+	}
 	
 	if err := db.Find(&submissions).Error; err != nil {
 		return nil, err
@@ -55,4 +60,12 @@ func (r *submissionRepository) UpdateStatus(id uuid.UUID, status domain.Submissi
 		"status":                status,
 		"current_assignee_role": assigneeRole,
 	}).Error
+}
+
+func (r *submissionRepository) UpdateAssignee(id uuid.UUID, drafterID *uuid.UUID) error {
+	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("assigned_drafter_id", drafterID).Error
+}
+
+func (r *submissionRepository) UpdateRejectNote(id uuid.UUID, note string) error {
+	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("reject_note", note).Error
 }

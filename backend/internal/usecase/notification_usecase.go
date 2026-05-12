@@ -10,6 +10,7 @@ import (
 type NotificationUsecase interface {
 	GetUserNotifications(userID uuid.UUID) ([]domain.Notification, error)
 	CreateNotification(userID uuid.UUID, title, message string, entityID uuid.UUID) error
+	MarkAsRead(id int64) error
 }
 
 type notificationUsecase struct {
@@ -34,4 +35,8 @@ func (uc *notificationUsecase) CreateNotification(userID uuid.UUID, title, messa
 		IsRead:          false,
 	}
 	return uc.notifRepo.Create(notif)
+}
+
+func (uc *notificationUsecase) MarkAsRead(id int64) error {
+	return uc.notifRepo.MarkAsRead(id)
 }

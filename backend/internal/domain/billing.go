@@ -27,6 +27,9 @@ type Invoice struct {
 	Payment      *Payment      `gorm:"foreignKey:PaymentID" json:"payment,omitempty"`
 	RegencyID    *int64        `json:"regency_id,omitempty"`
 	DistrictID   *int64        `json:"district_id,omitempty"`
+	PricingSource string       `json:"pricing_source"` // SCHEME_PRICE, COORDINATOR_RATE, COST_DETAIL, DEFAULT
+	SalesSchemeID *int64       `json:"sales_scheme_id,omitempty"`
+	DiscountApplied float64    `json:"discount_applied"` // Discount % that was applied
 	Notes        string        `json:"notes"`
 	CreatedAt    time.Time     `json:"created_at"`
 	PaidAt       *time.Time    `json:"paid_at,omitempty"`

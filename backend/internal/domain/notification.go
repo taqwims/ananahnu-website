@@ -19,4 +19,5 @@ type Notification struct {
 type NotificationRepository interface {
 	Create(notif *Notification) error
 	FindByUserID(userID uuid.UUID) ([]Notification, error)
+	MarkAsRead(id int64) error
 }

@@ -12,6 +12,7 @@ type Client struct {
 	NIB           string    `gorm:"unique;column:nib" json:"nib"`
 	NIK           string    `gorm:"column:nik" json:"nik"`
 	BusinessName  string    `gorm:"column:business_name" json:"business_name"`
+	ClientName    string    `gorm:"column:client_name" json:"client_name"`
 	Address       string    `gorm:"column:address" json:"address"`
 	ProductName   string    `gorm:"column:product_name" json:"product_name"`
 	ServiceType   string    `gorm:"column:service_type" json:"service_type"` // SELF_DECLARE or REGULER

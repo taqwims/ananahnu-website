@@ -39,7 +39,7 @@ func (r *clientRepository) FindAll(filter map[string]interface{}, page, limit in
 
 	// Apply Filters
 	if s, ok := filter["search"]; ok && s != "" {
-		query = query.Where("business_name ILIKE ? OR nib ILIKE ?", "%"+s.(string)+"%", "%"+s.(string)+"%")
+		query = query.Where("business_name ILIKE ? OR nib ILIKE ? OR contact_person ILIKE ? OR client_name ILIKE ?", "%"+s.(string)+"%", "%"+s.(string)+"%", "%"+s.(string)+"%", "%"+s.(string)+"%")
 	}
 
 	// Status filter requires JOIN
@@ -94,5 +94,10 @@ func (r *clientRepository) FindByNIB(nib string) (*domain.Client, error) {
 }
 
 func (r *clientRepository) Update(client *domain.Client) error {
-	return r.db.Save(client).Error
+	// Use Select to explicitly whitelist only the fields that are safe to update.
+	// This prevents zero-value UUIDs (facilitator_id, created_by) from being
+	// sent in the SQL UPDATE and violating foreign key constraints.
+	return r.db.Model(client).
+		Select("business_name", "client_name", "nib", "nik", "product_name", "address", "contact_person", "phone", "updated_at").
+		Updates(client).Error
 }

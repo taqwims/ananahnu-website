@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Calculator, Save } from 'lucide-react';
+import { Loader2, Save, CheckCircle, CreditCard } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { formatRupiah } from '../../utils/format';
@@ -8,113 +8,52 @@ type Props = {
     submissionId: string;
     onSaved?: () => void;
     readOnly?: boolean;
+    serviceType?: string; // SELF_DECLARE_MANDIRI or SELF_DECLARE_FASILITASI
 };
 
-export default function CostCalculator({ submissionId, onSaved, readOnly = false }: Props) {
+export default function CostCalculator({ submissionId, onSaved, readOnly = false, serviceType = '' }: Props) {
     const user = useAuthStore(state => state.user);
-    const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [sdMandiriCost, setSdMandiriCost] = useState(280000);
+    const [loadingConfig, setLoadingConfig] = useState(false);
 
-    // Master data
-    const [categories, setCategories] = useState<any[]>([]);
-    const [scales, setScales] = useState<any[]>([]);
-    const [agencies, setAgencies] = useState<any[]>([]);
-    const [components, setComponents] = useState<any[]>([]);
+    const isFasilitasi = serviceType === 'SELF_DECLARE_FASILITASI' || serviceType === 'SELF_DECLARE_SEHATI';
+    const isMandiri = serviceType === 'SELF_DECLARE_MANDIRI';
+    const totalCost = isFasilitasi ? 0 : isMandiri ? sdMandiriCost : 0;
 
-    // Form state
-    const [categoryId, setCategoryId] = useState('');
-    const [scaleId, setScaleId] = useState('');
-    const [agencyId, setAgencyId] = useState('');
-    const [productCount, setProductCount] = useState(1);
-    const [branchCount, setBranchCount] = useState(1);
-    const [mandays, setMandays] = useState(1);
-    const [savedData, setSavedData] = useState<any>(null);
+    const canEdit = user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR';
+    const isEditable = !readOnly && canEdit;
 
     useEffect(() => {
-        const fetchMasterData = async () => {
-            try {
-                const [cRes, sRes, aRes, compRes, detailRes] = await Promise.all([
-                    api.get('/billing-config/product-categories'),
-                    api.get('/billing-config/business-scales'),
-                    api.get('/billing-config/halal-agencies'),
-                    api.get('/billing-config/components'),
-                    api.get(`/submissions/${submissionId}/cost-detail`).catch(() => ({ data: null }))
-                ]);
-                setCategories(cRes.data || []);
-                setScales(sRes.data || []);
-                setAgencies(aRes.data || []);
-                setComponents(compRes.data || []);
-
-                if (detailRes.data && detailRes.data.id) {
-                    setSavedData(detailRes.data);
-                    setCategoryId(detailRes.data.product_category_id?.toString() || '');
-                    setScaleId(detailRes.data.business_scale_id?.toString() || '');
-                    setAgencyId(detailRes.data.halal_agency_id?.toString() || '');
-                    setProductCount(detailRes.data.product_count || 1);
-                    setBranchCount(detailRes.data.branch_count || 1);
-                    setMandays(detailRes.data.mandays || 1);
-                }
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchMasterData();
-    }, [submissionId]);
-
-    // Calculate dynamic cost based on components
-    const calculateCost = () => {
-        let total = 0;
-        const breakdown: any[] = [];
-
-        components.forEach(comp => {
-            let amount = comp.base_amount;
-            let formula = '';
-            
-            if (comp.type === 'PER_MANDAY') {
-                amount = comp.base_amount * mandays;
-                formula = `${mandays} Mandays x Rp ${comp.base_amount.toLocaleString()}`;
-            } else if (comp.type === 'PER_CABANG') {
-                amount = comp.base_amount * branchCount;
-                formula = `${branchCount} Cabang x Rp ${comp.base_amount.toLocaleString()}`;
-            } else if (comp.type === 'PER_PRODUK') {
-                amount = comp.base_amount * productCount;
-                formula = `${productCount} Produk x Rp ${comp.base_amount.toLocaleString()}`;
-            } else {
-                formula = `Tetap`;
-            }
-
-            total += amount;
-            breakdown.push({
-                name: comp.name,
-                formula,
-                total: amount
-            });
-        });
-
-        return { total, breakdown };
-    };
+        if (isMandiri) {
+            setLoadingConfig(true);
+            api.get('/system-settings/SD_MANDIRI_COST?default=280000')
+                .then(res => {
+                    const val = parseInt(res.data.value, 10);
+                    if (!isNaN(val)) setSdMandiriCost(val);
+                })
+                .catch(err => console.error("Failed to load cost config", err))
+                .finally(() => setLoadingConfig(false));
+        }
+    }, [isMandiri]);
 
     const handleSave = async () => {
         setSaving(true);
-        const { total, breakdown } = calculateCost();
-        
+        const breakdown = isFasilitasi
+            ? [{ name: 'Self Declare Fasilitasi (SEHATI)', category: 'GRATIS', total: 0, is_optional: false }]
+            : [{ name: 'Biaya Self Declare Mandiri', category: 'SD_MANDIRI', total: sdMandiriCost, is_optional: false }];
+
         const payload = {
-            product_category_id: parseInt(categoryId) || null,
-            business_scale_id: parseInt(scaleId) || null,
-            halal_agency_id: parseInt(agencyId) || null,
-            product_count: productCount,
-            branch_count: branchCount,
-            mandays: mandays,
-            total_amount: total,
+            product_count: 1,
+            branch_count: 1,
+            mandays: 1,
+            total_amount: totalCost,
             cost_breakdown_data: JSON.stringify(breakdown)
         };
 
         try {
             await api.post(`/submissions/${submissionId}/cost-detail`, payload);
-            setSavedData(payload);
-            alert("Rincian biaya berhasil disimpan!");
+            alert("Data biaya berhasil disimpan!");
             if (onSaved) onSaved();
         } catch (err) {
             console.error(err);
@@ -124,139 +63,84 @@ export default function CostCalculator({ submissionId, onSaved, readOnly = false
         }
     };
 
-    if (loading) return <div className="flex justify-center p-4"><Loader2 className="animate-spin text-brand-600" /></div>;
-
-    const { total, breakdown } = calculateCost();
-    const canEdit = user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN';
-    const isEditable = !readOnly && canEdit;
-
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 bg-white p-6 rounded-xl border border-gray-100 shadow-sm mt-6">
-            {/* Form Input */}
-            <div className="space-y-4">
-                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                    <Calculator className="w-5 h-5 text-brand-500" />
-                    Form Perhitungan Biaya
-                </h3>
-
-                <div className="space-y-3">
-                    <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Jenis Produk</label>
-                        <select 
-                            className="glass-input" 
-                            value={categoryId} 
-                            onChange={e => setCategoryId(e.target.value)}
-                            disabled={!isEditable}
-                        >
-                            <option value="">Pilih Kelompok Produk</option>
-                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
+        <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-xl mt-8">
+            {isFasilitasi ? (
+                /* SD Fasilitasi — GRATIS */
+                <div className="text-center space-y-4">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mx-auto">
+                        <CheckCircle className="w-8 h-8 text-green-600" />
                     </div>
-
-                    <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Skala Usaha</label>
-                        <select 
-                            className="glass-input" 
-                            value={scaleId} 
-                            onChange={e => setScaleId(e.target.value)}
-                            disabled={!isEditable}
-                        >
-                            <option value="">Pilih Skala Usaha</option>
-                            {scales.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
+                    <h3 className="text-2xl font-bold text-green-700">Self Declare Fasilitasi (SEHATI)</h3>
+                    <p className="text-gray-500 text-sm max-w-md mx-auto">
+                        Pengajuan Self Declare melalui program SEHATI tidak dikenakan biaya. Silakan langsung lanjutkan proses pengajuan.
+                    </p>
+                    <div className="bg-green-50 border border-green-100 rounded-2xl p-6 inline-block">
+                        <p className="text-sm text-green-600 font-medium mb-1">Total Biaya</p>
+                        <p className="text-3xl font-black text-green-700">GRATIS</p>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Jumlah Produk</label>
-                            <input 
-                                type="number" 
-                                min="1" 
-                                className="glass-input" 
-                                value={productCount} 
-                                onChange={e => setProductCount(parseInt(e.target.value) || 0)}
-                                disabled={!isEditable}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Jumlah Pabrik/Cabang</label>
-                            <input 
-                                type="number" 
-                                min="1" 
-                                className="glass-input" 
-                                value={branchCount} 
-                                onChange={e => setBranchCount(parseInt(e.target.value) || 0)}
-                                disabled={!isEditable}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Lembaga Pemeriksa Halal (LPH)</label>
-                            <select 
-                                className="glass-input" 
-                                value={agencyId} 
-                                onChange={e => setAgencyId(e.target.value)}
-                                disabled={!isEditable}
-                            >
-                                <option value="">Pilih LPH</option>
-                                {agencies.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Estimasi Mandays</label>
-                            <input 
-                                type="number" 
-                                min="1" 
-                                className="glass-input" 
-                                value={mandays} 
-                                onChange={e => setMandays(parseInt(e.target.value) || 0)}
-                                disabled={!isEditable}
-                            />
-                        </div>
-                    </div>
-
-                    {isEditable && (
-                        <button 
-                            onClick={handleSave} 
-                            disabled={saving} 
-                            className="w-full mt-4 glass-button bg-brand-600 text-white hover:bg-brand-700 flex justify-center items-center gap-2"
-                        >
-                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                            Simpan Hasil Perhitungan
-                        </button>
-                    )}
                 </div>
-            </div>
-
-            {/* Live Result Details */}
-            <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-800 mb-4">Detail Hasil Perhitungan</h3>
-                <div className="space-y-2 text-sm">
-                    {breakdown.map((item, idx) => (
-                        <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-200 last:border-0">
-                            <div>
-                                <p className="font-medium text-gray-700">{item.name}</p>
-                                {item.formula !== 'Tetap' && <p className="text-xs text-gray-500">{item.formula}</p>}
+            ) : (
+                /* SD Mandiri — Rp 280.000 */
+                <div className="text-center space-y-4">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-brand-100 mx-auto">
+                        <CreditCard className="w-8 h-8 text-brand-600" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-brand-700">Self Declare Mandiri</h3>
+                    <p className="text-gray-500 text-sm max-w-md mx-auto">
+                        Pengajuan Self Declare Mandiri dikenakan biaya tetap yang harus dibayar sebelum proses pengajuan dapat dilanjutkan.
+                    </p>
+                    <div className="bg-brand-50 border border-brand-100 rounded-2xl p-6 inline-block">
+                        <p className="text-sm text-brand-600 font-medium mb-1">Total Biaya</p>
+                        {loadingConfig ? (
+                            <Loader2 className="w-8 h-8 animate-spin text-brand-600 mx-auto" />
+                        ) : isEditable ? (
+                            <div className="flex items-center gap-2 max-w-[200px] mx-auto">
+                                <span className="font-bold text-gray-500">Rp</span>
+                                <input 
+                                    type="number" 
+                                    className="w-full bg-white border border-brand-200 text-brand-700 text-xl font-black rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-brand-500 text-center"
+                                    value={sdMandiriCost}
+                                    onChange={e => setSdMandiriCost(parseInt(e.target.value) || 0)}
+                                />
                             </div>
-                            <span className="font-semibold text-gray-900">
-                                {formatRupiah(item.total)}
-                            </span>
-                        </div>
-                    ))}
-                </div>
+                        ) : (
+                            <p className="text-3xl font-black text-brand-700">{formatRupiah(sdMandiriCost)}</p>
+                        )}
+                    </div>
 
-                <div className="mt-6 pt-4 border-t-2 border-brand-100 flex justify-between items-center">
-                    <span className="text-lg font-bold text-gray-800">Grand Total</span>
-                    <span className="text-xl font-black text-brand-600">
-                        {formatRupiah(total)}
-                    </span>
+                    <div className="pt-4">
+                        <div className="bg-gray-50 rounded-xl p-4 max-w-sm mx-auto border border-gray-100">
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-gray-600">Biaya Self Declare Mandiri</span>
+                                <span className="font-bold text-gray-800">{formatRupiah(sdMandiriCost)}</span>
+                            </div>
+                            <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center">
+                                <span className="font-bold text-gray-700">Grand Total</span>
+                                <span className="font-black text-brand-700 text-lg">{formatRupiah(sdMandiriCost)}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <p className="text-xs text-gray-400 mt-4 italic">
-                    *Perhitungan biaya dapat menyesuaikan kebijakan masing-masing LPH (batas atas merujuk aturan Kaban).
-                </p>
-            </div>
+            )}
+
+            {/* Save Button */}
+            {isEditable && (
+                <div className="mt-6 flex justify-center">
+                    <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="bg-brand-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-brand-200 hover:bg-brand-800 transition-all flex items-center justify-center gap-2"
+                    >
+                        {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                        Simpan Data Biaya
+                    </button>
+                </div>
+            )}
+
+            <p className="text-[10px] text-gray-400 italic text-center mt-6">
+                *Biaya Self Declare Mandiri wajib dibayar sebelum submit. SD Fasilitasi (SEHATI) gratis.
+            </p>
         </div>
     );
 }

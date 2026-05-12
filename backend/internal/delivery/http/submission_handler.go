@@ -23,6 +23,8 @@ func NewSubmissionHandler(r *gin.Engine, uc usecase.SubmissionWorkflowUsecase) {
 		g.POST("/create-full", handler.CreateFull)
 		g.POST("/:id/submit", handler.Submit)
 		g.POST("/:id/approve", handler.Approve)
+		g.POST("/:id/assign-drafter", handler.AssignDrafter)
+		g.POST("/bulk-assign-drafter", handler.BulkAssignDrafter)
 		g.POST("/:id/reject", handler.Reject)
 		g.GET("", handler.GetList)
 		g.GET("/:id", handler.GetDetail)
@@ -109,12 +111,98 @@ func (h *SubmissionHandler) Approve(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	role := middleware.GetUserRole(c)
 
-	if err := h.workflowUC.Approve(id, userID, role); err != nil {
+	// Check if drafter_id is provided (for QC_OFFICER -> DRAFTER assignment)
+	var input struct {
+		DrafterID string `json:"drafter_id"`
+	}
+	c.ShouldBindJSON(&input)
+
+	if input.DrafterID != "" {
+		drafterUUID, err := uuid.Parse(input.DrafterID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid drafter_id"})
+			return
+		}
+		if err := h.workflowUC.ApproveWithDrafter(id, userID, role, drafterUUID); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	} else {
+		if err := h.workflowUC.Approve(id, userID, role); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "approved"})
+}
+
+func (h *SubmissionHandler) AssignDrafter(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var input struct {
+		DrafterID string `json:"drafter_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "drafter_id is required"})
+		return
+	}
+
+	drafterUUID, err := uuid.Parse(input.DrafterID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid drafter_id"})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	role := middleware.GetUserRole(c)
+
+	if err := h.workflowUC.ApproveWithDrafter(id, userID, role, drafterUUID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "approved"})
+	c.JSON(http.StatusOK, gin.H{"message": "assigned to drafter"})
+}
+
+func (h *SubmissionHandler) BulkAssignDrafter(c *gin.Context) {
+	var input struct {
+		IDs       []string `json:"ids" binding:"required"`
+		DrafterID string   `json:"drafter_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	drafterUUID, err := uuid.Parse(input.DrafterID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid drafter_id"})
+		return
+	}
+
+	var uuids []uuid.UUID
+	for _, idStr := range input.IDs {
+		id, err := uuid.Parse(idStr)
+		if err == nil {
+			uuids = append(uuids, id)
+		}
+	}
+
+	userID := middleware.GetUserID(c)
+	role := middleware.GetUserRole(c)
+
+	if err := h.workflowUC.BulkApproveWithDrafter(uuids, userID, role, drafterUUID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "bulk assignment successful"})
 }
 
 func (h *SubmissionHandler) Reject(c *gin.Context) {

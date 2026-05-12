@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Save, Loader2, Upload, FileText, Link as LinkIcon } from 'lucide-react';
+import { ChevronLeft, Save, Loader2, Upload, FileText, Link as LinkIcon, Camera, CheckCircle2 } from 'lucide-react';
 import api from '../../services/api';
 import type { FormFieldConfig } from '../../types';
 
@@ -18,6 +18,7 @@ export default function SubmissionCreate() {
         nib: '',
         nik: '',
         business_name: initialName,
+        client_name: '',
         address: '',
         product_name: '',
         service_type: initialType,
@@ -78,8 +79,8 @@ export default function SubmissionCreate() {
     };
 
     const handleSave = async () => {
-        if (!clientData.business_name) {
-            alert("Nama Usaha wajib diisi");
+        if (!clientData.business_name || !clientData.client_name || !clientData.nik) {
+            alert("Nama Usaha, Nama Klien, dan NIK wajib diisi");
             return;
         }
 
@@ -124,12 +125,21 @@ export default function SubmissionCreate() {
                         <h3 className="text-lg font-semibold mb-4">Informasi Klien</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="sm:col-span-2">
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Nama Usaha</label>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Nama Usaha <span className="text-red-500">*</span></label>
                                 <input 
                                     className="glass-input w-full" 
                                     value={clientData.business_name} 
                                     onChange={e => setClientData({...clientData, business_name: e.target.value})} 
                                     placeholder="Contoh: UD Jaya Abadi"
+                                />
+                            </div>
+                            <div className="sm:col-span-2">
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Nama Klien (Pemilik) <span className="text-red-500">*</span></label>
+                                <input 
+                                    className="glass-input w-full" 
+                                    value={clientData.client_name} 
+                                    onChange={e => setClientData({...clientData, client_name: e.target.value})} 
+                                    placeholder="Nama Lengkap Klien"
                                 />
                             </div>
                             <div>
@@ -142,12 +152,12 @@ export default function SubmissionCreate() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">NIK (Opsional)</label>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">NIK <span className="text-red-500">*</span></label>
                                 <input 
                                     className="glass-input w-full font-mono" 
                                     value={clientData.nik} 
                                     onChange={e => setClientData({...clientData, nik: e.target.value})} 
-                                    placeholder="Nomor Induk Kependudukan"
+                                    placeholder="Nomor Induk Kependudukan (16 Digit)"
                                 />
                             </div>
                             <div className="sm:col-span-2">
@@ -170,11 +180,12 @@ export default function SubmissionCreate() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Kontak Person</label>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Kontak Person (Opsional)</label>
                                 <input 
                                     className="glass-input w-full" 
                                     value={clientData.contact_person} 
                                     onChange={e => setClientData({...clientData, contact_person: e.target.value})} 
+                                    placeholder="Nama PIC (jika berbeda)"
                                 />
                             </div>
                             <div>
@@ -206,24 +217,67 @@ export default function SubmissionCreate() {
                                         </label>
                                         
                                         {cfg.input_type === 'FILE_UPLOAD' && (
-                                            <div className="space-y-2">
-                                                <label className={`flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                                                    uploading[cfg.id] ? 'bg-gray-50 border-gray-200' : 'bg-white border-brand-200 hover:border-brand-400'
-                                                }`}>
-                                                    <input
-                                                        type="file"
-                                                        className="hidden"
-                                                        onChange={e => e.target.files?.[0] && handleFileUpload(cfg.id, e.target.files[0])}
-                                                        disabled={uploading[cfg.id]}
-                                                    />
-                                                    {uploading[cfg.id] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4 text-brand-600" />}
-                                                    <span className="text-sm text-brand-600 font-medium">
-                                                        {fieldValues[cfg.id]?.file_url ? 'Ganti File' : 'Pilih File'}
-                                                    </span>
-                                                </label>
+                                            <div className="space-y-3">
+                                                <div className="flex flex-col sm:flex-row gap-3">
+                                                    {/* Option 1: File Picker */}
+                                                    <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
+                                                        uploading[cfg.id] ? 'bg-gray-50 border-gray-200' : 'bg-white border-brand-200 hover:border-brand-400 hover:bg-brand-50/30 shadow-sm'
+                                                    }`}>
+                                                        <input
+                                                            type="file"
+                                                            className="hidden"
+                                                            onChange={e => e.target.files?.[0] && handleFileUpload(cfg.id, e.target.files[0])}
+                                                            disabled={uploading[cfg.id]}
+                                                            accept="image/*,application/pdf"
+                                                        />
+                                                        {uploading[cfg.id] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4 text-brand-600" />}
+                                                        <span className="text-sm text-brand-600 font-bold">
+                                                            {fieldValues[cfg.id]?.file_url ? 'Ganti File' : 'Pilih File'}
+                                                        </span>
+                                                    </label>
+
+                                                    {/* Option 2: Camera (Mobile Optimized) */}
+                                                    <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
+                                                        uploading[cfg.id] ? 'bg-gray-50 border-gray-200' : 'bg-white border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50/30 shadow-sm'
+                                                    }`}>
+                                                        <input
+                                                            type="file"
+                                                            className="hidden"
+                                                            onChange={e => e.target.files?.[0] && handleFileUpload(cfg.id, e.target.files[0])}
+                                                            disabled={uploading[cfg.id]}
+                                                            accept="image/*"
+                                                            capture="environment"
+                                                        />
+                                                        {uploading[cfg.id] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4 text-indigo-600" />}
+                                                        <span className="text-sm text-indigo-600 font-bold">
+                                                            Ambil Foto
+                                                        </span>
+                                                    </label>
+                                                </div>
+
                                                 {fieldValues[cfg.id]?.file_url && (
-                                                    <div className="text-xs text-green-600 flex items-center gap-1">
-                                                        <FileText className="w-3 h-3" /> File terpilih
+                                                    <div className="bg-emerald-50 text-emerald-700 px-4 py-3 rounded-xl text-xs font-bold border border-emerald-100 animate-in fade-in slide-in-from-top-1 flex flex-col gap-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <CheckCircle2 className="w-4 h-4" /> Dokumen berhasil diunggah
+                                                        </div>
+                                                        {fieldValues[cfg.id]?.file_url?.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                                                            <div className="mt-1 w-full max-w-[200px] rounded-lg overflow-hidden border border-emerald-200">
+                                                                <img 
+                                                                    src={`${import.meta.env.VITE_API_URL}${fieldValues[cfg.id].file_url}`} 
+                                                                    alt="Preview" 
+                                                                    className="w-full h-auto object-cover"
+                                                                />
+                                                            </div>
+                                                        ) : (
+                                                            <a 
+                                                                href={`${import.meta.env.VITE_API_URL}${fieldValues[cfg.id].file_url}`}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="text-emerald-600 underline text-[10px] mt-1"
+                                                            >
+                                                                Lihat Dokumen
+                                                            </a>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>

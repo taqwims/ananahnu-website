@@ -73,12 +73,15 @@ func main() {
 		&domain.Invoice{},
 		&domain.PaymentConfig{},
 		// Dynamic Cost/Billing
+		&domain.SalesScheme{},
+		&domain.BusinessType{},
 		&domain.ProductCategory{},
 		&domain.BusinessScale{},
-		&domain.HalalAgency{},
 		&domain.BillingComponent{},
+		&domain.SalesSchemePrice{},
 		&domain.SubmissionCostDetail{},
 		&domain.CoordinatorRate{},
+		&domain.SystemSetting{},
 	)
 	if err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
@@ -150,6 +153,7 @@ func main() {
 	paymentConfigRepo := repository.NewPaymentConfigRepository(db)
 	billingConfigRepo := repository.NewBillingConfigRepository(db)
 	coordinatorRateRepo := repository.NewCoordinatorRateRepository(db)
+	settingRepo := repository.NewPostgresSystemSettingRepository(db)
 
 	// Services
 	emailSender := email.NewGmailSender()
@@ -158,7 +162,7 @@ func main() {
 	// 6. Setup Usecases
 	authUC := usecase.NewAuthUsecase(userRepo, roleRepo, clientRepo, tokenRepo, emailSender)
 	notificationUC := usecase.NewNotificationUsecase(notifRepo)
-	submissionUC := usecase.NewSubmissionWorkflowUsecase(submissionRepo, clientRepo, roleRepo, auditRepo, userRepo, notificationUC, invoiceRepo, coordinatorRateRepo, formValueRepo)
+	submissionUC := usecase.NewSubmissionWorkflowUsecase(submissionRepo, clientRepo, roleRepo, auditRepo, userRepo, notificationUC, invoiceRepo, coordinatorRateRepo, formValueRepo, billingConfigRepo)
 	importUC := usecase.NewImportUsecase(clientRepo)
 	exportUC := usecase.NewExportUsecase(clientRepo)
 	paymentUC := usecase.NewPaymentUsecase(paymentRepo, submissionRepo, auditRepo, midtransGateway, invoiceRepo)
@@ -172,6 +176,7 @@ func main() {
 	billingUC := usecase.NewBillingUsecase(invoiceRepo, paymentConfigRepo, billingRateRepo, userRepo, notificationUC)
 	userMgmtUC := usecase.NewUserManagementUsecase(userRepo, roleRepo)
 	billingConfigUC := usecase.NewBillingConfigUsecase(billingConfigRepo, coordinatorRateRepo)
+	settingUC := usecase.NewSystemSettingUsecase(settingRepo)
 
 	// 7. Setup Router & Handlers
 	r := gin.Default()
@@ -209,6 +214,7 @@ func main() {
 	httpDelivery.NewUserManagementHandler(r, userMgmtUC)
 	httpDelivery.NewBillingConfigHandler(r, billingConfigUC)
 	httpDelivery.NewMediaHandler(r)
+	httpDelivery.NewSystemSettingHandler(r, settingUC)
 
 	// Static files
 	r.Static("/uploads", "./uploads")

@@ -23,10 +23,16 @@ export default function NotificationDropdown() {
     };
 
     useEffect(() => {
-        if (isOpen) {
+        // Fetch initially to get the unread count
+        fetchNotifications();
+        
+        // Optional: Polling every 30 seconds
+        const interval = setInterval(() => {
             fetchNotifications();
-        }
-    }, [isOpen]);
+        }, 30000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     // Close when clicking outside
     useEffect(() => {
@@ -39,8 +45,20 @@ export default function NotificationDropdown() {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const handleNotificationClick = (notif: any) => {
+    const handleNotificationClick = async (notif: any) => {
         setIsOpen(false);
+        
+        // Mark as read if unread
+        if (!notif.is_read) {
+            try {
+                await api.put(`/notifications/${notif.id}/read`);
+                // Update local state
+                setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
+            } catch (err) {
+                console.error("Failed to mark as read", err);
+            }
+        }
+
         // Navigate based on related entity
         if (notif.related_entity_id) {
             navigate(`/dashboard/submissions/${notif.related_entity_id}`);

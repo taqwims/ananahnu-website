@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Receipt, DollarSign, CheckCircle, Clock, Filter, Loader2 } from 'lucide-react';
 import api from '../../services/api';
 import type { Invoice } from '../../types';
+import { formatServiceType } from '../../utils/format';
 
 export default function FinanceDashboard() {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -90,7 +91,7 @@ export default function FinanceDashboard() {
                     onChange={e => { setFilterService(e.target.value); setPage(1); }}>
                     <option value="">Semua Layanan</option>
                     <option value="REGULER">Reguler</option>
-                    <option value="SELF_DECLARE">Self Declare</option>
+                    <option value="SELF_DECLARE">Self Declare Fasilitasi (Gratis)</option>
                 </select>
             </div>
 
@@ -111,6 +112,7 @@ export default function FinanceDashboard() {
                                 <th className="p-4">Layanan</th>
                                 <th className="p-4">Client</th>
                                 <th className="p-4 text-right">Jumlah</th>
+                                <th className="p-4">Sumber Harga</th>
                                 <th className="p-4">Status</th>
                                 <th className="p-4">Tanggal</th>
                                 <th className="p-4">Aksi</th>
@@ -126,11 +128,31 @@ export default function FinanceDashboard() {
                                                 ? 'bg-blue-100 text-blue-700'
                                                 : 'bg-purple-100 text-purple-700'
                                         }`}>
-                                            {inv.service_type.replace(/_/g, ' ')}
+                                            {formatServiceType(inv.service_type)}
                                         </span>
                                     </td>
                                     <td className="p-4 text-gray-700">{inv.submission?.client?.business_name || '-'}</td>
                                     <td className="p-4 text-right font-semibold text-gray-800">{formatCurrency(inv.amount)}</td>
+                                    <td className="p-4">
+                                        {inv.pricing_source && (
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase inline-block w-fit ${
+                                                    inv.pricing_source === 'SCHEME_PRICE' ? 'bg-brand-100 text-brand-700' :
+                                                    inv.pricing_source === 'COORDINATOR_RATE' ? 'bg-amber-100 text-amber-700' :
+                                                    inv.pricing_source === 'COST_DETAIL' ? 'bg-green-100 text-green-700' :
+                                                    'bg-gray-100 text-gray-600'
+                                                }`}>
+                                                    {inv.pricing_source === 'SCHEME_PRICE' ? 'Skema Harga' :
+                                                     inv.pricing_source === 'COORDINATOR_RATE' ? 'Rate Koordinator' :
+                                                     inv.pricing_source === 'COST_DETAIL' ? 'Kalkulator' :
+                                                     'Default'}
+                                                </span>
+                                                {(inv.discount_applied ?? 0) > 0 && (
+                                                    <span className="text-[10px] text-green-600 font-medium">-{inv.discount_applied}%</span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </td>
                                     <td className="p-4">
                                         {inv.status === 'PAID' ? (
                                             <span className="flex items-center gap-1 text-green-600 text-xs font-medium">

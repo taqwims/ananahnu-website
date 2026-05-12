@@ -1,11 +1,12 @@
 package http
 
 import (
+	"ananahnu/internal/delivery/middleware"
 	"ananahnu/internal/usecase"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 type NotificationHandler struct {
@@ -16,16 +17,15 @@ func NewNotificationHandler(r *gin.Engine, uc usecase.NotificationUsecase) {
 	handler := &NotificationHandler{notifUC: uc}
 
 	g := r.Group("/notifications")
-	// Middleware Auth required
+	g.Use(middleware.AuthMiddleware())
 	{
-		g.GET("/", handler.GetMyNotifications)
+		g.GET("", handler.GetMyNotifications)
+		g.PUT("/:id/read", handler.MarkAsRead)
 	}
 }
 
 func (h *NotificationHandler) GetMyNotifications(c *gin.Context) {
-	// Stub context ID
-	userID := uuid.Nil 
-	// userID := c.MustGet("userID").(uuid.UUID)
+	userID := middleware.GetUserID(c)
 
 	notifs, err := h.notifUC.GetUserNotifications(userID)
 	if err != nil {
@@ -34,4 +34,21 @@ func (h *NotificationHandler) GetMyNotifications(c *gin.Context) {
 	}
 	
 	c.JSON(http.StatusOK, notifs)
+}
+
+func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid notification id"})
+		return
+	}
+
+	err = h.notifUC.MarkAsRead(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "marked as read"})
 }

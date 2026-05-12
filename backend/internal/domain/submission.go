@@ -14,6 +14,7 @@ const (
 	StatusVervalPendamping SubmissionStatus = "VERVAL_PENDAMPING"
 	StatusQCOfficer        SubmissionStatus = "QC_OFFICER"
 	StatusDrafter          SubmissionStatus = "DRAFTER"
+	StatusQCReview         SubmissionStatus = "QC_REVIEW"
 	StatusSidangFatwa      SubmissionStatus = "SIDANG_FATWA"
 	StatusSHTerbit         SubmissionStatus = "SH_TERBIT"
 	StatusRejected         SubmissionStatus = "REJECTED"
@@ -26,9 +27,15 @@ type Submission struct {
 	Client              Client           `gorm:"foreignKey:ClientID" json:"client"`
 	Status              SubmissionStatus `json:"status"`
 	ServiceType         string           `json:"service_type"` // REGULER, SELF_DECLARE
+	DataSource          string           `json:"data_source"`  // ORGANIK, MARKETING
 	CurrentAssigneeRole int              `json:"current_assignee_role"` // Role ID
+	AssignedDrafterID   *uuid.UUID       `gorm:"type:uuid" json:"assigned_drafter_id,omitempty"`
+	AssignedDrafter     *User            `gorm:"foreignKey:AssignedDrafterID" json:"assigned_drafter,omitempty"`
+	ConsultantID        *uuid.UUID       `gorm:"type:uuid" json:"consultant_id,omitempty"`
+	SalesSchemeID       *int64           `json:"sales_scheme_id,omitempty"`
 	RegencyID           *int64           `json:"regency_id,omitempty"`
 	DistrictID          *int64           `json:"district_id,omitempty"`
+	RejectNote          string           `json:"reject_note,omitempty"`
 	Payments            []Payment        `gorm:"foreignKey:SubmissionID" json:"payments"`
 	FieldValues         []FormFieldValue `gorm:"foreignKey:SubmissionID" json:"field_values,omitempty"`
 	CreatedAt           time.Time        `json:"created_at"`
@@ -48,4 +55,6 @@ type SubmissionRepository interface {
 	FindByID(id uuid.UUID) (*Submission, error)
 	FindAll(filter map[string]interface{}) ([]Submission, error)
 	UpdateStatus(id uuid.UUID, status SubmissionStatus, assigneeRole int) error
+	UpdateAssignee(id uuid.UUID, drafterID *uuid.UUID) error
+	UpdateRejectNote(id uuid.UUID, note string) error
 }

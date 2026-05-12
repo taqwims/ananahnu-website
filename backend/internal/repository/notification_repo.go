@@ -26,3 +26,7 @@ func (r *notificationRepository) FindByUserID(userID uuid.UUID) ([]domain.Notifi
 	}
 	return notifs, nil
 }
+
+func (r *notificationRepository) MarkAsRead(id int64) error {
+	return r.db.Model(&domain.Notification{}).Where("id = ?", id).Update("is_read", true).Error
+}
