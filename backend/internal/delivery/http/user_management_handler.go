@@ -28,17 +28,26 @@ func NewUserManagementHandler(r *gin.Engine, uc usecase.UserManagementUsecase) {
 		adminOnly := g.Group("")
 		adminOnly.Use(middleware.RoleMiddleware("DIRECTOR"))
 		{
-			adminOnly.GET("", handler.ListUsers)
 			adminOnly.GET("/:id", handler.GetUser)
 			adminOnly.POST("", handler.CreateUser)
 			adminOnly.PUT("/:id", handler.UpdateUser)
 			adminOnly.DELETE("/:id", handler.DeleteUser)
 			adminOnly.PUT("/:id/reset-password", handler.ResetPassword)
 		}
+
+		// Accessible to more roles (for training/selection)
+		g.GET("", handler.ListUsers)
 	}
 
 	// Roles list (for dropdowns)
 	r.GET("/admin/roles", middleware.AuthMiddleware(), handler.ListRoles)
+
+	// Profile
+	profile := r.Group("/profile")
+	profile.Use(middleware.AuthMiddleware())
+	{
+		profile.PUT("", handler.UpdateProfile)
+	}
 }
 
 func (h *UserManagementHandler) ListUsers(c *gin.Context) {
@@ -51,6 +60,12 @@ func (h *UserManagementHandler) ListUsers(c *gin.Context) {
 	}
 	if roleID := c.Query("role_id"); roleID != "" {
 		filter["role_id"] = roleID
+	}
+	if roleName := c.Query("role"); roleName != "" {
+		filter["role"] = roleName
+	}
+	if noLeader := c.Query("no_leader"); noLeader == "true" {
+		filter["no_leader"] = true
 	}
 
 	users, total, err := h.userMgmtUC.ListUsers(filter, page, limit)
@@ -122,6 +137,27 @@ func (h *UserManagementHandler) UpdateUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "user updated"})
+}
+
+func (h *UserManagementHandler) UpdateProfile(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var input usecase.UpdateProfileInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.userMgmtUC.UpdateProfile(userID, input); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "profile updated"})
 }
 
 func (h *UserManagementHandler) DeleteUser(c *gin.Context) {

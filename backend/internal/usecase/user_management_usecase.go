@@ -13,6 +13,7 @@ type CreateUserInput struct {
 	Email    string     `json:"email"`
 	Role     string     `json:"role"`
 	LeaderID *uuid.UUID `json:"leader_id,omitempty"`
+	Password string     `json:"password,omitempty"`
 }
 
 type UpdateUserInput struct {
@@ -20,6 +21,12 @@ type UpdateUserInput struct {
 	Email    string     `json:"email"`
 	Role     string     `json:"role"`
 	LeaderID *uuid.UUID `json:"leader_id,omitempty"`
+	Password string     `json:"password,omitempty"`
+}
+
+type UpdateProfileInput struct {
+	FullName string `json:"full_name"`
+	Password string `json:"password,omitempty"`
 }
 
 type UserManagementUsecase interface {
@@ -27,6 +34,7 @@ type UserManagementUsecase interface {
 	GetUser(id uuid.UUID) (*domain.User, error)
 	CreateUser(input CreateUserInput) (*domain.User, string, error) // Returns user + plaintext password
 	UpdateUser(id uuid.UUID, input UpdateUserInput) error
+	UpdateProfile(id uuid.UUID, input UpdateProfileInput) error
 	DeleteUser(id uuid.UUID) error
 	ResetUserPassword(id uuid.UUID) (string, error) // Returns new plaintext password
 	ListRoles() ([]domain.Role, error)
@@ -61,8 +69,11 @@ func (uc *userManagementUsecase) CreateUser(input CreateUserInput) (*domain.User
 		return nil, "", errors.New("role not found: " + input.Role)
 	}
 
-	// Generate random password
-	password := utils.RandomString(10)
+	// Generate random password if not provided
+	password := input.Password
+	if password == "" {
+		password = utils.RandomString(10)
+	}
 	hash, err := utils.HashPassword(password)
 	if err != nil {
 		return nil, "", err
@@ -114,7 +125,35 @@ func (uc *userManagementUsecase) UpdateUser(id uuid.UUID, input UpdateUserInput)
 		}
 		user.RoleID = role.ID
 	}
+	if input.Password != "" {
+		hash, err := utils.HashPassword(input.Password)
+		if err != nil {
+			return err
+		}
+		user.PasswordHash = hash
+	}
 	user.LeaderID = input.LeaderID
+
+	return uc.userRepo.Update(user)
+}
+
+func (uc *userManagementUsecase) UpdateProfile(id uuid.UUID, input UpdateProfileInput) error {
+	user, err := uc.userRepo.FindByID(id)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	if input.FullName != "" {
+		user.FullName = input.FullName
+	}
+
+	if input.Password != "" {
+		hash, err := utils.HashPassword(input.Password)
+		if err != nil {
+			return err
+		}
+		user.PasswordHash = hash
+	}
 
 	return uc.userRepo.Update(user)
 }

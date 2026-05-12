@@ -68,6 +68,7 @@ export interface Submission {
     payments?: Payment[];
     field_values?: FormFieldValue[];
     cost_detail?: SubmissionCostDetail;
+    sh_url?: string;
     created_at: string;
     updated_at: string;
 }

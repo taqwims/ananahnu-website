@@ -11,15 +11,16 @@ type ConsultantUsecase interface {
 	GetProfile(userID uuid.UUID) (*domain.ConsultantProfile, error)
 	UpdateProfile(profile *domain.ConsultantProfile) error
 	GetAllProfiles() ([]domain.ConsultantProfile, error)
-	VerifyProfile(profileID uuid.UUID, verified bool) error
+	VerifyProfile(userID uuid.UUID, verified bool, leaderID *uuid.UUID) error
 }
 
 type consultantUsecase struct {
 	profileRepo domain.ConsultantProfileRepository
+	userRepo    domain.UserRepository
 }
 
-func NewConsultantUsecase(p domain.ConsultantProfileRepository) ConsultantUsecase {
-	return &consultantUsecase{profileRepo: p}
+func NewConsultantUsecase(p domain.ConsultantProfileRepository, u domain.UserRepository) ConsultantUsecase {
+	return &consultantUsecase{profileRepo: p, userRepo: u}
 }
 
 func (uc *consultantUsecase) GetProfile(userID uuid.UUID) (*domain.ConsultantProfile, error) {
@@ -47,11 +48,23 @@ func (uc *consultantUsecase) GetAllProfiles() ([]domain.ConsultantProfile, error
 	return uc.profileRepo.FindAll()
 }
 
-func (uc *consultantUsecase) VerifyProfile(profileID uuid.UUID, verified bool) error {
-	profile, err := uc.profileRepo.FindByUserID(profileID)
+func (uc *consultantUsecase) VerifyProfile(userID uuid.UUID, verified bool, leaderID *uuid.UUID) error {
+	profile, err := uc.profileRepo.FindByUserID(userID)
 	if err != nil {
 		return errors.New("profile not found")
 	}
 	profile.IsVerified = verified
-	return uc.profileRepo.Update(profile)
+	if err := uc.profileRepo.Update(profile); err != nil {
+		return err
+	}
+
+	// Update user's leader if provided
+	if leaderID != nil {
+		user, err := uc.userRepo.FindByID(userID)
+		if err == nil {
+			user.LeaderID = leaderID
+			return uc.userRepo.Update(user)
+		}
+	}
+	return nil
 }

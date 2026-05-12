@@ -1,16 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-    Filter, 
-    Eye, 
-    AlertCircle, 
-    CheckCircle, 
-    Clock, 
-    Search, 
-    Plus, 
-    ArrowUpDown, 
-    ArrowUp, 
-    ArrowDown, 
+import {
+    Filter,
+    Eye,
+    AlertCircle,
+    CheckCircle,
+    Clock,
+    Search,
+    Plus,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
     ChevronRight,
     FileText,
     LayoutGrid,
@@ -20,7 +20,8 @@ import {
     Calendar,
     Briefcase,
     Users,
-    User
+    User,
+    ChevronDown
 } from 'lucide-react';
 import api from '../../services/api';
 import type { Submission } from '../../types';
@@ -52,9 +53,10 @@ export default function SubmissionList() {
     const [isGrouped, setIsGrouped] = useState(true); // Default grouped
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newSub, setNewSub] = useState({ businessName: '', serviceType: 'SELF_DECLARE' });
-    
+
     const [sortKey, setSortKey] = useState<SortKey>('created_at');
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+    const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
     const navigate = useNavigate();
     const user = useAuthStore(state => state.user);
@@ -87,10 +89,10 @@ export default function SubmissionList() {
     const filteredData = useMemo(() => {
         return submissions.filter(s => {
             const matchSearch = s.client?.business_name.toLowerCase().includes(search.toLowerCase()) ||
-                               s.id.toLowerCase().includes(search.toLowerCase()) ||
-                               s.client?.client_name?.toLowerCase().includes(search.toLowerCase()) ||
-                               s.client?.facilitator?.full_name.toLowerCase().includes(search.toLowerCase()) ||
-                               s.client?.facilitator?.leader?.full_name.toLowerCase().includes(search.toLowerCase());
+                s.id.toLowerCase().includes(search.toLowerCase()) ||
+                s.client?.client_name?.toLowerCase().includes(search.toLowerCase()) ||
+                s.client?.facilitator?.full_name.toLowerCase().includes(search.toLowerCase()) ||
+                s.client?.facilitator?.leader?.full_name.toLowerCase().includes(search.toLowerCase());
             const matchStatus = statusFilter === '' || s.status === statusFilter;
             return matchSearch && matchStatus;
         });
@@ -98,7 +100,7 @@ export default function SubmissionList() {
 
     const groupedData = useMemo(() => {
         const groups: Record<string, { coordinator: string, submissions: Submission[] }> = {};
-        
+
         filteredData.forEach(sub => {
             const coord = sub.client?.facilitator?.leader?.full_name || sub.client?.facilitator?.full_name || 'Umum / Tanpa Koordinator';
             if (!groups[coord]) {
@@ -157,9 +159,9 @@ export default function SubmissionList() {
                     </h1>
                     <p className="text-gray-500 mt-1 font-medium">Kelola dan pantau status sertifikasi halal Anda</p>
                 </div>
-                
+
                 {user?.role !== 'DRAFTER' && user?.role !== 'QC_OFFICER' && (
-                    <button 
+                    <button
                         onClick={() => setShowCreateModal(true)}
                         className="group relative px-6 py-3 bg-brand-900 text-white rounded-2xl font-bold shadow-xl shadow-brand-100 hover:scale-[1.02] transition-all flex items-center gap-2 overflow-hidden"
                     >
@@ -183,9 +185,9 @@ export default function SubmissionList() {
                 <div className="glass-panel p-4 flex flex-wrap gap-4 items-center justify-between shadow-lg border border-white/40">
                     <div className="flex-1 min-w-[300px] relative">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input 
+                        <input
                             type="text"
-                            placeholder="Cari Bisnis, Konsultan, Koordinator..."
+                            placeholder="Cari Bisnis, Nama Klien, Konsultan..."
                             className="w-full pl-12 pr-4 py-3 bg-gray-50/50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-brand-500/20 transition-all outline-none"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
@@ -206,7 +208,7 @@ export default function SubmissionList() {
                                 ))}
                             </select>
                         </div>
-                        <button 
+                        <button
                             onClick={() => setIsGrouped(!isGrouped)}
                             className={`p-2.5 rounded-xl border transition-all ${isGrouped ? 'bg-brand-600 text-white border-brand-600 shadow-md' : 'bg-white text-gray-400 border-gray-200 hover:border-brand-300'}`}
                             title={isGrouped ? "Nonaktifkan Pengelompokan" : "Aktifkan Pengelompokan"}
@@ -227,113 +229,132 @@ export default function SubmissionList() {
                         <div key={group.coordinator} className="space-y-4">
                             {/* Group Header */}
                             {isGrouped && (
-                                <div className="flex items-center gap-4 px-2">
-                                    <div className="w-10 h-10 rounded-2xl bg-brand-100 flex items-center justify-center text-brand-700 font-black">
+                                <div
+                                    className="flex items-center gap-4 px-2 cursor-pointer group/header"
+                                    onClick={() => setExpandedGroups(prev => ({ ...prev, [group.coordinator]: !prev[group.coordinator] }))}
+                                >
+                                    <div className="w-10 h-10 rounded-2xl bg-brand-100 flex items-center justify-center text-brand-700 font-black group-hover/header:bg-brand-200 transition-colors">
                                         {group.coordinator.charAt(0)}
                                     </div>
-                                    <div>
+                                    <div className="flex-1">
                                         <h3 className="text-lg font-black text-gray-800 tracking-tight">{group.coordinator}</h3>
                                         <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">{group.submissions.length} Pengajuan</p>
                                     </div>
-                                    <div className="h-px flex-1 bg-gradient-to-r from-gray-200 to-transparent"></div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-px w-24 sm:w-48 bg-gradient-to-r from-gray-200 to-transparent"></div>
+                                        <div className={`p-1.5 rounded-lg transition-colors ${expandedGroups[group.coordinator] ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:bg-gray-100'}`}>
+                                            <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${expandedGroups[group.coordinator] ? 'rotate-180' : ''}`} />
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
-                            <div className="glass-panel overflow-hidden border border-white/40 shadow-xl">
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left border-collapse">
-                                        <thead className="bg-gray-50/50 border-b border-gray-100">
-                                            <tr>
-                                                <th onClick={() => handleSort('business_name')} className="p-4 cursor-pointer hover:bg-gray-100 transition-colors w-[30%]">
-                                                    <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                                        Bisnis & Layanan <SortIcon currentKey="business_name" activeKey={sortKey} order={sortOrder} />
-                                                    </div>
-                                                </th>
-                                                <th onClick={() => handleSort('consultant')} className="p-4 cursor-pointer hover:bg-gray-100 transition-colors">
-                                                    <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                                        Konsultan <SortIcon currentKey="consultant" activeKey={sortKey} order={sortOrder} />
-                                                    </div>
-                                                </th>
-                                                <th onClick={() => handleSort('status')} className="p-4 cursor-pointer hover:bg-gray-100 transition-colors">
-                                                    <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                                        Status <SortIcon currentKey="status" activeKey={sortKey} order={sortOrder} />
-                                                    </div>
-                                                </th>
-                                                <th onClick={() => handleSort('created_at')} className="p-4 cursor-pointer hover:bg-gray-100 transition-colors">
-                                                    <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                                        Tgl Input <SortIcon currentKey="created_at" activeKey={sortKey} order={sortOrder} />
-                                                    </div>
-                                                </th>
-                                                <th className="p-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Aksi</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-50">
-                                            {group.submissions.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan={5} className="p-12 text-center text-gray-400 italic text-sm">Tidak ada data</td>
-                                                </tr>
-                                            ) : (
-                                                group.submissions.map((sub, idx) => (
-                                                    <motion.tr 
-                                                        initial={{ opacity: 0, y: 5 }}
-                                                        animate={{ opacity: 1, y: 0 }}
-                                                        transition={{ delay: idx * 0.02 }}
-                                                        key={sub.id} 
-                                                        className="group hover:bg-brand-50/30 transition-all cursor-pointer"
-                                                        onClick={() => navigate(`/dashboard/submissions/${sub.id}`)}
-                                                    >
-                                                        <td className="p-4">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-10 h-10 rounded-2xl bg-brand-50 flex items-center justify-center text-brand-700 font-black text-sm group-hover:scale-110 transition-transform shadow-sm">
-                                                                    {sub.client?.business_name?.charAt(0) || '?'}
+                            <AnimatePresence initial={false}>
+                                {(expandedGroups[group.coordinator] || !isGrouped) && (
+                                    <motion.div
+                                        initial={isGrouped ? { height: 0, opacity: 0 } : false}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="glass-panel overflow-hidden border border-white/40 shadow-xl">
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-left border-collapse">
+                                                    <thead className="bg-gray-50/50 border-b border-gray-100">
+                                                        <tr>
+                                                            <th onClick={() => handleSort('business_name')} className="p-4 cursor-pointer hover:bg-gray-100 transition-colors w-[30%]">
+                                                                <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                                                    Bisnis & Layanan <SortIcon currentKey="business_name" activeKey={sortKey} order={sortOrder} />
                                                                 </div>
-                                                                <div>
-                                                                    <div className="font-bold text-gray-800 group-hover:text-brand-700 transition-colors">{sub.client?.business_name}</div>
-                                                                    <div className="text-[10px] text-gray-500 font-medium">{sub.client?.client_name || 'Tanpa Nama Klien'}</div>
-                                                                    <div className="flex items-center gap-2 mt-1">
-                                                                        <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider ${
-                                                                            sub.service_type === 'REGULER' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                                                                        }`}>
-                                                                            {formatServiceType(sub.service_type)}
-                                                                        </span>
-                                                                    </div>
+                                                            </th>
+                                                            <th onClick={() => handleSort('consultant')} className="p-4 cursor-pointer hover:bg-gray-100 transition-colors">
+                                                                <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                                                    Konsultan <SortIcon currentKey="consultant" activeKey={sortKey} order={sortOrder} />
                                                                 </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="p-4">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
-                                                                    <User className="w-3 h-3" />
+                                                            </th>
+                                                            <th onClick={() => handleSort('status')} className="p-4 cursor-pointer hover:bg-gray-100 transition-colors">
+                                                                <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                                                    Status <SortIcon currentKey="status" activeKey={sortKey} order={sortOrder} />
                                                                 </div>
-                                                                <div>
-                                                                    <div className="text-sm font-bold text-gray-700">{sub.client?.facilitator?.full_name}</div>
-                                                                    <div className="text-[10px] text-gray-400 font-medium">Konsultan</div>
+                                                            </th>
+                                                            <th onClick={() => handleSort('created_at')} className="p-4 cursor-pointer hover:bg-gray-100 transition-colors">
+                                                                <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                                                    Tgl Input <SortIcon currentKey="created_at" activeKey={sortKey} order={sortOrder} />
                                                                 </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="p-4">
-                                                            <StatusBadge status={sub.status} />
-                                                        </td>
-                                                        <td className="p-4">
-                                                            <div className="text-xs text-gray-600 font-medium">
-                                                                {new Date(sub.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
-                                                            </div>
-                                                            <div className="text-[10px] text-gray-400">
-                                                                {new Date(sub.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                                                            </div>
-                                                        </td>
-                                                        <td className="p-4 text-right">
-                                                            <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white group-hover:bg-brand-600 group-hover:text-white text-gray-400 shadow-sm transition-all border border-gray-100">
-                                                                <ChevronRight className="w-4 h-4" />
-                                                            </div>
-                                                        </td>
-                                                    </motion.tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
+                                                            </th>
+                                                            <th className="p-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Aksi</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-50">
+                                                        {group.submissions.length === 0 ? (
+                                                            <tr>
+                                                                <td colSpan={5} className="p-12 text-center text-gray-400 italic text-sm">Tidak ada data</td>
+                                                            </tr>
+                                                        ) : (
+                                                            group.submissions.map((sub, idx) => (
+                                                                <motion.tr
+                                                                    initial={{ opacity: 0, y: 5 }}
+                                                                    animate={{ opacity: 1, y: 0 }}
+                                                                    transition={{ delay: idx * 0.02 }}
+                                                                    key={sub.id}
+                                                                    className="group hover:bg-brand-50/30 transition-all cursor-pointer"
+                                                                    onClick={() => navigate(`/dashboard/submissions/${sub.id}`)}
+                                                                >
+                                                                    <td className="p-4">
+                                                                        <div className="flex items-center gap-3">
+                                                                            <div className="w-10 h-10 rounded-2xl bg-brand-50 flex items-center justify-center text-brand-700 font-black text-sm group-hover:scale-110 transition-transform shadow-sm">
+                                                                                {sub.client?.business_name?.charAt(0) || '?'}
+                                                                            </div>
+                                                                            <div>
+                                                                                <div className="font-bold text-gray-800 group-hover:text-brand-700 transition-colors">{sub.client?.business_name}</div>
+                                                                                <div className="text-[10px] text-gray-500 font-medium">{sub.client?.client_name || 'Tanpa Nama Klien'}</div>
+                                                                                <div className="flex items-center gap-2 mt-1">
+                                                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider ${sub.service_type === 'REGULER' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                                                                                        }`}>
+                                                                                        {formatServiceType(sub.service_type)}
+                                                                                    </span>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="p-4">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
+                                                                                <User className="w-3 h-3" />
+                                                                            </div>
+                                                                            <div>
+                                                                                <div className="text-sm font-bold text-gray-700">{sub.client?.facilitator?.full_name}</div>
+                                                                                <div className="text-[10px] text-gray-400 font-medium">Konsultan</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="p-4">
+                                                                        <StatusBadge status={sub.status} />
+                                                                    </td>
+                                                                    <td className="p-4">
+                                                                        <div className="text-xs text-gray-600 font-medium">
+                                                                            {new Date(sub.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
+                                                                        </div>
+                                                                        <div className="text-[10px] text-gray-400">
+                                                                            {new Date(sub.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="p-4 text-right">
+                                                                        <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white group-hover:bg-brand-600 group-hover:text-white text-gray-400 shadow-sm transition-all border border-gray-100">
+                                                                            <ChevronRight className="w-4 h-4" />
+                                                                        </div>
+                                                                    </td>
+                                                                </motion.tr>
+                                                            ))
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     ))}
                 </div>
@@ -343,7 +364,7 @@ export default function SubmissionList() {
             <AnimatePresence>
                 {showCreateModal && (
                     <div className="fixed inset-0 bg-brand-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
@@ -353,25 +374,25 @@ export default function SubmissionList() {
                                 <h3 className="text-2xl font-black tracking-tight">Mulai Pengajuan</h3>
                                 <p className="text-brand-200 text-sm mt-1">Lengkapi data dasar untuk memulai proses sertifikasi</p>
                             </div>
-                            
+
                             <div className="p-8 space-y-6">
                                 <div>
                                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nama Usaha / Produk</label>
-                                    <input 
+                                    <input
                                         type="text"
                                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-brand-500/20 transition-all outline-none"
                                         placeholder="Contoh: Katering Berkah"
                                         value={newSub.businessName}
-                                        onChange={e => setNewSub({...newSub, businessName: e.target.value})}
+                                        onChange={e => setNewSub({ ...newSub, businessName: e.target.value })}
                                     />
                                 </div>
 
                                 <div>
                                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Jenis Layanan</label>
-                                    <select 
+                                    <select
                                         className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-brand-500/20 transition-all outline-none"
                                         value={newSub.serviceType}
-                                        onChange={e => setNewSub({...newSub, serviceType: e.target.value})}
+                                        onChange={e => setNewSub({ ...newSub, serviceType: e.target.value })}
                                     >
                                         <option value="SELF_DECLARE">Self Declare Fasilitasi (Gratis)</option>
                                         <option value="SELF_DECLARE_MANDIRI">Self Declare Mandiri</option>

@@ -32,3 +32,15 @@ func (r *auditLogRepository) FindLogsByEntity(entityType string, entityID string
 	err := query.Find(&logs).Error
 	return logs, err
 }
+
+func (r *auditLogRepository) FindRecent(limit int, filter map[string]interface{}) ([]domain.AuditLog, error) {
+	var logs []domain.AuditLog
+	query := r.db.Order("created_at DESC").Limit(limit)
+
+	if userIDs, ok := filter["user_ids"]; ok {
+		query = query.Where("user_id IN ?", userIDs)
+	}
+
+	err := query.Find(&logs).Error
+	return logs, err
+}

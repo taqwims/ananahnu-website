@@ -19,9 +19,10 @@ func NewAuthHandler(r *gin.Engine, uc usecase.AuthUsecase) {
 	auth := r.Group("/auth")
 	{
 		auth.POST("/login", handler.Login)
-		auth.POST("/register-client", handler.RegisterClient)
+		auth.POST("/register", handler.Register)
 		auth.POST("/forgot-password", handler.ForgotPassword)
 		auth.POST("/reset-password", handler.ResetPassword)
+		auth.GET("/facilitators", handler.ListFacilitators)
 	}
 	
 	admin := r.Group("/admin") 
@@ -56,23 +57,28 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			"email":     user.Email,
 			"full_name": user.FullName,
 			"role":      user.Role.Name,
+			"leader":    user.Leader,
 		},
 	})
 }
 
-func (h *AuthHandler) RegisterClient(c *gin.Context) {
-	var input usecase.RegisterClientInput
+func (h *AuthHandler) Register(c *gin.Context) {
+	var input usecase.RegisterInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.authUseCase.RegisterClient(input); err != nil {
+	if err := h.authUseCase.Register(input); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "client registered successfully"})
+	c.JSON(http.StatusCreated, gin.H{"message": "account registered successfully"})
+}
+
+func (h *AuthHandler) RegisterClient(c *gin.Context) {
+	h.Register(c)
 }
 
 func (h *AuthHandler) GenerateAccount(c *gin.Context) {
@@ -128,4 +134,13 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "password updated"})
+}
+
+func (h *AuthHandler) ListFacilitators(c *gin.Context) {
+	facilitators, err := h.authUseCase.ListFacilitators()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, facilitators)
 }

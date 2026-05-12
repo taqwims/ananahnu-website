@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Users, FileText, CheckCircle, Clock, Loader2 } from 'lucide-react';
+import { Users, FileText, CheckCircle, Clock, Loader2, ShieldCheck } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import StatsCard from '../../components/ui/StatsCard';
 import api from '../../services/api';
@@ -19,6 +20,7 @@ export default function DashboardHome() {
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [activities, setActivities] = useState<AuditLog[]>([]);
     const [loading, setLoading] = useState(true);
+    const user = useAuthStore(state => state.user);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -69,6 +71,31 @@ export default function DashboardHome() {
                 <h1 className="text-2xl font-bold text-gray-800">Dashboard Overview</h1>
                 <div className="text-sm text-gray-500">{new Date().toLocaleDateString()}</div>
             </div>
+
+            {/* Coordinator Info for Consultants */}
+            {user?.role === 'HALAL_KONSULTAN' && (
+                <div className="glass-panel p-4 bg-indigo-50 border-indigo-100 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-indigo-600 shadow-sm">
+                            <ShieldCheck className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Koordinator Anda</p>
+                            <h3 className="text-lg font-black text-indigo-900 leading-tight">
+                                {user.leader?.full_name || 'Belum Ditentukan'}
+                            </h3>
+                            {user.leader?.email && (
+                                <p className="text-xs text-indigo-600/60 font-medium">{user.leader.email}</p>
+                            )}
+                        </div>
+                    </div>
+                    {!user.leader && (
+                        <div className="px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-black uppercase tracking-widest">
+                            Menunggu Penugasan
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -146,8 +173,8 @@ export default function DashboardHome() {
                                     <div className="w-8 h-8 rounded-full bg-brand-50 flex items-center justify-center text-brand-600 text-[10px] font-bold">
                                         {activity.action.substring(0, 2)}
                                     </div>
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium text-gray-800">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-gray-800 truncate" title={activity.notes || activity.action}>
                                             {activity.notes || activity.action}
                                         </p>
                                         <p className="text-[11px] text-gray-500 mt-0.5">

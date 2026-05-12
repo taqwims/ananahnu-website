@@ -1,6 +1,7 @@
 package http
 
 import (
+	"ananahnu/internal/delivery/middleware"
 	"ananahnu/internal/usecase"
 	"net/http"
 
@@ -15,14 +16,17 @@ type DashboardHandler struct {
 func NewDashboardHandler(r *gin.Engine, uc usecase.DashboardUsecase) {
 	handler := &DashboardHandler{dashboardUC: uc}
 
-	r.GET("/dashboard/stats", handler.GetStats)
-	r.GET("/dashboard/activities", handler.GetActivities)
+	g := r.Group("/dashboard")
+	g.Use(middleware.AuthMiddleware())
+	{
+		g.GET("/stats", handler.GetStats)
+		g.GET("/activities", handler.GetActivities)
+	}
 }
 
 func (h *DashboardHandler) GetStats(c *gin.Context) {
-	// Stub ID/Role
-	userID := uuid.Nil
-	role := "ADMIN"
+	userID := c.MustGet("userID").(uuid.UUID)
+	role := c.MustGet("role").(string)
 
 	stats, err := h.dashboardUC.GetStats(userID, role)
 	if err != nil {
@@ -33,7 +37,10 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 }
 
 func (h *DashboardHandler) GetActivities(c *gin.Context) {
-	activities, err := h.dashboardUC.GetRecentActivities(10)
+	userID := c.MustGet("userID").(uuid.UUID)
+	role := c.MustGet("role").(string)
+
+	activities, err := h.dashboardUC.GetRecentActivities(userID, role, 15)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

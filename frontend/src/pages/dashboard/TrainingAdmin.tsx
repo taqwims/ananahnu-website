@@ -14,6 +14,8 @@ export default function TrainingAdmin() {
     const [saving, setSaving] = useState(false);
     const [form, setForm] = useState({ title: '', description: '', start_date: '', end_date: '', location: '' });
     const [newUserID, setNewUserID] = useState('');
+    const [allUsers, setAllUsers] = useState<any[]>([]);
+    const [userSearch, setUserSearch] = useState('');
     const user = useAuthStore(state => state.user);
     const isCoordinator = user?.role === 'KOORDINATOR';
 
@@ -24,7 +26,21 @@ export default function TrainingAdmin() {
             .finally(() => setLoading(false));
     };
 
-    useEffect(() => { loadTrainings(); }, []);
+    const loadUsers = () => {
+        api.get('/admin/users', { 
+            params: { 
+                limit: 200, 
+                role: 'HALAL_KONSULTAN',
+                no_leader: 'true'
+            } 
+        }).then(res => setAllUsers(res.data.data || []))
+            .catch(() => setAllUsers([]));
+    };
+
+    useEffect(() => { 
+        loadTrainings(); 
+        loadUsers();
+    }, []);
 
     const loadParticipants = async (trainingId: number) => {
         setLoadingParts(true);
@@ -155,15 +171,27 @@ export default function TrainingAdmin() {
                             </h2>
 
                             {/* Add Participant */}
-                            <div className="flex gap-2">
-                                <input
-                                    className="glass-input text-sm flex-1"
-                                    placeholder="User ID peserta baru"
-                                    value={newUserID}
-                                    onChange={e => setNewUserID(e.target.value)}
-                                />
-                                <button onClick={addParticipant} className="glass-button text-sm flex items-center gap-1">
-                                    <Plus className="w-4 h-4" /> Tambah
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <div className="flex-1 relative">
+                                    <select
+                                        className="glass-input text-sm w-full"
+                                        value={newUserID}
+                                        onChange={e => setNewUserID(e.target.value)}
+                                    >
+                                        <option value="">-- Pilih Peserta --</option>
+                                        {allUsers.map(u => (
+                                            <option key={u.id} value={u.id}>
+                                                {u.full_name} ({u.role?.name || u.role})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <button 
+                                    onClick={addParticipant} 
+                                    disabled={!newUserID}
+                                    className="glass-button text-sm flex items-center justify-center gap-1 bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50"
+                                >
+                                    <Plus className="w-4 h-4" /> Tambah Peserta
                                 </button>
                             </div>
 

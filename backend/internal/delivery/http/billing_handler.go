@@ -53,7 +53,7 @@ func NewBillingHandler(r *gin.Engine, bUC usecase.BillingUsecase, pUC usecase.Pa
 
 func (h *BillingHandler) GetMyInvoices(c *gin.Context) {
 	userID := c.MustGet("userID").(uuid.UUID)
-	roleName := c.MustGet("userRole").(string)
+	roleName := c.MustGet("role").(string)
 	
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))

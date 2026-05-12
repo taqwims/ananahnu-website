@@ -23,6 +23,7 @@ export default function SubmissionDetail() {
     const user = useAuthStore(state => state.user);
     const [history, setHistory] = useState<AuditLog[]>([]);
     const [editingData, setEditingData] = useState(false);
+    const [shFile, setShFile] = useState<File | null>(null);
 
     // Drafter Assignment (for QC)
     const [drafters, setDrafters] = useState<{id: string; full_name: string}[]>([]);
@@ -114,6 +115,35 @@ export default function SubmissionDetail() {
                 .catch(() => {});
         }
     }, [submission?.status, user?.role]);
+
+    const handleIssueSH = async () => {
+        if (!id || !shFile) return;
+
+        // Check size (2MB = 2 * 1024 * 1024 bytes)
+        if (shFile.size > 2 * 1024 * 1024) {
+            alert("Ukuran file sertifikat tidak boleh lebih dari 2MB");
+            return;
+        }
+
+        setProcessing(true);
+        try {
+            // 1. Upload File
+            const formData = new FormData();
+            formData.append('file', shFile);
+            const uploadRes = await api.post('/media/upload', formData);
+            const uploadedUrl = uploadRes.data.url;
+
+            // 2. Call Issue SH
+            await api.post(`/submissions/${id}/issue-sh`, { sh_url: uploadedUrl });
+            
+            setShFile(null);
+            await refreshSubmission();
+        } catch (err: any) {
+            alert(err.response?.data?.error || "Gagal menerbitkan Sertifikat Halal");
+        } finally {
+            setProcessing(false);
+        }
+    };
 
     const handleAction = async (action: 'submit' | 'approve' | 'reject') => {
         if (!submission) return;
@@ -391,6 +421,50 @@ export default function SubmissionDetail() {
                         />
                     ) : null}
 
+                    {/* Sertifikat Halal Section — shown when SH has been issued */}
+                    {submission.sh_url && (
+                        <div className="glass-panel p-6 bg-emerald-50/50 border-emerald-200">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-bold text-emerald-800 flex items-center gap-2">
+                                    <CheckCircle className="w-6 h-6 text-emerald-600" />
+                                    Sertifikat Halal Terbit
+                                </h3>
+                                <a 
+                                    href={`${import.meta.env.VITE_API_URL}${submission.sh_url}`} 
+                                    target="_blank" 
+                                    rel="noreferrer"
+                                    className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-sm shadow-emerald-200"
+                                >
+                                    <Upload className="w-4 h-4 rotate-180" />
+                                    Unduh Sertifikat
+                                </a>
+                            </div>
+                            
+                            <div className="rounded-xl overflow-hidden border border-emerald-100 bg-white shadow-inner">
+                                {submission.sh_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                                    <img 
+                                        src={`${import.meta.env.VITE_API_URL}${submission.sh_url}`} 
+                                        alt="Sertifikat Halal" 
+                                        className="w-full h-auto max-h-[500px] object-contain"
+                                    />
+                                ) : (
+                                    <div className="p-8 flex flex-col items-center justify-center text-emerald-600 gap-3">
+                                        <FileText className="w-16 h-16 opacity-20" />
+                                        <p className="text-sm font-medium">Dokumen Sertifikat (PDF)</p>
+                                        <a 
+                                            href={`${import.meta.env.VITE_API_URL}${submission.sh_url}`} 
+                                            target="_blank" 
+                                            rel="noreferrer"
+                                            className="text-brand-600 underline text-sm"
+                                        >
+                                            Buka Dokumen PDF di Tab Baru
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Invoice Info — shown when SH_TERBIT */}
                     {invoice && (
                         <div className={`glass-panel p-6 ${invoice.status === 'PAID' ? 'bg-green-50/50' : 'bg-yellow-50/50'}`}>
@@ -479,18 +553,45 @@ export default function SubmissionDetail() {
 
                             {(submission.status === 'VERVAL_PENDAMPING' || submission.status === 'QC_OFFICER' || submission.status === 'DRAFTER' || submission.status === 'QC_REVIEW' || submission.status === 'SIDANG_FATWA') && (
                                 <>
-                                    <button
-                                        onClick={() => handleAction('approve')}
-                                        disabled={processing || (submission.status === 'QC_OFFICER' && !selectedDrafterId)}
-                                        className="w-full glass-button bg-green-600 text-white hover:bg-green-700 border-green-500 flex justify-center items-center gap-2 disabled:opacity-50"
-                                    >
-                                        {processing ? <Loader2 className="animate-spin w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-                                        {submission.status === 'VERVAL_PENDAMPING' ? 'Submit to QC' : 
-                                         submission.status === 'QC_OFFICER' ? 'Distribute to Drafter' :
-                                         submission.status === 'DRAFTER' ? 'Submit to QC Review' : 
-                                         submission.status === 'QC_REVIEW' ? 'Submit to Sidang Fatwa' :
-                                         submission.status === 'SIDANG_FATWA' ? 'Terbitkan SH' : 'Approve / Advance'}
-                                    </button>
+                                    {submission.status === 'SIDANG_FATWA' ? (
+                                        <div className="space-y-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                                            <label className="block text-xs font-black text-emerald-800 uppercase tracking-widest mb-1">Upload Sertifikat Halal (PDF/JPG)</label>
+                                            <input 
+                                                type="file" 
+                                                className="block w-full text-xs text-gray-500
+                                                    file:mr-4 file:py-2 file:px-4
+                                                    file:rounded-full file:border-0
+                                                    file:text-xs file:font-semibold
+                                                    file:bg-emerald-600 file:text-white
+                                                    hover:file:bg-emerald-700 cursor-pointer"
+                                                accept=".pdf,.jpg,.jpeg,.png"
+                                                onChange={(e) => setShFile(e.target.files?.[0] || null)}
+                                            />
+                                            {shFile && (
+                                                <button
+                                                    onClick={handleIssueSH}
+                                                    disabled={processing}
+                                                    className="w-full glass-button bg-emerald-600 text-white hover:bg-emerald-700 border-emerald-500 flex justify-center items-center gap-2"
+                                                >
+                                                    {processing ? <Loader2 className="animate-spin w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                                                    Konfirmasi & Terbitkan SH
+                                                </button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => handleAction('approve')}
+                                            disabled={processing || (submission.status === 'QC_OFFICER' && !selectedDrafterId)}
+                                            className="w-full glass-button bg-green-600 text-white hover:bg-green-700 border-green-500 flex justify-center items-center gap-2 disabled:opacity-50"
+                                        >
+                                            {processing ? <Loader2 className="animate-spin w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                                            {submission.status === 'VERVAL_PENDAMPING' ? 'Submit to QC' : 
+                                             submission.status === 'QC_OFFICER' ? 'Distribute to Drafter' :
+                                             submission.status === 'DRAFTER' ? 'Submit to QC Review' : 
+                                             submission.status === 'QC_REVIEW' ? 'Submit to Sidang Fatwa' :
+                                             'Approve / Advance'}
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => setShowRejectModal(true)}
                                         disabled={processing}

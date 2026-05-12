@@ -15,7 +15,7 @@ export default function UserManagement() {
     // Modal state
     const [showModal, setShowModal] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
-    const [formData, setFormData] = useState({ full_name: '', email: '', role: '', leader_id: '' });
+    const [formData, setFormData] = useState({ full_name: '', email: '', role: '', leader_id: '', password: '' });
     const [saving, setSaving] = useState(false);
     const [generatedPassword, setGeneratedPassword] = useState('');
 
@@ -73,7 +73,7 @@ export default function UserManagement() {
 
     const openCreate = () => {
         setEditingUser(null);
-        setFormData({ full_name: '', email: '', role: '', leader_id: '' });
+        setFormData({ full_name: '', email: '', role: '', leader_id: '', password: '' });
         setGeneratedPassword('');
         setShowModal(true);
     };
@@ -85,6 +85,7 @@ export default function UserManagement() {
             email: user.email,
             role: getRoleName(user.role),
             leader_id: user.leader_id || '',
+            password: '',
         });
         setGeneratedPassword('');
         setShowModal(true);
@@ -99,20 +100,22 @@ export default function UserManagement() {
                     email: formData.email,
                     role: formData.role,
                     leader_id: formData.leader_id || null,
+                    password: formData.password || undefined,
                 });
+                setShowModal(false);
             } else {
                 const res = await api.post('/admin/users', {
                     full_name: formData.full_name,
                     email: formData.email,
                     role: formData.role,
                     leader_id: formData.leader_id || null,
+                    password: formData.password || undefined,
                 });
-                setGeneratedPassword(res.data.password);
-            }
-            if (!generatedPassword && !editingUser) {
-                // Keep modal open to show password for new user
-            } else {
-                setShowModal(false);
+                if (!formData.password) {
+                    setGeneratedPassword(res.data.password);
+                } else {
+                    setShowModal(false);
+                }
             }
             loadData();
         } catch (err: any) {
@@ -317,6 +320,18 @@ export default function UserManagement() {
                                         value={formData.email}
                                         onChange={e => setFormData({ ...formData, email: e.target.value })}
                                         placeholder="email@example.com"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">
+                                        Password {editingUser && '(Kosongkan jika tidak ingin mengubah)'}
+                                    </label>
+                                    <input
+                                        className="glass-input w-full"
+                                        type="text"
+                                        value={formData.password}
+                                        onChange={e => setFormData({ ...formData, password: e.target.value })}
+                                        placeholder={editingUser ? 'Kosongkan jika tidak diubah' : 'Kosongkan untuk generate otomatis'}
                                     />
                                 </div>
                                 <div>

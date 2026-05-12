@@ -73,3 +73,7 @@ func (r *paymentRepository) Update(payment *domain.Payment) error {
 	return r.db.Save(payment).Error
 }
 
+func (r *paymentRepository) Delete(id int64) error {
+	return r.db.Delete(&domain.Payment{}, id).Error
+}
+

@@ -15,19 +15,23 @@ import (
 
 type AuthUsecase interface {
 	Login(email, password string) (string, string, *domain.User, error) // AccessToken, RefreshToken, User, Error
-	RegisterClient(input RegisterClientInput) error
+	Register(input RegisterInput) error
 	GenerateAccount(input GenerateAccountInput) (string, error) // Returns plaintext password
 	ForgotPassword(email string) error
 	ResetPassword(token, newPassword string) error
+	ListFacilitators() ([]domain.User, error)
 }
 
-type RegisterClientInput struct {
-	BusinessName string
-	Email        string
-	NIB          string
-	Password     string
-	Address      string
-	Phone        string
+type RegisterInput struct {
+	FullName     string `json:"full_name" binding:"required"`
+	Email        string `json:"email" binding:"required,email"`
+	Password     string `json:"password" binding:"required,min=6"`
+	Role         string `json:"role" binding:"required"` // "HALAL_KONSULTAN" or "CLIENT"
+	BusinessName string `json:"business_name"`           // For CLIENT
+	NIB          string `json:"nib"`                     // For CLIENT
+	Address       string     `json:"address"`
+	Phone         string     `json:"phone"`
+	FacilitatorID *uuid.UUID `json:"facilitator_id"` // For CLIENT
 }
 
 type GenerateAccountInput struct {
@@ -85,32 +89,37 @@ func (uc *authUsecase) Login(email, password string) (string, string, *domain.Us
 	return token, refreshToken, user, err
 }
 
-func (uc *authUsecase) RegisterClient(input RegisterClientInput) error {
-	// 1. Check if email exists
+func (uc *authUsecase) Register(input RegisterInput) error {
+	// 1. Validate Role
+	if input.Role != "HALAL_KONSULTAN" && input.Role != "CLIENT" {
+		return errors.New("invalid role for registration")
+	}
+
+	// 2. Check if email exists
 	if _, err := uc.userRepo.FindByEmail(input.Email); err == nil {
 		return errors.New("email already exists")
 	}
 
-	// 2. Hash Password
+	// 3. Hash Password
 	hash, err := utils.HashPassword(input.Password)
 	if err != nil {
 		return err
 	}
 
-	// 3. Get CLIENT Role ID
-	role, err := uc.roleRepo.FindByName("CLIENT")
+	// 4. Get Role ID
+	role, err := uc.roleRepo.FindByName(input.Role)
 	if err != nil {
-		return errors.New("role CLIENT not found, please seed roles")
+		return fmt.Errorf("role %s not found", input.Role)
 	}
 
-	// 4. Create User
+	// 5. Create User
 	userID := uuid.New()
 	user := &domain.User{
 		ID:           userID,
 		Username:     input.Email,
 		Email:        input.Email,
 		PasswordHash: hash,
-		FullName:     input.BusinessName,
+		FullName:     input.FullName,
 		RoleID:       role.ID,
 	}
 
@@ -118,18 +127,35 @@ func (uc *authUsecase) RegisterClient(input RegisterClientInput) error {
 		return err
 	}
 
-	// 5. Create Client Profile
-	client := &domain.Client{
-		ID:           uuid.New(),
-		NIB:          input.NIB,
-		BusinessName: input.BusinessName,
-		Address:      input.Address,
-		ContactPerson: input.BusinessName, // default to business name for now
-		Phone:        input.Phone,
-		CreatedBy:    userID,
+	// 6. Role Specific Logic
+	if input.Role == "CLIENT" {
+		client := &domain.Client{
+			ID:            uuid.New(),
+			NIB:           input.NIB,
+			BusinessName:  input.BusinessName,
+			Address:       input.Address,
+			ContactPerson: input.FullName,
+			Phone:         input.Phone,
+			CreatedBy:     userID,
+		}
+		if input.FacilitatorID != nil {
+			client.FacilitatorID = *input.FacilitatorID
+		}
+		return uc.clientRepo.Create(client)
 	}
-	
-	return uc.clientRepo.Create(client)
+
+	return nil
+}
+
+func (uc *authUsecase) ListFacilitators() ([]domain.User, error) {
+	// Find users with role HALAL_KONSULTAN
+	filter := map[string]interface{}{"role": "HALAL_KONSULTAN"}
+	users, _, err := uc.userRepo.FindAll(filter, 1, 1000)
+	return users, err
+}
+
+func (uc *authUsecase) RegisterClient(input RegisterInput) error {
+	return uc.Register(input)
 }
 
 func (uc *authUsecase) GenerateAccount(input GenerateAccountInput) (string, error) {

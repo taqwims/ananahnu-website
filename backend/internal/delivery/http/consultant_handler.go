@@ -1,6 +1,7 @@
 package http
 
 import (
+	"ananahnu/internal/delivery/middleware"
 	"ananahnu/internal/domain"
 	"ananahnu/internal/usecase"
 	"net/http"
@@ -17,11 +18,18 @@ func NewConsultantHandler(r *gin.Engine, uc usecase.ConsultantUsecase) {
 	handler := &ConsultantHandler{consultantUC: uc}
 
 	g := r.Group("/consultant")
+	g.Use(middleware.AuthMiddleware())
 	{
 		g.GET("/profile/:userId", handler.GetProfile)
 		g.PUT("/profile", handler.UpdateProfile)
-		g.GET("/profiles", handler.GetAllProfiles)
-		g.PUT("/profiles/:userId/verify", handler.VerifyProfile)
+		
+		// Admin/Training/Coordinator access
+		adminOnly := g.Group("")
+		adminOnly.Use(middleware.RoleMiddleware("ADMIN_PELATIHAN", "DIRECTOR", "KOORDINATOR", "ADMIN"))
+		{
+			adminOnly.GET("/profiles", handler.GetAllProfiles)
+			adminOnly.PUT("/profiles/:userId/verify", handler.VerifyProfile)
+		}
 	}
 }
 
@@ -50,11 +58,9 @@ func (h *ConsultantHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	// TODO: Extract userID from JWT context
-	if input.UserID == uuid.Nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
-		return
-	}
+	// Extract userID from JWT context
+	userID := c.MustGet("userID").(uuid.UUID)
+	input.UserID = userID
 
 	if err := h.consultantUC.UpdateProfile(&input); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -83,14 +89,15 @@ func (h *ConsultantHandler) VerifyProfile(c *gin.Context) {
 	}
 
 	var input struct {
-		Verified bool `json:"verified"`
+		Verified bool       `json:"verified"`
+		LeaderID *uuid.UUID `json:"leader_id"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.consultantUC.VerifyProfile(userID, input.Verified); err != nil {
+	if err := h.consultantUC.VerifyProfile(userID, input.Verified, input.LeaderID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

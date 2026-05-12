@@ -9,5 +9,6 @@ type PaymentRepository interface {
 	FindBySubmissionID(submissionID uuid.UUID) ([]Payment, error)
 	FindAll(filter map[string]interface{}, page, limit int) ([]Payment, int64, error)
 	Update(payment *Payment) error
+	Delete(id int64) error
 }
 

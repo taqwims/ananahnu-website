@@ -23,6 +23,7 @@ func NewSubmissionHandler(r *gin.Engine, uc usecase.SubmissionWorkflowUsecase) {
 		g.POST("/create-full", handler.CreateFull)
 		g.POST("/:id/submit", handler.Submit)
 		g.POST("/:id/approve", handler.Approve)
+		g.POST("/:id/issue-sh", handler.IssueSH)
 		g.POST("/:id/assign-drafter", handler.AssignDrafter)
 		g.POST("/bulk-assign-drafter", handler.BulkAssignDrafter)
 		g.POST("/:id/reject", handler.Reject)
@@ -277,4 +278,28 @@ func (h *SubmissionHandler) GetHistory(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, history)
+}
+func (h *SubmissionHandler) IssueSH(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var input struct {
+		SHURL string `json:"sh_url" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "sh_url is required"})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	if err := h.workflowUC.IssueSH(id, userID, input.SHURL); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "SH issued successfully"})
 }

@@ -21,6 +21,7 @@ type SubmissionWorkflowUsecase interface {
 	GetSubmissions(userID uuid.UUID, role string, filter map[string]interface{}) ([]domain.Submission, error)
 	GetSubmission(id uuid.UUID) (*domain.Submission, error)
 	GetHistory(id uuid.UUID) ([]domain.AuditLog, error)
+	IssueSH(id uuid.UUID, userID uuid.UUID, shURL string) error
 }
 
 type CreateFullInput struct {
@@ -219,14 +220,9 @@ func (uc *submissionWorkflowUsecase) Approve(id uuid.UUID, userID uuid.UUID, use
 		requiredRole = "QC_OFFICER"
 		nextStatus = domain.StatusSidangFatwa // QC push to Fatwa
 	case domain.StatusSidangFatwa:
-		requiredRole = "FATWA"
-		nextStatus = domain.StatusSHTerbit
-
-		// Validate NIB before issuing SH
-		client, _ := uc.clientRepo.FindByID(sub.ClientID)
-		if client == nil || client.NIB == "" || strings.HasPrefix(client.NIB, "DRAFT-") {
-			return errors.New("NIB belum diisi. Data NIB wajib dilengkapi sebelum SH dapat diterbitkan")
-		}
+		// requiredRole = "FATWA"
+		// nextStatus = domain.StatusSHTerbit
+		return errors.New("terbit SH harus menyertakan file sertifikat. Gunakan fitur 'Terbitkan SH'")
 	default:
 		return errors.New("no approval action available for current status")
 	}
@@ -603,4 +599,48 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 	uc.logChange(sub.ID, userID, "CREATE_FULL", "", domain.StatusDraft, "Created from bulk form")
 
 	return sub, nil
+}
+func (uc *submissionWorkflowUsecase) IssueSH(id uuid.UUID, userID uuid.UUID, shURL string) error {
+	if shURL == "" {
+		return errors.New("file Sertifikat Halal wajib diunggah")
+	}
+
+	sub, err := uc.submissionRepo.FindByID(id)
+	if err != nil {
+		return err
+	}
+
+	if sub.Status != domain.StatusSidangFatwa {
+		return errors.New("SH hanya dapat diterbitkan setelah Sidang Fatwa selesai")
+	}
+
+	// Validate NIB before issuing SH
+	client, _ := uc.clientRepo.FindByID(sub.ClientID)
+	if client == nil || client.NIB == "" || strings.HasPrefix(client.NIB, "DRAFT-") {
+		return errors.New("NIB belum diisi. Data NIB wajib dilengkapi sebelum SH dapat diterbitkan")
+	}
+
+	// 1. Save SH URL
+	if err := uc.submissionRepo.UpdateSH(id, shURL); err != nil {
+		return err
+	}
+
+	// 2. Update Status to SH_TERBIT
+	nextStatus := domain.StatusSHTerbit
+	if err := uc.submissionRepo.UpdateStatus(id, nextStatus, 0); err != nil {
+		return err
+	}
+
+	uc.logChange(id, userID, "ISSUE_SH", sub.Status, nextStatus, "SH issued with file: "+shURL)
+
+	// 3. Trigger Invoice (Management Fee) if applicable
+	serviceType := sub.ServiceType
+	if serviceType == "" {
+		serviceType = client.ServiceType
+	}
+	if serviceType == "SELF_DECLARE" {
+		uc.generateSHTerbitInvoice(id, sub)
+	}
+
+	return nil
 }

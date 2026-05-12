@@ -8,13 +8,15 @@ import {
     Clock,
     User,
     ArrowUpRight,
-    Eye
+    Eye,
+    ChevronDown
 } from 'lucide-react';
 import api from '../../services/api';
 import type { Submission } from '../../types';
 import { formatServiceType } from '../../utils/format';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 
 const STATUS_PROGRESS: Record<string, { label: string, color: string, percent: number }> = {
     DRAFTER: { label: 'Pengerjaan Drafter', color: 'bg-purple-500', percent: 25 },
@@ -27,6 +29,7 @@ export default function DrafterMonitoring() {
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [expandedDrafters, setExpandedDrafters] = useState<Record<string, boolean>>({});
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -56,19 +59,23 @@ export default function DrafterMonitoring() {
             (s as any).assigned_drafter?.full_name.toLowerCase().includes(search.toLowerCase())
         );
 
-        const groups: Record<string, { drafterName: string, submissions: Submission[] }> = {};
+        const groups: Record<string, { drafterID: string, drafterName: string, submissions: Submission[] }> = {};
         
         filtered.forEach(sub => {
             const drafter = (sub as any).assigned_drafter?.full_name || 'Tanpa Nama';
-            const drafterID = (sub as any).assigned_drafter_id;
+            const drafterID = (sub as any).assigned_drafter_id || 'unassigned';
             if (!groups[drafterID]) {
-                groups[drafterID] = { drafterName: drafter, submissions: [] };
+                groups[drafterID] = { drafterID, drafterName: drafter, submissions: [] };
             }
             groups[drafterID].submissions.push(sub);
         });
 
         return Object.values(groups).sort((a, b) => b.submissions.length - a.submissions.length);
     }, [submissions, search]);
+
+    const toggleDrafter = (id: string) => {
+        setExpandedDrafters(prev => ({ ...prev, [id]: !prev[id] }));
+    };
 
     const stats = useMemo(() => {
         return {
@@ -139,57 +146,100 @@ export default function DrafterMonitoring() {
                             key={group.drafterName} 
                             className="glass-panel p-6 border border-white/40 shadow-xl flex flex-col h-full"
                         >
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                                        <User className="w-6 h-6" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-black text-gray-800 tracking-tight">{group.drafterName}</h3>
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{group.submissions.length} Pengajuan Ditangani</p>
-                                    </div>
-                                </div>
-                                <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600 font-bold text-xs">
-                                    DRAFTER TEAM
-                                </div>
-                            </div>
-
-                            <div className="flex-1 space-y-4">
-                                {group.submissions.map(sub => {
-                                    const progress = STATUS_PROGRESS[sub.status] || { label: sub.status, color: 'bg-gray-400', percent: 0 };
-                                    return (
-                                        <div key={sub.id} className="p-4 rounded-2xl bg-gray-50/50 border border-gray-100 hover:bg-white hover:shadow-md transition-all group/item">
-                                            <div className="flex justify-between items-start mb-3">
-                                                <div>
-                                                    <h4 className="font-bold text-gray-800 group-hover/item:text-indigo-600 transition-colors">{sub.client?.business_name}</h4>
-                                                    <p className="text-[10px] text-gray-500 font-medium mb-1">{sub.client?.client_name || 'Tanpa Nama Klien'}</p>
-                                                    <p className="text-[10px] text-gray-400 font-medium uppercase">{formatServiceType(sub.service_type)}</p>
-                                                </div>
-                                                <button 
-                                                    onClick={() => navigate(`/dashboard/submissions/${sub.id}`)}
-                                                    className="p-1.5 rounded-lg text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
-                                                >
-                                                    <ArrowUpRight className="w-4 h-4" />
-                                                </button>
-                                            </div>
-
-                                            <div className="space-y-1.5">
-                                                <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter">
-                                                    <span className="text-gray-500">{progress.label}</span>
-                                                    <span className="text-indigo-600">{progress.percent}%</span>
-                                                </div>
-                                                <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
-                                                    <motion.div 
-                                                        initial={{ width: 0 }}
-                                                        animate={{ width: `${progress.percent}%` }}
-                                                        className={`h-full ${progress.color} rounded-full shadow-[0_0_8px_rgba(0,0,0,0.1)]`}
-                                                    />
-                                                </div>
-                                            </div>
+                                <div 
+                                    className="flex items-center justify-between mb-2 cursor-pointer group/header"
+                                    onClick={() => toggleDrafter(group.drafterID)}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover/header:bg-indigo-100 transition-colors">
+                                            <User className="w-6 h-6" />
                                         </div>
-                                    );
-                                })}
-                            </div>
+                                        <div>
+                                            <h3 className="text-lg font-black text-gray-800 tracking-tight">{group.drafterName}</h3>
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{group.submissions.length} Pengajuan Ditangani</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="hidden sm:block p-2 bg-indigo-50 rounded-lg text-indigo-600 font-bold text-xs">
+                                            DRAFTER TEAM
+                                        </div>
+                                        <div className={`p-2 rounded-xl transition-colors ${expandedDrafters[group.drafterID] ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:bg-gray-100'}`}>
+                                            <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${expandedDrafters[group.drafterID] ? 'rotate-180' : ''}`} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <AnimatePresence initial={false}>
+                                    {expandedDrafters[group.drafterID] && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="pt-4 space-y-4">
+                                                {group.submissions.map(sub => {
+                                                    const progress = STATUS_PROGRESS[sub.status] || { label: sub.status, color: 'bg-gray-400', percent: 0 };
+                                                    return (
+                                                        <div key={sub.id} className="p-4 rounded-2xl bg-gray-50/50 border border-gray-100 hover:bg-white hover:shadow-md transition-all group/item">
+                                                            <div className="flex justify-between items-start mb-3">
+                                                                <div>
+                                                                    <h4 className="font-bold text-gray-800 group-hover/item:text-indigo-600 transition-colors">{sub.client?.business_name}</h4>
+                                                                    <p className="text-[10px] text-gray-500 font-medium mb-1">{sub.client?.client_name || 'Tanpa Nama Klien'}</p>
+                                                                    <p className="text-[10px] text-gray-400 font-medium uppercase">{formatServiceType(sub.service_type)}</p>
+                                                                </div>
+                                                                <button 
+                                                                    onClick={() => navigate(`/dashboard/submissions/${sub.id}`)}
+                                                                    className="p-1.5 rounded-lg text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+                                                                >
+                                                                    <ArrowUpRight className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+
+                                                            <div className="space-y-1.5">
+                                                                <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter">
+                                                                    <span className="text-gray-500">{progress.label}</span>
+                                                                    <span className="text-indigo-600">{progress.percent}%</span>
+                                                                </div>
+                                                                <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
+                                                                    <motion.div 
+                                                                        initial={{ width: 0 }}
+                                                                        animate={{ width: `${progress.percent}%` }}
+                                                                        className={`h-full ${progress.color} rounded-full shadow-[0_0_8px_rgba(0,0,0,0.1)]`}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                                
+                                {!expandedDrafters[group.drafterID] && (
+                                    <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center">
+                                        <div className="flex -space-x-2 overflow-hidden">
+                                            {group.submissions.slice(0, 3).map((s, i) => (
+                                                <div key={s.id} className="inline-block h-6 w-6 rounded-full ring-2 ring-white bg-indigo-100 flex items-center justify-center text-[8px] font-bold text-indigo-600">
+                                                    {i + 1}
+                                                </div>
+                                            ))}
+                                            {group.submissions.length > 3 && (
+                                                <div className="inline-block h-6 w-6 rounded-full ring-2 ring-white bg-gray-100 flex items-center justify-center text-[8px] font-bold text-gray-400">
+                                                    +{group.submissions.length - 3}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <button 
+                                            onClick={() => toggleDrafter(group.drafterID)}
+                                            className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline"
+                                        >
+                                            Lihat Detail
+                                        </button>
+                                    </div>
+                                )}
                         </motion.div>
                     ))
                 )}

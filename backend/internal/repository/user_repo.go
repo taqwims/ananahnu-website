@@ -21,7 +21,7 @@ func (r *userRepository) Create(user *domain.User) error {
 
 func (r *userRepository) FindByEmail(email string) (*domain.User, error) {
 	var user domain.User
-	if err := r.db.Preload("Role.Permissions").Where("email = ?", email).First(&user).Error; err != nil {
+	if err := r.db.Preload("Role.Permissions").Preload("Leader").Where("email = ?", email).First(&user).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -56,14 +56,19 @@ func (r *userRepository) FindAll(filter map[string]interface{}, page, limit int)
 	if roleID, ok := filter["role_id"]; ok {
 		query = query.Where("users.role_id = ?", roleID)
 	}
-	if roleName, ok := filter["role_name"]; ok {
+	if role, ok := filter["role"]; ok {
 		query = query.Joins("JOIN roles ON roles.id = users.role_id").
-			Where("roles.name = ?", roleName)
+			Where("roles.name = ?", role)
 	}
 	if search, ok := filter["search"]; ok {
 		s := "%" + search.(string) + "%"
 		query = query.Where("users.full_name ILIKE ? OR users.email ILIKE ?", s, s)
 	}
+	if noLeader, ok := filter["no_leader"]; ok && noLeader == true {
+		query = query.Where("users.leader_id IS NULL")
+	}
+
+	query = query.Preload("Leader")
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err

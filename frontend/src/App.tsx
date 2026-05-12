@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/auth/LoginPage';
+import RegisterPage from './pages/auth/RegisterPage';
 import { useAuthStore } from './store/authStore';
 
 // Simple Protected Route
@@ -38,12 +39,14 @@ import GeographyAdmin from './pages/dashboard/GeographyAdmin';
 import CoordinatorDashboard from './pages/dashboard/CoordinatorDashboard';
 import PaymentDashboard from './pages/dashboard/PaymentDashboard';
 import UserManagement from './pages/dashboard/UserManagement';
+import ConsultantVerification from './pages/dashboard/ConsultantVerification';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
         <Route path="/dashboard" element={
           <ProtectedRoute>
@@ -76,6 +79,7 @@ function App() {
           <Route path="payments" element={<PaymentDashboard />} />
           <Route path="all-invoices" element={<InvoiceList />} />
           <Route path="users" element={<UserManagement />} />
+          <Route path="consultant-verification" element={<ConsultantVerification />} />
         </Route>
 
         {/* Public Routes */}

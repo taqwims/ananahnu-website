@@ -30,6 +30,7 @@ type PaymentUsecase interface {
 	GetAllPayments(filter map[string]interface{}, page, limit int) ([]domain.Payment, int64, error)
 	SyncPaymentStatus(paymentID int64) error
 	InitiateBulkPayment(invoiceIDs []int64, payerID uuid.UUID) (*domain.Payment, error)
+	CleanupExpiredPayments() error
 }
 
 // --- Implementation ---
@@ -179,8 +180,12 @@ func (uc *paymentUsecase) HandleMidtransNotification(payload map[string]interfac
 		}
 	case "settlement":
 		payment.Status = domain.PaymentStatusPaid
-	case "deny", "cancel", "expire":
+	case "deny", "cancel":
 		payment.Status = domain.PaymentStatusFailed
+	case "expire":
+		// User requested to delete if expired
+		log.Printf("[MIDTRANS WEBHOOK] Deleting expired payment %d (Order ID: %s)", payment.ID, orderID)
+		return uc.paymentRepo.Delete(payment.ID)
 	case "pending":
 		// Stay PENDING — waiting for customer to complete payment
 	default:
@@ -277,6 +282,8 @@ func (uc *paymentUsecase) GetPaymentsBySubmission(submissionID uuid.UUID) ([]dom
 
 // GetAllPayments returns a paginated list of all payments (for admin/finance dashboard).
 func (uc *paymentUsecase) GetAllPayments(filter map[string]interface{}, page, limit int) ([]domain.Payment, int64, error) {
+	// Auto cleanup before listing
+	go uc.CleanupExpiredPayments()
 	return uc.paymentRepo.FindAll(filter, page, limit)
 }
 
@@ -304,8 +311,11 @@ func (uc *paymentUsecase) SyncPaymentStatus(paymentID int64) error {
 		if txStatus.FraudStatus == "accept" || txStatus.FraudStatus == "" {
 			payment.Status = domain.PaymentStatusPaid
 		}
-	case "deny", "cancel", "expire":
+	case "deny", "cancel":
 		payment.Status = domain.PaymentStatusFailed
+	case "expire":
+		log.Printf("[SYNC] Deleting expired payment %d", payment.ID)
+		return uc.paymentRepo.Delete(payment.ID)
 	}
 
 	if payment.Status == domain.PaymentStatusPaid {
@@ -381,6 +391,31 @@ func (uc *paymentUsecase) InitiateBulkPayment(invoiceIDs []int64, payerID uuid.U
 	}
 
 	return payment, nil
+}
+
+func (uc *paymentUsecase) CleanupExpiredPayments() error {
+	// Simple cleanup: delete pending payments older than 24 hours
+	// Note: Midtrans default expiry is 24h.
+	// For production, this should be a scheduled task, but for now we can trigger it.
+	
+	// We can't easily query by time in FindAll currently without more complex filters,
+	// so let's just do a targeted check.
+	
+	// We'll just look for PENDING payments
+	payments, _, err := uc.paymentRepo.FindAll(map[string]interface{}{"status": domain.PaymentStatusPending}, 1, 100)
+	if err != nil {
+		return err
+	}
+
+	cutoff := time.Now().Add(-24 * time.Hour)
+	for _, p := range payments {
+		if p.CreatedAt.Before(cutoff) {
+			log.Printf("[CLEANUP] Deleting expired pending payment %d (Created at %v)", p.ID, p.CreatedAt)
+			uc.paymentRepo.Delete(p.ID)
+		}
+	}
+
+	return nil
 }
 
 func (uc *paymentUsecase) updateLinkedInvoices(paymentID int64) error {
