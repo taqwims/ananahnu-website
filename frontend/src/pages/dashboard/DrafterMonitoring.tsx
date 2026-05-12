@@ -21,7 +21,7 @@ import { AnimatePresence } from 'framer-motion';
 const STATUS_PROGRESS: Record<string, { label: string, color: string, percent: number }> = {
     DRAFTER: { label: 'Pengerjaan Drafter', color: 'bg-purple-500', percent: 25 },
     QC_REVIEW: { label: 'Review QC', color: 'bg-blue-500', percent: 50 },
-    SIDANG_FATWA: { label: 'Sidang Fatwa', color: 'bg-indigo-500', percent: 75 },
+    SIDANG_FATWA: { label: 'Sidang Fatwa', color: 'bg-brand-500', percent: 75 },
     SH_TERBIT: { label: 'Selesai (SH Terbit)', color: 'bg-emerald-500', percent: 100 },
 };
 
@@ -101,7 +101,7 @@ export default function DrafterMonitoring() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
                     <h1 className="text-3xl font-black text-gray-900 tracking-tight flex items-center gap-3">
-                        <div className="p-2.5 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-100">
+                        <div className="p-2.5 bg-brand-600 rounded-2xl shadow-lg shadow-brand-100">
                             <Monitor className="w-6 h-6 text-white" />
                         </div>
                         Monitoring Drafter
@@ -110,8 +110,8 @@ export default function DrafterMonitoring() {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                    <SummaryCard label="Pengerjaan" value={stats.active} icon={Clock} color="text-purple-600" />
-                    <SummaryCard label="Review QC" value={stats.review} icon={Eye} color="text-blue-600" />
+                    <SummaryCard label="Pengerjaan" value={stats.active} icon={Clock} color="text-brand-600" />
+                    <SummaryCard label="Review QC" value={stats.review} icon={Eye} color="text-brand-600" />
                     <SummaryCard label="Selesai" value={stats.completed} icon={CheckCircle2} color="text-emerald-600" />
                 </div>
             </div>
@@ -119,11 +119,11 @@ export default function DrafterMonitoring() {
             {/* Search Bar */}
             <div className="glass-panel p-4 shadow-xl border border-white/40 group">
                 <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-brand-500 transition-colors" />
                     <input 
                         type="text"
                         placeholder="Cari Drafter atau Nama Bisnis..."
-                        className="w-full pl-12 pr-4 py-3 bg-gray-50/50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                        className="w-full pl-12 pr-4 py-3 bg-gray-50/50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-brand-500/20 transition-all"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                     />
@@ -151,7 +151,7 @@ export default function DrafterMonitoring() {
                                     onClick={() => toggleDrafter(group.drafterID)}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover/header:bg-indigo-100 transition-colors">
+                                        <div className="w-12 h-12 rounded-2xl bg-brand-50 flex items-center justify-center text-brand-600 group-hover/header:bg-brand-100 transition-colors">
                                             <User className="w-6 h-6" />
                                         </div>
                                         <div>
@@ -160,10 +160,10 @@ export default function DrafterMonitoring() {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        <div className="hidden sm:block p-2 bg-indigo-50 rounded-lg text-indigo-600 font-bold text-xs">
+                                        <div className="hidden sm:block p-2 bg-brand-50 rounded-lg text-brand-600 font-bold text-xs">
                                             DRAFTER TEAM
                                         </div>
-                                        <div className={`p-2 rounded-xl transition-colors ${expandedDrafters[group.drafterID] ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:bg-gray-100'}`}>
+                                        <div className={`p-2 rounded-xl transition-colors ${expandedDrafters[group.drafterID] ? 'bg-brand-100 text-brand-600' : 'text-gray-400 hover:bg-gray-100'}`}>
                                             <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${expandedDrafters[group.drafterID] ? 'rotate-180' : ''}`} />
                                         </div>
                                     </div>
@@ -185,13 +185,13 @@ export default function DrafterMonitoring() {
                                                         <div key={sub.id} className="p-4 rounded-2xl bg-gray-50/50 border border-gray-100 hover:bg-white hover:shadow-md transition-all group/item">
                                                             <div className="flex justify-between items-start mb-3">
                                                                 <div>
-                                                                    <h4 className="font-bold text-gray-800 group-hover/item:text-indigo-600 transition-colors">{sub.client?.business_name}</h4>
+                                                                    <h4 className="font-bold text-gray-800 group-hover/item:text-brand-600 transition-colors">{sub.client?.business_name}</h4>
                                                                     <p className="text-[10px] text-gray-500 font-medium mb-1">{sub.client?.client_name || 'Tanpa Nama Klien'}</p>
                                                                     <p className="text-[10px] text-gray-400 font-medium uppercase">{formatServiceType(sub.service_type)}</p>
                                                                 </div>
                                                                 <button 
                                                                     onClick={() => navigate(`/dashboard/submissions/${sub.id}`)}
-                                                                    className="p-1.5 rounded-lg text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+                                                                    className="p-1.5 rounded-lg text-gray-300 hover:text-brand-600 hover:bg-brand-50 transition-all"
                                                                 >
                                                                     <ArrowUpRight className="w-4 h-4" />
                                                                 </button>
@@ -200,7 +200,7 @@ export default function DrafterMonitoring() {
                                                             <div className="space-y-1.5">
                                                                 <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter">
                                                                     <span className="text-gray-500">{progress.label}</span>
-                                                                    <span className="text-indigo-600">{progress.percent}%</span>
+                                                                    <span className="text-brand-600">{progress.percent}%</span>
                                                                 </div>
                                                                 <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
                                                                     <motion.div 
@@ -222,7 +222,7 @@ export default function DrafterMonitoring() {
                                     <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center">
                                         <div className="flex -space-x-2 overflow-hidden">
                                             {group.submissions.slice(0, 3).map((s, i) => (
-                                                <div key={s.id} className="inline-block h-6 w-6 rounded-full ring-2 ring-white bg-indigo-100 flex items-center justify-center text-[8px] font-bold text-indigo-600">
+                                                <div key={s.id} className="inline-block h-6 w-6 rounded-full ring-2 ring-white bg-brand-100 flex items-center justify-center text-[8px] font-bold text-brand-600">
                                                     {i + 1}
                                                 </div>
                                             ))}
@@ -234,7 +234,7 @@ export default function DrafterMonitoring() {
                                         </div>
                                         <button 
                                             onClick={() => toggleDrafter(group.drafterID)}
-                                            className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline"
+                                            className="text-[10px] font-black text-brand-600 uppercase tracking-widest hover:underline"
                                         >
                                             Lihat Detail
                                         </button>

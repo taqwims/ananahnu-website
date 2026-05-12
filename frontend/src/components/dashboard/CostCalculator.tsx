@@ -21,7 +21,7 @@ export default function CostCalculator({ submissionId, onSaved, readOnly = false
     const isMandiri = serviceType === 'SELF_DECLARE_MANDIRI';
     const totalCost = isFasilitasi ? 0 : isMandiri ? sdMandiriCost : 0;
 
-    const canEdit = user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR';
+    const canEdit = user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_KONSULTAN';
     const isEditable = !readOnly && canEdit;
 
     useEffect(() => {

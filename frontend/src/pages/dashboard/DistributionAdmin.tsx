@@ -146,25 +146,25 @@ export default function DistributionAdmin() {
             </div>
 
             {/* Control Bar (Sticky) */}
-            <div className="sticky top-4 z-30 glass-panel p-4 shadow-xl border border-white/40 flex flex-wrap gap-4 items-center justify-between">
-                <div className="flex-1 min-w-[300px] relative group">
+            <div className="sticky top-4 z-30 glass-panel p-3 sm:p-4 shadow-xl border border-white/40 flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between">
+                <div className="flex-1 relative group">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-brand-500 transition-colors" />
                     <input 
                         type="text"
-                        placeholder="Cari Bisnis, Klien, Konsultan, atau Koordinator..."
+                        placeholder="Cari Bisnis, Klien, Konsultan..."
                         className="w-full pl-12 pr-4 py-3 bg-gray-50/50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-brand-500/20 transition-all"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                     />
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="hidden lg:block text-right">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <div className="flex-1 sm:flex-none text-left sm:text-right px-2">
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Target Drafter</p>
                         <p className="text-xs text-gray-500">{selectedIDs.length} data terpilih</p>
                     </div>
                     <select 
-                        className="glass-input py-2.5 text-sm w-56 border-brand-100"
+                        className="glass-input py-2.5 text-sm w-full sm:w-56 border-brand-100"
                         value={selectedDrafter}
                         onChange={e => setSelectedDrafter(e.target.value)}
                     >
@@ -176,7 +176,7 @@ export default function DistributionAdmin() {
                     <button
                         onClick={handleBulkAssign}
                         disabled={assigning || selectedIDs.length === 0 || !selectedDrafter}
-                        className="px-6 py-2.5 bg-brand-600 text-white rounded-xl font-bold shadow-lg shadow-brand-200 hover:bg-brand-700 disabled:opacity-30 disabled:shadow-none transition-all flex items-center gap-2"
+                        className="px-6 py-2.5 bg-brand-600 text-white rounded-xl font-bold shadow-lg shadow-brand-200 hover:bg-brand-700 disabled:opacity-30 disabled:shadow-none transition-all flex items-center justify-center gap-2"
                     >
                         {assigning ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
                         Ditribusikan
@@ -189,7 +189,7 @@ export default function DistributionAdmin() {
                 {groupedData.length === 0 ? (
                     <div className="glass-panel p-20 text-center text-gray-400">
                         <FileText className="w-16 h-16 mx-auto mb-4 opacity-10" />
-                        <p className="text-lg font-medium">Tidak ada data yang cocok dengan kriteria pencarian</p>
+                        <p className="text-lg font-medium">Tidak ada data yang cocok</p>
                     </div>
                 ) : (
                     groupedData.map((group, gIdx) => (
@@ -202,37 +202,39 @@ export default function DistributionAdmin() {
                         >
                             {/* Group Header */}
                             <div className="flex items-center gap-4 px-2">
-                                <div className="w-10 h-10 rounded-2xl bg-brand-100 flex items-center justify-center text-brand-700 font-black">
+                                <div className="w-10 h-10 rounded-2xl bg-brand-100 flex items-center justify-center text-brand-700 font-black shrink-0">
                                     {group.coordinator.charAt(0)}
                                 </div>
-                                <div>
-                                    <h3 className="text-lg font-black text-gray-800 tracking-tight">{group.coordinator}</h3>
+                                <div className="min-w-0">
+                                    <h3 className="text-lg font-black text-gray-800 tracking-tight truncate">{group.coordinator}</h3>
                                     <p className="text-xs text-gray-500 font-medium uppercase tracking-widest">{group.submissions.length} Pengajuan</p>
                                 </div>
                                 <div className="h-px flex-1 bg-gradient-to-r from-gray-200 to-transparent"></div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase hidden sm:block">Pilih Semua</span>
+                                    <input 
+                                        type="checkbox" 
+                                        className="w-5 h-5 rounded border-brand-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                                        checked={group.submissions.every(s => selectedIDs.includes(s.id))}
+                                        onChange={() => {
+                                            const groupIDs = group.submissions.map(s => s.id);
+                                            const allIn = groupIDs.every(id => selectedIDs.includes(id));
+                                            if (allIn) {
+                                                setSelectedIDs(prev => prev.filter(id => !groupIDs.includes(id)));
+                                            } else {
+                                                setSelectedIDs(prev => Array.from(new Set([...prev, ...groupIDs])));
+                                            }
+                                        }}
+                                    />
+                                </div>
                             </div>
 
-                            {/* Group Table */}
-                            <div className="glass-panel overflow-hidden border border-white/40 shadow-lg">
+                            {/* Desktop View: Table */}
+                            <div className="hidden md:block glass-panel overflow-hidden border border-white/40 shadow-lg">
                                 <table className="w-full text-left border-collapse">
                                     <thead className="bg-gray-50/50 border-b border-gray-100">
                                         <tr>
-                                            <th className="p-4 w-12 text-center">
-                                                <input 
-                                                    type="checkbox" 
-                                                    className="rounded border-brand-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
-                                                    checked={group.submissions.every(s => selectedIDs.includes(s.id))}
-                                                    onChange={() => {
-                                                        const groupIDs = group.submissions.map(s => s.id);
-                                                        const allIn = groupIDs.every(id => selectedIDs.includes(id));
-                                                        if (allIn) {
-                                                            setSelectedIDs(prev => prev.filter(id => !groupIDs.includes(id)));
-                                                        } else {
-                                                            setSelectedIDs(prev => Array.from(new Set([...prev, ...groupIDs])));
-                                                        }
-                                                    }}
-                                                />
-                                            </th>
+                                            <th className="p-4 w-12 text-center">#</th>
                                             <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Nama Bisnis & Klien</th>
                                             <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Konsultan</th>
                                             <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Kelengkapan Data</th>
@@ -260,7 +262,6 @@ export default function DistributionAdmin() {
                                                         }`}>
                                                             {formatServiceType(sub.service_type)}
                                                         </span>
-                                                        <span className="text-[9px] text-gray-400 font-mono">ID: {sub.id.substring(0, 8)}</span>
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
@@ -268,9 +269,8 @@ export default function DistributionAdmin() {
                                                         <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-500">
                                                             {sub.client?.facilitator?.full_name?.charAt(0)}
                                                         </div>
-                                                        <div>
-                                                            <div className="text-sm font-medium text-gray-700">{sub.client?.facilitator?.full_name}</div>
-                                                            <div className="text-[10px] text-gray-400">Halal Konsultan</div>
+                                                        <div className="min-w-0">
+                                                            <div className="text-sm font-medium text-gray-700 truncate">{sub.client?.facilitator?.full_name}</div>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -291,9 +291,6 @@ export default function DistributionAdmin() {
                                                     <div className="text-xs text-gray-600 font-medium">
                                                         {new Date(sub.updated_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
                                                     </div>
-                                                    <div className="text-[10px] text-gray-400">
-                                                        {new Date(sub.updated_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                                                    </div>
                                                 </td>
                                                 <td className="p-4 text-right">
                                                     <a 
@@ -302,13 +299,63 @@ export default function DistributionAdmin() {
                                                         rel="noreferrer"
                                                         className="inline-flex items-center gap-1 text-[11px] font-black text-brand-600 hover:text-brand-800 bg-brand-50 px-3 py-1.5 rounded-lg transition-colors"
                                                     >
-                                                        Review Detail <ChevronRight className="w-3 h-3" />
+                                                        Review <ChevronRight className="w-3 h-3" />
                                                     </a>
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
+                            </div>
+
+                            {/* Mobile View: Cards */}
+                            <div className="grid md:hidden grid-cols-1 gap-4">
+                                {group.submissions.map(sub => (
+                                    <div 
+                                        key={sub.id} 
+                                        className={`glass-panel p-4 border border-white/40 shadow-md relative transition-all ${selectedIDs.includes(sub.id) ? 'bg-brand-50/50 border-brand-200' : ''}`}
+                                        onClick={() => toggleSelection(sub.id)}
+                                    >
+                                        <div className="absolute top-4 right-4">
+                                            <input 
+                                                type="checkbox" 
+                                                className="w-5 h-5 rounded border-brand-300 text-brand-600 focus:ring-brand-500"
+                                                checked={selectedIDs.includes(sub.id)}
+                                                readOnly
+                                            />
+                                        </div>
+                                        <div className="space-y-3">
+                                            <div>
+                                                <div className="font-bold text-gray-800 leading-tight pr-8">{sub.client?.business_name}</div>
+                                                <div className="text-xs text-gray-500 mt-0.5">{sub.client?.client_name}</div>
+                                                <div className="mt-2">
+                                                    <span className={`text-[9px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider ${
+                                                        sub.service_type === 'REGULER' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                                                    }`}>
+                                                        {formatServiceType(sub.service_type)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-400">
+                                                        {sub.client?.facilitator?.full_name?.charAt(0)}
+                                                    </div>
+                                                    <span className="text-[11px] font-medium text-gray-600">{sub.client?.facilitator?.full_name}</span>
+                                                </div>
+                                                <a 
+                                                    href={`/dashboard/submissions/${sub.id}`} 
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="text-[11px] font-black text-brand-600 flex items-center gap-1"
+                                                >
+                                                    Detail <ChevronRight className="w-3 h-3" />
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </motion.div>
                     ))

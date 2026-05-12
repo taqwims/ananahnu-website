@@ -31,8 +31,8 @@ const Header = ({ toggleSidebar }: { toggleSidebar: () => void }) => {
                         <p className="text-sm font-medium text-gray-900">{user?.full_name || 'Guest'}</p>
                         <p className="text-xs text-gray-500 uppercase">{user?.role?.replace(/_/g, ' ') || 'Visitor'}</p>
                     </div>
-                    <div className="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center border-2 border-white shadow-sm group-hover:scale-105 transition-transform">
-                        <User className="text-brand-600 w-5 h-5" />
+                    <div className="w-10 h-10 bg-brand-600 rounded-full flex items-center justify-center border-2 border-white shadow-sm group-hover:scale-105 transition-transform">
+                        <User className="text-white w-5 h-5" />
                     </div>
                 </div>
             </div>

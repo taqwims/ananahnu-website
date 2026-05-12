@@ -57,8 +57,8 @@ func (h *ClientHandler) GetList(c *gin.Context) {
 			}
 			filter["facilitator_ids"] = ids
 		}
-	} else if role == "HALAL_KONSULTAN" {
-		// Konsultan only sees their own clients
+	} else if role == "HALAL_KONSULTAN" || role == "MARKETING" {
+		// Konsultan and Marketing only see their own clients
 		filter["facilitator_id"] = userID.String()
 	}
 

@@ -176,7 +176,6 @@ export interface Invoice {
     id: number;
     submission_id: string;
     submission?: Submission;
-    payer_id?: string;
     payer?: User;
     service_type: string;
     amount: number;

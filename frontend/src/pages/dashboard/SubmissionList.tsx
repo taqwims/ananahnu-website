@@ -21,7 +21,10 @@ import {
     Briefcase,
     Users,
     User,
-    ChevronDown
+    ChevronDown,
+    Trash2,
+    Copy,
+    Check
 } from 'lucide-react';
 import api from '../../services/api';
 import type { Submission } from '../../types';
@@ -69,6 +72,7 @@ export default function SubmissionList() {
     const [sortKey, setSortKey] = useState<SortKey>('created_at');
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+    const [copiedId, setCopiedId] = useState<string | null>(null);
 
     const navigate = useNavigate();
     const user = useAuthStore(state => state.user);
@@ -89,6 +93,19 @@ export default function SubmissionList() {
         fetchSubmissions();
     }, []);
 
+    const handleDelete = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        if (!window.confirm("Apakah Anda yakin ingin menghapus pengajuan ini? Tindakan ini tidak dapat dibatalkan.")) return;
+
+        try {
+            await api.delete(`/submissions/${id}`);
+            alert("Pengajuan berhasil dihapus");
+            fetchSubmissions();
+        } catch (err: any) {
+            alert(err.response?.data?.error || "Gagal menghapus pengajuan");
+        }
+    };
+
     const handleSort = (key: SortKey) => {
         if (sortKey === key) {
             setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -96,6 +113,13 @@ export default function SubmissionList() {
             setSortKey(key);
             setSortOrder('asc');
         }
+    };
+
+    const handleCopy = (e: React.MouseEvent, text: string, id: string) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(text);
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
     };
 
     const filteredData = useMemo(() => {
@@ -179,7 +203,7 @@ export default function SubmissionList() {
                     <p className="text-gray-500 mt-1 font-medium">Kelola dan pantau status sertifikasi halal Anda</p>
                 </div>
 
-                {user?.role !== 'DRAFTER' && user?.role !== 'QC_OFFICER' && (
+                {user?.role !== 'DRAFTER' && user?.role !== 'QC_OFFICER' && user?.role !== 'VERIFIKATOR' && (
                     <button
                         onClick={() => setShowCreateModal(true)}
                         className="group relative px-6 py-3 bg-brand-900 text-white rounded-2xl font-bold shadow-xl shadow-brand-100 hover:scale-[1.02] transition-all flex items-center gap-2 overflow-hidden"
@@ -336,6 +360,11 @@ export default function SubmissionList() {
                                                                                         }`}>
                                                                                         {formatServiceType(sub.service_type)}
                                                                                     </span>
+                                                                                    {sub.data_source === 'MARKETING' && (
+                                                                                        <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider bg-amber-100 text-amber-700">
+                                                                                            Partner
+                                                                                        </span>
+                                                                                    )}
                                                                                 </div>
                                                                             </div>
                                                                         </div>
@@ -355,9 +384,23 @@ export default function SubmissionList() {
                                                                         <StatusBadge status={sub.status} />
                                                                     </td>
                                                                     <td className="p-4">
-                                                                        <div className="text-xs font-mono font-bold text-brand-600 uppercase tracking-tight">
-                                                                            {sub.tracking_number || '-'}
-                                                                        </div>
+                                                                        {sub.tracking_number ? (
+                                                                            <div 
+                                                                                onClick={(e) => handleCopy(e, sub.tracking_number || '', sub.id)}
+                                                                                className="flex items-center gap-2 group/copy w-fit"
+                                                                            >
+                                                                                <div className="text-xs font-mono font-bold text-brand-600 uppercase tracking-tight group-hover/copy:text-brand-700 transition-colors">
+                                                                                    {sub.tracking_number}
+                                                                                </div>
+                                                                                <button
+                                                                                    className={`p-1 rounded-md transition-all ${copiedId === sub.id ? 'bg-emerald-50 text-emerald-600' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'}`}
+                                                                                >
+                                                                                    {copiedId === sub.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                                                                </button>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="text-xs text-gray-400">-</div>
+                                                                        )}
                                                                     </td>
                                                                     <td className="p-4">
                                                                         <div className="text-xs text-gray-600 font-medium">
@@ -368,8 +411,19 @@ export default function SubmissionList() {
                                                                         </div>
                                                                     </td>
                                                                     <td className="p-4 text-right">
-                                                                        <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white group-hover:bg-brand-600 group-hover:text-white text-gray-400 shadow-sm transition-all border border-gray-100">
-                                                                            <ChevronRight className="w-4 h-4" />
+                                                                        <div className="flex items-center justify-end gap-2">
+                                                                            {(user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (sub.status === 'DRAFT' && sub.client?.facilitator_id === user?.id)) && (
+                                                                                <button
+                                                                                    onClick={(e) => handleDelete(e, sub.id)}
+                                                                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                                                                    title="Hapus Pengajuan"
+                                                                                >
+                                                                                    <Trash2 className="w-4 h-4" />
+                                                                                </button>
+                                                                            )}
+                                                                            <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white group-hover:bg-brand-600 group-hover:text-white text-gray-400 shadow-sm transition-all border border-gray-100">
+                                                                                <ChevronRight className="w-4 h-4" />
+                                                                            </div>
                                                                         </div>
                                                                     </td>
                                                                 </motion.tr>

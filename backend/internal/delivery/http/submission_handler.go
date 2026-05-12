@@ -30,6 +30,7 @@ func NewSubmissionHandler(r *gin.Engine, uc usecase.SubmissionWorkflowUsecase) {
 		g.GET("", handler.GetList)
 		g.GET("/:id", handler.GetDetail)
 		g.GET("/:id/history", handler.GetHistory)
+		g.DELETE("/:id", handler.Delete)
 	}
 
 	r.GET("/public/track/:tracking_number", handler.TrackSubmission)
@@ -75,7 +76,8 @@ func (h *SubmissionHandler) CreateFull(c *gin.Context) {
 	}
 
 	userID := middleware.GetUserID(c)
-	sub, err := h.workflowUC.CreateFull(input, userID)
+	role := middleware.GetUserRole(c)
+	sub, err := h.workflowUC.CreateFull(input, userID, role)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -330,4 +332,23 @@ func (h *SubmissionHandler) TrackSubmission(c *gin.Context) {
 		"updated_at":    sub.UpdatedAt,
 		"tracking_no":   sub.TrackingNumber,
 	})
+}
+
+func (h *SubmissionHandler) Delete(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	role := middleware.GetUserRole(c)
+
+	if err := h.workflowUC.Delete(id, userID, role); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "submission deleted successfully"})
 }

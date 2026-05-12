@@ -85,3 +85,25 @@ func (r *submissionRepository) FindByTrackingNumber(trackingNumber string) (*dom
 	}
 	return &submission, nil
 }
+
+func (r *submissionRepository) Delete(id uuid.UUID) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// Delete related field values first
+		if err := tx.Where("submission_id = ?", id).Delete(&domain.FormFieldValue{}).Error; err != nil {
+			return err
+		}
+		// Delete payments
+		if err := tx.Where("submission_id = ?", id).Delete(&domain.Payment{}).Error; err != nil {
+			return err
+		}
+		// Delete invoices
+		if err := tx.Where("submission_id = ?", id).Delete(&domain.Invoice{}).Error; err != nil {
+			return err
+		}
+		// Delete the submission itself
+		if err := tx.Where("id = ?", id).Delete(&domain.Submission{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}

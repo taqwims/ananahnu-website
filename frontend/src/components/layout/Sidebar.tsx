@@ -20,6 +20,8 @@ import {
 import { useAuthStore } from '../../store/authStore';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import Logo from '../ui/Logo';
+
 interface SidebarLink {
     name: string;
     to: string;
@@ -34,8 +36,8 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
 
     const links: SidebarLink[] = [
         { name: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-        { name: 'Klien', to: '/dashboard/clients', icon: Users, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'KOORDINATOR', 'DRAFTER', 'QC_OFFICER'] },
-        { name: 'Pengajuan', to: '/dashboard/submissions', icon: FileText, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'KOORDINATOR', 'QC_OFFICER', 'DRAFTER'] },
+        { name: 'Klien', to: '/dashboard/clients', icon: Users, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'KOORDINATOR', 'DRAFTER', 'QC_OFFICER', 'MARKETING'] },
+        { name: 'Pengajuan', to: '/dashboard/submissions', icon: FileText, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'KOORDINATOR', 'QC_OFFICER', 'DRAFTER', 'MARKETING'] },
         { name: 'Distribusi Data', to: '/dashboard/distribution', icon: Users, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN'] },
         { name: 'Monitoring Drafter', to: '/dashboard/monitoring', icon: Monitor, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN'] },
         { name: 'Profil Konsultan', to: '/dashboard/consultant-profile', icon: UserCheck, roles: ['HALAL_KONSULTAN'] },
@@ -77,7 +79,7 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
                 <div className="h-full flex flex-col">
                     {/* Logo */}
                     <div className="p-6 border-b border-glass-border flex items-center justify-between">
-                        <span className="text-xl font-bold text-brand-700 tracking-tight">Ananahnu</span>
+                        <Logo size="sm" className="!items-start" />
                         <button onClick={toggle} className="lg:hidden text-gray-500">
                             <X className="w-6 h-6" />
                         </button>

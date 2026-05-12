@@ -97,6 +97,30 @@ export default function DashboardHome() {
                 </div>
             )}
 
+            {/* Marketing Info Banner */}
+            {user?.role === 'MARKETING' && (
+                <div className="glass-panel p-4 bg-amber-50 border-amber-100 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-amber-600 shadow-sm">
+                            <Users className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Marketing Partner</p>
+                            <h3 className="text-lg font-black text-amber-900 leading-tight">
+                                Selamat datang, {user.full_name}
+                            </h3>
+                            <p className="text-xs text-amber-600/60 font-medium">Data yang Anda input akan otomatis ditandai sebagai sumber Marketing (Partner)</p>
+                        </div>
+                    </div>
+                    {user.leader && (
+                        <div className="text-right">
+                            <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Koordinator</p>
+                            <p className="text-sm font-bold text-amber-800">{user.leader.full_name}</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatsCard

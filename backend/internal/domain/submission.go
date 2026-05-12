@@ -62,4 +62,5 @@ type SubmissionRepository interface {
 	UpdateSH(id uuid.UUID, shURL string) error
 	UpdateTrackingNumber(id uuid.UUID, trackingNumber string) error
 	FindByTrackingNumber(trackingNumber string) (*Submission, error)
+	Delete(id uuid.UUID) error
 }

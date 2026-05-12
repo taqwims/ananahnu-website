@@ -13,7 +13,7 @@ import (
 
 type SubmissionWorkflowUsecase interface {
 	CreateDraft(clientID *uuid.UUID, businessName string, serviceType string, facilitatorID uuid.UUID) (*domain.Submission, error)
-	CreateFull(input CreateFullInput, userID uuid.UUID) (*domain.Submission, error)
+	CreateFull(input CreateFullInput, userID uuid.UUID, userRole string) (*domain.Submission, error)
 	Submit(id uuid.UUID, userID uuid.UUID, userRole string) error
 	Approve(id uuid.UUID, userID uuid.UUID, userRole string) error
 	ApproveWithDrafter(id uuid.UUID, userID uuid.UUID, userRole string, drafterID uuid.UUID) error
@@ -24,6 +24,7 @@ type SubmissionWorkflowUsecase interface {
 	GetHistory(id uuid.UUID) ([]domain.AuditLog, error)
 	IssueSH(id uuid.UUID, userID uuid.UUID, shURL string) error
 	TrackByNumber(trackingNumber string) (*domain.Submission, error)
+	Delete(id uuid.UUID, userID uuid.UUID, userRole string) error
 }
 
 type CreateFullInput struct {
@@ -151,10 +152,10 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 		// IF SELF_DECLARE_MANDIRI -> Create immediate invoice of 230,000
 		if sub.ServiceType == "SELF_DECLARE_MANDIRI" {
 			log.Printf("[INVOICE] Creating immediate invoice for SELF_DECLARE_MANDIRI: %s", id)
-			payerID := userID
+			// SELF_DECLARE_MANDIRI is paid by client, not consultant.
 			uc.invoiceRepo.Create(&domain.Invoice{
 				SubmissionID: id,
-				PayerID:      &payerID,
+				PayerID:      nil, 
 				ServiceType:  "SELF_DECLARE_MANDIRI",
 				Amount:       230000,
 				Status:       domain.InvoiceStatusUnpaid,
@@ -171,10 +172,10 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 			}
 
 			if amount > 0 {
-				payerID := userID
+				// REGULER is paid by client, not consultant.
 				uc.invoiceRepo.Create(&domain.Invoice{
 					SubmissionID:  id,
-					PayerID:       &payerID,
+					PayerID:       nil,
 					ServiceType:   "REGULER",
 					Amount:        amount,
 					Status:        domain.InvoiceStatusUnpaid,
@@ -279,25 +280,20 @@ func (uc *submissionWorkflowUsecase) generateSHTerbitInvoice(submissionID uuid.U
 		serviceType = client.ServiceType
 	}
 
-	// Find Payer (Facilitator/Consultant)
-	var payerID *uuid.UUID
-	if client.FacilitatorID != uuid.Nil {
-		pid := client.FacilitatorID
-		payerID = &pid
-	}
-
-	var amount float64
-	var pricingSource string
-	var salesSchemeID *int64
-	var discountApplied float64
-
 	// SELF_DECLARE: Multi-tier pricing resolution for Management Fee
-	amount, pricingSource, salesSchemeID, discountApplied = uc.resolveSelfDeclarePrice(sub, client)
+	amount, pricingSource, salesSchemeID, discountApplied, resolvedPayerID := uc.resolveSelfDeclarePrice(sub, client)
+
+	// Use resolved payer if found, else fallback to facilitator
+	finalPayerID := resolvedPayerID
+	if finalPayerID == nil && client.FacilitatorID != uuid.Nil {
+		pid := client.FacilitatorID
+		finalPayerID = &pid
+	}
 
 	// Create Invoice
 	invoice := &domain.Invoice{
 		SubmissionID:    submissionID,
-		PayerID:         payerID,
+		PayerID:         finalPayerID,
 		ServiceType:     serviceType,
 		Amount:          amount,
 		Status:          domain.InvoiceStatusUnpaid,
@@ -318,7 +314,12 @@ func (uc *submissionWorkflowUsecase) generateSHTerbitInvoice(submissionID uuid.U
 // Tier 1: SalesSchemePrice (configured in master biaya, matches scheme + data_source + product + business type)
 // Tier 2: CoordinatorRate (per-coordinator custom rate)
 // Tier 3: Default fallback (Rp 100.000)
-func (uc *submissionWorkflowUsecase) resolveSelfDeclarePrice(sub *domain.Submission, client *domain.Client) (amount float64, source string, schemeID *int64, discount float64) {
+func (uc *submissionWorkflowUsecase) resolveSelfDeclarePrice(sub *domain.Submission, client *domain.Client) (float64, string, *int64, float64, *uuid.UUID) {
+	var amount float64
+	var source string
+	var schemeID *int64
+	var discount float64
+
 	// --- Tier 1: SalesSchemePrice ---
 	if sub.SalesSchemeID != nil {
 		filter := map[string]interface{}{
@@ -330,11 +331,10 @@ func (uc *submissionWorkflowUsecase) resolveSelfDeclarePrice(sub *domain.Submiss
 
 		schemePrices, err := uc.billingConfigRepo.FindAllSalesSchemePrices(filter)
 		if err == nil && len(schemePrices) > 0 {
-			// Find best match: specific product+scale+business > specific product+scale > specific product > generic
+			// Find best match
 			var bestMatch *domain.SalesSchemePrice
 			bestScore := -1
 
-			// Get cost detail for product/business type context
 			costDetail, _ := uc.billingConfigRepo.GetSubmissionCostDetail(sub.ID)
 
 			for i := range schemePrices {
@@ -344,28 +344,25 @@ func (uc *submissionWorkflowUsecase) resolveSelfDeclarePrice(sub *domain.Submiss
 				}
 
 				score := 0
-				// Check product category match
 				if sp.ProductCategoryID != nil && costDetail != nil && costDetail.ProductCategoryID != nil {
 					if *sp.ProductCategoryID == *costDetail.ProductCategoryID {
 						score += 10
 					} else {
-						continue // Product mismatch, skip
+						continue
 					}
 				}
-				// Check business scale match
 				if sp.BusinessScaleID != nil && costDetail != nil && costDetail.BusinessScaleID != nil {
 					if *sp.BusinessScaleID == *costDetail.BusinessScaleID {
 						score += 5
 					} else {
-						continue // Scale mismatch, skip
+						continue
 					}
 				}
-				// Check business type match
 				if sp.BusinessTypeID != nil && costDetail != nil && costDetail.BusinessTypeID != nil {
 					if *sp.BusinessTypeID == *costDetail.BusinessTypeID {
 						score += 2
 					} else {
-						continue // Business type mismatch, skip
+						continue
 					}
 				}
 
@@ -384,7 +381,7 @@ func (uc *submissionWorkflowUsecase) resolveSelfDeclarePrice(sub *domain.Submiss
 				schemeID = &bestMatch.ID
 				source = "SCHEME_PRICE"
 				log.Printf("[INVOICE] Using SalesSchemePrice #%d: Rp %.0f (discount %.0f%%)", bestMatch.ID, amount, discount)
-				return
+				return amount, source, schemeID, discount, nil
 			}
 		}
 	}
@@ -407,7 +404,7 @@ func (uc *submissionWorkflowUsecase) resolveSelfDeclarePrice(sub *domain.Submiss
 				amount = rate.RatePerSH
 				source = "COORDINATOR_RATE"
 				log.Printf("[INVOICE] Using CoordinatorRate for %s: Rp %.0f", coordinatorID, amount)
-				return
+				return amount, source, nil, 0, &coordinatorID
 			}
 		}
 	}
@@ -416,7 +413,7 @@ func (uc *submissionWorkflowUsecase) resolveSelfDeclarePrice(sub *domain.Submiss
 	amount = 100000
 	source = "DEFAULT"
 	log.Printf("[INVOICE] Using DEFAULT price: Rp %.0f", amount)
-	return
+	return amount, source, nil, 0, nil
 }
 
 // ApproveWithDrafter is used by QC to explicitly assign a drafter during QC_OFFICER → DRAFTER transition.
@@ -513,6 +510,9 @@ func (uc *submissionWorkflowUsecase) GetSubmissions(userID uuid.UUID, role strin
 	// Apply Role-based visibility
 	if role == "HALAL_KONSULTAN" {
 		filter["facilitator_ids"] = []uuid.UUID{userID}
+	} else if role == "MARKETING" {
+		// Marketing sees submissions they created (facilitator_id = their ID)
+		filter["facilitator_ids"] = []uuid.UUID{userID}
 	} else if role == "KOORDINATOR" {
 		// Get team members
 		team, err := uc.userRepo.FindByLeaderID(userID)
@@ -554,7 +554,7 @@ func (uc *submissionWorkflowUsecase) GetSubmission(id uuid.UUID) (*domain.Submis
 func (uc *submissionWorkflowUsecase) GetHistory(id uuid.UUID) ([]domain.AuditLog, error) {
 	return uc.auditRepo.FindLogsByEntity("SUBMISSION", id.String())
 }
-func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uuid.UUID) (*domain.Submission, error) {
+func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uuid.UUID, userRole string) (*domain.Submission, error) {
 	// 1. Create or Find Client
 	client := &domain.Client{
 		NIB:           input.ClientData.NIB,
@@ -587,11 +587,18 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 	}
 
 	// 2. Create Submission
+	// Auto-set DataSource based on creator role
+	dataSource := "ORGANIK"
+	if userRole == "MARKETING" {
+		dataSource = "MARKETING"
+	}
+
 	sub := &domain.Submission{
 		ID:          input.ID,
 		ClientID:    client.ID,
 		Status:      domain.StatusDraft,
 		ServiceType: input.ClientData.ServiceType,
+		DataSource:  dataSource,
 	}
 	if sub.ID == uuid.Nil {
 		sub.ID = uuid.New()
@@ -671,4 +678,32 @@ func (uc *submissionWorkflowUsecase) IssueSH(id uuid.UUID, userID uuid.UUID, shU
 
 func (uc *submissionWorkflowUsecase) TrackByNumber(trackingNumber string) (*domain.Submission, error) {
 	return uc.submissionRepo.FindByTrackingNumber(trackingNumber)
+}
+
+func (uc *submissionWorkflowUsecase) Delete(id uuid.UUID, userID uuid.UUID, userRole string) error {
+	sub, err := uc.submissionRepo.FindByID(id)
+	if err != nil {
+		return err
+	}
+
+	// Permission check
+	canDelete := false
+	if userRole == "ADMIN" || userRole == "DIRECTOR" {
+		canDelete = true
+	} else if userRole == "HALAL_KONSULTAN" || userRole == "KOORDINATOR" || userRole == "MARKETING" {
+		// Only if DRAFT
+		if sub.Status == domain.StatusDraft {
+			// Check if facilitator
+			client, _ := uc.clientRepo.FindByID(sub.ClientID)
+			if client != nil && client.FacilitatorID == userID {
+				canDelete = true
+			}
+		}
+	}
+
+	if !canDelete {
+		return errors.New("unauthorized: you cannot delete this submission in its current state")
+	}
+
+	return uc.submissionRepo.Delete(id)
 }
