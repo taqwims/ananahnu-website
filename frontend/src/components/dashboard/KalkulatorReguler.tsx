@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Loader2, Save, Plus, Trash } from 'lucide-react';
+import { Loader2, Save, Plus, Trash, Info, BookOpen } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { formatRupiah } from '../../utils/format';
@@ -80,6 +80,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             if (provinceId) params.province_id = provinceId;
             if (regencyId) params.regency_id = regencyId;
             if (districtId) params.district_id = districtId;
+            if (salesSchemeId) params.sales_scheme_id = salesSchemeId.toString();
             params.resolve_geography = 'true';
 
             const [compRes, spRes] = await Promise.all([
@@ -90,8 +91,21 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             setMasterComponents(compRes.data || []);
 
             const prices = spRes.data || [];
-            const matchingPrice = prices.find((p: any) => p.sales_scheme_id === (salesSchemeId || -1)) || prices[0];
-            setSchemePrice(matchingPrice || null);
+            let bestPrice = null;
+            let bestScore = -1;
+            prices.forEach((p: any) => {
+                if (p.sales_scheme_id === (salesSchemeId || -1)) {
+                    let score = 0;
+                    if (p.business_scale_id) score += 5;
+                    if (p.product_category_id) score += 2;
+                    if (p.business_type_id) score += 1;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestPrice = p;
+                    }
+                }
+            });
+            setSchemePrice(bestPrice || prices[0] || null);
         } catch (err) {
             console.error('Failed to load components:', err);
         } finally {
@@ -182,27 +196,50 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         }
 
         // 1. Components from master biaya
+        // Group by category and pick the most specific one
+        const categoryMap = new Map<string, any>();
+        
         masterComponents.forEach(comp => {
+            if (!comp || !comp.category) return;
             const cat = comp.category.toUpperCase();
+            if (cat === 'OPSIONAL') return;
 
-            // Include all non-optional components
-            if (cat !== 'OPSIONAL') {
-                currentBreakdown.push({
-                    name: comp.name,
-                    category: cat,
-                    unit_cost: comp.base_amount,
-                    multiplier: null,
-                    total: comp.base_amount,
-                    is_optional: false
-                });
-                currentTotal += comp.base_amount;
+            let score = 0;
+            if (comp.district_id) score += 1000;
+            if (comp.regency_id) score += 100;
+            if (comp.province_id) score += 10;
+            if (comp.business_scale_id) score += 5;
+            if (comp.product_category_id) score += 2;
+            if (comp.business_type_id) score += 1;
+
+            const existing = categoryMap.get(cat);
+            if (!existing || score > existing.score) {
+                categoryMap.set(cat, { ...comp, score });
             }
+        });
+
+        Array.from(categoryMap.values()).forEach(comp => {
+            let nameTag = '';
+            if (comp.district_id) nameTag = ' [Khusus Kecamatan]';
+            else if (comp.regency_id) nameTag = ' [Khusus Kabupaten]';
+            else if (comp.province_id) nameTag = ' [Khusus Provinsi]';
+            else if (comp.business_type_id || comp.product_category_id || comp.business_scale_id) nameTag = ' [Khusus Kriteria]';
+
+            currentBreakdown.push({
+                name: comp.name + nameTag,
+                category: comp.category.toUpperCase(),
+                unit_cost: comp.base_amount,
+                multiplier: null,
+                total: comp.base_amount,
+                is_optional: false
+            });
+            currentTotal += comp.base_amount;
         });
 
         // 2. Partnership discount on pendampingan
         const currentScheme = schemes.find((s: any) => s.id === (salesSchemeId || -1));
         if (currentScheme && currentScheme.name.toUpperCase() === 'PARTNERSHIP') {
-            const lphComp = masterComponents.find(c => c.category.toUpperCase() === 'LPH' || c.category.toUpperCase() === 'PENDAMPINGAN');
+            const lphComp = categoryMap.get('LPH') || categoryMap.get('PENDAMPINGAN');
             if (lphComp) {
                 const discountAmount = lphComp.base_amount * 0.1;
                 currentBreakdown.push({
@@ -281,6 +318,19 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                         Sumber: {dataSource === 'MARKETING' ? 'Marketing (Partner)' : 'Organik (Konsultan)'}
                     </div>
                 )}
+
+                {/* Guide Section */}
+                <div className="bg-brand-50 border border-brand-100 p-4 rounded-2xl flex gap-3 text-brand-800 text-sm">
+                    <BookOpen className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" />
+                    <div>
+                        <h4 className="font-bold mb-1">Panduan Penggunaan Kalkulator</h4>
+                        <ul className="list-disc pl-4 space-y-1 text-xs text-brand-700/80">
+                            <li>Harga akan <b>berubah otomatis</b> saat Anda memilih kombinasi Provinsi, Bidang, atau Produk.</li>
+                            <li>Jika ada <b>Tarif Khusus Wilayah</b> untuk daerah yang Anda pilih, sistem akan menimpa harga umum dengan harga khusus tersebut.</li>
+                            <li>Pastikan master data di <b>Master Biaya</b> sudah dikonfigurasi (misal: Biaya LPH khusus DKI Jakarta).</li>
+                        </ul>
+                    </div>
+                </div>
 
                 <div className="space-y-5">
                     {/* Provinsi */}

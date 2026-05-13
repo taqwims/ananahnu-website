@@ -18,6 +18,7 @@ type SubmissionWorkflowUsecase interface {
 	Approve(id uuid.UUID, userID uuid.UUID, userRole string) error
 	ApproveWithDrafter(id uuid.UUID, userID uuid.UUID, userRole string, drafterID uuid.UUID) error
 	BulkApproveWithDrafter(ids []uuid.UUID, userID uuid.UUID, userRole string, drafterID uuid.UUID) error
+	AssignConsultant(id uuid.UUID, userID uuid.UUID, userRole string, consultantID uuid.UUID) error
 	Reject(id uuid.UUID, userID uuid.UUID, userRole string, note string) error
 	GetSubmissions(userID uuid.UUID, role string, filter map[string]interface{}) ([]domain.Submission, error)
 	GetSubmission(id uuid.UUID) (*domain.Submission, error)
@@ -437,7 +438,13 @@ func (uc *submissionWorkflowUsecase) ApproveWithDrafter(id uuid.UUID, userID uui
 		return err
 	}
 
-	uc.logChange(id, userID, "ASSIGN_DRAFTER", sub.Status, domain.StatusDrafter, "Assigned to drafter: "+drafterID.String())
+	drafter, _ := uc.userRepo.FindByID(drafterID)
+	drafterName := drafterID.String()
+	if drafter != nil {
+		drafterName = drafter.FullName
+	}
+
+	uc.logChange(id, userID, "ASSIGN_DRAFTER", sub.Status, domain.StatusDrafter, "Assigned to drafter: "+drafterName)
 
 	// Notify the drafter
 	uc.notifUC.CreateNotification(drafterID, "Pengajuan Baru", "Anda ditugaskan untuk mengerjakan pengajuan "+sub.Client.BusinessName, id)
@@ -464,6 +471,38 @@ func (uc *submissionWorkflowUsecase) BulkApproveWithDrafter(ids []uuid.UUID, use
 	if len(errs) > 0 {
 		return fmt.Errorf("some distributions failed: %s", strings.Join(errs, "; "))
 	}
+
+	return nil
+}
+
+// AssignConsultant is used to assign a consultant to a submission, particularly for marketing data.
+func (uc *submissionWorkflowUsecase) AssignConsultant(id uuid.UUID, userID uuid.UUID, userRole string, consultantID uuid.UUID) error {
+	sub, err := uc.submissionRepo.FindByID(id)
+	if err != nil {
+		return err
+	}
+
+	// Only specific roles can assign consultants
+	if userRole != "MARKETING" && userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "KOORDINATOR" {
+		return errors.New("unauthorized to assign consultant")
+	}
+
+	if err := uc.submissionRepo.UpdateConsultant(id, &consultantID); err != nil {
+		return fmt.Errorf("failed to assign consultant: %w", err)
+	}
+
+	consultant, _ := uc.userRepo.FindByID(consultantID)
+	consultantName := consultantID.String()
+	if consultant != nil {
+		consultantName = consultant.FullName
+	}
+
+	uc.logChange(id, userID, "ASSIGN_CONSULTANT", sub.Status, sub.Status, "Assigned to consultant: "+consultantName)
+
+	// Notify the consultant
+	uc.notifUC.CreateNotification(consultantID, "Penugasan Konsultan", "Anda ditunjuk sebagai konsultan untuk pengajuan "+sub.Client.BusinessName, id)
+
+	log.Printf("[WORKFLOW] %s assigned submission %s to consultant %s", userRole, id, consultantID)
 
 	return nil
 }

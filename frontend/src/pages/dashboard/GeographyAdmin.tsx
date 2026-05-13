@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MapPin, Plus, Trash2, DollarSign, ChevronRight, ArrowLeft, Building2, Map, Navigation } from 'lucide-react';
+import { MapPin, Plus, Trash2, DollarSign, ChevronRight, Building2, Map, Navigation } from 'lucide-react';
 import api from '../../services/api';
 import type { Province, Regency, District, BillingRate } from '../../types';
 

@@ -218,7 +218,8 @@ func (r *billingConfigRepo) SaveSubmissionCostDetail(detail *domain.SubmissionCo
 	return r.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "submission_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{
-			"product_category_id", "business_type_id", "business_scale_id", "halal_agency_id", 
+			"product_category_id", "business_type_id", "business_scale_id",
+			"province_id", "regency_id", "district_id",
 			"product_count", "branch_count", "mandays", "total_amount", "cost_breakdown_data", "updated_at",
 		}),
 	}).Create(detail).Error

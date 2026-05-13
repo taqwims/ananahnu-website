@@ -17,9 +17,6 @@ import {
     CheckCircle2,
     XCircle,
     Loader2,
-    Calendar,
-    Briefcase,
-    Users,
     User,
     ChevronDown,
     Trash2,
@@ -268,7 +265,7 @@ export default function SubmissionList() {
                             <Loader2 className="w-10 h-10 animate-spin text-brand-600 mx-auto" />
                             <p className="mt-4 text-gray-500 font-medium">Memuat data pengajuan...</p>
                         </div>
-                    ) : (isGrouped ? groupedData : [{ coordinator: 'Semua Pengajuan', submissions: filteredData }]).map((group, gIdx) => (
+                    ) : (isGrouped ? groupedData : [{ coordinator: 'Semua Pengajuan', submissions: filteredData }]).map((group) => (
                         <div key={group.coordinator} className="space-y-4">
                             {/* Group Header */}
                             {isGrouped && (

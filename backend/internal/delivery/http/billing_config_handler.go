@@ -23,19 +23,28 @@ func NewBillingConfigHandler(r *gin.Engine, uc usecase.BillingConfigUsecase) {
 	{
 		g.GET("/sales-schemes", handler.GetSalesSchemes)
 		g.POST("/sales-schemes", handler.CreateSalesScheme)
+		g.PUT("/sales-schemes/:id", handler.UpdateSalesScheme)
+		g.DELETE("/sales-schemes/:id", handler.DeleteSalesScheme)
 
 		g.GET("/business-types", handler.GetBusinessTypes)
 		g.POST("/business-types", handler.CreateBusinessType)
+		g.PUT("/business-types/:id", handler.UpdateBusinessType)
+		g.DELETE("/business-types/:id", handler.DeleteBusinessType)
 
 		g.GET("/product-categories", handler.GetProductCategories)
 		g.POST("/product-categories", handler.CreateProductCategory)
+		g.PUT("/product-categories/:id", handler.UpdateProductCategory)
+		g.DELETE("/product-categories/:id", handler.DeleteProductCategory)
 
 		g.GET("/business-scales", handler.GetBusinessScales)
 		g.POST("/business-scales", handler.CreateBusinessScale)
-
+		g.PUT("/business-scales/:id", handler.UpdateBusinessScale)
+		g.DELETE("/business-scales/:id", handler.DeleteBusinessScale)
 
 		g.GET("/components", handler.GetBillingComponents)
 		g.POST("/components", handler.CreateBillingComponent)
+		g.PUT("/components/:id", handler.UpdateBillingComponent)
+		g.DELETE("/components/:id", handler.DeleteBillingComponent)
 
 		g.GET("/scheme-prices", handler.GetSalesSchemePrices)
 		g.POST("/scheme-prices", handler.CreateSalesSchemePrice)
@@ -76,6 +85,40 @@ func (h *BillingConfigHandler) CreateSalesScheme(c *gin.Context) {
 	c.JSON(http.StatusCreated, input)
 }
 
+func (h *BillingConfigHandler) UpdateSalesScheme(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var input domain.SalesScheme
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	input.ID = id
+	if err := h.uc.UpdateSalesScheme(&input); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, input)
+}
+
+func (h *BillingConfigHandler) DeleteSalesScheme(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	if err := h.uc.DeleteSalesScheme(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"deleted": true})
+}
+
 func (h *BillingConfigHandler) GetBusinessTypes(c *gin.Context) {
 	data, err := h.uc.GetBusinessTypes()
 	if err != nil {
@@ -96,6 +139,40 @@ func (h *BillingConfigHandler) CreateBusinessType(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, input)
+}
+
+func (h *BillingConfigHandler) UpdateBusinessType(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var input domain.BusinessType
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	input.ID = id
+	if err := h.uc.UpdateBusinessType(&input); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, input)
+}
+
+func (h *BillingConfigHandler) DeleteBusinessType(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	if err := h.uc.DeleteBusinessType(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"deleted": true})
 }
 
 func (h *BillingConfigHandler) GetProductCategories(c *gin.Context) {
@@ -124,6 +201,40 @@ func (h *BillingConfigHandler) CreateProductCategory(c *gin.Context) {
 	c.JSON(http.StatusCreated, input)
 }
 
+func (h *BillingConfigHandler) UpdateProductCategory(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var input domain.ProductCategory
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	input.ID = id
+	if err := h.uc.UpdateProductCategory(&input); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, input)
+}
+
+func (h *BillingConfigHandler) DeleteProductCategory(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	if err := h.uc.DeleteProductCategory(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"deleted": true})
+}
+
 func (h *BillingConfigHandler) GetBusinessScales(c *gin.Context) {
 	data, err := h.uc.GetBusinessScales()
 	if err != nil {
@@ -144,6 +255,40 @@ func (h *BillingConfigHandler) CreateBusinessScale(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, input)
+}
+
+func (h *BillingConfigHandler) UpdateBusinessScale(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var input domain.BusinessScale
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	input.ID = id
+	if err := h.uc.UpdateBusinessScale(&input); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, input)
+}
+
+func (h *BillingConfigHandler) DeleteBusinessScale(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	if err := h.uc.DeleteBusinessScale(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"deleted": true})
 }
 
 
@@ -201,6 +346,40 @@ func (h *BillingConfigHandler) CreateBillingComponent(c *gin.Context) {
 	c.JSON(http.StatusCreated, input)
 }
 
+func (h *BillingConfigHandler) UpdateBillingComponent(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var input domain.BillingComponent
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	input.ID = id
+	if err := h.uc.UpdateBillingComponent(&input); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, input)
+}
+
+func (h *BillingConfigHandler) DeleteBillingComponent(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	if err := h.uc.DeleteBillingComponent(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"deleted": true})
+}
+
 func (h *BillingConfigHandler) GetSubmissionCost(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
@@ -226,8 +405,8 @@ func (h *BillingConfigHandler) SaveSubmissionCost(c *gin.Context) {
 	}
 	
 	role := middleware.GetUserRole(c)
-	if role != "FINANCE" && role != "ADMIN_KEUANGAN" && role != "ADMIN" {
-		c.JSON(http.StatusForbidden, gin.H{"error": "only finance staff can set costs"})
+	if role != "FINANCE" && role != "ADMIN_KEUANGAN" && role != "ADMIN" && role != "DIRECTOR" && role != "HALAL_KONSULTAN" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only authorized staff can set costs"})
 		return
 	}
 	

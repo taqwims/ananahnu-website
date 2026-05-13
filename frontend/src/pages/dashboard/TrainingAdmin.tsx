@@ -15,7 +15,7 @@ export default function TrainingAdmin() {
     const [form, setForm] = useState({ title: '', description: '', start_date: '', end_date: '', location: '' });
     const [newUserID, setNewUserID] = useState('');
     const [allUsers, setAllUsers] = useState<any[]>([]);
-    const [userSearch, setUserSearch] = useState('');
+    
     const user = useAuthStore(state => state.user);
     const isCoordinator = user?.role === 'KOORDINATOR';
 

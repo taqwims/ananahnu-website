@@ -60,6 +60,14 @@ func (r *userRepository) FindAll(filter map[string]interface{}, page, limit int)
 		query = query.Joins("JOIN roles ON roles.id = users.role_id").
 			Where("roles.name = ?", role)
 	}
+	if roleName, ok := filter["role_name"]; ok {
+		query = query.Joins("JOIN roles ON roles.id = users.role_id").
+			Where("roles.name = ?", roleName)
+	}
+	if roles, ok := filter["roles"]; ok {
+		query = query.Joins("JOIN roles ON roles.id = users.role_id").
+			Where("roles.name IN ?", roles)
+	}
 	if search, ok := filter["search"]; ok {
 		s := "%" + search.(string) + "%"
 		query = query.Where("users.full_name ILIKE ? OR users.email ILIKE ?", s, s)

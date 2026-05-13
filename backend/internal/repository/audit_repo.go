@@ -20,7 +20,7 @@ func (r *auditLogRepository) Create(log *domain.AuditLog) error {
 
 func (r *auditLogRepository) FindLogsByEntity(entityType string, entityID string) ([]domain.AuditLog, error) {
 	var logs []domain.AuditLog
-	query := r.db.Order("created_at DESC")
+	query := r.db.Preload("User").Order("created_at DESC")
 	
 	if entityType != "" {
 		query = query.Where("entity_type = ?", entityType)
@@ -35,7 +35,7 @@ func (r *auditLogRepository) FindLogsByEntity(entityType string, entityID string
 
 func (r *auditLogRepository) FindRecent(limit int, filter map[string]interface{}) ([]domain.AuditLog, error) {
 	var logs []domain.AuditLog
-	query := r.db.Order("created_at DESC").Limit(limit)
+	query := r.db.Preload("User").Order("created_at DESC").Limit(limit)
 
 	if userIDs, ok := filter["user_ids"]; ok {
 		query = query.Where("user_id IN ?", userIDs)

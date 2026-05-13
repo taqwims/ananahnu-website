@@ -10,21 +10,31 @@ type BillingConfigUsecase interface {
 	// Master Data CRUDs
 	GetSalesSchemes() ([]domain.SalesScheme, error)
 	CreateSalesScheme(ss *domain.SalesScheme) error
+	UpdateSalesScheme(ss *domain.SalesScheme) error
+	DeleteSalesScheme(id int64) error
 
 	GetBusinessTypes() ([]domain.BusinessType, error)
 	CreateBusinessType(bt *domain.BusinessType) error
+	UpdateBusinessType(bt *domain.BusinessType) error
+	DeleteBusinessType(id int64) error
 
 	GetProductCategories() ([]domain.ProductCategory, error)
 	GetProductCategoriesFiltered(filter map[string]interface{}) ([]domain.ProductCategory, error)
 	CreateProductCategory(pc *domain.ProductCategory) error
+	UpdateProductCategory(pc *domain.ProductCategory) error
+	DeleteProductCategory(id int64) error
 	
 	GetBusinessScales() ([]domain.BusinessScale, error)
 	CreateBusinessScale(bs *domain.BusinessScale) error
+	UpdateBusinessScale(bs *domain.BusinessScale) error
+	DeleteBusinessScale(id int64) error
 	
 	
 	GetBillingComponents() ([]domain.BillingComponent, error)
 	GetBillingComponentsFiltered(filter map[string]interface{}) ([]domain.BillingComponent, error)
 	CreateBillingComponent(bc *domain.BillingComponent) error
+	UpdateBillingComponent(bc *domain.BillingComponent) error
+	DeleteBillingComponent(id int64) error
 
 	// SalesSchemePrice CRUD
 	GetSalesSchemePrices(filter map[string]interface{}) ([]domain.SalesSchemePrice, error)
@@ -56,12 +66,24 @@ func (uc *billingConfigUsecase) GetSalesSchemes() ([]domain.SalesScheme, error) 
 func (uc *billingConfigUsecase) CreateSalesScheme(ss *domain.SalesScheme) error {
 	return uc.repo.CreateSalesScheme(ss)
 }
+func (uc *billingConfigUsecase) UpdateSalesScheme(ss *domain.SalesScheme) error {
+	return uc.repo.UpdateSalesScheme(ss)
+}
+func (uc *billingConfigUsecase) DeleteSalesScheme(id int64) error {
+	return uc.repo.DeleteSalesScheme(id)
+}
 
 func (uc *billingConfigUsecase) GetBusinessTypes() ([]domain.BusinessType, error) {
 	return uc.repo.FindAllBusinessTypes()
 }
 func (uc *billingConfigUsecase) CreateBusinessType(bt *domain.BusinessType) error {
 	return uc.repo.CreateBusinessType(bt)
+}
+func (uc *billingConfigUsecase) UpdateBusinessType(bt *domain.BusinessType) error {
+	return uc.repo.UpdateBusinessType(bt)
+}
+func (uc *billingConfigUsecase) DeleteBusinessType(id int64) error {
+	return uc.repo.DeleteBusinessType(id)
 }
 
 func (uc *billingConfigUsecase) GetProductCategories() ([]domain.ProductCategory, error) {
@@ -73,12 +95,24 @@ func (uc *billingConfigUsecase) GetProductCategoriesFiltered(filter map[string]i
 func (uc *billingConfigUsecase) CreateProductCategory(pc *domain.ProductCategory) error {
 	return uc.repo.CreateProductCategory(pc)
 }
+func (uc *billingConfigUsecase) UpdateProductCategory(pc *domain.ProductCategory) error {
+	return uc.repo.UpdateProductCategory(pc)
+}
+func (uc *billingConfigUsecase) DeleteProductCategory(id int64) error {
+	return uc.repo.DeleteProductCategory(id)
+}
 
 func (uc *billingConfigUsecase) GetBusinessScales() ([]domain.BusinessScale, error) {
 	return uc.repo.FindAllBusinessScales()
 }
 func (uc *billingConfigUsecase) CreateBusinessScale(bs *domain.BusinessScale) error {
 	return uc.repo.CreateBusinessScale(bs)
+}
+func (uc *billingConfigUsecase) UpdateBusinessScale(bs *domain.BusinessScale) error {
+	return uc.repo.UpdateBusinessScale(bs)
+}
+func (uc *billingConfigUsecase) DeleteBusinessScale(id int64) error {
+	return uc.repo.DeleteBusinessScale(id)
 }
 
 
@@ -90,6 +124,12 @@ func (uc *billingConfigUsecase) GetBillingComponentsFiltered(filter map[string]i
 }
 func (uc *billingConfigUsecase) CreateBillingComponent(bc *domain.BillingComponent) error {
 	return uc.repo.CreateBillingComponent(bc)
+}
+func (uc *billingConfigUsecase) UpdateBillingComponent(bc *domain.BillingComponent) error {
+	return uc.repo.UpdateBillingComponent(bc)
+}
+func (uc *billingConfigUsecase) DeleteBillingComponent(id int64) error {
+	return uc.repo.DeleteBillingComponent(id)
 }
 
 // SalesSchemePrice

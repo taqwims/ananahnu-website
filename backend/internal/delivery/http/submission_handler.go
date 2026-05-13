@@ -25,6 +25,7 @@ func NewSubmissionHandler(r *gin.Engine, uc usecase.SubmissionWorkflowUsecase) {
 		g.POST("/:id/approve", handler.Approve)
 		g.POST("/:id/issue-sh", handler.IssueSH)
 		g.POST("/:id/assign-drafter", handler.AssignDrafter)
+		g.POST("/:id/assign-consultant", handler.AssignConsultant)
 		g.POST("/bulk-assign-drafter", handler.BulkAssignDrafter)
 		g.POST("/:id/reject", handler.Reject)
 		g.GET("", handler.GetList)
@@ -173,6 +174,39 @@ func (h *SubmissionHandler) AssignDrafter(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "assigned to drafter"})
+}
+
+func (h *SubmissionHandler) AssignConsultant(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var input struct {
+		ConsultantID string `json:"consultant_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "consultant_id is required"})
+		return
+	}
+
+	consultantUUID, err := uuid.Parse(input.ConsultantID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid consultant_id"})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	role := middleware.GetUserRole(c)
+
+	if err := h.workflowUC.AssignConsultant(id, userID, role, consultantUUID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "assigned to consultant"})
 }
 
 func (h *SubmissionHandler) BulkAssignDrafter(c *gin.Context) {

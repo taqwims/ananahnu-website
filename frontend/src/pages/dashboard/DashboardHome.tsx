@@ -202,7 +202,7 @@ export default function DashboardHome() {
                                             {activity.notes || activity.action}
                                         </p>
                                         <p className="text-[11px] text-gray-500 mt-0.5">
-                                            {formatTimeAgo(activity.created_at)}
+                                            {activity.user?.full_name || 'System'} • {formatTimeAgo(activity.created_at)}
                                         </p>
                                     </div>
                                 </div>

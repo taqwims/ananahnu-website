@@ -62,6 +62,7 @@ export interface Submission {
     current_assignee_role: number;
     sales_scheme_id?: number;
     consultant_id?: string;
+    consultant?: User;
     data_source?: string;
     regency_id?: number;
     district_id?: number;
@@ -231,6 +232,7 @@ export interface BillingRate {
 export interface AuditLog {
     id: number;
     user_id: string;
+    user?: User;
     action: string;
     entity_type: string;
     entity_id: string;
@@ -261,6 +263,8 @@ export interface BillingComponent {
     is_mandatory: boolean;
     business_scale_id?: number;
     province_id?: number;
+    regency_id?: number;
+    district_id?: number;
     business_type_id?: number;
     product_category_id?: number;
 }

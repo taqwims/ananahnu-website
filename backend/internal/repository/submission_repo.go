@@ -21,7 +21,7 @@ func (r *submissionRepository) Create(submission *domain.Submission) error {
 
 func (r *submissionRepository) FindByID(id uuid.UUID) (*domain.Submission, error) {
 	var submission domain.Submission
-	if err := r.db.Preload("Client").Preload("Payments").Preload("AssignedDrafter").First(&submission, "id = ?", id).Error; err != nil {
+	if err := r.db.Preload("Client").Preload("Payments").Preload("AssignedDrafter").Preload("Consultant").First(&submission, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &submission, nil
@@ -29,18 +29,18 @@ func (r *submissionRepository) FindByID(id uuid.UUID) (*domain.Submission, error
 
 func (r *submissionRepository) FindAll(filter map[string]interface{}) ([]domain.Submission, error) {
 	var submissions []domain.Submission
-	db := r.db.Preload("Client.Facilitator.Leader").Preload("AssignedDrafter")
+	db := r.db.Preload("Client.Facilitator.Leader").Preload("AssignedDrafter").Preload("Consultant")
 	
 	if status, ok := filter["status"]; ok && status != "" {
 		db = db.Where("submissions.status = ?", status)
 	}
 
-	// Filter by Facilitator ID (Consultant/Coordinator logic)
+	// Filter by Facilitator ID (Consultant/Coordinator logic or Marketing)
 	if fIDs, ok := filter["facilitator_ids"]; ok {
 		ids := fIDs.([]uuid.UUID)
 		if len(ids) > 0 {
 			db = db.Joins("JOIN clients ON clients.id = submissions.client_id").
-				Where("clients.facilitator_id IN ?", ids)
+				Where("clients.facilitator_id IN ? OR submissions.consultant_id IN ?", ids, ids)
 		}
 	}
 
@@ -66,6 +66,10 @@ func (r *submissionRepository) UpdateAssignee(id uuid.UUID, drafterID *uuid.UUID
 	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("assigned_drafter_id", drafterID).Error
 }
 
+func (r *submissionRepository) UpdateConsultant(id uuid.UUID, consultantID *uuid.UUID) error {
+	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("consultant_id", consultantID).Error
+}
+
 func (r *submissionRepository) UpdateRejectNote(id uuid.UUID, note string) error {
 	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("reject_note", note).Error
 }
@@ -80,7 +84,7 @@ func (r *submissionRepository) UpdateTrackingNumber(id uuid.UUID, trackingNumber
 
 func (r *submissionRepository) FindByTrackingNumber(trackingNumber string) (*domain.Submission, error) {
 	var submission domain.Submission
-	if err := r.db.Preload("Client").Preload("AssignedDrafter").First(&submission, "tracking_number = ?", trackingNumber).Error; err != nil {
+	if err := r.db.Preload("Client").Preload("AssignedDrafter").Preload("Consultant").First(&submission, "tracking_number = ?", trackingNumber).Error; err != nil {
 		return nil, err
 	}
 	return &submission, nil

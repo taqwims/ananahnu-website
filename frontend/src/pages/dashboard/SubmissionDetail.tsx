@@ -46,6 +46,10 @@ export default function SubmissionDetail() {
     const [drafters, setDrafters] = useState<{id: string; full_name: string}[]>([]);
     const [selectedDrafterId, setSelectedDrafterId] = useState('');
 
+    // Consultant Assignment (for Marketing data)
+    const [consultants, setConsultants] = useState<{id: string; full_name: string; role_name?: string}[]>([]);
+    const [selectedConsultantId, setSelectedConsultantId] = useState('');
+
     // Client Edit State
     const [isEditingClient, setIsEditingClient] = useState(false);
     const [clientForm, setClientForm] = useState({
@@ -133,6 +137,23 @@ export default function SubmissionDetail() {
         }
     }, [submission?.status, user?.role]);
 
+    // Fetch consultants for marketing data if needed
+    useEffect(() => {
+        if (submission?.data_source === 'MARKETING' && 
+            (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'KOORDINATOR')) {
+            api.get('/admin/users/consultants')
+                .then(res => {
+                    const users = res.data || [];
+                    setConsultants(users.map((u: any) => ({ 
+                        id: u.id, 
+                        full_name: u.full_name, 
+                        role_name: typeof u.role === 'string' ? u.role : (u.role?.name || '') 
+                    })));
+                })
+                .catch(() => {});
+        }
+    }, [submission?.data_source, user?.role]);
+
     const handleIssueSH = async () => {
         if (!id || !shFile) return;
 
@@ -162,7 +183,7 @@ export default function SubmissionDetail() {
         }
     };
 
-    const handleAction = async (action: 'submit' | 'approve' | 'reject') => {
+    const handleAction = async (action: 'submit' | 'approve' | 'reject' | 'assign_consultant') => {
         if (!submission) return;
         setProcessing(true);
         try {
@@ -177,6 +198,9 @@ export default function SubmissionDetail() {
             } else if (action === 'reject') {
                 await api.post(`/submissions/${submission.id}/reject`, { note: rejectNote });
                 setShowRejectModal(false);
+            } else if (action === 'assign_consultant') {
+                await api.post(`/submissions/${submission.id}/assign-consultant`, { consultant_id: selectedConsultantId });
+                alert("Konsultan berhasil ditunjuk");
             }
             await refreshSubmission();
         } catch (err: any) {
@@ -510,12 +534,51 @@ export default function SubmissionDetail() {
                             {(submission.status === 'DRAFT' || submission.status === 'REVISION') && (
                                 <button
                                     onClick={() => handleAction('submit')}
-                                    disabled={processing}
+                                    disabled={processing || (submission.data_source === 'MARKETING' && !submission.consultant_id)}
                                     className="w-full py-4 bg-brand-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-brand-100 hover:bg-brand-700 hover:scale-[1.02] active:scale-95 transition-all flex justify-center items-center gap-3 disabled:opacity-50"
                                 >
                                     {processing ? <Loader2 className="animate-spin w-5 h-5" /> : <Send className="w-5 h-5" />}
                                     {submission.status === 'REVISION' ? 'Kirim Verifikasi Ulang' : 'Kirim ke Verifikasi'}
                                 </button>
+                            )}
+
+                            {/* Consultant Assignment for Marketing Data */}
+                            {submission.data_source === 'MARKETING' && (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'KOORDINATOR') && (
+                                <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 space-y-3">
+                                    <label className="flex items-center gap-2 text-sm font-black text-purple-800 tracking-tight">
+                                        <UserCheck className="w-4 h-4" /> Penunjukan Konsultan
+                                    </label>
+                                    
+                                    {submission.consultant_id ? (
+                                        <div className="text-sm font-bold text-purple-900 bg-white/60 p-2 rounded-lg border border-purple-100 flex items-center justify-between">
+                                            <span>Konsultan: {submission.consultant?.full_name || 'Memuat...'}</span>
+                                            <span className="text-[10px] font-mono opacity-50">{submission.consultant_id.slice(0, 8)}</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <select
+                                                className="glass-input text-sm w-full"
+                                                value={selectedConsultantId}
+                                                onChange={e => setSelectedConsultantId(e.target.value)}
+                                            >
+                                                <option value="">-- Pilih Konsultan --</option>
+                                                {consultants.map(c => (
+                                                    <option key={c.id} value={c.id}>
+                                                        {c.full_name} {c.role_name ? `(${c.role_name.replace(/_/g, ' ')})` : ''}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <button 
+                                                onClick={() => handleAction('assign_consultant')}
+                                                disabled={processing || !selectedConsultantId}
+                                                className="w-full py-2 bg-purple-600 text-white rounded-xl font-bold text-xs hover:bg-purple-700 transition-all disabled:opacity-50"
+                                            >
+                                                {processing ? <Loader2 className="animate-spin w-4 h-4 mx-auto" /> : 'Tunjuk Konsultan'}
+                                            </button>
+                                            <p className="text-[10px] text-purple-600 leading-tight">Wajib menunjuk konsultan sebelum pengajuan dapat dikirim ke proses verifikasi.</p>
+                                        </>
+                                    )}
+                                </div>
                             )}
 
                             {/* QC Officer: Drafter Assignment */}
@@ -627,7 +690,10 @@ export default function SubmissionDetail() {
                                         <div key={log.id} className="relative pl-4 border-l-2 border-gray-100 mb-4 last:mb-0">
                                             <div className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-gray-300"></div>
                                             <div className="flex justify-between items-start">
-                                                <span className="text-xs font-bold text-gray-700">{log.action}</span>
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold text-gray-700">{log.action}</span>
+                                                    <span className="text-[10px] text-gray-400 font-medium">{log.user?.full_name || 'System'}</span>
+                                                </div>
                                                 <span className="text-[10px] text-gray-400">
                                                     {new Date(log.created_at).toLocaleString('id-ID', {
                                                         day: '2-digit', month: '2-digit', year: '2-digit',

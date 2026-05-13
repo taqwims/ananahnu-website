@@ -32,6 +32,7 @@ type Submission struct {
 	AssignedDrafterID   *uuid.UUID       `gorm:"type:uuid" json:"assigned_drafter_id,omitempty"`
 	AssignedDrafter     *User            `gorm:"foreignKey:AssignedDrafterID" json:"assigned_drafter,omitempty"`
 	ConsultantID        *uuid.UUID       `gorm:"type:uuid" json:"consultant_id,omitempty"`
+	Consultant          *User            `gorm:"foreignKey:ConsultantID" json:"consultant,omitempty"`
 	SalesSchemeID       *int64           `json:"sales_scheme_id,omitempty"`
 	RegencyID           *int64           `json:"regency_id,omitempty"`
 	DistrictID          *int64           `json:"district_id,omitempty"`
@@ -58,6 +59,7 @@ type SubmissionRepository interface {
 	FindAll(filter map[string]interface{}) ([]Submission, error)
 	UpdateStatus(id uuid.UUID, status SubmissionStatus, assigneeRole int) error
 	UpdateAssignee(id uuid.UUID, drafterID *uuid.UUID) error
+	UpdateConsultant(id uuid.UUID, consultantID *uuid.UUID) error
 	UpdateRejectNote(id uuid.UUID, note string) error
 	UpdateSH(id uuid.UUID, shURL string) error
 	UpdateTrackingNumber(id uuid.UUID, trackingNumber string) error
