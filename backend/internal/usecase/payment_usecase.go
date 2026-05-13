@@ -172,9 +172,10 @@ func (uc *paymentUsecase) HandleMidtransNotification(payload map[string]interfac
 
 	switch txStatus.TransactionStatus {
 	case "capture":
-		if txStatus.FraudStatus == "accept" {
+		switch txStatus.FraudStatus {
+		case "accept":
 			payment.Status = domain.PaymentStatusPaid
-		} else if txStatus.FraudStatus == "challenge" {
+		case "challenge":
 			// Keep pending, requires manual review on Midtrans dashboard
 			log.Printf("[MIDTRANS WEBHOOK] Order %s fraud status: challenge", orderID)
 		}

@@ -405,7 +405,7 @@ func (h *BillingConfigHandler) SaveSubmissionCost(c *gin.Context) {
 	}
 	
 	role := middleware.GetUserRole(c)
-	if role != "FINANCE" && role != "ADMIN_KEUANGAN" && role != "ADMIN" && role != "DIRECTOR" && role != "HALAL_KONSULTAN" {
+	if role != "FINANCE" && role != "ADMIN_KEUANGAN" && role != "ADMIN" && role != "DIRECTOR" && role != "HALAL_KONSULTAN" && role != "MARKETING" && role != "KOORDINATOR" {
 		c.JSON(http.StatusForbidden, gin.H{"error": "only authorized staff can set costs"})
 		return
 	}

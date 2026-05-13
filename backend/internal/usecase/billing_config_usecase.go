@@ -52,12 +52,14 @@ type BillingConfigUsecase interface {
 }
 
 type billingConfigUsecase struct {
-	repo     domain.BillingConfigRepository
-	rateRepo domain.CoordinatorRateRepository
+	repo           domain.BillingConfigRepository
+	rateRepo       domain.CoordinatorRateRepository
+	invoiceRepo    domain.InvoiceRepository
+	submissionRepo domain.SubmissionRepository
 }
 
-func NewBillingConfigUsecase(repo domain.BillingConfigRepository, rateRepo domain.CoordinatorRateRepository) BillingConfigUsecase {
-	return &billingConfigUsecase{repo: repo, rateRepo: rateRepo}
+func NewBillingConfigUsecase(repo domain.BillingConfigRepository, rateRepo domain.CoordinatorRateRepository, invoiceRepo domain.InvoiceRepository, submissionRepo domain.SubmissionRepository) BillingConfigUsecase {
+	return &billingConfigUsecase{repo: repo, rateRepo: rateRepo, invoiceRepo: invoiceRepo, submissionRepo: submissionRepo}
 }
 
 func (uc *billingConfigUsecase) GetSalesSchemes() ([]domain.SalesScheme, error) {
@@ -147,7 +149,37 @@ func (uc *billingConfigUsecase) DeleteSalesSchemePrice(id int64) error {
 }
 
 func (uc *billingConfigUsecase) SaveSubmissionCost(detail *domain.SubmissionCostDetail) error {
-	return uc.repo.SaveSubmissionCostDetail(detail)
+	if err := uc.repo.SaveSubmissionCostDetail(detail); err != nil {
+		return err
+	}
+
+	// Sync with Invoice if it exists (for REGULER service)
+	invoice, err := uc.invoiceRepo.FindBySubmissionID(detail.SubmissionID)
+	if err == nil && invoice != nil {
+		invoice.Amount = detail.TotalAmount
+		invoice.PricingSource = "COST_DETAIL"
+		return uc.invoiceRepo.Update(invoice)
+	}
+
+	// If invoice doesn't exist, check if we should create one
+	// This happens if the submission is already in WAITING_PAYMENT but was submitted with 0 cost
+	sub, err := uc.submissionRepo.FindByID(detail.SubmissionID)
+	if err == nil && sub != nil && sub.ServiceType == "REGULER" {
+		// Only create invoice if it's already in WAITING_PAYMENT or later (except DRAFT/REVISION)
+		if sub.Status != domain.StatusDraft && sub.Status != domain.StatusRevision {
+			return uc.invoiceRepo.Create(&domain.Invoice{
+				SubmissionID:  detail.SubmissionID,
+				PayerID:       nil,
+				ServiceType:   "REGULER",
+				Amount:        detail.TotalAmount,
+				Status:        domain.InvoiceStatusUnpaid,
+				PricingSource: "COST_DETAIL",
+				Notes:         "Full Payment Layanan Reguler (Sync from Calculator)",
+			})
+		}
+	}
+
+	return nil
 }
 func (uc *billingConfigUsecase) GetSubmissionCost(submissionID uuid.UUID) (*domain.SubmissionCostDetail, error) {
 	return uc.repo.GetSubmissionCostDetail(submissionID)

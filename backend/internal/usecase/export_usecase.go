@@ -29,9 +29,10 @@ func (uc *exportUsecase) ExportClients(filter map[string]interface{}, format str
 		return nil, err
 	}
 
-	if format == "xlsx" {
+	switch format {
+	case "xlsx":
 		return uc.generateExcel(clients)
-	} else if format == "pdf" {
+	case "pdf":
 		return uc.generatePDF(clients)
 	}
 	return nil, fmt.Errorf("unsupported format: %s", format)

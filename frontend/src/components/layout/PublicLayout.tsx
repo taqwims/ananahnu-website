@@ -25,7 +25,7 @@ export default function PublicLayout() {
                             <a href="/#news" className="text-gray-600 hover:text-brand-600 font-medium transition-colors">News</a>
                             <a href="/#contact" className="text-gray-600 hover:text-brand-600 font-medium transition-colors">Contact</a>
                             <Link to="/login" className="px-6 py-2 rounded-full bg-brand-600 text-white hover:bg-brand-700 font-bold shadow-lg shadow-brand-200 transition-all hover:scale-105 active:scale-95">
-                                Client Login
+                                Login
                             </Link>
                         </div>
 
@@ -50,7 +50,7 @@ export default function PublicLayout() {
                             <a href="/#services" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-600 hover:bg-brand-50">Services</a>
                             <a href="/#news" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-600 hover:bg-brand-50">News</a>
                             <a href="/#contact" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-600 hover:bg-brand-50">Contact</a>
-                            <Link to="/login" className="block w-full mt-4 px-5 py-3 text-center rounded-lg bg-brand-600 text-white font-bold">Client Login</Link>
+                            <Link to="/login" className="block w-full mt-4 px-5 py-3 text-center rounded-lg bg-brand-600 text-white font-bold">Login</Link>
                         </div>
                     </div>
                 )}

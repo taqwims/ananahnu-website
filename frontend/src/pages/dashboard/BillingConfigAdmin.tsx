@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Plus, Trash2, DollarSign, Tag, ToggleLeft, ToggleRight, Pencil, X } from 'lucide-react';
+import { Loader2, Plus, Trash2, DollarSign, Tag, ToggleLeft, ToggleRight, Pencil, X, ChevronDown, ChevronRight } from 'lucide-react';
 import api from '../../services/api';
 import { formatRupiah } from '../../utils/format';
 import type { SalesSchemePrice } from '../../types';
@@ -33,6 +33,7 @@ export default function BillingConfigAdmin() {
     const [systemSettings, setSystemSettings] = useState<Record<string, string>>({});
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editingSpId, setEditingSpId] = useState<number | null>(null);
+    const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
     // Simple add form
     const [newItemName, setNewItemName] = useState('');
@@ -398,7 +399,7 @@ export default function BillingConfigAdmin() {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="block text-xs font-bold text-gray-700 mb-1.5">Jenis Bidang</label>
-                                                <select className="w-full bg-gray-50 border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" value={spForm.business_type_id} onChange={e => setSpForm(p => ({ ...p, business_type_id: e.target.value }))}>
+                                                <select className="w-full bg-gray-50 border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" value={spForm.business_type_id} onChange={e => setSpForm(p => ({ ...p, business_type_id: e.target.value, product_category_id: '' }))}>
                                                     <option value="">Semua Bidang</option>
                                                     {businessTypes.map(bt => <option key={bt.id} value={bt.id}>{bt.name}</option>)}
                                                 </select>
@@ -447,7 +448,7 @@ export default function BillingConfigAdmin() {
                                     <thead className="bg-gray-50 border-b border-gray-100">
                                         <tr>
                                             <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Skema & Sumber</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Klasifikasi (Bidang/Produk/Skala)</th>
+                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Klasifikasi (Produk/Skala)</th>
                                             <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Harga Dasar</th>
                                             <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Diskon</th>
                                             <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Keterangan</th>
@@ -455,52 +456,86 @@ export default function BillingConfigAdmin() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
-                                        {schemePrices.map(sp => (
-                                            <tr key={sp.id} className="hover:bg-brand-50/30 group transition-colors">
-                                                <td className="px-6 py-4">
-                                                    <div className="font-bold text-gray-800">{sp.sales_scheme?.name || `ID: ${sp.sales_scheme_id}`}</div>
-                                                    <div className="mt-1.5">
-                                                        <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${sp.data_source === 'MARKETING' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
-                                                            {sp.data_source}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex flex-wrap gap-2">
-                                                        <span className="px-2.5 py-1 bg-white border border-gray-200 text-gray-600 rounded-lg text-[10px] font-semibold shadow-sm">
-                                                            {sp.business_type?.name || 'Semua Bidang'}
-                                                        </span>
-                                                        <span className="px-2.5 py-1 bg-white border border-gray-200 text-gray-600 rounded-lg text-[10px] font-semibold shadow-sm">
-                                                            {sp.product_category?.name || 'Semua Produk'}
-                                                        </span>
-                                                        <span className="px-2.5 py-1 bg-brand-50 border border-brand-200 text-brand-700 rounded-lg text-[10px] font-bold shadow-sm">
-                                                            {sp.business_scale?.name || 'Semua Skala'}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="font-black text-gray-900 text-[15px]">{formatRupiah(sp.base_price)}</div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    {sp.discount_percent > 0 ? (
-                                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 text-green-700 rounded-lg text-[11px] font-bold border border-green-100">
-                                                            <Tag className="w-3.5 h-3.5" /> {sp.discount_percent}%
-                                                        </div>
-                                                    ) : <span className="text-gray-300 font-medium text-xs">—</span>}
-                                                </td>
-                                                <td className="px-6 py-4 text-gray-500 text-xs">{sp.description || <span className="text-gray-300 italic">Tidak ada</span>}</td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                                                        <button onClick={() => handleEditSp(sp)} className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-xl">
-                                                            <Pencil className="w-4 h-4" />
-                                                        </button>
-                                                        <button onClick={() => handleDeleteSchemePrice(sp.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl">
-                                                            <Trash2 className="w-4.5 h-4.5" />
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {[
+                                            // 1. General group (business_type_id is null)
+                                            { id: 'null', name: 'Semua Bidang (General)', icon: Tag },
+                                            // 2. Real business types
+                                            ...businessTypes
+                                        ].map(group => {
+                                            const items = schemePrices.filter(sp => 
+                                                group.id === 'null' ? !sp.business_type_id : sp.business_type_id === group.id
+                                            );
+                                            
+                                            if (items.length === 0) return null;
+
+                                            const isCollapsed = collapsedGroups[group.id.toString()];
+
+                                            return (
+                                                <>
+                                                    <tr 
+                                                        key={`group-${group.id}`} 
+                                                        className="bg-gray-50/80 cursor-pointer hover:bg-brand-50/50 transition-colors select-none"
+                                                        onClick={() => setCollapsedGroups(prev => ({ ...prev, [group.id.toString()]: !prev[group.id.toString()] }))}
+                                                    >
+                                                        <td colSpan={6} className="px-6 py-3">
+                                                            <div className="flex items-center gap-2">
+                                                                {isCollapsed ? <ChevronRight className="w-4 h-4 text-brand-600" /> : <ChevronDown className="w-4 h-4 text-brand-600" />}
+                                                                <span className="text-xs font-black text-brand-800 uppercase tracking-widest">
+                                                                    BIDANG: {group.name}
+                                                                </span>
+                                                                <span className="ml-2 px-2 py-0.5 bg-brand-100 text-brand-700 text-[10px] font-bold rounded-full">
+                                                                    {items.length} Item
+                                                                </span>
+                                                                {isCollapsed && <span className="text-[10px] text-gray-400 ml-auto italic">Klik untuk membuka</span>}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {!isCollapsed && items.map(sp => (
+                                                        <tr key={sp.id} className="hover:bg-brand-50/30 group transition-colors">
+                                                            <td className="px-6 py-4">
+                                                                <div className="font-bold text-gray-800">{sp.sales_scheme?.name || `ID: ${sp.sales_scheme_id}`}</div>
+                                                                <div className="mt-1.5">
+                                                                    <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${sp.data_source === 'MARKETING' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                                                                        {sp.data_source}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    <span className="px-2.5 py-1 bg-white border border-gray-200 text-gray-600 rounded-lg text-[10px] font-semibold shadow-sm">
+                                                                        {sp.product_category?.name || 'Semua Produk'}
+                                                                    </span>
+                                                                    <span className="px-2.5 py-1 bg-brand-50 border border-brand-200 text-brand-700 rounded-lg text-[10px] font-bold shadow-sm">
+                                                                        {sp.business_scale?.name || 'Semua Skala'}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="font-black text-gray-900 text-[15px]">{formatRupiah(sp.base_price)}</div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                {sp.discount_percent > 0 ? (
+                                                                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 text-green-700 rounded-lg text-[11px] font-bold border border-green-100">
+                                                                        <Tag className="w-3.5 h-3.5" /> {sp.discount_percent}%
+                                                                    </div>
+                                                                ) : <span className="text-gray-300 font-medium text-xs">—</span>}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-gray-500 text-xs">{sp.description || <span className="text-gray-300 italic">Tidak ada</span>}</td>
+                                                            <td className="px-6 py-4 text-right">
+                                                                <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                                                    <button onClick={(e) => { e.stopPropagation(); handleEditSp(sp); }} className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-xl">
+                                                                        <Pencil className="w-4 h-4" />
+                                                                    </button>
+                                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteSchemePrice(sp.id); }} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl">
+                                                                        <Trash2 className="w-4.5 h-4.5" />
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
@@ -584,7 +619,7 @@ export default function BillingConfigAdmin() {
                                     </div>
                                     <div className="col-span-2 md:col-span-1">
                                         <label className="block text-xs font-bold text-gray-700 mb-1.5">Batasi Bidang</label>
-                                        <select className="w-full bg-white border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" value={newItemBusinessTypeId} onChange={e => setNewItemBusinessTypeId(e.target.value)}>
+                                        <select className="w-full bg-white border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" value={newItemBusinessTypeId} onChange={e => { setNewItemBusinessTypeId(e.target.value); setNewItemProductCategoryId(''); }}>
                                             <option value="">Semua Bidang</option>
                                             {businessTypes.map(bt => <option key={bt.id} value={bt.id}>{bt.name}</option>)}
                                         </select>
@@ -593,7 +628,9 @@ export default function BillingConfigAdmin() {
                                         <label className="block text-xs font-bold text-gray-700 mb-1.5">Batasi Produk</label>
                                         <select className="w-full bg-white border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" value={newItemProductCategoryId} onChange={e => setNewItemProductCategoryId(e.target.value)}>
                                             <option value="">Semua Produk</option>
-                                            {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                            {products
+                                                .filter(p => !newItemBusinessTypeId || p.business_type_id === parseInt(newItemBusinessTypeId))
+                                                .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                         </select>
                                     </div>
                                 </div>

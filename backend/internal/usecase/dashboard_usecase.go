@@ -29,9 +29,10 @@ func NewDashboardUsecase(s domain.SubmissionRepository, c domain.ClientRepositor
 func (uc *dashboardUsecase) GetStats(userID uuid.UUID, role string) (map[string]interface{}, error) {
 	facilitatorIDs := []uuid.UUID{}
 
-	if role == "HALAL_KONSULTAN" {
+	switch role {
+	case "HALAL_KONSULTAN":
 		facilitatorIDs = append(facilitatorIDs, userID)
-	} else if role == "KOORDINATOR" {
+	case "KOORDINATOR":
 		// Find team members
 		team, _ := uc.userRepo.FindByLeaderID(userID)
 		for _, u := range team {
@@ -58,11 +59,12 @@ func (uc *dashboardUsecase) GetStats(userID uuid.UUID, role string) (map[string]
 	pending := 0
 
 	for _, s := range submissions {
-		if s.Status == "SH_TERBIT" {
+		switch s.Status {
+		case "SH_TERBIT":
 			shTerbit++
-		} else if s.Status == "SIDANG_FATWA" {
+		case "SIDANG_FATWA":
 			sidangFatwa++
-		} else {
+		default:
 			pending++
 		}
 	}
@@ -78,9 +80,10 @@ func (uc *dashboardUsecase) GetStats(userID uuid.UUID, role string) (map[string]
 func (uc *dashboardUsecase) GetRecentActivities(userID uuid.UUID, role string, limit int) ([]domain.AuditLog, error) {
 	filter := make(map[string]interface{})
 	
-	if role == "HALAL_KONSULTAN" {
+	switch role {
+	case "HALAL_KONSULTAN":
 		filter["user_ids"] = []uuid.UUID{userID}
-	} else if role == "KOORDINATOR" {
+	case "KOORDINATOR":
 		team, _ := uc.userRepo.FindByLeaderID(userID)
 		userIDs := []uuid.UUID{userID}
 		for _, u := range team {

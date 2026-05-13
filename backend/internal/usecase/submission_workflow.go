@@ -151,7 +151,8 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 		uc.logChange(id, userID, "SUBMIT", sub.Status, nextStatus, "")
 
 		// IF SELF_DECLARE_MANDIRI -> Create immediate invoice of 230,000
-		if sub.ServiceType == "SELF_DECLARE_MANDIRI" {
+		switch sub.ServiceType {
+		case "SELF_DECLARE_MANDIRI":
 			log.Printf("[INVOICE] Creating immediate invoice for SELF_DECLARE_MANDIRI: %s", id)
 			// SELF_DECLARE_MANDIRI is paid by client, not consultant.
 			uc.invoiceRepo.Create(&domain.Invoice{
@@ -162,7 +163,7 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 				Status:       domain.InvoiceStatusUnpaid,
 				Notes:        "Pembayaran Awal SELF_DECLARE_MANDIRI",
 			})
-		} else if sub.ServiceType == "REGULER" {
+		case "REGULER":
 			log.Printf("[INVOICE] Creating full payment invoice for REGULER: %s", id)
 			
 			// REGULER: Use the cost detail calculation that was filled out by Pendamping
@@ -172,20 +173,17 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 				amount = costDetail.TotalAmount
 			}
 
-			if amount > 0 {
-				// REGULER is paid by client, not consultant.
-				uc.invoiceRepo.Create(&domain.Invoice{
-					SubmissionID:  id,
-					PayerID:       nil,
-					ServiceType:   "REGULER",
-					Amount:        amount,
-					Status:        domain.InvoiceStatusUnpaid,
-					PricingSource: "COST_DETAIL",
-					Notes:         "Full Payment Layanan Reguler",
-				})
-			} else {
-				log.Printf("[INVOICE] WARNING: Reguler submitted without CostDetail. Amount is 0.")
-			}
+			// Always create invoice for REGULER if it doesn't exist yet, 
+			// even if amount is 0 (it will be updated by the calculator later)
+			uc.invoiceRepo.Create(&domain.Invoice{
+				SubmissionID:  id,
+				PayerID:       nil,
+				ServiceType:   "REGULER",
+				Amount:        amount,
+				Status:        domain.InvoiceStatusUnpaid,
+				PricingSource: "COST_DETAIL",
+				Notes:         "Full Payment Layanan Reguler",
+			})
 		}
 		
 		// Notify Finance if status is WAITING_PAYMENT
@@ -547,24 +545,23 @@ func (uc *submissionWorkflowUsecase) Reject(id uuid.UUID, userID uuid.UUID, user
 
 func (uc *submissionWorkflowUsecase) GetSubmissions(userID uuid.UUID, role string, filter map[string]interface{}) ([]domain.Submission, error) {
 	// Apply Role-based visibility
-	if role == "HALAL_KONSULTAN" {
+	switch role {
+	case "HALAL_KONSULTAN":
 		filter["facilitator_ids"] = []uuid.UUID{userID}
-	} else if role == "MARKETING" {
+	case "MARKETING":
 		// Marketing sees submissions they created (facilitator_id = their ID)
 		filter["facilitator_ids"] = []uuid.UUID{userID}
-	} else if role == "KOORDINATOR" {
+	case "KOORDINATOR":
 		// Get team members
 		team, err := uc.userRepo.FindByLeaderID(userID)
-		if err != nil {
-			return nil, err
+		if err == nil {
+			ids := []uuid.UUID{userID}
+			for _, member := range team {
+				ids = append(ids, member.ID)
+			}
+			filter["facilitator_ids"] = ids
 		}
-		
-		ids := []uuid.UUID{userID}
-		for _, member := range team {
-			ids = append(ids, member.ID)
-		}
-		filter["facilitator_ids"] = ids
-	} else if role == "DRAFTER" {
+	case "DRAFTER":
 		// Drafter only sees submissions assigned to them
 		filter["assigned_drafter_id"] = userID
 	}
@@ -727,9 +724,10 @@ func (uc *submissionWorkflowUsecase) Delete(id uuid.UUID, userID uuid.UUID, user
 
 	// Permission check
 	canDelete := false
-	if userRole == "ADMIN" || userRole == "DIRECTOR" {
+	switch userRole {
+	case "ADMIN", "DIRECTOR":
 		canDelete = true
-	} else if userRole == "HALAL_KONSULTAN" || userRole == "KOORDINATOR" || userRole == "MARKETING" {
+	case "HALAL_KONSULTAN", "KOORDINATOR", "MARKETING":
 		// Only if DRAFT
 		if sub.Status == domain.StatusDraft {
 			// Check if facilitator

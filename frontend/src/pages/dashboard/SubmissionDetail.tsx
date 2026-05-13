@@ -424,9 +424,13 @@ export default function SubmissionDetail() {
                         {serviceType === 'REGULER' ? (
                             <KalkulatorReguler 
                                 submissionId={submission.id} 
-                                readOnly={(user?.role !== 'FINANCE' && user?.role !== 'ADMIN_KEUANGAN' && user?.role !== 'ADMIN' && user?.role !== 'DIRECTOR') && !(user?.role === 'HALAL_KONSULTAN' && (submission.status === 'DRAFT' || submission.status === 'REVISION'))} 
+                                readOnly={!(
+                                    ['ADMIN', 'FINANCE', 'ADMIN_KEUANGAN', 'DIRECTOR'].includes(user?.role || '') ||
+                                    (['HALAL_KONSULTAN', 'MARKETING', 'KOORDINATOR'].includes(user?.role || '') && (submission.status === 'DRAFT' || submission.status === 'REVISION'))
+                                )} 
                                 onSaved={refreshSubmission}
                                 salesSchemeId={submission.sales_scheme_id || undefined}
+                                dataSource={submission.data_source}
                             />
                         ) : serviceType !== 'SELF_DECLARE' ? (
                             <CostCalculator 

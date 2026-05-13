@@ -175,7 +175,7 @@ func main() {
 	consultantUC := usecase.NewConsultantUsecase(consultantRepo, userRepo)
 	billingUC := usecase.NewBillingUsecase(invoiceRepo, paymentConfigRepo, billingRateRepo, userRepo, notificationUC)
 	userMgmtUC := usecase.NewUserManagementUsecase(userRepo, roleRepo)
-	billingConfigUC := usecase.NewBillingConfigUsecase(billingConfigRepo, coordinatorRateRepo)
+	billingConfigUC := usecase.NewBillingConfigUsecase(billingConfigRepo, coordinatorRateRepo, invoiceRepo, submissionRepo)
 	settingUC := usecase.NewSystemSettingUsecase(settingRepo)
 
 	// 7. Setup Router & Handlers

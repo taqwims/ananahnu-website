@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Loader2, Save, Plus, Trash, Info, BookOpen } from 'lucide-react';
+import { Loader2, Save, Plus, Trash, BookOpen } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { formatRupiah } from '../../utils/format';
@@ -80,6 +80,9 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             if (provinceId) params.province_id = provinceId;
             if (regencyId) params.regency_id = regencyId;
             if (districtId) params.district_id = districtId;
+            if (dataSource) params.data_source = dataSource;
+            
+            // If marketing but no scheme ID, we'll try to find the partnership scheme in the logic below
             if (salesSchemeId) params.sales_scheme_id = salesSchemeId.toString();
             params.resolve_geography = 'true';
 
@@ -93,8 +96,14 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             const prices = spRes.data || [];
             let bestPrice = null;
             let bestScore = -1;
+
+            // Target scheme: either the one passed via props, or if marketing, try to find partnership
+            const targetSchemeId = salesSchemeId || (dataSource === 'MARKETING' ? schemes.find(s => s.name.toUpperCase() === 'PARTNERSHIP' || s.name.toUpperCase() === 'PARTNER')?.id : null);
+
             prices.forEach((p: any) => {
-                if (p.sales_scheme_id === (salesSchemeId || -1)) {
+                // If we have a specific scheme target, only look at those. 
+                // Otherwise, take the one with the highest specificity (score)
+                if (!targetSchemeId || p.sales_scheme_id === targetSchemeId) {
                     let score = 0;
                     if (p.business_scale_id) score += 5;
                     if (p.product_category_id) score += 2;
@@ -111,7 +120,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         } finally {
             setLoadingComponents(false);
         }
-    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, salesSchemeId]);
+    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, salesSchemeId, dataSource, schemes]);
 
     // Load master data + existing cost detail on mount
     useEffect(() => {
@@ -301,8 +310,9 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
 
     if (loading) return <div className="flex justify-center p-4"><Loader2 className="animate-spin text-brand-600" /></div>;
 
-    const canEdit = user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_KONSULTAN';
+    const canEdit = user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_KONSULTAN' || user?.role === 'MARKETING' || user?.role === 'KOORDINATOR';
     const isEditable = !readOnly && canEdit;
+    const canEditOptional = isEditable && (user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR');
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 bg-white p-8 rounded-2xl border border-gray-100 shadow-xl mt-8">
@@ -368,7 +378,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                             <select
                                 className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
                                 value={businessTypeId}
-                                onChange={e => setBusinessTypeId(e.target.value)}
+                                onChange={e => { setBusinessTypeId(e.target.value); setProductId(''); }}
                                 disabled={!isEditable}
                             >
                                 <option value="">Pilih Bidang...</option>
@@ -384,7 +394,9 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                                 disabled={!isEditable}
                             >
                                 <option value="">Pilih Produk...</option>
-                                {products.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                {products
+                                    .filter((p: any) => !businessTypeId || p.business_type_id === parseInt(businessTypeId))
+                                    .map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
                             </select>
                         </div>
                     </div>
@@ -426,7 +438,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                             <div key={idx} className="flex gap-2 items-center mb-2">
                                 <span className="flex-1 text-sm bg-gray-50 p-2.5 rounded-lg border border-gray-100">{opt.name}</span>
                                 <span className="w-1/3 text-sm bg-gray-50 p-2.5 rounded-lg border border-gray-100 text-right font-medium">{formatRupiah(opt.amount)}</span>
-                                {isEditable && (
+                                {canEditOptional && (
                                     <button onClick={() => removeOptionalCost(idx)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                                         <Trash className="w-4 h-4" />
                                     </button>
@@ -434,7 +446,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                             </div>
                         ))}
 
-                        {isEditable && (
+                        {canEditOptional && (
                             <div className="flex gap-2 mt-2">
                                 <input
                                     type="text"
