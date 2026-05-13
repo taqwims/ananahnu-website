@@ -38,6 +38,8 @@ type UserManagementUsecase interface {
 	DeleteUser(id uuid.UUID) error
 	ResetUserPassword(id uuid.UUID) (string, error) // Returns new plaintext password
 	ListRoles() ([]domain.Role, error)
+	GetReferrals(userID uuid.UUID) ([]domain.User, error)
+	GetAllReferralAnalytics() ([]map[string]interface{}, error)
 }
 
 type userManagementUsecase struct {
@@ -187,4 +189,12 @@ func (uc *userManagementUsecase) ResetUserPassword(id uuid.UUID) (string, error)
 
 func (uc *userManagementUsecase) ListRoles() ([]domain.Role, error) {
 	return uc.roleRepo.FindAll()
+}
+
+func (uc *userManagementUsecase) GetReferrals(userID uuid.UUID) ([]domain.User, error) {
+	return uc.userRepo.FindByReferredByID(userID)
+}
+
+func (uc *userManagementUsecase) GetAllReferralAnalytics() ([]map[string]interface{}, error) {
+	return uc.userRepo.GetAllReferralAnalytics()
 }

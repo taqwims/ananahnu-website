@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,8 +28,11 @@ type RegisterInput struct {
 	Email        string `json:"email" binding:"required,email"`
 	Password     string `json:"password" binding:"required,min=6"`
 	Role         string `json:"role" binding:"required"` // "HALAL_KONSULTAN"
-	Address       string     `json:"address"`
-	Phone         string     `json:"phone"`
+	Address       string     `json:"address" binding:"required"`
+	Phone         string     `json:"phone" binding:"required"`
+	ProvinceID    string     `json:"province_id" binding:"required"`
+	RegencyID     string     `json:"regency_id" binding:"required"`
+	ReferralCode string `json:"referral_code"`
 }
 
 type GenerateAccountInput struct {
@@ -63,6 +67,13 @@ func (uc *authUsecase) Login(email, password string) (string, string, *domain.Us
 
 	if !utils.CheckPasswordHash(password, user.PasswordHash) {
 		return "", "", nil, errors.New("invalid credentials")
+	}
+
+	// Auto-generate ReferralCode for existing users who don't have one
+	if user.ReferralCode == "" {
+		user.ReferralCode = uc.generateReferralCode(user.FullName)
+		// Best effort update, ignore error
+		_ = uc.userRepo.Update(user)
 	}
 
 	// Token Expiration
@@ -111,13 +122,34 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 
 	// 5. Create User
 	userID := uuid.New()
+	
+	// Handle Referral Code
+	var referredByID *uuid.UUID
+	if input.ReferralCode != "" {
+		referrer, err := uc.userRepo.FindByReferralCode(input.ReferralCode)
+		if err == nil && referrer != nil {
+			referredByID = &referrer.ID
+		} else {
+			return errors.New("invalid referral code")
+		}
+	}
+
+	pID, _ := strconv.ParseInt(input.ProvinceID, 10, 64)
+	rID, _ := strconv.ParseInt(input.RegencyID, 10, 64)
+
 	user := &domain.User{
 		ID:           userID,
 		Username:     input.Email,
 		Email:        input.Email,
 		PasswordHash: hash,
 		FullName:     input.FullName,
+		Phone:        input.Phone,
+		Address:      input.Address,
+		ProvinceID:   pID,
+		RegencyID:    rID,
 		RoleID:       role.ID,
+		ReferralCode: uc.generateReferralCode(input.FullName),
+		ReferredByID: referredByID,
 	}
 
 	if err := uc.userRepo.Create(user); err != nil {
@@ -228,4 +260,48 @@ func (uc *authUsecase) ResetPassword(tokenStr, newPassword string) error {
 
 	// Invalidate token
 	return uc.tokenRepo.Delete(tokenStr)
+}
+
+func (uc *authUsecase) generateReferralCode(fullName string) string {
+	words := strings.Fields(fullName)
+	var prefix string
+
+	if len(words) > 0 {
+		w1 := words[0]
+		// Ambil karakter indeks 0, 2, 4 dari kata pertama
+		for _, i := range []int{0, 2, 4} {
+			if i < len(w1) {
+				prefix += string(w1[i])
+			}
+		}
+	}
+
+	if len(words) > 1 {
+		w2 := words[1]
+		// Ambil karakter pertama dari kata kedua
+		if len(w2) > 0 {
+			prefix += string(w2[0])
+		}
+		// Ambil karakter terakhir dari kata kedua
+		if len(w2) > 1 {
+			prefix += string(w2[len(w2)-1])
+		}
+	}
+
+	prefix = strings.ToUpper(prefix)
+	if prefix == "" {
+		prefix = "USER"
+	}
+
+	code := prefix
+	counter := 2
+	for {
+		_, err := uc.userRepo.FindByReferralCode(code)
+		if err != nil {
+			// Record not found, so it's unique
+			return code
+		}
+		code = fmt.Sprintf("%s%d", prefix, counter)
+		counter++
+	}
 }

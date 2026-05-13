@@ -8,10 +8,11 @@ import (
 )
 
 type TrainingUsecase interface {
-	GetTrainings() ([]domain.Training, error)
+	GetTrainings(filter map[string]interface{}) ([]domain.Training, error)
 	GetTraining(id int64) (*domain.Training, error)
 	CreateTraining(training *domain.Training) error
 	UpdateTraining(training *domain.Training) error
+	UpdateTrainingStatus(id int64, status string, reason string) error
 	DeleteTraining(id int64) error
 
 	GetParticipants(trainingID int64) ([]domain.TrainingParticipant, error)
@@ -30,8 +31,8 @@ func NewTrainingUsecase(t domain.TrainingRepository, p domain.TrainingParticipan
 	return &trainingUsecase{trainingRepo: t, participantRepo: p}
 }
 
-func (uc *trainingUsecase) GetTrainings() ([]domain.Training, error) {
-	return uc.trainingRepo.FindAll()
+func (uc *trainingUsecase) GetTrainings(filter map[string]interface{}) ([]domain.Training, error) {
+	return uc.trainingRepo.FindAll(filter)
 }
 
 func (uc *trainingUsecase) GetTraining(id int64) (*domain.Training, error) {
@@ -47,6 +48,13 @@ func (uc *trainingUsecase) CreateTraining(training *domain.Training) error {
 
 func (uc *trainingUsecase) UpdateTraining(training *domain.Training) error {
 	return uc.trainingRepo.Update(training)
+}
+
+func (uc *trainingUsecase) UpdateTrainingStatus(id int64, status string, reason string) error {
+	if status != "APPROVED" && status != "REJECTED" && status != "PENDING" {
+		return errors.New("invalid status")
+	}
+	return uc.trainingRepo.UpdateStatus(id, status, reason)
 }
 
 func (uc *trainingUsecase) DeleteTraining(id int64) error {

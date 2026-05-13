@@ -5,6 +5,7 @@ import { loadSnapJs, isSnapReady } from '../../utils/midtrans';
 import { useAuthStore } from '../../store/authStore';
 import { formatRupiah } from '../../utils/format';
 import type { Submission, Payment, FormFieldValue } from '../../types';
+import FileUpload from './FileUpload';
 
 interface PaymentSectionProps {
     submission: Submission;
@@ -26,10 +27,22 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
     const user = useAuthStore((state) => state.user);
     const isEditable = user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR';
 
-    // Sync amount if submission cost detail changes
+    // Sync amount if submission cost detail changes or from invoice
     useEffect(() => {
-        if (submission.cost_detail?.total_amount) {
+        if (submission.invoice?.amount) {
+            setAmount(submission.invoice.amount);
+        } else if (submission.cost_detail?.total_amount) {
             setAmount(submission.cost_detail.total_amount);
+        } else if (submission.service_type === 'REGULER') {
+            setLoadingConfig(true);
+            api.get(`/invoices/submission/${submission.id}`)
+                .then(res => {
+                    if (res.data && res.data.amount) {
+                        setAmount(res.data.amount);
+                    }
+                })
+                .catch(err => console.error("Failed to load invoice amount", err))
+                .finally(() => setLoadingConfig(false));
         } else if (submission.service_type === 'SELF_DECLARE_MANDIRI') {
             setLoadingConfig(true);
             api.get('/system-settings/SD_MANDIRI_COST?default=280000')
@@ -40,7 +53,7 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                 .catch(err => console.error("Failed to load cost config", err))
                 .finally(() => setLoadingConfig(false));
         }
-    }, [submission.cost_detail?.total_amount, submission.service_type]);
+    }, [submission, submission.id, submission.cost_detail?.total_amount, submission.service_type]);
 
     // Load payment history for this submission
     const loadHistory = useCallback(async () => {
@@ -140,6 +153,12 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                 }
             } else {
                 // Manual payment
+                if (!proofUrl) {
+                    alert('Silakan pilih file bukti pembayaran atau masukkan URL.');
+                    setLoading(false);
+                    return;
+                }
+
                 await api.post('/payments/manual', {
                     submission_id: submission.id,
                     amount: amount,
@@ -309,18 +328,36 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                 </div>
             )}
 
-            {/* Manual payment: proof URL input */}
+            {/* Manual payment: file upload */}
             {method === 'MANUAL' && (
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">URL Bukti Pembayaran</label>
-                    <input
-                        type="text"
-                        className="glass-input"
-                        placeholder="https://example.com/bukti-transfer.jpg"
-                        value={proofUrl}
-                        onChange={(e) => setProofUrl(e.target.value)}
-                    />
-                    <p className="text-xs text-gray-400">Upload bukti transfer ke cloud storage lalu tempelkan URL-nya di sini.</p>
+                <div className="space-y-3">
+                    <label className="block text-sm font-medium text-gray-700">Bukti Pembayaran (Transfer)</label>
+                    <div className="flex flex-col gap-2">
+                        <FileUpload 
+                            subfolder="paymentproof" 
+                            label="Upload Bukti Transfer"
+                            onUploadSuccess={(url) => setProofUrl(url)}
+                        />
+                        {proofUrl && (
+                            <div className="flex items-center gap-2 p-2 bg-brand-50 text-brand-700 rounded-lg text-[10px] font-medium break-all">
+                                <CheckCircle className="w-3 h-3 shrink-0" />
+                                {proofUrl}
+                            </div>
+                        )}
+                        <div className="relative flex items-center gap-2 my-1">
+                            <div className="flex-1 h-px bg-gray-200"></div>
+                            <span className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Atau Masukkan URL</span>
+                            <div className="flex-1 h-px bg-gray-200"></div>
+                        </div>
+                        <input
+                            type="text"
+                            className="glass-input text-xs"
+                            placeholder="https://example.com/bukti-transfer.jpg"
+                            value={proofUrl.startsWith('http') || proofUrl.startsWith('/') ? proofUrl : ''}
+                            onChange={(e) => setProofUrl(e.target.value)}
+                        />
+                    </div>
+                    <p className="text-[10px] text-gray-400">Pastikan bukti transfer terlihat jelas mencantumkan nominal dan tanggal.</p>
                 </div>
             )}
 

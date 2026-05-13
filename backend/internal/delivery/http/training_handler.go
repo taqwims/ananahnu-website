@@ -1,6 +1,7 @@
 package http
 
 import (
+	"ananahnu/internal/delivery/middleware"
 	"ananahnu/internal/domain"
 	"ananahnu/internal/usecase"
 	"net/http"
@@ -18,12 +19,14 @@ func NewTrainingHandler(r *gin.Engine, uc usecase.TrainingUsecase) {
 	handler := &TrainingHandler{trainingUC: uc}
 
 	g := r.Group("/trainings")
+	g.Use(middleware.AuthMiddleware())
 	{
 		g.GET("/", handler.GetTrainings)
 		g.GET("/:id", handler.GetTraining)
 		g.POST("/", handler.CreateTraining)
 		g.PUT("/:id", handler.UpdateTraining)
 		g.DELETE("/:id", handler.DeleteTraining)
+		g.PUT("/:id/status", handler.UpdateStatus)
 
 		// Participants
 		g.GET("/:id/participants", handler.GetParticipants)
@@ -37,7 +40,15 @@ func NewTrainingHandler(r *gin.Engine, uc usecase.TrainingUsecase) {
 }
 
 func (h *TrainingHandler) GetTrainings(c *gin.Context) {
-	trainings, err := h.trainingUC.GetTrainings()
+	filter := make(map[string]interface{})
+	if status := c.Query("status"); status != "" {
+		filter["status"] = status
+	}
+	if proposedBy := c.Query("proposed_by"); proposedBy != "" {
+		filter["proposed_by"] = proposedBy
+	}
+
+	trainings, err := h.trainingUC.GetTrainings(filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -61,11 +72,49 @@ func (h *TrainingHandler) CreateTraining(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	role := middleware.GetUserRole(c)
+	userID := middleware.GetUserID(c)
+
+	if role == "KOORDINATOR" {
+		input.Status = "PENDING"
+		input.ProposedBy = &userID
+	} else if role == "ADMIN_PELATIHAN" || role == "MANAGER" || role == "DIRECTOR" {
+		input.Status = "APPROVED"
+	} else {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only coordinator or admin can create training"})
+		return
+	}
+
 	if err := h.trainingUC.CreateTraining(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusCreated, input)
+}
+
+func (h *TrainingHandler) UpdateStatus(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	var input struct {
+		Status string `json:"status" binding:"required"`
+		Reason string `json:"reason"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	role := middleware.GetUserRole(c)
+	if role != "ADMIN_PELATIHAN" && role != "MANAGER" && role != "DIRECTOR" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "only admin can update training status"})
+		return
+	}
+
+	if err := h.trainingUC.UpdateTrainingStatus(id, input.Status, input.Reason); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "status updated"})
 }
 
 func (h *TrainingHandler) UpdateTraining(c *gin.Context) {

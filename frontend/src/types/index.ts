@@ -2,10 +2,13 @@ export interface User {
     id: string;
     email: string;
     full_name: string;
+    phone?: string;
+    address?: string;
     role: string;
     role_id?: number;
     leader_id?: string;
     leader?: User;
+    referral_code?: string;
     created_at?: string;
     updated_at?: string;
 }
@@ -67,6 +70,7 @@ export interface Submission {
     regency_id?: number;
     district_id?: number;
     payments?: Payment[];
+    invoice?: Invoice;
     field_values?: FormFieldValue[];
     cost_detail?: SubmissionCostDetail;
     sh_url?: string;
@@ -144,6 +148,10 @@ export interface Training {
     start_date: string;
     end_date: string;
     location: string;
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    proposed_by?: string;
+    proposer?: User;
+    rejected_reason?: string;
     participants?: TrainingParticipant[];
     created_at: string;
 }

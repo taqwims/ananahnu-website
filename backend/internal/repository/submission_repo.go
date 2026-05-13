@@ -21,7 +21,7 @@ func (r *submissionRepository) Create(submission *domain.Submission) error {
 
 func (r *submissionRepository) FindByID(id uuid.UUID) (*domain.Submission, error) {
 	var submission domain.Submission
-	if err := r.db.Preload("Client").Preload("Payments").Preload("AssignedDrafter").Preload("Consultant").First(&submission, "id = ?", id).Error; err != nil {
+	if err := r.db.Preload("Client").Preload("Payments").Preload("Invoice").Preload("CostDetail").Preload("AssignedDrafter").Preload("Consultant").First(&submission, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &submission, nil
@@ -84,7 +84,7 @@ func (r *submissionRepository) UpdateTrackingNumber(id uuid.UUID, trackingNumber
 
 func (r *submissionRepository) FindByTrackingNumber(trackingNumber string) (*domain.Submission, error) {
 	var submission domain.Submission
-	if err := r.db.Preload("Client").Preload("AssignedDrafter").Preload("Consultant").First(&submission, "tracking_number = ?", trackingNumber).Error; err != nil {
+	if err := r.db.Preload("Client").Preload("Invoice").Preload("CostDetail").Preload("AssignedDrafter").Preload("Consultant").First(&submission, "tracking_number = ?", trackingNumber).Error; err != nil {
 		return nil, err
 	}
 	return &submission, nil

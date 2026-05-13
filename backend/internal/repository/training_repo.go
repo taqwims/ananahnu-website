@@ -17,9 +17,19 @@ func NewTrainingRepository(db *gorm.DB) domain.TrainingRepository {
 	return &trainingRepository{db: db}
 }
 
-func (r *trainingRepository) FindAll() ([]domain.Training, error) {
+func (r *trainingRepository) FindAll(filter map[string]interface{}) ([]domain.Training, error) {
 	var trainings []domain.Training
-	if err := r.db.Order("start_date DESC").Find(&trainings).Error; err != nil {
+	query := r.db.Preload("Proposer").Order("start_date DESC")
+	
+	if status, ok := filter["status"]; ok {
+		query = query.Where("status = ?", status)
+	}
+	
+	if proposedBy, ok := filter["proposed_by"]; ok {
+		query = query.Where("proposed_by = ?", proposedBy)
+	}
+
+	if err := query.Find(&trainings).Error; err != nil {
 		return nil, err
 	}
 	return trainings, nil
@@ -27,7 +37,7 @@ func (r *trainingRepository) FindAll() ([]domain.Training, error) {
 
 func (r *trainingRepository) FindByID(id int64) (*domain.Training, error) {
 	var training domain.Training
-	if err := r.db.Preload("Participants.User").First(&training, id).Error; err != nil {
+	if err := r.db.Preload("Proposer").Preload("Participants.User").First(&training, id).Error; err != nil {
 		return nil, err
 	}
 	return &training, nil
@@ -39,6 +49,16 @@ func (r *trainingRepository) Create(training *domain.Training) error {
 
 func (r *trainingRepository) Update(training *domain.Training) error {
 	return r.db.Save(training).Error
+}
+
+func (r *trainingRepository) UpdateStatus(id int64, status string, reason string) error {
+	updates := map[string]interface{}{
+		"status": status,
+	}
+	if reason != "" {
+		updates["rejected_reason"] = reason
+	}
+	return r.db.Model(&domain.Training{}).Where("id = ?", id).Updates(updates).Error
 }
 
 func (r *trainingRepository) Delete(id int64) error {

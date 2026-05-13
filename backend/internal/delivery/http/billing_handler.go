@@ -37,7 +37,12 @@ func NewBillingHandler(r *gin.Engine, bUC usecase.BillingUsecase, pUC usecase.Pa
 		{
 			adminOnly.GET("/all-invoices", handler.GetAllInvoices)
 			adminOnly.PUT("/:id/mark-paid", handler.MarkInvoicePaid)
+
+			// Referral Commissions
+			adminOnly.GET("/referral-commissions", handler.GetReferralCommissions)
+			adminOnly.PUT("/referral-commissions/:id/pay", handler.PayReferralCommission)
 		}
+
 		
 		// Admin/Finance only for configs
 		adminGroup := g.Group("/configs")
@@ -189,3 +194,36 @@ func (h *BillingHandler) MarkInvoicePaid(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "invoice marked as paid"})
 }
+
+func (h *BillingHandler) GetReferralCommissions(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
+	status := c.Query("status")
+
+	commissions, total, err := h.billingUC.GetReferralCommissions(page, limit, status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":  commissions,
+		"total": total,
+	})
+}
+
+func (h *BillingHandler) PayReferralCommission(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	if err := h.billingUC.PayReferralCommission(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "commission marked as paid"})
+}
+

@@ -39,8 +39,10 @@ type Submission struct {
 	RejectNote          string           `json:"reject_note,omitempty"`
 	TrackingNumber      string           `gorm:"uniqueIndex" json:"tracking_number,omitempty"`
 	SHURL               string           `json:"sh_url,omitempty"`
-	Payments            []Payment        `gorm:"foreignKey:SubmissionID" json:"payments"`
-	FieldValues         []FormFieldValue `gorm:"foreignKey:SubmissionID" json:"field_values,omitempty"`
+	Payments            []Payment             `gorm:"foreignKey:SubmissionID" json:"payments"`
+	Invoice             *Invoice              `gorm:"foreignKey:SubmissionID" json:"invoice,omitempty"`
+	CostDetail          *SubmissionCostDetail `gorm:"foreignKey:SubmissionID" json:"cost_detail,omitempty"`
+	FieldValues         []FormFieldValue      `gorm:"foreignKey:SubmissionID" json:"field_values,omitempty"`
 	CreatedAt           time.Time        `json:"created_at"`
 	UpdatedAt           time.Time        `json:"updated_at"`
 }

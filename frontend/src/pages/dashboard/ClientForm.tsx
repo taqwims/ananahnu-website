@@ -3,8 +3,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Save, Loader2, User, Briefcase, MapPin, Phone, Hash } from 'lucide-react';
+import { ChevronLeft, Save, Loader2, User, Briefcase, MapPin, Phone, Hash, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
+
 
 const clientSchema = z.object({
     nib: z.string().min(13, "NIB must be 13 digits").max(13, "NIB must be 13 digits"),
@@ -25,6 +27,10 @@ export default function ClientForm() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(!!id);
+    const [isVerified, setIsVerified] = useState<boolean | null>(null);
+    const [verStatus, setVerStatus] = useState<{ profile: boolean; training: boolean } | null>(null);
+    const { user } = useAuthStore();
+
 
     const { register, handleSubmit, formState: { errors }, reset } = useForm<ClientFormValues>({
         resolver: zodResolver(clientSchema),
@@ -34,6 +40,32 @@ export default function ClientForm() {
     });
 
     useEffect(() => {
+        const checkVerification = async () => {
+            if (user?.role === 'HALAL_KONSULTAN') {
+                try {
+                    // 1. Check Profile Verification
+                    const profileRes = await api.get(`/consultant/profile/${user.id}`);
+                    const profileVerified = profileRes.data?.is_verified ?? false;
+                    console.log("[DEBUG] Profile Verification:", profileVerified);
+
+                    // 2. Check Training Graduation
+                    const trainingRes = await api.get(`/user-trainings/${user.id}`);
+                    const trainings = trainingRes.data || [];
+                    const isGraduated = trainings.some((t: any) => t.status === 'LULUS');
+                    console.log("[DEBUG] Training Graduation:", isGraduated);
+
+                    setVerStatus({ profile: profileVerified, training: isGraduated });
+                    setIsVerified(profileVerified && isGraduated);
+                } catch (err) {
+                    console.error("[DEBUG] Verification check failed:", err);
+                    setIsVerified(false);
+                }
+            } else {
+                setIsVerified(true);
+            }
+        };
+        checkVerification();
+
         if (id) {
             api.get(`/clients/${id}`)
                 .then(res => {
@@ -41,7 +73,8 @@ export default function ClientForm() {
                 })
                 .finally(() => setInitialLoading(false));
         }
-    }, [id, reset]);
+    }, [id, reset, user]);
+
 
     const onSubmit = async (data: ClientFormValues) => {
         setLoading(true);
@@ -73,6 +106,22 @@ export default function ClientForm() {
                     <p className="text-gray-500 font-medium mt-0.5">Lengkapi data pelaku usaha untuk sertifikasi halal</p>
                 </div>
             </div>
+
+            {isVerified === false && (
+                <div className="bg-red-50 border border-red-100 p-4 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+                    <div className="p-2 bg-red-100 rounded-lg text-red-600">
+                        <AlertCircle className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-bold text-red-900">Akses Dibatasi</h4>
+                        <p className="text-xs text-red-700 mt-1 leading-relaxed">
+                            Mohon maaf, Anda belum dapat mendaftarkan klien baru. Pastikan status verifikasi akun Anda <b>{verStatus?.profile ? 'Terverifikasi' : 'Belum Terverifikasi'}</b> dan status kelulusan pelatihan Anda <b>{verStatus?.training ? 'Lulus' : 'Belum Lulus'}</b>.
+                            Silakan cek status di <span className="font-bold cursor-pointer underline" onClick={() => navigate('/dashboard/consultant-profile')}>Profil Konsultan</span>.
+                        </p>
+                    </div>
+                </div>
+            )}
+
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
                 {/* Section: Identitas Pemilik */}
@@ -181,10 +230,19 @@ export default function ClientForm() {
                     <button type="button" onClick={() => navigate('/dashboard/clients')} className="px-8 py-3 rounded-2xl text-gray-500 hover:bg-gray-100 font-bold transition-all">
                         Batal
                     </button>
-                    <button type="submit" disabled={loading} className="px-10 py-3 bg-brand-900 text-white rounded-2xl font-black shadow-xl shadow-brand-100 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 disabled:opacity-50">
+                    <button 
+                        type="submit" 
+                        disabled={loading || isVerified === false} 
+                        className={`px-10 py-3 rounded-2xl font-black shadow-xl flex items-center gap-2 transition-all ${
+                            isVerified === false 
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200 shadow-none' 
+                            : 'bg-brand-900 text-white shadow-brand-100 hover:scale-[1.02] active:scale-[0.98]'
+                        }`}
+                    >
                         {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                         Simpan Data Klien
                     </button>
+
                 </div>
             </form>
         </div>

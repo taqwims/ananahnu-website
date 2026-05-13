@@ -55,9 +55,11 @@ type submissionWorkflowUsecase struct {
 	rateRepo          domain.CoordinatorRateRepository
 	fieldValueRepo    domain.FormFieldValueRepository
 	billingConfigRepo domain.BillingConfigRepository
+	consultantRepo    domain.ConsultantProfileRepository
+	participantRepo   domain.TrainingParticipantRepository
 }
 
-func NewSubmissionWorkflowUsecase(s domain.SubmissionRepository, c domain.ClientRepository, r domain.RoleRepository, a domain.AuditLogRepository, u domain.UserRepository, n NotificationUsecase, i domain.InvoiceRepository, rate domain.CoordinatorRateRepository, fv domain.FormFieldValueRepository, bc domain.BillingConfigRepository) SubmissionWorkflowUsecase {
+func NewSubmissionWorkflowUsecase(s domain.SubmissionRepository, c domain.ClientRepository, r domain.RoleRepository, a domain.AuditLogRepository, u domain.UserRepository, n NotificationUsecase, i domain.InvoiceRepository, rate domain.CoordinatorRateRepository, fv domain.FormFieldValueRepository, bc domain.BillingConfigRepository, con domain.ConsultantProfileRepository, p domain.TrainingParticipantRepository) SubmissionWorkflowUsecase {
 	return &submissionWorkflowUsecase{
 		submissionRepo:    s,
 		clientRepo:        c,
@@ -69,6 +71,8 @@ func NewSubmissionWorkflowUsecase(s domain.SubmissionRepository, c domain.Client
 		rateRepo:          rate,
 		fieldValueRepo:    fv,
 		billingConfigRepo: bc,
+		consultantRepo:    con,
+		participantRepo:   p,
 	}
 }
 
@@ -84,6 +88,52 @@ func (uc *submissionWorkflowUsecase) logChange(id uuid.UUID, userID uuid.UUID, a
 		Notes:      "Status change: " + string(oldStatus) + " -> " + string(newStatus) + ". " + note,
 	})
 }
+
+func (uc *submissionWorkflowUsecase) checkVerification(userID uuid.UUID) error {
+	user, err := uc.userRepo.FindByID(userID)
+	if err != nil {
+		return err
+	}
+
+	// Only check verification for consultants
+	if user.Role.Name == "HALAL_KONSULTAN" {
+		// 1. Check Profile Verification
+		profile, err := uc.consultantRepo.FindByUserID(userID)
+		if err != nil || profile == nil || !profile.IsVerified {
+			return errors.New("akun Anda belum terverifikasi. Silakan lengkapi profil dan tunggu verifikasi data oleh admin")
+		}
+
+		// 2. Check Training Graduation
+		trainings, err := uc.participantRepo.FindByUser(userID)
+		isGraduated := false
+		if err == nil {
+			log.Printf("[DEBUG] User %s has %d training records", userID, len(trainings))
+			for _, t := range trainings {
+				log.Printf("[DEBUG] Training %d: Status=%s", t.TrainingID, t.Status)
+				if t.Status == "LULUS" {
+					isGraduated = true
+					break
+				}
+			}
+		} else {
+			log.Printf("[DEBUG] Error fetching trainings for user %s: %v", userID, err)
+		}
+
+		log.Printf("[DEBUG] Consultant check result for user %s: ProfileVerified=%v, IsGraduated=%v", userID, profile.IsVerified, isGraduated)
+
+		if !profile.IsVerified && !isGraduated {
+			return errors.New("Akses Dibatasi: Akun Anda belum diverifikasi admin DAN Anda belum dinyatakan lulus pelatihan.")
+		}
+		if !profile.IsVerified {
+			return errors.New("Akses Dibatasi: Akun Anda belum diverifikasi oleh admin. Silakan lengkapi dokumen di Profil Konsultan.")
+		}
+		if !isGraduated {
+			return errors.New("Akses Dibatasi: Anda belum dinyatakan lulus pelatihan. Silakan pastikan status kelulusan Anda di menu Pelatihan.")
+		}
+	}
+	return nil
+}
+
 
 func (uc *submissionWorkflowUsecase) CreateDraft(clientID *uuid.UUID, businessName string, serviceType string, facilitatorID uuid.UUID) (*domain.Submission, error) {
 	var actualClientID uuid.UUID
@@ -106,6 +156,11 @@ func (uc *submissionWorkflowUsecase) CreateDraft(clientID *uuid.UUID, businessNa
 	} else {
 		return nil, errors.New("either client_id or business_name is required")
 	}
+
+	if err := uc.checkVerification(facilitatorID); err != nil {
+		return nil, err
+	}
+
 
 	submission := &domain.Submission{
 		ID:          uuid.New(),
@@ -591,7 +646,12 @@ func (uc *submissionWorkflowUsecase) GetHistory(id uuid.UUID) ([]domain.AuditLog
 	return uc.auditRepo.FindLogsByEntity("SUBMISSION", id.String())
 }
 func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uuid.UUID, userRole string) (*domain.Submission, error) {
+	if err := uc.checkVerification(userID); err != nil {
+		return nil, err
+	}
+
 	// 1. Create or Find Client
+
 	client := &domain.Client{
 		NIB:           input.ClientData.NIB,
 		NIK:           input.ClientData.NIK,

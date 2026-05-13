@@ -65,6 +65,8 @@ export default function SubmissionList() {
     const [isGrouped, setIsGrouped] = useState(true); // Default grouped
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newSub, setNewSub] = useState({ businessName: '', serviceType: 'SELF_DECLARE' });
+    const [isVerified, setIsVerified] = useState<boolean | null>(null);
+
 
     const [sortKey, setSortKey] = useState<SortKey>('created_at');
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -88,7 +90,29 @@ export default function SubmissionList() {
 
     useEffect(() => {
         fetchSubmissions();
-    }, []);
+        const checkVerification = async () => {
+            if (user?.role === 'HALAL_KONSULTAN') {
+                try {
+                    // 1. Check Profile Verification
+                    const profileRes = await api.get(`/consultant/profile/${user.id}`);
+                    const profileVerified = profileRes.data?.is_verified ?? false;
+
+                    // 2. Check Training Graduation
+                    const trainingRes = await api.get(`/user-trainings/${user.id}`);
+                    const trainings = trainingRes.data || [];
+                    const isGraduated = trainings.some((t: any) => t.status === 'LULUS');
+
+                    setIsVerified(profileVerified && isGraduated);
+                } catch (err) {
+                    setIsVerified(false);
+                }
+            } else {
+                setIsVerified(true);
+            }
+        };
+        checkVerification();
+    }, [user]);
+
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
@@ -201,14 +225,27 @@ export default function SubmissionList() {
                 </div>
 
                 {user?.role !== 'DRAFTER' && user?.role !== 'QC_OFFICER' && user?.role !== 'VERIFIKATOR' && (
-                    <button
-                        onClick={() => setShowCreateModal(true)}
-                        className="group relative px-6 py-3 bg-brand-900 text-white rounded-2xl font-bold shadow-xl shadow-brand-100 hover:scale-[1.02] transition-all flex items-center gap-2 overflow-hidden"
-                    >
-                        <Plus className="w-5 h-5" />
-                        Buat Pengajuan Baru
-                    </button>
+                    <div className="relative group">
+                        <button
+                            onClick={() => isVerified !== false && setShowCreateModal(true)}
+                            disabled={isVerified === false}
+                            className={`group relative px-6 py-3 rounded-2xl font-bold shadow-xl flex items-center gap-2 overflow-hidden transition-all ${
+                                isVerified === false 
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200 shadow-none' 
+                                : 'bg-brand-900 text-white shadow-brand-100 hover:scale-[1.02]'
+                            }`}
+                        >
+                            <Plus className="w-5 h-5" />
+                            Buat Pengajuan Baru
+                        </button>
+                        {isVerified === false && (
+                            <div className="absolute top-full mt-2 right-0 w-72 bg-red-600 text-white text-[10px] p-2 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none font-bold text-center">
+                                Akses Dibatasi: Akun harus terverifikasi DAN lulus pelatihan sebelum dapat membuat pengajuan.
+                            </div>
+                        )}
+                    </div>
                 )}
+
             </div>
 
             {/* Quick Stats Bar */}

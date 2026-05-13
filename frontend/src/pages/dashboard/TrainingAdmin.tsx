@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { GraduationCap, Plus, Loader2, Users, CheckCircle, Clock, MapPin, Calendar, Trash2 } from 'lucide-react';
+import { GraduationCap, Plus, Loader2, Users, CheckCircle, Clock, MapPin, Calendar, Trash2, XCircle, Info, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
 import type { Training, TrainingParticipant } from '../../types';
 import { useAuthStore } from '../../store/authStore';
@@ -21,6 +21,8 @@ export default function TrainingAdmin() {
 
     const loadTrainings = () => {
         setLoading(true);
+        // If coordinator, they can see all approved trainings OR their own pending trainings
+        // Actually, let's just let them see everything for now, or filter by status
         api.get('/trainings/').then(res => setTrainings(res.data || []))
             .catch(() => setTrainings([]))
             .finally(() => setLoading(false));
@@ -101,7 +103,34 @@ export default function TrainingAdmin() {
 
     const selectTraining = (t: Training) => {
         setSelectedTraining(t);
-        loadParticipants(t.id);
+        if (t.status === 'APPROVED') {
+            loadParticipants(t.id);
+        } else {
+            setParticipants([]);
+        }
+    };
+
+    const handleApprove = async (id: number) => {
+        if (!confirm('Setujui pengajuan pelatihan ini?')) return;
+        try {
+            await api.put(`/trainings/${id}/status`, { status: 'APPROVED' });
+            loadTrainings();
+            if (selectedTraining?.id === id) setSelectedTraining({ ...selectedTraining, status: 'APPROVED' });
+        } catch (err: any) {
+            alert(err.response?.data?.error || 'Gagal menyetujui');
+        }
+    };
+
+    const handleReject = async (id: number) => {
+        const reason = prompt('Alasan penolakan:');
+        if (reason === null) return;
+        try {
+            await api.put(`/trainings/${id}/status`, { status: 'REJECTED', reason });
+            loadTrainings();
+            if (selectedTraining?.id === id) setSelectedTraining({ ...selectedTraining, status: 'REJECTED', rejected_reason: reason });
+        } catch (err: any) {
+            alert(err.response?.data?.error || 'Gagal menolak');
+        }
     };
 
     const formatDate = (d: string) => new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -116,11 +145,9 @@ export default function TrainingAdmin() {
                     </h1>
                     <p className="text-sm text-gray-500 mt-1">Kelola jadwal pelatihan dan peserta</p>
                 </div>
-                {!isCoordinator && (
-                    <button onClick={() => setShowForm(true)} className="glass-button flex items-center gap-2 text-sm">
-                        <Plus className="w-4 h-4" /> Buat Pelatihan
-                    </button>
-                )}
+                <button onClick={() => setShowForm(true)} className="glass-button flex items-center gap-2 text-sm">
+                    <Plus className="w-4 h-4" /> {isCoordinator ? 'Ajukan Pelatihan' : 'Buat Pelatihan'}
+                </button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -139,7 +166,19 @@ export default function TrainingAdmin() {
                             }`}
                         >
                             <div className="flex items-start justify-between">
-                                <h3 className="font-semibold text-gray-800 text-sm">{t.title}</h3>
+                                <div>
+                                    <h3 className="font-semibold text-gray-800 text-sm">{t.title}</h3>
+                                    <div className={`mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                        t.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                                        t.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                                        'bg-amber-100 text-amber-700'
+                                    }`}>
+                                        {t.status === 'APPROVED' ? <CheckCircle className="w-3 h-3" /> : 
+                                         t.status === 'REJECTED' ? <XCircle className="w-3 h-3" /> :
+                                         <Clock className="w-3 h-3" />}
+                                        {t.status}
+                                    </div>
+                                </div>
                                 {!isCoordinator && (
                                     <button
                                         onClick={e => { e.stopPropagation(); handleDelete(t.id); }}
@@ -166,9 +205,50 @@ export default function TrainingAdmin() {
                         </div>
                     ) : (
                         <div className="glass-panel p-6 space-y-4">
-                            <h2 className="text-lg font-semibold text-gray-800">
-                                Peserta — {selectedTraining.title}
-                            </h2>
+                            <div className="flex items-start justify-between border-b border-gray-100 pb-4 mb-4">
+                                <div>
+                                    <h2 className="text-lg font-bold text-gray-800">{selectedTraining.title}</h2>
+                                    <p className="text-sm text-gray-500 mt-1">{selectedTraining.description}</p>
+                                    {selectedTraining.proposer && (
+                                        <p className="text-xs text-brand-600 mt-2 flex items-center gap-1 font-medium">
+                                            <Info className="w-3 h-3" /> Diajukan oleh: {selectedTraining.proposer.full_name}
+                                        </p>
+                                    )}
+                                </div>
+                                
+                                {selectedTraining.status === 'PENDING' && !isCoordinator && (
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={() => handleReject(selectedTraining.id)}
+                                            className="px-3 py-1.5 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-xs font-bold transition"
+                                        >
+                                            Tolak
+                                        </button>
+                                        <button 
+                                            onClick={() => handleApprove(selectedTraining.id)}
+                                            className="px-3 py-1.5 bg-green-600 text-white hover:bg-green-700 rounded-lg text-xs font-bold transition shadow-sm"
+                                        >
+                                            Setujui
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {selectedTraining.status === 'REJECTED' && (
+                                <div className="bg-red-50 border border-red-100 rounded-xl p-4 mb-4 flex items-start gap-3">
+                                    <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="text-sm font-bold text-red-800">Pelatihan Ditolak</p>
+                                        <p className="text-xs text-red-600 mt-1">Alasan: {selectedTraining.rejected_reason || 'Tidak ada alasan spesifik'}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {selectedTraining.status === 'APPROVED' ? (
+                                <>
+                                    <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                        <Users className="w-4 h-4" /> Daftar Peserta
+                                    </h3>
 
                             {/* Add Participant */}
                             <div className="flex flex-col sm:flex-row gap-2">
@@ -231,6 +311,14 @@ export default function TrainingAdmin() {
                                     ))}
                                 </div>
                             )}
+                            </>
+                            ) : (
+                                <div className="py-12 text-center text-gray-400">
+                                    <Clock className="w-12 h-12 mx-auto mb-3 text-gray-200" />
+                                    <p className="text-sm">Pelatihan ini masih dalam status <span className="font-bold">{selectedTraining.status}</span></p>
+                                    <p className="text-xs mt-1">Hanya pelatihan yang sudah disetujui (APPROVED) yang dapat dikelola pesertanya.</p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -240,7 +328,7 @@ export default function TrainingAdmin() {
             {showForm && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in duration-200">
-                        <h3 className="text-lg font-bold text-gray-900">Buat Pelatihan Baru</h3>
+                        <h3 className="text-lg font-bold text-gray-900">{isCoordinator ? 'Ajukan Pelatihan Baru' : 'Buat Pelatihan Baru'}</h3>
                         <div className="space-y-3">
                             <input className="glass-input" placeholder="Judul Pelatihan" value={form.title}
                                 onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
@@ -266,7 +354,7 @@ export default function TrainingAdmin() {
                             <button onClick={handleCreate} disabled={saving || !form.title}
                                 className="glass-button flex items-center gap-2 disabled:opacity-50">
                                 {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                                Buat
+                                {isCoordinator ? 'Ajukan' : 'Buat'}
                             </button>
                         </div>
                     </div>

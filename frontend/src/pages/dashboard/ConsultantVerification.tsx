@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, CheckCircle, XCircle, Eye, Loader2, Search, User, FileText, ExternalLink, AlertCircle, Mail, Clock } from 'lucide-react';
+import { Shield, CheckCircle, XCircle, Eye, Loader2, Search, User, FileText, ExternalLink, AlertCircle, Mail, Clock, Phone, MapPin } from 'lucide-react';
 import api from '../../services/api';
 import type { ConsultantProfile } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -166,11 +166,21 @@ export default function ConsultantVerification() {
                                         </div>
                                         <div>
                                             <h2 className="text-2xl font-black text-gray-900 tracking-tight">{selectedProfile.user?.full_name}</h2>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <Mail className="w-3 h-3 text-gray-400" />
-                                                <span className="text-sm text-gray-500">{selectedProfile.user?.email}</span>
+                                            <div className="flex flex-col gap-1.5 mt-2">
+                                                <div className="flex items-center gap-2">
+                                                    <Mail className="w-3 h-3 text-gray-400" />
+                                                    <span className="text-sm text-gray-500">{selectedProfile.user?.email}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Phone className="w-3 h-3 text-gray-400" />
+                                                    <span className="text-sm text-gray-500">{selectedProfile.user?.phone || '-'}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <MapPin className="w-3 h-3 text-gray-400" />
+                                                    <span className="text-sm text-gray-500">{selectedProfile.user?.address || '-'}</span>
+                                                </div>
                                             </div>
-                                            <div className={`mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                            <div className={`mt-4 inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                                                 selectedProfile.is_verified ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
                                             }`}>
                                                 {selectedProfile.is_verified ? <CheckCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
@@ -233,7 +243,7 @@ export default function ConsultantVerification() {
                                                         </div>
                                                         {url ? (
                                                             <a 
-                                                                href={url as string} 
+                                                                href={typeof url === 'string' && url.startsWith('http') ? url : `${import.meta.env.VITE_API_URL}${url}`} 
                                                                 target="_blank" 
                                                                 rel="noopener noreferrer"
                                                                 className="p-2 rounded-lg bg-white text-indigo-600 shadow-sm hover:bg-indigo-600 hover:text-white transition-all"

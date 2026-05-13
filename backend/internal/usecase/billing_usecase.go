@@ -16,6 +16,11 @@ type BillingUsecase interface {
 	MarkInvoicePaid(invoiceID int64) error
 	RemindPayment(invoiceID int64, senderID uuid.UUID) error
 
+	// Referral Commissions
+	GetReferralCommissions(page, limit int, status string) ([]domain.ReferralCommission, int64, error)
+	PayReferralCommission(id uuid.UUID) error
+
+
 	// Payment Config
 	GetPaymentConfigs() ([]domain.PaymentConfig, error)
 	GetPaymentConfigsByService(serviceType string) ([]domain.PaymentConfig, error)
@@ -25,15 +30,27 @@ type BillingUsecase interface {
 }
 
 type billingUsecase struct {
-	invoiceRepo domain.InvoiceRepository
-	configRepo  domain.PaymentConfigRepository
-	rateRepo    domain.BillingRateRepository
-	userRepo    domain.UserRepository
-	notifUC     NotificationUsecase
+	invoiceRepo    domain.InvoiceRepository
+	configRepo     domain.PaymentConfigRepository
+	rateRepo       domain.BillingRateRepository
+	userRepo       domain.UserRepository
+	notifUC        NotificationUsecase
+	commissionRepo domain.ReferralCommissionRepository
+	settingRepo    domain.SystemSettingRepository
+	submissionRepo domain.SubmissionRepository
 }
 
-func NewBillingUsecase(i domain.InvoiceRepository, c domain.PaymentConfigRepository, r domain.BillingRateRepository, u domain.UserRepository, n NotificationUsecase) BillingUsecase {
-	return &billingUsecase{invoiceRepo: i, configRepo: c, rateRepo: r, userRepo: u, notifUC: n}
+func NewBillingUsecase(i domain.InvoiceRepository, c domain.PaymentConfigRepository, r domain.BillingRateRepository, u domain.UserRepository, n NotificationUsecase, com domain.ReferralCommissionRepository, s domain.SystemSettingRepository, sub domain.SubmissionRepository) BillingUsecase {
+	return &billingUsecase{
+		invoiceRepo:    i,
+		configRepo:     c,
+		rateRepo:       r,
+		userRepo:       u,
+		notifUC:        n,
+		commissionRepo: com,
+		settingRepo:    s,
+		submissionRepo: sub,
+	}
 }
 
 func (uc *billingUsecase) GetMyInvoices(userID uuid.UUID, roleName string, status string, page, limit int) ([]domain.Invoice, int64, error) {
@@ -112,7 +129,7 @@ func (uc *billingUsecase) CreateInvoiceForSubmission(submissionID uuid.UUID, ser
 }
 
 func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
-	invoices, _, err := uc.invoiceRepo.FindAll(map[string]interface{}{"id": invoiceID}, 0, 0)
+	invoices, _, err := uc.invoiceRepo.FindAll(map[string]interface{}{"id": invoiceID}, 1, 1)
 	if err != nil || len(invoices) == 0 {
 		return fmt.Errorf("invoice not found")
 	}
@@ -122,8 +139,69 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 	now := time.Now()
 	invoice.PaidAt = &now
 
-	return uc.invoiceRepo.Update(invoice)
+	if err := uc.invoiceRepo.Update(invoice); err != nil {
+		return err
+	}
+
+	// Trigger Referral Fee check
+	// We need to reload invoice to get submission details if not preloaded
+	sub, err := uc.submissionRepo.FindByID(invoice.SubmissionID)
+	if err == nil && sub != nil && sub.Status == domain.StatusSHTerbit {
+		// Get the user who is the "referred" one.
+		// Usually the ConsultantID or the person who created the client.
+		// Let's check ConsultantID first.
+		var referredID uuid.UUID
+		if sub.ConsultantID != nil {
+			referredID = *sub.ConsultantID
+		}
+
+		if referredID != uuid.Nil {
+			user, _ := uc.userRepo.FindByID(referredID)
+			if user != nil && user.ReferredByID != nil {
+				// This user was referred! Create a commission for the referrer.
+				
+				// Get Fee from settings
+				feeStr := "0"
+				setting, _ := uc.settingRepo.GetSetting("REFERRAL_FEE_PER_SH")
+				if setting != nil {
+					feeStr = setting.Value
+				}
+				
+				var feeAmount float64
+				fmt.Sscanf(feeStr, "%f", &feeAmount)
+
+				if feeAmount > 0 {
+					commission := &domain.ReferralCommission{
+						ID:           uuid.New(),
+						ReferrerID:   *user.ReferredByID,
+						ReferredID:   user.ID,
+						SubmissionID: sub.ID,
+						Amount:       feeAmount,
+						Status:       domain.CommissionStatusPending,
+						CreatedAt:    time.Now(),
+					}
+					_ = uc.commissionRepo.Create(commission)
+				}
+			}
+		}
+	}
+
+	return nil
 }
+
+func (uc *billingUsecase) GetReferralCommissions(page, limit int, status string) ([]domain.ReferralCommission, int64, error) {
+	filter := map[string]interface{}{}
+	if status != "" {
+		filter["status"] = status
+	}
+	return uc.commissionRepo.FindAll(filter, page, limit)
+}
+
+func (uc *billingUsecase) PayReferralCommission(id uuid.UUID) error {
+	now := time.Now()
+	return uc.commissionRepo.UpdateStatus(id, domain.CommissionStatusPaid, &now)
+}
+
 
 func (uc *billingUsecase) RemindPayment(invoiceID int64, senderID uuid.UUID) error {
 	invoices, _, err := uc.invoiceRepo.FindAll(map[string]interface{}{"id": invoiceID}, 1, 1)

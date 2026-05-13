@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Save, Loader2, Upload, FileText, Link as LinkIcon, Camera, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Save, Loader2, Upload, FileText, Link as LinkIcon, Camera, CheckCircle2, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
+
 import type { FormFieldConfig } from '../../types';
 
 export default function SubmissionCreate() {
@@ -31,8 +33,37 @@ export default function SubmissionCreate() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState<Record<number, boolean>>({});
+    const [isVerified, setIsVerified] = useState<boolean | null>(null);
+    const [verStatus, setVerStatus] = useState<{ profile: boolean; training: boolean } | null>(null);
+    const { user } = useAuthStore();
+
 
     useEffect(() => {
+        const checkVerification = async () => {
+            if (user?.role === 'HALAL_KONSULTAN') {
+                try {
+                    // 1. Check Profile Verification
+                    const profileRes = await api.get(`/consultant/profile/${user.id}`);
+                    const profileVerified = profileRes.data?.is_verified ?? false;
+                    console.log("[DEBUG] Profile Verification:", profileVerified);
+
+                    // 2. Check Training Graduation
+                    const trainingRes = await api.get(`/user-trainings/${user.id}`);
+                    const trainings = trainingRes.data || [];
+                    const isGraduated = trainings.some((t: any) => t.status === 'LULUS');
+                    console.log("[DEBUG] Training Graduation:", isGraduated);
+
+                    setVerStatus({ profile: profileVerified, training: isGraduated });
+                    setIsVerified(profileVerified && isGraduated);
+                } catch (err) {
+                    console.error("[DEBUG] Verification check failed:", err);
+                    setIsVerified(false);
+                }
+            } else {
+                setIsVerified(true); // Other roles don't need verification to create
+            }
+        };
+
         const loadConfigs = async () => {
             setLoading(true);
             try {
@@ -50,8 +81,10 @@ export default function SubmissionCreate() {
                 setLoading(false);
             }
         };
+        checkVerification();
         loadConfigs();
-    }, [clientData.service_type]);
+    }, [clientData.service_type, user]);
+
 
     const handleFileUpload = async (fieldId: number, file: File) => {
         if (file.size > 2 * 1024 * 1024) {
@@ -117,6 +150,21 @@ export default function SubmissionCreate() {
                     <p className="text-sm text-gray-500">Lengkapi data klien dan dokumen persyaratan</p>
                 </div>
             </div>
+
+            {isVerified === false && (
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3 mb-6">
+                    <div className="p-2 bg-red-100 text-red-600 rounded-xl">
+                        <AlertCircle className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-bold text-red-900">Akses Dibatasi</h4>
+                        <p className="text-xs text-red-700 mt-1 leading-relaxed">
+                            Mohon maaf, Anda belum dapat membuat pengajuan baru. Pastikan status verifikasi akun Anda <b>{verStatus?.profile ? 'Terverifikasi' : 'Belum Terverifikasi'}</b> dan status kelulusan pelatihan Anda <b>{verStatus?.training ? 'Lulus' : 'Belum Lulus'}</b>.
+                            Silakan cek status di <span className="font-bold cursor-pointer underline" onClick={() => navigate('/dashboard/consultant-profile')}>Profil Konsultan</span>.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-2 space-y-6">
@@ -320,12 +368,22 @@ export default function SubmissionCreate() {
                         <div className="space-y-3">
                             <button
                                 onClick={handleSave}
-                                disabled={saving}
-                                className="w-full glass-button bg-brand-600 text-white hover:bg-brand-700 flex justify-center items-center gap-2"
+                                disabled={saving || isVerified === false}
+                                className={`w-full glass-button flex justify-center items-center gap-2 ${
+                                    isVerified === false 
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' 
+                                    : 'bg-brand-600 text-white hover:bg-brand-700 shadow-sm'
+                                }`}
                             >
                                 {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Save className="w-4 h-4" />}
                                 Simpan Data
                             </button>
+                            {isVerified === false && (
+                                <p className="text-[10px] text-red-500 font-medium text-center">
+                                    Tombol dinonaktifkan karena akun belum terverifikasi atau belum lulus pelatihan.
+                                </p>
+                            )}
+
                             <p className="text-[10px] text-gray-400 text-center">
                                 Data belum akan tersimpan ke server sebelum Anda menekan tombol Simpan di atas.
                             </p>

@@ -53,11 +53,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
 		"user": gin.H{
-			"id":        user.ID,
-			"email":     user.Email,
-			"full_name": user.FullName,
-			"role":      user.Role.Name,
-			"leader":    user.Leader,
+			"id":            user.ID,
+			"email":         user.Email,
+			"full_name":     user.FullName,
+			"role":          user.Role.Name,
+			"leader":        user.Leader,
+			"referral_code": user.ReferralCode,
 		},
 	})
 }

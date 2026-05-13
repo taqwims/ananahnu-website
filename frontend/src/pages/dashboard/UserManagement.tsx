@@ -15,7 +15,7 @@ export default function UserManagement() {
     // Modal state
     const [showModal, setShowModal] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
-    const [formData, setFormData] = useState({ full_name: '', email: '', role: '', leader_id: '', password: '' });
+    const [formData, setFormData] = useState({ full_name: '', email: '', role: '', leader_id: '', password: '', phone: '', address: '' });
     const [saving, setSaving] = useState(false);
     const [generatedPassword, setGeneratedPassword] = useState('');
 
@@ -73,7 +73,7 @@ export default function UserManagement() {
 
     const openCreate = () => {
         setEditingUser(null);
-        setFormData({ full_name: '', email: '', role: '', leader_id: '', password: '' });
+        setFormData({ full_name: '', email: '', role: '', leader_id: '', password: '', phone: '', address: '' });
         setGeneratedPassword('');
         setShowModal(true);
     };
@@ -86,6 +86,8 @@ export default function UserManagement() {
             role: getRoleName(user.role),
             leader_id: user.leader_id || '',
             password: '',
+            phone: user.phone || '',
+            address: user.address || '',
         });
         setGeneratedPassword('');
         setShowModal(true);
@@ -101,6 +103,8 @@ export default function UserManagement() {
                     role: formData.role,
                     leader_id: formData.leader_id || null,
                     password: formData.password || undefined,
+                    phone: formData.phone,
+                    address: formData.address,
                 });
                 setShowModal(false);
             } else {
@@ -110,6 +114,8 @@ export default function UserManagement() {
                     role: formData.role,
                     leader_id: formData.leader_id || null,
                     password: formData.password || undefined,
+                    phone: formData.phone,
+                    address: formData.address,
                 });
                 if (!formData.password) {
                     setGeneratedPassword(res.data.password);
@@ -221,6 +227,7 @@ export default function UserManagement() {
                             <tr className="text-left text-xs text-gray-500 uppercase">
                                 <th className="p-4">Nama</th>
                                 <th className="p-4">Email</th>
+                                <th className="p-4">WhatsApp</th>
                                 <th className="p-4">Role</th>
                                 <th className="p-4">Leader</th>
                                 <th className="p-4">Aksi</th>
@@ -231,6 +238,7 @@ export default function UserManagement() {
                                 <tr key={user.id} className="hover:bg-white/30 transition">
                                     <td className="p-4 font-medium text-gray-800">{user.full_name}</td>
                                     <td className="p-4 text-gray-600">{user.email}</td>
+                                    <td className="p-4 text-gray-600 text-xs font-medium">{user.phone || '-'}</td>
                                     <td className="p-4">
                                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(user.role)}`}>
                                             {getRoleName(user.role).replace(/_/g, ' ')}
@@ -320,6 +328,24 @@ export default function UserManagement() {
                                         value={formData.email}
                                         onChange={e => setFormData({ ...formData, email: e.target.value })}
                                         placeholder="email@example.com"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Nomor WhatsApp</label>
+                                    <input
+                                        className="glass-input w-full"
+                                        value={formData.phone}
+                                        onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                                        placeholder="0812xxxx"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Alamat Domisili</label>
+                                    <input
+                                        className="glass-input w-full"
+                                        value={formData.address}
+                                        onChange={e => setFormData({ ...formData, address: e.target.value })}
+                                        placeholder="Kota, Provinsi"
                                     />
                                 </div>
                                 <div>

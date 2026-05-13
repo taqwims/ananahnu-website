@@ -57,8 +57,15 @@ func (h *MediaHandler) Upload(c *gin.Context) {
 	// Sanitize subfolder to prevent path traversal
 	subfolder = filepath.Base(subfolder) 
 
-	now := time.Now()
-	folderPath := filepath.Join("uploads", subfolder, now.Format("2006-01"))
+	var folderPath string
+	if subfolder == "paymentproof" || subfolder == "consultant" {
+		// Special folders at root level as requested
+		folderPath = subfolder
+	} else {
+		// Default behavior: uploads/subfolder/year-month
+		now := time.Now()
+		folderPath = filepath.Join("uploads", subfolder, now.Format("2006-01"))
+	}
 	
 	// Create folder if not exists
 	if err := os.MkdirAll(folderPath, 0755); err != nil {
@@ -80,7 +87,13 @@ func (h *MediaHandler) Upload(c *gin.Context) {
 	}
 
 	// 6. Return relative URL (with forward slashes for web)
-	url := "/" + filepath.ToSlash(dst)
+	var url string
+	if subfolder == "consultant" {
+		url = "/consultant-docs/" + newFileName
+	} else {
+		url = "/" + filepath.ToSlash(dst)
+	}
+	
 	c.JSON(http.StatusOK, gin.H{
 		"url":      url,
 		"filename": file.Filename,

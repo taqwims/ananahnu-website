@@ -41,6 +41,10 @@ import PaymentDashboard from './pages/dashboard/PaymentDashboard';
 import UserManagement from './pages/dashboard/UserManagement';
 import ConsultantVerification from './pages/dashboard/ConsultantVerification';
 import TrackSubmission from './pages/tracking/TrackSubmission';
+import ReferralDashboard from './pages/dashboard/ReferralDashboard';
+import AdminReferralDashboard from './pages/dashboard/AdminReferralDashboard';
+import ReferralFeeAdmin from './pages/dashboard/ReferralFeeAdmin';
+
 
 function App() {
   return (
@@ -81,7 +85,11 @@ function App() {
           <Route path="all-invoices" element={<InvoiceList />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="consultant-verification" element={<ConsultantVerification />} />
-        </Route>
+           <Route path="referrals" element={<ReferralDashboard />} />
+           <Route path="admin-referrals" element={<AdminReferralDashboard />} />
+           <Route path="referral-fees" element={<ReferralFeeAdmin />} />
+         </Route>
+
 
         {/* Public Routes */}
         <Route element={<PublicLayout />}>

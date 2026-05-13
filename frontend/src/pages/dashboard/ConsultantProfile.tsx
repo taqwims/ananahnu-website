@@ -3,6 +3,7 @@ import { UserCheck, Upload, CheckCircle, Loader2, Shield } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import type { ConsultantProfile as ConsultantProfileType } from '../../types';
+import FileUpload from '../../components/dashboard/FileUpload';
 
 const DOCUMENTS = [
     { key: 'ktp_url', label: 'KTP', required: true },
@@ -114,16 +115,28 @@ export default function ConsultantProfilePage() {
                                 <CheckCircle className="w-4 h-4 text-green-500 ml-auto" />
                             )}
                         </label>
-                        <input
-                            type="text"
-                            className="glass-input text-sm"
-                            placeholder="URL dokumen (upload ke cloud lalu tempelkan URL)"
-                            value={form[doc.key as keyof typeof form]}
-                            onChange={e => setForm(p => ({ ...p, [doc.key]: e.target.value }))}
-                        />
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                            <div className="flex-1">
+                                <input
+                                    type="text"
+                                    className="glass-input text-sm"
+                                    placeholder="URL dokumen atau upload file"
+                                    value={form[doc.key as keyof typeof form]}
+                                    onChange={e => setForm(p => ({ ...p, [doc.key]: e.target.value }))}
+                                />
+                            </div>
+                            <div className="sm:w-48">
+                                <FileUpload 
+                                    subfolder="consultant" 
+                                    label={`Upload ${doc.label}`}
+                                    onUploadSuccess={(url) => setForm(p => ({ ...p, [doc.key]: url }))}
+                                />
+                            </div>
+                        </div>
                         {form[doc.key as keyof typeof form] && (
-                            <a href={form[doc.key as keyof typeof form]} target="_blank" rel="noopener noreferrer"
-                                className="text-xs text-brand-600 hover:underline">
+                            <a href={form[doc.key as keyof typeof form].startsWith('http') ? form[doc.key as keyof typeof form] : `${import.meta.env.VITE_API_URL}${form[doc.key as keyof typeof form]}`} target="_blank" rel="noopener noreferrer"
+                                className="text-xs text-brand-600 hover:underline flex items-center gap-1">
+                                <CheckCircle className="w-3 h-3 text-green-500" />
                                 Lihat dokumen →
                             </a>
                         )}

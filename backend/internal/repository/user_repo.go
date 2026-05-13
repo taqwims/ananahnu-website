@@ -2,6 +2,7 @@ package repository
 
 import (
 	"ananahnu/internal/domain"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -33,6 +34,45 @@ func (r *userRepository) FindByID(id uuid.UUID) (*domain.User, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (r *userRepository) FindByReferralCode(code string) (*domain.User, error) {
+	var user domain.User
+	if err := r.db.Where("referral_code = ?", code).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *userRepository) FindByReferredByID(id uuid.UUID) ([]domain.User, error) {
+	var users []domain.User
+	if err := r.db.Where("referred_by_id = ?", id).Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+func (r *userRepository) GetAllReferralAnalytics() ([]map[string]interface{}, error) {
+	var results []map[string]interface{}
+	query := `
+		SELECT 
+			u.id, 
+			u.full_name, 
+			u.email, 
+			u.referral_code, 
+			roles.name as role_name, 
+			COUNT(ref.id) as total_referred
+		FROM users u
+		JOIN roles ON roles.id = u.role_id
+		LEFT JOIN users ref ON ref.referred_by_id = u.id
+		WHERE u.referral_code IS NOT NULL AND u.referral_code != ''
+		GROUP BY u.id, roles.id
+		ORDER BY total_referred DESC
+	`
+	if err := r.db.Raw(query).Scan(&results).Error; err != nil {
+		return nil, err
+	}
+	return results, nil
 }
 
 func (r *userRepository) Update(user *domain.User) error {
@@ -90,6 +130,49 @@ func (r *userRepository) FindAll(filter map[string]interface{}, page, limit int)
 }
 
 func (r *userRepository) Delete(id uuid.UUID) error {
-	return r.db.Delete(&domain.User{}, "id = ?", id).Error
+	return r.db.Delete(&domain.User{}, id).Error
 }
 
+// Referral Commission Implementation
+type referralCommissionRepository struct {
+	db *gorm.DB
+}
+
+func NewReferralCommissionRepository(db *gorm.DB) domain.ReferralCommissionRepository {
+	return &referralCommissionRepository{db: db}
+}
+
+func (r *referralCommissionRepository) Create(commission *domain.ReferralCommission) error {
+	return r.db.Create(commission).Error
+}
+
+func (r *referralCommissionRepository) FindAll(filter map[string]interface{}, page, limit int) ([]domain.ReferralCommission, int64, error) {
+	var commissions []domain.ReferralCommission
+	var total int64
+
+	db := r.db.Model(&domain.ReferralCommission{}).Preload("Referrer").Preload("Referred").Preload("Submission")
+
+	// Apply filters if needed
+
+	db.Count(&total)
+
+	offset := (page - 1) * limit
+	err := db.Offset(offset).Limit(limit).Order("created_at desc").Find(&commissions).Error
+
+	return commissions, total, err
+}
+
+func (r *referralCommissionRepository) UpdateStatus(id uuid.UUID, status domain.ReferralCommissionStatus, paidAt *time.Time) error {
+	return r.db.Model(&domain.ReferralCommission{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"status":  status,
+		"paid_at": paidAt,
+	}).Error
+}
+
+func (r *referralCommissionRepository) FindBySubmissionID(submissionID uuid.UUID) (*domain.ReferralCommission, error) {
+	var commission domain.ReferralCommission
+	if err := r.db.Where("submission_id = ?", submissionID).First(&commission).Error; err != nil {
+		return nil, err
+	}
+	return &commission, nil
+}

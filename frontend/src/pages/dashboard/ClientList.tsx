@@ -13,6 +13,8 @@ export default function ClientList() {
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [creatingSub, setCreatingSub] = useState<string | null>(null);
+    const [isVerified, setIsVerified] = useState<boolean | null>(null);
+
     const navigate = useNavigate();
     const user = useAuthStore(state => state.user);
 
@@ -80,8 +82,35 @@ export default function ClientList() {
         const timer = setTimeout(() => {
             fetchClients();
         }, 300); // 300ms debounce
+
+        const checkVerification = async () => {
+            if (user?.role === 'HALAL_KONSULTAN') {
+                try {
+                    // 1. Check Profile Verification
+                    const profileRes = await api.get(`/consultant/profile/${user.id}`);
+                    const profileVerified = profileRes.data?.is_verified ?? false;
+                    console.log("[DEBUG] Profile Verification:", profileVerified);
+
+                    // 2. Check Training Graduation
+                    const trainingRes = await api.get(`/user-trainings/${user.id}`);
+                    const trainings = trainingRes.data || [];
+                    const isGraduated = trainings.some((t: any) => t.status === 'LULUS');
+                    console.log("[DEBUG] Training Graduation:", isGraduated);
+
+                    setIsVerified(profileVerified && isGraduated);
+                } catch (err) {
+                    console.error("[DEBUG] Verification check failed:", err);
+                    setIsVerified(false);
+                }
+            } else {
+                setIsVerified(true);
+            }
+        };
+        checkVerification();
+
         return () => clearTimeout(timer);
-    }, [page, search, statusFilter]);
+    }, [page, search, statusFilter, user]);
+
 
     return (
         <div className="space-y-6">
@@ -92,12 +121,28 @@ export default function ClientList() {
                 </div>
                 <div className="flex gap-2">
                     {user?.role !== 'VIEWER' && (
-                        <Link to="/dashboard/clients/new" className="glass-button flex items-center gap-2">
-                            <Plus className="w-4 h-4" />
-                            Add Client
-                        </Link>
+                        <div className="relative group">
+                            <button 
+                                onClick={() => isVerified !== false && navigate('/dashboard/clients/new')} 
+                                disabled={isVerified === false}
+                                className={`glass-button flex items-center gap-2 transition-all ${
+                                    isVerified === false 
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200 shadow-none' 
+                                    : ''
+                                }`}
+                            >
+                                <Plus className="w-4 h-4" />
+                                Add Client
+                            </button>
+                            {isVerified === false && (
+                                <div className="absolute top-full mt-2 right-0 w-72 bg-red-600 text-white text-[10px] p-2 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none font-bold text-center">
+                                    Akses Dibatasi: Akun harus terverifikasi DAN lulus pelatihan sebelum dapat menambah klien.
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
+
             </div>
 
             {/* Filters */}
@@ -176,9 +221,13 @@ export default function ClientList() {
                                                 <Link to={`/dashboard/clients/${client.id}`} className="text-brand-600 hover:text-brand-800 font-medium">View</Link>
                                                 {user?.role !== 'VIEWER' && (
                                                     <button 
-                                                       onClick={() => handleCreateSubmission(client)}
-                                                       disabled={creatingSub === client.id}
-                                                       className="flex items-center gap-1 text-xs bg-brand-50 text-brand-700 px-2 py-1 rounded hover:bg-brand-100 transition disabled:opacity-50"
+                                                       onClick={() => isVerified !== false && handleCreateSubmission(client)}
+                                                       disabled={creatingSub === client.id || isVerified === false}
+                                                       className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition disabled:opacity-50 ${
+                                                            isVerified === false 
+                                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                                            : 'bg-brand-50 text-brand-700 hover:bg-brand-100'
+                                                       }`}
                                                     >
                                                        {creatingSub === client.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
                                                        Buat Pengajuan

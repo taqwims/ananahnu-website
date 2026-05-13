@@ -38,6 +38,9 @@ func NewUserManagementHandler(r *gin.Engine, uc usecase.UserManagementUsecase) {
 
 		// Accessible to more roles (for training/selection)
 		g.GET("", handler.ListUsers)
+		
+		// Admin Referral Analytics
+		g.GET("/referrals/analytics", handler.GetAllReferralAnalytics)
 	}
 
 	// Roles list (for dropdowns)
@@ -48,6 +51,7 @@ func NewUserManagementHandler(r *gin.Engine, uc usecase.UserManagementUsecase) {
 	profile.Use(middleware.AuthMiddleware())
 	{
 		profile.PUT("", handler.UpdateProfile)
+		profile.GET("/referrals", handler.GetReferrals)
 	}
 }
 
@@ -159,6 +163,31 @@ func (h *UserManagementHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "profile updated"})
+}
+
+func (h *UserManagementHandler) GetReferrals(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	referrals, err := h.userMgmtUC.GetReferrals(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, referrals)
+}
+
+func (h *UserManagementHandler) GetAllReferralAnalytics(c *gin.Context) {
+	analytics, err := h.userMgmtUC.GetAllReferralAnalytics()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, analytics)
 }
 
 func (h *UserManagementHandler) DeleteUser(c *gin.Context) {
