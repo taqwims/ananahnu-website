@@ -22,7 +22,6 @@ import SubmissionCreate from './pages/dashboard/SubmissionCreate';
 import SubmissionDetail from './pages/dashboard/SubmissionDetail';
 import CoordinatorRates from './pages/dashboard/CoordinatorRates';
 import MyInvoices from './pages/dashboard/MyInvoices';
-import InvoiceList from './pages/dashboard/InvoiceList';
 import CMSDashboard from './pages/dashboard/CMSDashboard';
 import DistributionAdmin from './pages/dashboard/DistributionAdmin';
 import DrafterMonitoring from './pages/dashboard/DrafterMonitoring';
@@ -34,10 +33,9 @@ import FormConfigAdmin from './pages/dashboard/FormConfigAdmin';
 import BillingConfigAdmin from './pages/dashboard/BillingConfigAdmin';
 import ConsultantProfilePage from './pages/dashboard/ConsultantProfile';
 import TrainingAdmin from './pages/dashboard/TrainingAdmin';
-import FinanceDashboard from './pages/dashboard/FinanceDashboard';
+import BillingManagement from './pages/dashboard/BillingManagement';
 import GeographyAdmin from './pages/dashboard/GeographyAdmin';
 import CoordinatorDashboard from './pages/dashboard/CoordinatorDashboard';
-import PaymentDashboard from './pages/dashboard/PaymentDashboard';
 import UserManagement from './pages/dashboard/UserManagement';
 import ConsultantVerification from './pages/dashboard/ConsultantVerification';
 import TrackSubmission from './pages/tracking/TrackSubmission';
@@ -46,9 +44,12 @@ import AdminReferralDashboard from './pages/dashboard/AdminReferralDashboard';
 import ReferralFeeAdmin from './pages/dashboard/ReferralFeeAdmin';
 
 
+import { Toaster } from 'react-hot-toast';
+
 function App() {
   return (
     <BrowserRouter>
+      <Toaster position="top-right" reverseOrder={false} />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -78,11 +79,9 @@ function App() {
           <Route path="billing-config" element={<BillingConfigAdmin />} />
           <Route path="consultant-profile" element={<ConsultantProfilePage />} />
           <Route path="training" element={<TrainingAdmin />} />
-          <Route path="finance" element={<FinanceDashboard />} />
+          <Route path="billing" element={<BillingManagement />} />
           <Route path="geography" element={<GeographyAdmin />} />
           <Route path="team" element={<CoordinatorDashboard />} />
-          <Route path="payments" element={<PaymentDashboard />} />
-          <Route path="all-invoices" element={<InvoiceList />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="consultant-verification" element={<ConsultantVerification />} />
            <Route path="referrals" element={<ReferralDashboard />} />

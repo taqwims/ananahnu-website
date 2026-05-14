@@ -41,15 +41,17 @@ type paymentUsecase struct {
 	auditRepo      domain.AuditLogRepository
 	midtrans       midtransPkg.PaymentGateway
 	invoiceRepo    domain.InvoiceRepository
+	billingUC      BillingUsecase
 }
 
-func NewPaymentUsecase(p domain.PaymentRepository, s domain.SubmissionRepository, a domain.AuditLogRepository, m midtransPkg.PaymentGateway, i domain.InvoiceRepository) PaymentUsecase {
+func NewPaymentUsecase(p domain.PaymentRepository, s domain.SubmissionRepository, a domain.AuditLogRepository, m midtransPkg.PaymentGateway, i domain.InvoiceRepository, b BillingUsecase) PaymentUsecase {
 	return &paymentUsecase{
 		paymentRepo:    p,
 		submissionRepo: s,
 		auditRepo:      a,
 		midtrans:       m,
 		invoiceRepo:    i,
+		billingUC:      b,
 	}
 }
 
@@ -119,6 +121,13 @@ func (uc *paymentUsecase) CreateMidtransPayment(submissionID uuid.UUID, amount f
 
 	if err := uc.paymentRepo.Create(payment); err != nil {
 		return nil, fmt.Errorf("failed to save payment record: %w", err)
+	}
+
+	// Link Invoice to Payment (if single payment for submission)
+	inv, _ := uc.invoiceRepo.FindBySubmissionID(submissionID)
+	if inv != nil {
+		inv.PaymentID = &payment.ID
+		_ = uc.invoiceRepo.Update(inv)
 	}
 
 	uc.logPaymentActivity(submissionID, "PAYMENT_INITIATED", fmt.Sprintf("Pembayaran Midtrans dimulai: Rp %.2f (Order ID: %s)", amount, orderID))
@@ -202,7 +211,7 @@ func (uc *paymentUsecase) HandleMidtransNotification(payload map[string]interfac
 
 	// Step 6: If payment succeeded, update invoices and transition submission
 	if payment.Status == domain.PaymentStatusPaid && previousStatus != domain.PaymentStatusPaid {
-		// Update linked invoices
+		// Update linked invoices via BillingUsecase to trigger referral fees
 		if err := uc.updateLinkedInvoices(payment.ID); err != nil {
 			log.Printf("[MIDTRANS WEBHOOK] Failed to update linked invoices for payment %d: %v", payment.ID, err)
 		}
@@ -210,22 +219,23 @@ func (uc *paymentUsecase) HandleMidtransNotification(payload map[string]interfac
 		if payment.SubmissionID != nil {
 			sub, _ := uc.submissionRepo.FindByID(*payment.SubmissionID)
 			
-			// Transition logic:
-			// 1. Marketing / Partner / Self Declare -> Go straight to QC_OFFICER
-			// 2. Organic Reguler WITH Consultant -> Go straight to QC_OFFICER (already has someone handling)
-			// 3. Organic Reguler WITHOUT Consultant -> Must go to VERVAL_PENDAMPING for claiming
-			nextStatus := domain.StatusQCOfficer
-			if sub != nil && (sub.DataSource == "ORGANIK" || sub.DataSource == "") && sub.ServiceType == "REGULER" && sub.ConsultantID == nil {
-				nextStatus = domain.StatusVervalPendamping
+			// Transition logic: 
+			// ONLY transition if it's NOT an SH management fee payment.
+			// If status is SH_TERBIT, it's a management fee payment, so keep it in SH_TERBIT.
+			if sub != nil && sub.Status != domain.StatusSHTerbit {
+				nextStatus := domain.StatusQCOfficer
+				if (sub.DataSource == "ORGANIK" || sub.DataSource == "") && sub.ServiceType == "REGULER" && sub.ConsultantID == nil {
+					nextStatus = domain.StatusVervalPendamping
+				}
+				
+				if err := uc.submissionRepo.UpdateStatus(*payment.SubmissionID, nextStatus, 0); err != nil {
+					log.Printf("[MIDTRANS WEBHOOK] Failed to transition submission %s: %v", *payment.SubmissionID, err)
+					return fmt.Errorf("failed to transition submission: %w", err)
+				}
+				log.Printf("[MIDTRANS WEBHOOK] Submission %s transitioned to %s", *payment.SubmissionID, nextStatus)
 			}
 			
-			if err := uc.submissionRepo.UpdateStatus(*payment.SubmissionID, nextStatus, 0); err != nil {
-				log.Printf("[MIDTRANS WEBHOOK] Failed to transition submission %s: %v", *payment.SubmissionID, err)
-				return fmt.Errorf("failed to transition submission: %w", err)
-			}
 			uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_SUCCESS", fmt.Sprintf("Pembayaran Midtrans berhasil: Rp %.2f", payment.Amount))
-			log.Printf("[MIDTRANS WEBHOOK] Submission %s transitioned to %s (DataSource: %s, Consultant: %v)", 
-				*payment.SubmissionID, nextStatus, sub.DataSource, sub.ConsultantID)
 		}
 	}
 
@@ -267,17 +277,21 @@ func (uc *paymentUsecase) VerifyManualPayment(paymentID int64, approved bool, ve
 		if payment.SubmissionID != nil {
 			sub, _ := uc.submissionRepo.FindByID(*payment.SubmissionID)
 			
-			nextStatus := domain.StatusQCOfficer
-			if sub != nil && (sub.DataSource == "ORGANIK" || sub.DataSource == "") && sub.ServiceType == "REGULER" && sub.ConsultantID == nil {
-				nextStatus = domain.StatusVervalPendamping
-			}
+			// Transition logic consistent with Midtrans logic:
+			// ONLY transition if it's NOT an SH management fee payment.
+			if sub != nil && sub.Status != domain.StatusSHTerbit {
+				nextStatus := domain.StatusQCOfficer
+				if (sub.DataSource == "ORGANIK" || sub.DataSource == "") && sub.ServiceType == "REGULER" && sub.ConsultantID == nil {
+					nextStatus = domain.StatusVervalPendamping
+				}
 
-			if err := uc.submissionRepo.UpdateStatus(*payment.SubmissionID, nextStatus, 0); err != nil {
-				log.Printf("[MANUAL VERIFY] Failed to transition submission %s: %v", *payment.SubmissionID, err)
+				if err := uc.submissionRepo.UpdateStatus(*payment.SubmissionID, nextStatus, 0); err != nil {
+					log.Printf("[MANUAL VERIFY] Failed to transition submission %s: %v", *payment.SubmissionID, err)
+				}
+				log.Printf("[MANUAL VERIFY] Payment %d approved by %s, submission %s -> %s",
+					paymentID, verifierID, *payment.SubmissionID, nextStatus)
 			}
 			uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_VERIFIED", fmt.Sprintf("Pembayaran manual disetujui: Rp %.2f", payment.Amount))
-			log.Printf("[MANUAL VERIFY] Payment %d approved by %s, submission %s -> %s (Consultant: %v)",
-				paymentID, verifierID, *payment.SubmissionID, nextStatus, sub.ConsultantID)
 		}
 	} else if !approved && payment.SubmissionID != nil {
 		uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_REJECTED", fmt.Sprintf("Pembayaran manual ditolak: Rp %.2f", payment.Amount))
@@ -346,13 +360,16 @@ func (uc *paymentUsecase) SyncPaymentStatus(paymentID int64) error {
 				sub, _ := uc.submissionRepo.FindByID(*payment.SubmissionID)
 				
 				// Transition logic consistent with notification handler:
-				nextStatus := domain.StatusQCOfficer
-				if sub != nil && (sub.DataSource == "ORGANIK" || sub.DataSource == "") && sub.ServiceType == "REGULER" && sub.ConsultantID == nil {
-					nextStatus = domain.StatusVervalPendamping
+				// ONLY transition if it's NOT an SH management fee payment.
+				if sub != nil && sub.Status != domain.StatusSHTerbit {
+					nextStatus := domain.StatusQCOfficer
+					if (sub.DataSource == "ORGANIK" || sub.DataSource == "") && sub.ServiceType == "REGULER" && sub.ConsultantID == nil {
+						nextStatus = domain.StatusVervalPendamping
+					}
+					
+					uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_SYNCED", fmt.Sprintf("Status pembayaran disinkronisasi: PAID (Rp %.2f)", payment.Amount))
+					return uc.submissionRepo.UpdateStatus(*payment.SubmissionID, nextStatus, 0)
 				}
-				
-				uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_SYNCED", fmt.Sprintf("Status pembayaran disinkronisasi: PAID (Rp %.2f)", payment.Amount))
-				return uc.submissionRepo.UpdateStatus(*payment.SubmissionID, nextStatus, 0)
 			}
 		}
 	}
@@ -427,7 +444,14 @@ func (uc *paymentUsecase) CleanupExpiredPayments() error {
 	cutoff := time.Now().Add(-24 * time.Hour)
 	for _, p := range payments {
 		if p.CreatedAt.Before(cutoff) {
-			log.Printf("[CLEANUP] Deleting expired pending payment %d (Created at %v)", p.ID, p.CreatedAt)
+			// CHECK: Only delete if NOT linked to any invoices
+			linkedInvoices, _, err := uc.invoiceRepo.FindAll(map[string]interface{}{"payment_id": p.ID}, 1, 1)
+			if err == nil && len(linkedInvoices) > 0 {
+				log.Printf("[CLEANUP] Skipping payment %d (Order ID: %s) because it is linked to invoices", p.ID, p.ExternalID)
+				continue
+			}
+
+			log.Printf("[CLEANUP] Deleting expired pending payment %d (Order ID: %s, Created at %v)", p.ID, p.ExternalID, p.CreatedAt)
 			uc.paymentRepo.Delete(p.ID)
 		}
 	}
@@ -441,11 +465,11 @@ func (uc *paymentUsecase) updateLinkedInvoices(paymentID int64) error {
 		return err
 	}
 
-	now := time.Now()
 	for _, inv := range invoices {
-		inv.Status = domain.InvoiceStatusPaid
-		inv.PaidAt = &now
-		uc.invoiceRepo.Update(&inv)
+		// Use BillingUsecase to mark paid so it triggers referral commissions
+		if err := uc.billingUC.MarkInvoicePaid(inv.ID); err != nil {
+			log.Printf("[PAYMENT UC] Failed to mark invoice %d as paid: %v", inv.ID, err)
+		}
 	}
 	return nil
 }

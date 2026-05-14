@@ -312,6 +312,12 @@ func (h *BillingConfigHandler) GetBillingComponents(c *gin.Context) {
 	if v := c.Query("business_scale_id"); v != "" {
 		filter["business_scale_id"] = v
 	}
+	if v := c.Query("sales_scheme_id"); v != "" {
+		filter["sales_scheme_id"] = v
+	}
+	if v := c.Query("data_source"); v != "" {
+		filter["data_source"] = v
+	}
 	if v := c.Query("province_id"); v != "" {
 		filter["province_id"] = v
 	}

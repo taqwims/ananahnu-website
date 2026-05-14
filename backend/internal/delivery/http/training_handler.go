@@ -76,12 +76,13 @@ func (h *TrainingHandler) CreateTraining(c *gin.Context) {
 	role := middleware.GetUserRole(c)
 	userID := middleware.GetUserID(c)
 
-	if role == "KOORDINATOR" {
+	switch role {
+	case "KOORDINATOR":
 		input.Status = "PENDING"
 		input.ProposedBy = &userID
-	} else if role == "ADMIN_PELATIHAN" || role == "MANAGER" || role == "DIRECTOR" {
+	case "ADMIN_PELATIHAN", "MANAGER", "DIRECTOR":
 		input.Status = "APPROVED"
-	} else {
+	default:
 		c.JSON(http.StatusForbidden, gin.H{"error": "only coordinator or admin can create training"})
 		return
 	}

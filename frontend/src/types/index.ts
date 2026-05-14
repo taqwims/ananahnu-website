@@ -278,27 +278,8 @@ export interface BillingComponent {
     district_id?: number;
     business_type_id?: number;
     product_category_id?: number;
-}
-
-// --- Sales Scheme Price (Direct Sale vs Partnership, Organik vs Marketing) ---
-
-export interface SalesSchemePrice {
-    id: number;
-    sales_scheme_id: number;
-    sales_scheme?: { id: number; name: string };
-    product_category_id?: number;
-    product_category?: { id: number; name: string };
-    business_type_id?: number;
-    business_type?: { id: number; name: string };
-    business_scale_id?: number;
-    business_scale?: { id: number; name: string };
-    data_source: 'ORGANIK' | 'MARKETING';
-    base_price: number;
-    discount_percent: number;
-    description: string;
-    is_active: boolean;
-    created_at?: string;
-    updated_at?: string;
+    sales_scheme_id?: number;
+    data_source?: string;
 }
 
 // --- CMS ---
@@ -319,4 +300,18 @@ export interface ContentBlock {
     title: string;
     content: string;
     updated_at: string;
+}
+
+export interface ReferralCommission {
+    id: string;
+    referrer_id: string;
+    referrer?: User;
+    referred_id: string;
+    referred?: User;
+    submission_id: string;
+    submission?: Submission;
+    amount: number;
+    status: 'PENDING' | 'PAID';
+    paid_at?: string;
+    created_at: string;
 }

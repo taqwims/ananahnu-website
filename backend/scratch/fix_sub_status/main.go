@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/google/uuid"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )

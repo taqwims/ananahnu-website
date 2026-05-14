@@ -4,6 +4,7 @@ import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { formatRupiah, formatServiceType } from '../../utils/format';
 import { loadSnapJs, isSnapReady } from '../../utils/midtrans';
+import toast from 'react-hot-toast';
 
 interface Invoice {
     id: number;
@@ -72,7 +73,7 @@ export default function MyInvoices() {
     const handlePay = async () => {
         if (selectedIds.length === 0) return;
         if (!isSnapReady()) {
-            alert("Midtrans belum siap. Silakan refresh halaman.");
+            toast.error("Midtrans belum siap. Silakan refresh halaman.");
             return;
         }
 
@@ -85,24 +86,24 @@ export default function MyInvoices() {
             const snapToken = res.data.snap_token;
             (window as any).snap.pay(snapToken, {
                 onSuccess: () => {
-                    alert("Pembayaran berhasil!");
+                    toast.success("Pembayaran berhasil!");
                     fetchInvoices();
                     setSelectedIds([]);
                 },
                 onPending: () => {
-                    alert("Menunggu pembayaran...");
+                    toast("Menunggu pembayaran...", { icon: '⏳' });
                     fetchInvoices();
                     setSelectedIds([]);
                 },
                 onError: () => {
-                    alert("Pembayaran gagal.");
+                    toast.error("Pembayaran gagal.");
                 },
                 onClose: () => {
                     setPaying(false);
                 }
             });
         } catch (err: any) {
-            alert(err.response?.data?.error || "Gagal memproses pembayaran");
+            toast.error(err.response?.data?.error || "Gagal memproses pembayaran");
         } finally {
             setPaying(false);
         }
@@ -112,9 +113,9 @@ export default function MyInvoices() {
         setReminding(id);
         try {
             await api.post(`/billing/${id}/remind`);
-            alert("Pengingat berhasil dikirim ke konsultan.");
+            toast.success("Pengingat berhasil dikirim ke konsultan.");
         } catch (err: any) {
-            alert(err.response?.data?.error || "Gagal mengirim pengingat");
+            toast.error(err.response?.data?.error || "Gagal mengirim pengingat");
         } finally {
             setReminding(null);
         }

@@ -1,25 +1,25 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Plus, Trash2, DollarSign, Tag, ToggleLeft, ToggleRight, Pencil, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Loader2, Plus, Trash2, DollarSign, Tag, ToggleLeft, ToggleRight, Pencil, X } from 'lucide-react';
 import api from '../../services/api';
 import { formatRupiah } from '../../utils/format';
-import type { SalesSchemePrice } from '../../types';
-
+import toast from 'react-hot-toast';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 type ProductCategory = { id: number; name: string; description: string; business_type_id: number; business_type?: { id: number; name: string } };
 type BusinessScale = { id: number; name: string; description: string };
-type BillingComponent = { id: number; name: string; category: string; type: string; base_amount: number; is_mandatory: boolean; province_id?: number; regency_id?: number; district_id?: number; business_type_id?: number; product_category_id?: number };
+type BillingComponent = { id: number; name: string; category: string; type: string; base_amount: number; is_mandatory: boolean; province_id?: number; regency_id?: number; district_id?: number; business_type_id?: number; product_category_id?: number; sales_scheme_id?: number; data_source: string; business_scale_id?: number; sales_scheme?: {id: number, name: string} };
 type SalesScheme = { id: number; name: string; description: string };
 type BusinessType = { id: number; name: string; description: string };
 
-type MainTab = 'pricing' | 'master_data' | 'components' | 'settings';
-type TabKey = 'schemes' | 'business_types' | 'products' | 'scales' | 'components' | 'scheme_prices';
+type MainTab = 'master_data' | 'components' | 'settings';
+type TabKey = 'schemes' | 'business_types' | 'products' | 'scales' | 'components';
 
 const COMPONENT_CATEGORIES = ['REGISTRASI', 'LPH', 'PENETAPAN', 'PENDAMPINGAN', 'BPJPH', 'MUI', 'OPSIONAL'] as const;
 const COMPONENT_TYPES = ['FIXED', 'PER_MANDAY', 'PER_CABANG', 'PER_PRODUK'] as const;
 
 export default function BillingConfigAdmin() {
     const [loading, setLoading] = useState(true);
-    const [activeMainTab, setActiveMainTab] = useState<MainTab>('pricing');
-    const [activeTab, setActiveTab] = useState<TabKey>('scheme_prices');
+    const [activeMainTab, setActiveMainTab] = useState<MainTab>('components');
+    const [activeTab, setActiveTab] = useState<TabKey>('components');
 
     const [products, setProducts] = useState<ProductCategory[]>([]);
     const [scales, setScales] = useState<BusinessScale[]>([]);
@@ -29,11 +29,8 @@ export default function BillingConfigAdmin() {
     const [components, setComponents] = useState<BillingComponent[]>([]);
     const [schemes, setSchemes] = useState<SalesScheme[]>([]);
     const [businessTypes, setBusinessTypes] = useState<BusinessType[]>([]);
-    const [schemePrices, setSchemePrices] = useState<SalesSchemePrice[]>([]);
     const [systemSettings, setSystemSettings] = useState<Record<string, string>>({});
     const [editingId, setEditingId] = useState<number | null>(null);
-    const [editingSpId, setEditingSpId] = useState<number | null>(null);
-    const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
     // Simple add form
     const [newItemName, setNewItemName] = useState('');
@@ -44,10 +41,28 @@ export default function BillingConfigAdmin() {
     const [newItemMandatory, setNewItemMandatory] = useState(false);
     const [newItemBusinessTypeId, setNewItemBusinessTypeId] = useState('');
     const [newItemProductCategoryId, setNewItemProductCategoryId] = useState('');
+    const [newItemSalesSchemeId, setNewItemSalesSchemeId] = useState('');
+    const [newItemDataSource, setNewItemDataSource] = useState('ORGANIK');
+    const [newItemBusinessScaleId, setNewItemBusinessScaleId] = useState('');
 
     const [newItemProvinceId, setNewItemProvinceId] = useState('');
     const [newItemRegencyId, setNewItemRegencyId] = useState('');
     const [newItemDistrictId, setNewItemDistrictId] = useState('');
+    
+    // Confirmation Modal States
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        variant: 'danger' | 'warning' | 'info';
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => {},
+        variant: 'danger'
+    });
 
     // Fetch regencies when province changes
     useEffect(() => {
@@ -69,20 +84,25 @@ export default function BillingConfigAdmin() {
         }
     }, [newItemRegencyId]);
 
-    // Scheme price form
-    const [spForm, setSpForm] = useState({ sales_scheme_id: '', product_category_id: '', business_type_id: '', business_scale_id: '', data_source: 'ORGANIK', base_price: '', discount_percent: '0', description: '' });
-    const [showSpForm, setShowSpForm] = useState(false);
+    // Fetch districts when regency changes
+    useEffect(() => {
+        if (newItemRegencyId) {
+            api.get(`/geography/districts/${newItemRegencyId}`).then(res => setDistricts(res.data || []));
+        } else {
+            setDistricts([]);
+            setNewItemDistrictId('');
+        }
+    }, [newItemRegencyId]);
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [pRes, sRes, cRes, scRes, btRes, spRes, provRes] = await Promise.all([
+            const [pRes, sRes, cRes, scRes, btRes, provRes] = await Promise.all([
                 api.get('/billing-config/product-categories'),
                 api.get('/billing-config/business-scales'),
                 api.get('/billing-config/components'),
                 api.get('/billing-config/sales-schemes').catch(() => ({ data: [] })),
                 api.get('/billing-config/business-types').catch(() => ({ data: [] })),
-                api.get('/billing-config/scheme-prices').catch(() => ({ data: [] })),
                 api.get('/geography/provinces').catch(() => ({ data: [] })),
             ]);
             const sysRes = await api.get('/system-settings').catch(() => ({ data: {} }));
@@ -91,7 +111,6 @@ export default function BillingConfigAdmin() {
             setComponents(cRes.data || []);
             setSchemes(scRes.data || []);
             setBusinessTypes(btRes?.data || []);
-            setSchemePrices(spRes?.data || []);
             setProvinces(provRes?.data || []);
             setSystemSettings(sysRes?.data || {});
         } catch (err) {
@@ -104,7 +123,7 @@ export default function BillingConfigAdmin() {
     useEffect(() => { fetchData(); }, []);
 
     const handleCreate = async () => {
-        if (!newItemName && activeTab !== 'scheme_prices') return;
+        if (!newItemName) return;
         try {
             const payload: any = { name: newItemName, description: newItemDesc };
             let endpoint = '';
@@ -129,6 +148,9 @@ export default function BillingConfigAdmin() {
                 payload.province_id = newItemProvinceId ? parseInt(newItemProvinceId) : null;
                 payload.regency_id = newItemRegencyId ? parseInt(newItemRegencyId) : null;
                 payload.district_id = newItemDistrictId ? parseInt(newItemDistrictId) : null;
+                payload.sales_scheme_id = newItemSalesSchemeId ? parseInt(newItemSalesSchemeId) : null;
+                payload.data_source = newItemDataSource;
+                payload.business_scale_id = newItemBusinessScaleId ? parseInt(newItemBusinessScaleId) : null;
             }
 
             if (editingId) {
@@ -139,9 +161,10 @@ export default function BillingConfigAdmin() {
 
             resetForm();
             fetchData();
+            toast.success(editingId ? 'Data berhasil diperbarui' : 'Data berhasil ditambahkan');
         } catch (err) {
             console.error(err);
-            alert("Gagal menyimpan data");
+            toast.error("Gagal menyimpan data");
         }
     };
 
@@ -149,71 +172,30 @@ export default function BillingConfigAdmin() {
         setNewItemName(''); setNewItemDesc(''); setNewItemAmount('');
         setNewItemCategory('OPSIONAL'); setNewItemMandatory(false);
         setNewItemBusinessTypeId(''); setNewItemProductCategoryId(''); 
+        setNewItemSalesSchemeId(''); setNewItemDataSource('ORGANIK'); setNewItemBusinessScaleId('');
         setNewItemProvinceId(''); setNewItemRegencyId(''); setNewItemDistrictId('');
         setEditingId(null);
     };
 
-    const handleCreateSchemePrice = async () => {
-        if (!spForm.sales_scheme_id || !spForm.base_price) return;
-        try {
-            const payload = {
-                sales_scheme_id: parseInt(spForm.sales_scheme_id),
-                product_category_id: spForm.product_category_id ? parseInt(spForm.product_category_id) : null,
-                business_type_id: spForm.business_type_id ? parseInt(spForm.business_type_id) : null,
-                business_scale_id: spForm.business_scale_id ? parseInt(spForm.business_scale_id) : null,
-                data_source: spForm.data_source,
-                base_price: parseFloat(spForm.base_price),
-                discount_percent: parseFloat(spForm.discount_percent) || 0,
-                description: spForm.description,
-                is_active: true,
-            };
-
-            if (editingSpId) {
-                await api.put(`/billing-config/scheme-prices/${editingSpId}`, payload);
-            } else {
-                await api.post('/billing-config/scheme-prices', payload);
-            }
-
-            setSpForm({ sales_scheme_id: '', product_category_id: '', business_type_id: '', business_scale_id: '', data_source: 'ORGANIK', base_price: '', discount_percent: '0', description: '' });
-            setShowSpForm(false);
-            setEditingSpId(null);
-            fetchData();
-        } catch (err: any) {
-            alert(err.response?.data?.error || 'Gagal menyimpan');
-        }
-    };
-
-    const handleDeleteSchemePrice = async (id: number) => {
-        if (!confirm('Hapus harga skema ini?')) return;
-        try {
-            await api.delete(`/billing-config/scheme-prices/${id}`);
-            fetchData();
-        } catch { alert('Gagal menghapus'); }
-    };
 
     const handleDeleteMaster = async (endpoint: string, id: number) => {
-        if (!confirm('Hapus data ini?')) return;
-        try {
-            await api.delete(`${endpoint}/${id}`);
-            fetchData();
-        } catch { alert('Gagal menghapus'); }
+        setConfirmModal({
+            isOpen: true,
+            title: 'Hapus Data',
+            message: 'Apakah Anda yakin ingin menghapus data ini? Tindakan ini tidak dapat dibatalkan.',
+            variant: 'danger',
+            onConfirm: async () => {
+                try {
+                    await api.delete(`${endpoint}/${id}`);
+                    fetchData();
+                    toast.success('Data berhasil dihapus');
+                } catch { 
+                    toast.error('Gagal menghapus data'); 
+                }
+            }
+        });
     };
 
-    const handleEditSp = (sp: any) => {
-        setSpForm({
-            sales_scheme_id: sp.sales_scheme_id.toString(),
-            product_category_id: sp.product_category_id?.toString() || '',
-            business_type_id: sp.business_type_id?.toString() || '',
-            business_scale_id: sp.business_scale_id?.toString() || '',
-            data_source: sp.data_source,
-            base_price: sp.base_price.toString(),
-            discount_percent: sp.discount_percent.toString(),
-            description: sp.description || '',
-        });
-        setEditingSpId(sp.id);
-        setShowSpForm(true);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
 
     const handleEditMaster = (item: any) => {
         setNewItemName(item.name);
@@ -232,6 +214,9 @@ export default function BillingConfigAdmin() {
             setNewItemProvinceId(item.province_id?.toString() || '');
             setNewItemRegencyId(item.regency_id?.toString() || '');
             setNewItemDistrictId(item.district_id?.toString() || '');
+            setNewItemSalesSchemeId(item.sales_scheme_id?.toString() || '');
+            setNewItemDataSource(item.data_source || 'ORGANIK');
+            setNewItemBusinessScaleId(item.business_scale_id?.toString() || '');
         }
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -258,17 +243,15 @@ export default function BillingConfigAdmin() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-2 flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between">
                 <div className="flex flex-wrap gap-2">
                     {[
-                        { key: 'pricing', label: 'Pengaturan Harga', icon: DollarSign },
-                        { key: 'master_data', label: 'Klasifikasi & Master', icon: Tag },
                         { key: 'components', label: 'Komponen Biaya', icon: Plus },
+                        { key: 'master_data', label: 'Klasifikasi & Master', icon: Tag },
                         { key: 'settings', label: 'Pengaturan Global', icon: Tag },
                     ].map(tab => (
                         <button
                             key={tab.key}
                             onClick={() => {
                                 setActiveMainTab(tab.key as MainTab);
-                                if (tab.key === 'pricing') setActiveTab('scheme_prices');
-                                else if (tab.key === 'master_data') setActiveTab('business_types');
+                                if (tab.key === 'master_data') setActiveTab('business_types');
                                 else setActiveTab('components');
                             }}
                             className={`px-4 py-2 text-sm font-bold rounded-xl flex items-center gap-2 transition-all ${
@@ -331,9 +314,9 @@ export default function BillingConfigAdmin() {
                                     onClick={async () => {
                                         try {
                                             await api.put('/system-settings', { key: 'SD_MANDIRI_COST', value: systemSettings['SD_MANDIRI_COST'] || '280000' });
-                                            alert("Pengaturan berhasil disimpan");
+                                            toast.success("Pengaturan berhasil disimpan");
                                         } catch (err) {
-                                            alert("Gagal menyimpan pengaturan");
+                                            toast.error("Gagal menyimpan pengaturan");
                                         }
                                     }} 
                                     className="px-6 py-2.5 bg-brand-600 text-white text-sm font-bold rounded-xl shadow-md shadow-brand-200 hover:bg-brand-700 transition-all"
@@ -343,206 +326,18 @@ export default function BillingConfigAdmin() {
                             </div>
                         </div>
                     </div>
+                    <ConfirmModal 
+                        isOpen={confirmModal.isOpen}
+                        onClose={() => setConfirmModal(p => ({ ...p, isOpen: false }))}
+                        title={confirmModal.title}
+                        message={confirmModal.message}
+                        onConfirm={confirmModal.onConfirm}
+                        variant={confirmModal.variant}
+                    />
                 </div>
             )}
 
-            {/* ==================== SCHEME PRICES TAB ==================== */}
-            {activeTab === 'scheme_prices' && activeMainTab === 'pricing' && (
-                <div className="space-y-6 animate-in fade-in">
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-900">Konfigurasi Harga per Skema</h3>
-                                <p className="text-xs text-gray-500 mt-1">Penentuan harga dasar berdasarkan kombinasi bidang, produk, dan skala usaha.</p>
-                            </div>
-                            <button onClick={() => {
-                                setShowSpForm(!showSpForm);
-                                if (showSpForm) { setEditingSpId(null); setSpForm({ sales_scheme_id: '', product_category_id: '', business_type_id: '', business_scale_id: '', data_source: 'ORGANIK', base_price: '', discount_percent: '0', description: '' }); }
-                            }} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${showSpForm ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-brand-600 text-white shadow-lg shadow-brand-200 hover:bg-brand-700'}`}>
-                                {showSpForm ? 'Tutup Form' : <><Plus className="w-4 h-4" /> Tambah Harga Baru</>}
-                            </button>
-                        </div>
 
-                        {showSpForm && (
-                            <div className="p-6 bg-brand-50/30 border-b border-gray-100 space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                    <div className="space-y-4 col-span-1 lg:col-span-2 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Informasi Utama</h4>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-700 mb-1.5">Skema Penjualan *</label>
-                                                <select className="w-full bg-gray-50 border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" value={spForm.sales_scheme_id} onChange={e => setSpForm(p => ({ ...p, sales_scheme_id: e.target.value }))}>
-                                                    <option value="">Pilih Skema...</option>
-                                                    {schemes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-700 mb-1.5">Sumber Data</label>
-                                                <select className="w-full bg-gray-50 border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" value={spForm.data_source} onChange={e => setSpForm(p => ({ ...p, data_source: e.target.value }))}>
-                                                    <option value="ORGANIK">Organik (Konsultan)</option>
-                                                    <option value="MARKETING">Marketing (Partner)</option>
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-700 mb-1.5">Harga Dasar (Rp) *</label>
-                                                <input type="number" className="w-full bg-gray-50 border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-semibold" placeholder="e.g. 7000000" value={spForm.base_price} onChange={e => setSpForm(p => ({ ...p, base_price: e.target.value }))} />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-700 mb-1.5">Diskon Pendampingan (%)</label>
-                                                <input type="number" className="w-full bg-gray-50 border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" placeholder="e.g. 10" value={spForm.discount_percent} onChange={e => setSpForm(p => ({ ...p, discount_percent: e.target.value }))} />
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="space-y-4 col-span-1 lg:col-span-2 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Filter &amp; Kondisi</h4>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-700 mb-1.5">Jenis Bidang</label>
-                                                <select className="w-full bg-gray-50 border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" value={spForm.business_type_id} onChange={e => setSpForm(p => ({ ...p, business_type_id: e.target.value, product_category_id: '' }))}>
-                                                    <option value="">Semua Bidang</option>
-                                                    {businessTypes.map(bt => <option key={bt.id} value={bt.id}>{bt.name}</option>)}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-700 mb-1.5">Jenis Produk</label>
-                                                <select className="w-full bg-gray-50 border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" value={spForm.product_category_id} onChange={e => setSpForm(p => ({ ...p, product_category_id: e.target.value }))}>
-                                                    <option value="">Semua Produk</option>
-                                                    {products
-                                                        .filter(p => !spForm.business_type_id || p.business_type_id === parseInt(spForm.business_type_id))
-                                                        .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                                </select>
-                                            </div>
-                                            <div className="col-span-2">
-                                                <label className="block text-xs font-bold text-gray-700 mb-1.5">Skala Usaha</label>
-                                                <select className="w-full bg-gray-50 border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all text-brand-700 font-semibold" value={spForm.business_scale_id} onChange={e => setSpForm(p => ({ ...p, business_scale_id: e.target.value }))}>
-                                                    <option value="">Semua Skala</option>
-                                                    {scales.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-                                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Keterangan (Opsional)</label>
-                                    <input className="w-full bg-gray-50 border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" placeholder="Catatan tambahan..." value={spForm.description} onChange={e => setSpForm(p => ({ ...p, description: e.target.value }))} />
-                                </div>
-                                <div className="flex justify-end gap-3 pt-2">
-                                    <button onClick={() => { setShowSpForm(false); setEditingSpId(null); setSpForm({ sales_scheme_id: '', product_category_id: '', business_type_id: '', business_scale_id: '', data_source: 'ORGANIK', base_price: '', discount_percent: '0', description: '' }); }} className="px-6 py-2.5 text-sm font-bold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl transition-colors shadow-sm">Batal</button>
-                                    <button onClick={handleCreateSchemePrice} disabled={!spForm.sales_scheme_id || !spForm.base_price} className="px-6 py-2.5 bg-brand-600 text-white text-sm font-bold rounded-xl shadow-md shadow-brand-200 hover:bg-brand-700 disabled:opacity-50 disabled:shadow-none transition-all">
-                                        {editingSpId ? 'Update Harga' : 'Simpan Harga'}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {schemePrices.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-16 text-center">
-                                <DollarSign className="w-12 h-12 text-gray-200 mb-3" />
-                                <h3 className="text-gray-500 font-medium">Belum ada harga skema</h3>
-                                <p className="text-sm text-gray-400 mt-1">Klik "Tambah Harga Baru" untuk mulai mengkonfigurasi harga.</p>
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-gray-50 border-b border-gray-100">
-                                        <tr>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Skema & Sumber</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Klasifikasi (Produk/Skala)</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Harga Dasar</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Diskon</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Keterangan</th>
-                                            <th className="px-6 py-4 text-right"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {[
-                                            // 1. General group (business_type_id is null)
-                                            { id: 'null', name: 'Semua Bidang (General)', icon: Tag },
-                                            // 2. Real business types
-                                            ...businessTypes
-                                        ].map(group => {
-                                            const items = schemePrices.filter(sp => 
-                                                group.id === 'null' ? !sp.business_type_id : sp.business_type_id === group.id
-                                            );
-                                            
-                                            if (items.length === 0) return null;
-
-                                            const isCollapsed = collapsedGroups[group.id.toString()];
-
-                                            return (
-                                                <>
-                                                    <tr 
-                                                        key={`group-${group.id}`} 
-                                                        className="bg-gray-50/80 cursor-pointer hover:bg-brand-50/50 transition-colors select-none"
-                                                        onClick={() => setCollapsedGroups(prev => ({ ...prev, [group.id.toString()]: !prev[group.id.toString()] }))}
-                                                    >
-                                                        <td colSpan={6} className="px-6 py-3">
-                                                            <div className="flex items-center gap-2">
-                                                                {isCollapsed ? <ChevronRight className="w-4 h-4 text-brand-600" /> : <ChevronDown className="w-4 h-4 text-brand-600" />}
-                                                                <span className="text-xs font-black text-brand-800 uppercase tracking-widest">
-                                                                    BIDANG: {group.name}
-                                                                </span>
-                                                                <span className="ml-2 px-2 py-0.5 bg-brand-100 text-brand-700 text-[10px] font-bold rounded-full">
-                                                                    {items.length} Item
-                                                                </span>
-                                                                {isCollapsed && <span className="text-[10px] text-gray-400 ml-auto italic">Klik untuk membuka</span>}
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                    {!isCollapsed && items.map(sp => (
-                                                        <tr key={sp.id} className="hover:bg-brand-50/30 group transition-colors">
-                                                            <td className="px-6 py-4">
-                                                                <div className="font-bold text-gray-800">{sp.sales_scheme?.name || `ID: ${sp.sales_scheme_id}`}</div>
-                                                                <div className="mt-1.5">
-                                                                    <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${sp.data_source === 'MARKETING' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
-                                                                        {sp.data_source}
-                                                                    </span>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-6 py-4">
-                                                                <div className="flex flex-wrap gap-2">
-                                                                    <span className="px-2.5 py-1 bg-white border border-gray-200 text-gray-600 rounded-lg text-[10px] font-semibold shadow-sm">
-                                                                        {sp.product_category?.name || 'Semua Produk'}
-                                                                    </span>
-                                                                    <span className="px-2.5 py-1 bg-brand-50 border border-brand-200 text-brand-700 rounded-lg text-[10px] font-bold shadow-sm">
-                                                                        {sp.business_scale?.name || 'Semua Skala'}
-                                                                    </span>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-6 py-4">
-                                                                <div className="font-black text-gray-900 text-[15px]">{formatRupiah(sp.base_price)}</div>
-                                                            </td>
-                                                            <td className="px-6 py-4">
-                                                                {sp.discount_percent > 0 ? (
-                                                                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 text-green-700 rounded-lg text-[11px] font-bold border border-green-100">
-                                                                        <Tag className="w-3.5 h-3.5" /> {sp.discount_percent}%
-                                                                    </div>
-                                                                ) : <span className="text-gray-300 font-medium text-xs">—</span>}
-                                                            </td>
-                                                            <td className="px-6 py-4 text-gray-500 text-xs">{sp.description || <span className="text-gray-300 italic">Tidak ada</span>}</td>
-                                                            <td className="px-6 py-4 text-right">
-                                                                <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                                                                    <button onClick={(e) => { e.stopPropagation(); handleEditSp(sp); }} className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-xl">
-                                                                        <Pencil className="w-4 h-4" />
-                                                                    </button>
-                                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteSchemePrice(sp.id); }} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl">
-                                                                        <Trash2 className="w-4.5 h-4.5" />
-                                                                    </button>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
 
             {/* ==================== COMPONENTS TAB ==================== */}
             {activeTab === 'components' && activeMainTab === 'components' && (
@@ -633,6 +428,27 @@ export default function BillingConfigAdmin() {
                                                 .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                         </select>
                                     </div>
+                                    <div className="col-span-2 md:col-span-1">
+                                        <label className="block text-xs font-bold text-gray-700 mb-1.5">Skema Penjualan</label>
+                                        <select className="w-full bg-white border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" value={newItemSalesSchemeId} onChange={e => setNewItemSalesSchemeId(e.target.value)}>
+                                            <option value="">Semua Skema</option>
+                                            {schemes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="col-span-2 md:col-span-1">
+                                        <label className="block text-xs font-bold text-gray-700 mb-1.5">Sumber Data</label>
+                                        <select className="w-full bg-white border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" value={newItemDataSource} onChange={e => setNewItemDataSource(e.target.value)}>
+                                            <option value="ORGANIK">Organik (Konsultan)</option>
+                                            <option value="MARKETING">Marketing (Partner)</option>
+                                        </select>
+                                    </div>
+                                    <div className="col-span-2 md:col-span-1">
+                                        <label className="block text-xs font-bold text-gray-700 mb-1.5">Skala Usaha</label>
+                                        <select className="w-full bg-white border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" value={newItemBusinessScaleId} onChange={e => setNewItemBusinessScaleId(e.target.value)}>
+                                            <option value="">Semua Skala</option>
+                                            {scales.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -714,12 +530,23 @@ export default function BillingConfigAdmin() {
                                                 {(c.business_type_id || c.product_category_id) && (
                                                     <span className="text-xs text-gray-600 flex items-center gap-1.5">
                                                         <span className="w-1.5 h-1.5 rounded-full bg-brand-400"></span>
-                                                        {c.business_type_id ? businessTypes.find(bt => bt.id === c.business_type_id)?.name : 'Semua Bidang'} 
-                                                        {c.product_category_id ? ` • ${products.find(p => p.id === c.product_category_id)?.name}` : ''}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </td>
+                                                    {c.business_type_id ? businessTypes.find(bt => bt.id === c.business_type_id)?.name : 'Semua Bidang'} 
+                                                    {c.product_category_id ? ` • ${products.find(p => p.id === c.product_category_id)?.name}` : ''}
+                                                </span>
+                                            )}
+                                            {(c.sales_scheme_id || c.business_scale_id) && (
+                                                <span className="text-xs text-gray-600 flex items-center gap-1.5">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                                                    {c.sales_scheme_id ? schemes.find(s => s.id === c.sales_scheme_id)?.name : 'Semua Skema'} 
+                                                    {c.business_scale_id ? ` • ${scales.find(s => s.id === c.business_scale_id)?.name}` : ''}
+                                                </span>
+                                            )}
+                                            <span className="text-xs text-gray-600 flex items-center gap-1.5">
+                                                <span className={`w-1.5 h-1.5 rounded-full ${c.data_source === 'MARKETING' ? 'bg-amber-400' : 'bg-green-400'}`}></span>
+                                                Sumber: {c.data_source || 'ORGANIK'}
+                                            </span>
+                                        </div>
+                                    </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
                                                 <button onClick={() => handleEditMaster(c)} className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-xl transition-colors">

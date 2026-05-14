@@ -35,30 +35,57 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
     const user = useAuthStore(state => state.user);
     const roleName = user?.role || '';
 
-    const links: SidebarLink[] = [
-        { name: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-        { name: 'Klien', to: '/dashboard/clients', icon: Users, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'KOORDINATOR', 'DRAFTER', 'QC_OFFICER', 'MARKETING'] },
-        { name: 'Pengajuan', to: '/dashboard/submissions', icon: FileText, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'KOORDINATOR', 'QC_OFFICER', 'DRAFTER', 'MARKETING'] },
-        { name: 'Distribusi Data', to: '/dashboard/distribution', icon: Users, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN'] },
-        { name: 'Monitoring Drafter', to: '/dashboard/monitoring', icon: Monitor, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN'] },
-        { name: 'Profil Konsultan', to: '/dashboard/consultant-profile', icon: UserCheck, roles: ['HALAL_KONSULTAN'] },
-        { name: 'Tim Saya', to: '/dashboard/team', icon: UsersRound, roles: ['KOORDINATOR'] },
-        { name: 'Referral Saya', to: '/dashboard/referrals', icon: TrendingUp, roles: ['HALAL_KONSULTAN', 'KOORDINATOR', 'MARKETING', 'ADMIN'] },
-        { name: 'Analitik Referral', to: '/dashboard/admin-referrals', icon: TrendingUp, roles: ['ADMIN_PELATIHAN', 'DIRECTOR', 'ADMIN'] },
-        { name: 'Fee Referral', to: '/dashboard/referral-fees', icon: DollarSign, roles: ['ADMIN_KEUANGAN', 'ADMIN_PELATIHAN', 'FINANCE', 'DIRECTOR', 'ADMIN'] },
-        { name: 'Verifikasi Konsultan', to: '/dashboard/consultant-verification', icon: Shield, roles: ['ADMIN_PELATIHAN', 'DIRECTOR', 'ADMIN'] },
-        { name: 'Pelatihan', to: '/dashboard/training', icon: GraduationCap, roles: ['ADMIN_PELATIHAN', 'KOORDINATOR', 'DIRECTOR', 'MANAGER'] },
-        { name: 'Keuangan', to: '/dashboard/finance', icon: Receipt, roles: ['ADMIN_KEUANGAN', 'FINANCE', 'DIRECTOR'] },
-        { name: 'Pembayaran', to: '/dashboard/payments', icon: CreditCard, roles: ['FINANCE', 'ADMIN_KEUANGAN', 'DIRECTOR'] },
-        { name: 'Pengaturan Form', to: '/dashboard/form-config', icon: Settings, roles: ['DIRECTOR', 'MANAGER'] },
-        { name: 'Master Biaya', to: '/dashboard/billing-config', icon: Receipt, roles: ['DIRECTOR', 'MANAGER'] },
-        { name: 'Wilayah & Tarif', to: '/dashboard/geography', icon: MapPin, roles: ['DIRECTOR', 'MANAGER', 'ADMIN_KEUANGAN'] },
-        { name: 'Manajemen User', to: '/dashboard/users', icon: Users, roles: ['DIRECTOR'] },
-        { name: 'CMS', to: '/dashboard/cms', icon: BookOpen, roles: ['DIRECTOR'] },
+    const groups: { name: string; roles?: string[]; links: SidebarLink[] }[] = [
+        {
+            name: 'Main Menu',
+            links: [
+                { name: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
+                { name: 'Klien', to: '/dashboard/clients', icon: Users, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'KOORDINATOR', 'DRAFTER', 'QC_OFFICER', 'MARKETING'] },
+                { name: 'Pengajuan', to: '/dashboard/submissions', icon: FileText, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'KOORDINATOR', 'QC_OFFICER', 'DRAFTER', 'MARKETING'] },
+                { name: 'Tagihan Saya', to: '/dashboard/my-invoices', icon: CreditCard, roles: ['KOORDINATOR', 'HALAL_KONSULTAN', 'ADMIN', 'MARKETING'] },
+            ]
+        },
+        {
+            name: 'Workflow',
+            roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN', 'HALAL_KONSULTAN'],
+            links: [
+                { name: 'Distribusi Data', to: '/dashboard/distribution', icon: Users, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN'] },
+                { name: 'Monitoring Drafter', to: '/dashboard/monitoring', icon: Monitor, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN'] },
+                { name: 'Profil Konsultan', to: '/dashboard/consultant-profile', icon: UserCheck, roles: ['HALAL_KONSULTAN'] },
+            ]
+        },
+        {
+            name: 'Jaringan & Referral',
+            roles: ['KOORDINATOR', 'HALAL_KONSULTAN', 'MARKETING', 'ADMIN', 'DIRECTOR', 'FINANCE', 'ADMIN_KEUANGAN'],
+            links: [
+                { name: 'Tim Saya', to: '/dashboard/team', icon: UsersRound, roles: ['KOORDINATOR'] },
+                { name: 'Referral Saya', to: '/dashboard/referrals', icon: TrendingUp, roles: ['HALAL_KONSULTAN', 'KOORDINATOR', 'MARKETING', 'ADMIN'] },
+                { name: 'Analitik Referral', to: '/dashboard/admin-referrals', icon: TrendingUp, roles: ['ADMIN_PELATIHAN', 'DIRECTOR', 'ADMIN'] },
+                { name: 'Fee Referral', to: '/dashboard/referral-fees', icon: DollarSign, roles: ['ADMIN_KEUANGAN', 'ADMIN_PELATIHAN', 'FINANCE', 'DIRECTOR', 'ADMIN'] },
+                { name: 'Tarif Koordinator', to: '/dashboard/coordinator-rates', icon: CreditCard, roles: ['FINANCE', 'ADMIN_KEUANGAN', 'ADMIN', 'DIRECTOR'] },
+            ]
+        },
+        {
+            name: 'Operasional',
+            roles: ['ADMIN_PELATIHAN', 'KOORDINATOR', 'DIRECTOR', 'MANAGER', 'ADMIN'],
+            links: [
+                { name: 'Verifikasi Konsultan', to: '/dashboard/consultant-verification', icon: Shield, roles: ['ADMIN_PELATIHAN', 'DIRECTOR', 'ADMIN'] },
+                { name: 'Pelatihan', to: '/dashboard/training', icon: GraduationCap, roles: ['ADMIN_PELATIHAN', 'KOORDINATOR', 'DIRECTOR', 'MANAGER'] },
+            ]
+        },
+        {
+            name: 'Pengaturan Sistem',
+            roles: ['DIRECTOR', 'MANAGER', 'ADMIN_KEUANGAN', 'FINANCE', 'ADMIN'],
+            links: [
+                { name: 'Manajemen Billing', to: '/dashboard/billing', icon: Receipt, roles: ['ADMIN_KEUANGAN', 'FINANCE', 'DIRECTOR', 'ADMIN'] },
+                { name: 'Pengaturan Form', to: '/dashboard/form-config', icon: Settings, roles: ['DIRECTOR', 'MANAGER', 'ADMIN'] },
+                { name: 'Master Biaya', to: '/dashboard/billing-config', icon: Receipt, roles: ['DIRECTOR', 'MANAGER', 'ADMIN'] },
+                { name: 'Wilayah & Tarif', to: '/dashboard/geography', icon: MapPin, roles: ['DIRECTOR', 'MANAGER', 'ADMIN_KEUANGAN', 'ADMIN'] },
+                { name: 'Manajemen User', to: '/dashboard/users', icon: Users, roles: ['DIRECTOR', 'ADMIN'] },
+                { name: 'CMS', to: '/dashboard/cms', icon: BookOpen, roles: ['DIRECTOR', 'ADMIN'] },
+            ]
+        }
     ];
-
-    // Filter links based on role
-    const filteredLinks = links.filter(l => !l.roles || l.roles.includes(roleName));
 
     return (
         <>
@@ -98,58 +125,46 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
                     )}
 
                     {/* Navigation */}
-                    <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-                        {filteredLinks.map((link) => (
-                            <NavLink
-                                key={link.to}
-                                to={link.to}
-                                end={link.to === '/dashboard'}
-                                className={({ isActive }) => `
-                            flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors
-                            ${isActive
-                                        ? 'bg-brand-100 text-brand-700 shadow-sm'
-                                        : 'text-gray-600 hover:bg-white/50 hover:text-gray-900'}
-                        `}
-                            >
-                                <link.icon className="w-5 h-5" />
-                                {link.name}
-                            </NavLink>
-                        ))}
+                    <nav className="flex-1 overflow-y-auto py-6 px-3 custom-scrollbar">
+                        {groups.map((group) => {
+                            const filteredLinks = group.links.filter(l => !l.roles || l.roles.includes(roleName));
+                            if (filteredLinks.length === 0) return null;
+
+                            return (
+                                <div key={group.name} className="mb-6 last:mb-0">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">
+                                        {group.name}
+                                    </p>
+                                    <div className="space-y-1">
+                                        {filteredLinks.map((link) => (
+                                            <NavLink
+                                                key={link.to}
+                                                to={link.to}
+                                                end={link.to === '/dashboard'}
+                                                className={({ isActive }) => `
+                                                    flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-300
+                                                    ${isActive
+                                                        ? 'bg-brand-600 text-white shadow-lg shadow-brand-100 scale-[1.02]'
+                                                        : 'text-gray-500 hover:bg-white/60 hover:text-brand-600'}
+                                                `}
+                                            >
+                                                <link.icon className={`w-5 h-5 transition-transform duration-300 ${isOpen ? 'group-hover:scale-110' : ''}`} />
+                                                <span className="truncate">{link.name}</span>
+                                            </NavLink>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </nav>
 
                     {/* Footer / Logout */}
-                    {/* Coordinator Billing */}
-                    {(user?.role === 'KOORDINATOR' || user?.role === 'HALAL_KONSULTAN' || user?.role === 'ADMIN') && (
-                        <div className="mt-6 px-4">
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-2">Tagihan</p>
-                            <NavLink to="/dashboard/my-invoices" className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-brand-100 text-brand-700 shadow-sm' : 'text-gray-600 hover:bg-white/50 hover:text-gray-900'}`}>
-                                <CreditCard className="w-5 h-5" />
-                                Tagihan Saya
-                            </NavLink>
-                        </div>
-                    )}
-
-                    {/* Finance Specific */}
-                    {(user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
-                        <div className="mt-6 px-4">
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-2">Finance & Billing</p>
-                            <NavLink to="/dashboard/coordinator-rates" className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-brand-100 text-brand-700 shadow-sm' : 'text-gray-600 hover:bg-white/50 hover:text-gray-900'}`}>
-                                <DollarSign className="w-5 h-5" />
-                                Tarif Koordinator
-                            </NavLink>
-                            <NavLink to="/dashboard/all-invoices" className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-brand-100 text-brand-700 shadow-sm' : 'text-gray-600 hover:bg-white/50 hover:text-gray-900'}`}>
-                                <FileText className="w-5 h-5" />
-                                Daftar Tagihan
-                            </NavLink>
-                        </div>
-                    )}
-
-                    <div className="mt-auto p-4 border-t border-glass-border">
+                    <div className="mt-auto p-4 border-t border-glass-border bg-white/20 backdrop-blur-sm">
                         <button
                             onClick={logout}
-                            className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                            className="flex w-full items-center gap-3 px-4 py-3 text-sm font-black text-red-600 rounded-xl hover:bg-red-50 hover:text-red-700 transition-all active:scale-95 group"
                         >
-                            <LogOut className="w-5 h-5" />
+                            <LogOut className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
                             Sign Out
                         </button>
                     </div>
@@ -158,4 +173,5 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
         </>
     );
 };
+
 export default Sidebar;

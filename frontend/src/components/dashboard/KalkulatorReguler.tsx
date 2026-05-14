@@ -34,7 +34,6 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
 
     // Dynamic cost components from master biaya
     const [masterComponents, setMasterComponents] = useState<BillingComponent[]>([]);
-    const [schemePrice, setSchemePrice] = useState<any>(null);
     const [loadingComponents, setLoadingComponents] = useState(false);
 
     // Form State
@@ -44,6 +43,11 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     const [provinceId, setProvinceId] = useState('');
     const [regencyId, setRegencyId] = useState('');
     const [districtId, setDistrictId] = useState('');
+
+    // Quantities
+    const [branchCount, setBranchCount] = useState(1);
+    const [productCount, setProductCount] = useState(1);
+    const [mandays, setMandays] = useState(1);
 
     // Optional costs
     const [optionalCosts, setOptionalCosts] = useState<OptionalCost[]>([]);
@@ -82,39 +86,18 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             if (districtId) params.district_id = districtId;
             if (dataSource) params.data_source = dataSource;
             
-            // If marketing but no scheme ID, we'll try to find the partnership scheme in the logic below
-            if (salesSchemeId) params.sales_scheme_id = salesSchemeId.toString();
+            // Target scheme: either the one passed via props, or if marketing, try to find partnership
+            const targetSchemeId = salesSchemeId || (dataSource === 'MARKETING' ? schemes.find(s => s.name.toUpperCase() === 'PARTNERSHIP' || s.name.toUpperCase() === 'PARTNER')?.id : null);
+            if (targetSchemeId) params.sales_scheme_id = targetSchemeId.toString();
+            
             params.resolve_geography = 'true';
 
-            const [compRes, spRes] = await Promise.all([
-                api.get('/billing-config/components', { params }),
-                api.get('/billing-config/scheme-prices', { params })
+            const [compRes] = await Promise.all([
+                api.get('/billing-config/components', { params })
             ]);
 
             setMasterComponents(compRes.data || []);
 
-            const prices = spRes.data || [];
-            let bestPrice = null;
-            let bestScore = -1;
-
-            // Target scheme: either the one passed via props, or if marketing, try to find partnership
-            const targetSchemeId = salesSchemeId || (dataSource === 'MARKETING' ? schemes.find(s => s.name.toUpperCase() === 'PARTNERSHIP' || s.name.toUpperCase() === 'PARTNER')?.id : null);
-
-            prices.forEach((p: any) => {
-                // If we have a specific scheme target, only look at those. 
-                // Otherwise, take the one with the highest specificity (score)
-                if (!targetSchemeId || p.sales_scheme_id === targetSchemeId) {
-                    let score = 0;
-                    if (p.business_scale_id) score += 5;
-                    if (p.product_category_id) score += 2;
-                    if (p.business_type_id) score += 1;
-                    if (score > bestScore) {
-                        bestScore = score;
-                        bestPrice = p;
-                    }
-                }
-            });
-            setSchemePrice(bestPrice || prices[0] || null);
         } catch (err) {
             console.error('Failed to load components:', err);
         } finally {
@@ -148,6 +131,10 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                     setProvinceId(detailRes.data.province_id?.toString() || '');
                     setRegencyId(detailRes.data.regency_id?.toString() || '');
                     setDistrictId(detailRes.data.district_id?.toString() || '');
+                    
+                    setBranchCount(detailRes.data.branch_count || 1);
+                    setProductCount(detailRes.data.product_count || 1);
+                    setMandays(detailRes.data.mandays || 1);
 
                     if (detailRes.data.cost_breakdown_data) {
                         try {
@@ -191,18 +178,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         let currentTotal = 0;
         const currentBreakdown: any[] = [];
 
-        // 0. Base Price from Sales Scheme Configuration
-        if (schemePrice) {
-            currentBreakdown.push({
-                name: `Harga Dasar (${schemePrice.sales_scheme?.name || 'Skema'})`,
-                category: 'BASE_PRICE',
-                unit_cost: schemePrice.base_price,
-                multiplier: null,
-                total: schemePrice.base_price,
-                is_optional: false
-            });
-            currentTotal += schemePrice.base_price;
-        }
+
 
         // 1. Components from master biaya
         // Group by category and pick the most specific one
@@ -217,6 +193,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             if (comp.district_id) score += 1000;
             if (comp.regency_id) score += 100;
             if (comp.province_id) score += 10;
+            if (comp.sales_scheme_id) score += 8;
             if (comp.business_scale_id) score += 5;
             if (comp.product_category_id) score += 2;
             if (comp.business_type_id) score += 1;
@@ -234,15 +211,31 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             else if (comp.province_id) nameTag = ' [Khusus Provinsi]';
             else if (comp.business_type_id || comp.product_category_id || comp.business_scale_id) nameTag = ' [Khusus Kriteria]';
 
+            let multiplier = 1;
+            let multiplierLabel = '';
+            
+            if (comp.type === 'PER_CABANG') {
+                multiplier = branchCount;
+                multiplierLabel = ` (${branchCount} Cabang)`;
+            } else if (comp.type === 'PER_MANDAY') {
+                multiplier = mandays;
+                multiplierLabel = ` (${mandays} Manday)`;
+            } else if (comp.type === 'PER_PRODUK') {
+                multiplier = productCount;
+                multiplierLabel = ` (${productCount} Produk)`;
+            }
+
+            const itemTotal = comp.base_amount * multiplier;
+
             currentBreakdown.push({
-                name: comp.name + nameTag,
+                name: comp.name + nameTag + multiplierLabel,
                 category: comp.category.toUpperCase(),
                 unit_cost: comp.base_amount,
-                multiplier: null,
-                total: comp.base_amount,
+                multiplier: multiplier > 1 ? multiplier : null,
+                total: itemTotal,
                 is_optional: false
             });
-            currentTotal += comp.base_amount;
+            currentTotal += itemTotal;
         });
 
         // 2. Partnership discount on pendampingan
@@ -277,7 +270,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         });
 
         return { total: currentTotal, breakdown: currentBreakdown };
-    }, [masterComponents, schemePrice, optionalCosts, salesSchemeId, schemes]);
+    }, [masterComponents, optionalCosts, salesSchemeId, schemes]);
 
     const handleSave = async () => {
         setSaving(true);
@@ -289,9 +282,9 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             province_id: parseInt(provinceId) || null,
             regency_id: parseInt(regencyId) || null,
             district_id: parseInt(districtId) || null,
-            product_count: 1,
-            branch_count: 1,
-            mandays: 1,
+            product_count: productCount,
+            branch_count: branchCount,
+            mandays: mandays,
             total_amount: total,
             cost_breakdown_data: JSON.stringify(breakdown)
         };
@@ -430,6 +423,43 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                             </select>
                         </div>
                     )}
+
+                    {/* Quantities (Branch, Manday, Product) */}
+                    <div className="grid grid-cols-3 gap-4 border-t border-gray-100 pt-5">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Jumlah Cabang</label>
+                            <input
+                                type="number"
+                                min="1"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500/20"
+                                value={branchCount}
+                                onChange={e => setBranchCount(Math.max(1, parseInt(e.target.value) || 1))}
+                                disabled={!isEditable}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Jumlah Produk</label>
+                            <input
+                                type="number"
+                                min="1"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500/20"
+                                value={productCount}
+                                onChange={e => setProductCount(Math.max(1, parseInt(e.target.value) || 1))}
+                                disabled={!isEditable}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Jumlah Manday</label>
+                            <input
+                                type="number"
+                                min="1"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500/20"
+                                value={mandays}
+                                onChange={e => setMandays(Math.max(1, parseInt(e.target.value) || 1))}
+                                disabled={!isEditable}
+                            />
+                        </div>
+                    </div>
 
                     {/* Biaya Tambahan (Opsional) */}
                     <div className="border-t border-gray-100 pt-4">

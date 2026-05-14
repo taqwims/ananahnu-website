@@ -63,6 +63,10 @@ type BillingComponent struct {
 	BusinessTypeID    *int64    `json:"business_type_id,omitempty"`
 	ProductCategoryID *int64    `json:"product_category_id,omitempty"`
 	
+	SalesSchemeID     *int64       `json:"sales_scheme_id,omitempty"`
+	SalesScheme       *SalesScheme `gorm:"foreignKey:SalesSchemeID" json:"sales_scheme,omitempty"`
+	DataSource        string       `gorm:"default:'ORGANIK'" json:"data_source"` // ORGANIK, MARKETING
+	
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }

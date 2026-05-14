@@ -28,6 +28,9 @@ import type { Submission } from '../../types';
 import { useAuthStore } from '../../store/authStore';
 import { formatServiceType } from '../../utils/format';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
+import Modal from '../../components/ui/Modal';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 // Map status to colors
 const STATUS_CONFIG: Record<string, { color: string, icon: any }> = {
@@ -72,6 +75,19 @@ export default function SubmissionList() {
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
     const [copiedId, setCopiedId] = useState<string | null>(null);
+    
+    // Confirmation Modal States
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => {},
+    });
 
     const navigate = useNavigate();
     const user = useAuthStore(state => state.user);
@@ -116,15 +132,20 @@ export default function SubmissionList() {
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
-        if (!window.confirm("Apakah Anda yakin ingin menghapus pengajuan ini? Tindakan ini tidak dapat dibatalkan.")) return;
-
-        try {
-            await api.delete(`/submissions/${id}`);
-            alert("Pengajuan berhasil dihapus");
-            fetchSubmissions();
-        } catch (err: any) {
-            alert(err.response?.data?.error || "Gagal menghapus pengajuan");
-        }
+        setConfirmModal({
+            isOpen: true,
+            title: 'Hapus Pengajuan',
+            message: 'Apakah Anda yakin ingin menghapus pengajuan ini? Tindakan ini tidak dapat dibatalkan.',
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/submissions/${id}`);
+                    toast.success("Pengajuan berhasil dihapus");
+                    fetchSubmissions();
+                } catch (err: any) {
+                    toast.error(err.response?.data?.error || "Gagal menghapus pengajuan");
+                }
+            }
+        });
     };
 
     const handleSort = (key: SortKey) => {
@@ -475,55 +496,53 @@ export default function SubmissionList() {
                 </div>
             </div>
 
-            {/* Modal Create (Tetap sama namun dirapikan sedikit) */}
-            <AnimatePresence>
-                {showCreateModal && (
-                    <div className="fixed inset-0 bg-brand-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
-                        >
-                            <div className="bg-brand-900 p-8 text-white">
-                                <h3 className="text-2xl font-black tracking-tight">Mulai Pengajuan</h3>
-                                <p className="text-brand-200 text-sm mt-1">Lengkapi data dasar untuk memulai proses sertifikasi</p>
-                            </div>
-
-                            <div className="p-8 space-y-6">
-                                <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nama Usaha / Produk</label>
-                                    <input
-                                        type="text"
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-brand-500/20 transition-all outline-none"
-                                        placeholder="Contoh: Katering Berkah"
-                                        value={newSub.businessName}
-                                        onChange={e => setNewSub({ ...newSub, businessName: e.target.value })}
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Jenis Layanan</label>
-                                    <select
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-brand-500/20 transition-all outline-none"
-                                        value={newSub.serviceType}
-                                        onChange={e => setNewSub({ ...newSub, serviceType: e.target.value })}
-                                    >
-                                        <option value="SELF_DECLARE">Self Declare Fasilitasi (Gratis)</option>
-                                        <option value="SELF_DECLARE_MANDIRI">Self Declare Mandiri</option>
-                                        <option value="REGULER">Reguler</option>
-                                    </select>
-                                </div>
-
-                                <div className="flex gap-3 pt-4">
-                                    <button className="flex-1 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 rounded-2xl transition-colors" onClick={() => setShowCreateModal(false)}>Batal</button>
-                                    <button onClick={handleCreate} disabled={!newSub.businessName} className="flex-[2] py-3 bg-brand-600 text-white rounded-2xl font-black shadow-lg shadow-brand-100 hover:bg-brand-700 disabled:opacity-30 transition-all">Lanjut ke Form</button>
-                                </div>
-                            </div>
-                        </motion.div>
+            <Modal 
+                isOpen={showCreateModal} 
+                onClose={() => setShowCreateModal(false)}
+                title="Mulai Pengajuan"
+                maxWidth="md"
+            >
+                <div className="space-y-6">
+                    <p className="text-sm text-gray-500">Lengkapi data dasar untuk memulai proses sertifikasi</p>
+                    
+                    <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nama Usaha / Produk</label>
+                        <input
+                            type="text"
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-brand-500/20 transition-all outline-none"
+                            placeholder="Contoh: Katering Berkah"
+                            value={newSub.businessName}
+                            onChange={e => setNewSub({ ...newSub, businessName: e.target.value })}
+                        />
                     </div>
-                )}
-            </AnimatePresence>
+
+                    <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Jenis Layanan</label>
+                        <select
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-brand-500/20 transition-all outline-none"
+                            value={newSub.serviceType}
+                            onChange={e => setNewSub({ ...newSub, serviceType: e.target.value })}
+                        >
+                            <option value="SELF_DECLARE">Self Declare Fasilitasi (Gratis)</option>
+                            <option value="SELF_DECLARE_MANDIRI">Self Declare Mandiri</option>
+                            <option value="REGULER">Reguler</option>
+                        </select>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                        <button className="flex-1 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 rounded-2xl transition-colors" onClick={() => setShowCreateModal(false)}>Batal</button>
+                        <button onClick={handleCreate} disabled={!newSub.businessName} className="flex-[2] py-3 bg-brand-600 text-white rounded-2xl font-black shadow-lg shadow-brand-100 hover:bg-brand-700 disabled:opacity-30 transition-all">Lanjut ke Form</button>
+                    </div>
+                </div>
+            </Modal>
+
+            <ConfirmModal 
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal(p => ({ ...p, isOpen: false }))}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                onConfirm={confirmModal.onConfirm}
+            />
         </div>
     );
 }

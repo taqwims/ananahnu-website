@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { Users, Plus, Edit, Trash2, Key, Loader2, Search, Filter, Shield } from 'lucide-react';
 import api from '../../services/api';
 import type { User, Role } from '../../types';
+import toast from 'react-hot-toast';
+import Modal from '../../components/ui/Modal';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 export default function UserManagement() {
     const [users, setUsers] = useState<User[]>([]);
@@ -18,6 +21,19 @@ export default function UserManagement() {
     const [formData, setFormData] = useState({ full_name: '', email: '', role: '', leader_id: '', password: '', phone: '', address: '' });
     const [saving, setSaving] = useState(false);
     const [generatedPassword, setGeneratedPassword] = useState('');
+
+    // Confirmation Modal States
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => {},
+    });
 
     // Load coordinators for leader dropdown
     const [coordinators, setCoordinators] = useState<User[]>([]);
@@ -124,31 +140,53 @@ export default function UserManagement() {
                 }
             }
             loadData();
+            if (editingUser || formData.password) {
+                setShowModal(false);
+                toast.success(editingUser ? 'User berhasil diperbarui' : 'User berhasil dibuat');
+            }
         } catch (err: any) {
-            alert(err.response?.data?.error || 'Gagal menyimpan');
+            toast.error(err.response?.data?.error || 'Gagal menyimpan');
         } finally {
             setSaving(false);
         }
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Hapus user ini? Tindakan ini tidak dapat dibatalkan.')) return;
-        try {
-            await api.delete(`/admin/users/${id}`);
-            loadData();
-        } catch (err: any) {
-            alert(err.response?.data?.error || 'Gagal menghapus');
-        }
+        setConfirmModal({
+            isOpen: true,
+            title: 'Hapus User',
+            message: 'Apakah Anda yakin ingin menghapus user ini? Tindakan ini tidak dapat dibatalkan.',
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/admin/users/${id}`);
+                    toast.success('User berhasil dihapus');
+                    loadData();
+                } catch (err: any) {
+                    toast.error(err.response?.data?.error || 'Gagal menghapus');
+                }
+            }
+        });
     };
 
     const handleResetPassword = async (id: string) => {
-        if (!confirm('Reset password user ini?')) return;
-        try {
-            const res = await api.put(`/admin/users/${id}/reset-password`);
-            alert(`Password baru: ${res.data.password}\n\nSalin password ini, tidak akan ditampilkan lagi.`);
-        } catch (err: any) {
-            alert(err.response?.data?.error || 'Gagal reset password');
-        }
+        setConfirmModal({
+            isOpen: true,
+            title: 'Reset Password',
+            message: 'Reset password user ini?',
+            onConfirm: async () => {
+                try {
+                    const res = await api.put(`/admin/users/${id}/reset-password`);
+                    // We keep the modal open to show the password, or use a toast? 
+                    // Better to show in a modal since it's sensitive and needs copying.
+                    setEditingUser({ id } as any); // temporary trigger for "editing" state to show the result
+                    setGeneratedPassword(res.data.password);
+                    setShowModal(true);
+                    toast.success('Password berhasil direset');
+                } catch (err: any) {
+                    toast.error(err.response?.data?.error || 'Gagal reset password');
+                }
+            }
+        });
     };
 
     const getRoleName = (role: any) => {
@@ -286,123 +324,137 @@ export default function UserManagement() {
                 )}
             </div>
 
-            {/* Create/Edit Modal */}
-            {showModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
-                        <h3 className="text-lg font-bold mb-4">
-                            {editingUser ? 'Edit User' : 'Tambah User Baru'}
-                        </h3>
-
-                        {generatedPassword ? (
-                            <div className="space-y-4">
-                                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                                    <p className="text-sm text-green-800 font-medium mb-2">✅ User berhasil dibuat!</p>
-                                    <p className="text-sm text-green-700">Password sementara:</p>
-                                    <p className="font-mono text-lg font-bold text-green-900 bg-green-100 px-3 py-2 rounded mt-1 select-all">
-                                        {generatedPassword}
-                                    </p>
-                                    <p className="text-xs text-green-600 mt-2">Salin password ini. Tidak akan ditampilkan lagi.</p>
-                                </div>
-                                <div className="flex justify-end">
-                                    <button onClick={() => { setShowModal(false); setGeneratedPassword(''); }}
-                                        className="glass-button">Tutup</button>
-                                </div>
+            <Modal 
+                isOpen={showModal} 
+                onClose={() => { setShowModal(false); setGeneratedPassword(''); }}
+                title={generatedPassword ? 'Informasi Password' : (editingUser ? 'Edit User' : 'Tambah User Baru')}
+                maxWidth="lg"
+            >
+                {generatedPassword ? (
+                    <div className="space-y-4">
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6">
+                            <p className="text-sm text-emerald-800 font-bold mb-3 flex items-center gap-2">
+                                <Shield className="w-5 h-5" /> 
+                                {editingUser?.email ? 'Password Berhasil Direset' : 'User Berhasil Dibuat'}
+                            </p>
+                            <p className="text-xs text-emerald-600 mb-1">Password sementara:</p>
+                            <div className="font-mono text-2xl font-black text-emerald-900 bg-white border-2 border-emerald-100 px-4 py-3 rounded-xl select-all flex items-center justify-between">
+                                {generatedPassword}
+                                <Key className="w-5 h-5 opacity-20" />
                             </div>
-                        ) : (
-                            <div className="space-y-4">
+                            <p className="text-[10px] text-emerald-500 mt-4 leading-relaxed font-bold uppercase tracking-widest">
+                                SALIN PASSWORD INI. PASSWORD TIDAK AKAN DITAMPILKAN LAGI DEMI KEAMANAN.
+                            </p>
+                        </div>
+                        <div className="flex justify-end">
+                            <button onClick={() => { setShowModal(false); setGeneratedPassword(''); }}
+                                className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-black text-sm shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all">
+                                Saya Sudah Menyalin
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Nama Lengkap</label>
+                                <input
+                                    className="glass-input w-full"
+                                    value={formData.full_name}
+                                    onChange={e => setFormData({ ...formData, full_name: e.target.value })}
+                                    placeholder="Nama lengkap"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Email</label>
+                                <input
+                                    className="glass-input w-full"
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                    placeholder="email@example.com"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Nomor WhatsApp</label>
+                                <input
+                                    className="glass-input w-full"
+                                    value={formData.phone}
+                                    onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                                    placeholder="0812xxxx"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Alamat Domisili</label>
+                                <input
+                                    className="glass-input w-full"
+                                    value={formData.address}
+                                    onChange={e => setFormData({ ...formData, address: e.target.value })}
+                                    placeholder="Kota, Provinsi"
+                                />
+                            </div>
+                            <div className="sm:col-span-2">
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                                    Password {editingUser && '(Kosongkan jika tidak ingin mengubah)'}
+                                </label>
+                                <input
+                                    className="glass-input w-full"
+                                    type="text"
+                                    value={formData.password}
+                                    onChange={e => setFormData({ ...formData, password: e.target.value })}
+                                    placeholder={editingUser ? 'Kosongkan jika tidak diubah' : 'Kosongkan untuk generate otomatis'}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Role</label>
+                                <select
+                                    className="glass-input w-full"
+                                    value={formData.role}
+                                    onChange={e => setFormData({ ...formData, role: e.target.value })}
+                                >
+                                    <option value="">-- Pilih Role --</option>
+                                    {roles.map(r => (
+                                        <option key={r.id} value={r.name}>{r.name.replace(/_/g, ' ')}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            {formData.role === 'HALAL_KONSULTAN' && (
                                 <div>
-                                    <label className="block text-sm font-medium mb-1">Nama Lengkap</label>
-                                    <input
-                                        className="glass-input w-full"
-                                        value={formData.full_name}
-                                        onChange={e => setFormData({ ...formData, full_name: e.target.value })}
-                                        placeholder="Nama lengkap"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Email</label>
-                                    <input
-                                        className="glass-input w-full"
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={e => setFormData({ ...formData, email: e.target.value })}
-                                        placeholder="email@example.com"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Nomor WhatsApp</label>
-                                    <input
-                                        className="glass-input w-full"
-                                        value={formData.phone}
-                                        onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                                        placeholder="0812xxxx"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Alamat Domisili</label>
-                                    <input
-                                        className="glass-input w-full"
-                                        value={formData.address}
-                                        onChange={e => setFormData({ ...formData, address: e.target.value })}
-                                        placeholder="Kota, Provinsi"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">
-                                        Password {editingUser && '(Kosongkan jika tidak ingin mengubah)'}
-                                    </label>
-                                    <input
-                                        className="glass-input w-full"
-                                        type="text"
-                                        value={formData.password}
-                                        onChange={e => setFormData({ ...formData, password: e.target.value })}
-                                        placeholder={editingUser ? 'Kosongkan jika tidak diubah' : 'Kosongkan untuk generate otomatis'}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Role</label>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Koordinator (Leader)</label>
                                     <select
                                         className="glass-input w-full"
-                                        value={formData.role}
-                                        onChange={e => setFormData({ ...formData, role: e.target.value })}
+                                        value={formData.leader_id}
+                                        onChange={e => setFormData({ ...formData, leader_id: e.target.value })}
                                     >
-                                        <option value="">-- Pilih Role --</option>
-                                        {roles.map(r => (
-                                            <option key={r.id} value={r.name}>{r.name.replace(/_/g, ' ')}</option>
+                                        <option value="">-- Tanpa Leader --</option>
+                                        {coordinators.map(c => (
+                                            <option key={c.id} value={c.id}>{c.full_name}</option>
                                         ))}
                                     </select>
                                 </div>
-                                {formData.role === 'HALAL_KONSULTAN' && (
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Koordinator (Leader)</label>
-                                        <select
-                                            className="glass-input w-full"
-                                            value={formData.leader_id}
-                                            onChange={e => setFormData({ ...formData, leader_id: e.target.value })}
-                                        >
-                                            <option value="">-- Tanpa Leader --</option>
-                                            {coordinators.map(c => (
-                                                <option key={c.id} value={c.id}>{c.full_name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                )}
+                            )}
+                        </div>
 
-                                <div className="flex justify-end gap-3 mt-6">
-                                    <button onClick={() => setShowModal(false)}
-                                        className="px-4 py-2 hover:bg-gray-100 rounded-lg text-gray-600">Batal</button>
-                                    <button onClick={handleSave}
-                                        disabled={saving || !formData.full_name || !formData.email || !formData.role}
-                                        className="glass-button bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50">
-                                        {saving ? 'Menyimpan...' : editingUser ? 'Simpan' : 'Buat User'}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                        <div className="flex justify-end gap-3 pt-6">
+                            <button onClick={() => setShowModal(false)}
+                                className="px-4 py-2 text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors">Batal</button>
+                            <button onClick={handleSave}
+                                disabled={saving || !formData.full_name || !formData.email || !formData.role}
+                                className="px-8 py-3 bg-brand-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-brand-100 hover:bg-brand-700 disabled:opacity-30 transition-all">
+                                {saving ? 'Menyimpan...' : (editingUser ? 'Simpan Perubahan' : 'Buat User Baru')}
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+            </Modal>
+
+            <ConfirmModal 
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal(p => ({ ...p, isOpen: false }))}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                onConfirm={confirmModal.onConfirm}
+            />
         </div>
     );
 }

@@ -39,16 +39,18 @@ type UserManagementUsecase interface {
 	ResetUserPassword(id uuid.UUID) (string, error) // Returns new plaintext password
 	ListRoles() ([]domain.Role, error)
 	GetReferrals(userID uuid.UUID) ([]domain.User, error)
+	GetMyCommissions(userID uuid.UUID) ([]domain.ReferralCommission, error)
 	GetAllReferralAnalytics() ([]map[string]interface{}, error)
 }
 
 type userManagementUsecase struct {
-	userRepo domain.UserRepository
-	roleRepo domain.RoleRepository
+	userRepo       domain.UserRepository
+	roleRepo       domain.RoleRepository
+	commissionRepo domain.ReferralCommissionRepository
 }
 
-func NewUserManagementUsecase(u domain.UserRepository, r domain.RoleRepository) UserManagementUsecase {
-	return &userManagementUsecase{userRepo: u, roleRepo: r}
+func NewUserManagementUsecase(u domain.UserRepository, r domain.RoleRepository, c domain.ReferralCommissionRepository) UserManagementUsecase {
+	return &userManagementUsecase{userRepo: u, roleRepo: r, commissionRepo: c}
 }
 
 func (uc *userManagementUsecase) ListUsers(filter map[string]interface{}, page, limit int) ([]domain.User, int64, error) {
@@ -193,6 +195,12 @@ func (uc *userManagementUsecase) ListRoles() ([]domain.Role, error) {
 
 func (uc *userManagementUsecase) GetReferrals(userID uuid.UUID) ([]domain.User, error) {
 	return uc.userRepo.FindByReferredByID(userID)
+}
+
+func (uc *userManagementUsecase) GetMyCommissions(userID uuid.UUID) ([]domain.ReferralCommission, error) {
+	filter := map[string]interface{}{"referrer_id": userID}
+	commissions, _, err := uc.commissionRepo.FindAll(filter, 1, 1000)
+	return commissions, err
 }
 
 func (uc *userManagementUsecase) GetAllReferralAnalytics() ([]map[string]interface{}, error) {

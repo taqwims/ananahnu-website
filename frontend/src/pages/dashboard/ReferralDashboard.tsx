@@ -1,28 +1,34 @@
 import { useState, useEffect } from 'react';
-import { Users, Copy, Check, Info, TrendingUp } from 'lucide-react';
+import { Users, Copy, Check, Info, TrendingUp, Wallet, Clock, CheckCircle } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
-import type { User } from '../../types';
+import type { User, ReferralCommission } from '../../types';
+import { formatRupiah } from '../../utils/format';
 
 export default function ReferralDashboard() {
     const user = useAuthStore(state => state.user);
     const [referrals, setReferrals] = useState<User[]>([]);
+    const [commissions, setCommissions] = useState<ReferralCommission[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [copied, setCopied] = useState(false);
 
     useEffect(() => {
-        const fetchReferrals = async () => {
+        const fetchData = async () => {
             try {
-                const response = await api.get('/profile/referrals');
-                setReferrals(response.data || []);
+                const [refRes, commRes] = await Promise.all([
+                    api.get('/profile/referrals'),
+                    api.get('/profile/commissions')
+                ]);
+                setReferrals(refRes.data || []);
+                setCommissions(commRes.data || []);
             } catch (error) {
-                console.error("Failed to fetch referrals", error);
+                console.error("Failed to fetch referral data", error);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        fetchReferrals();
+        fetchData();
     }, []);
 
     const handleCopy = () => {
@@ -72,7 +78,7 @@ export default function ReferralDashboard() {
                     </div>
                 </div>
 
-                {/* Analytics Card */}
+                {/* Analytics Card 1: Total Referensi */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -mr-16 -mt-16 transition-transform group-hover:scale-110"></div>
                     <div className="relative z-10 flex flex-col h-full justify-between">
@@ -91,6 +97,35 @@ export default function ReferralDashboard() {
                         </div>
                     </div>
                 </div>
+
+                {/* Analytics Card 2: Total Insentif */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -mr-16 -mt-16 transition-transform group-hover:scale-110"></div>
+                    <div className="relative z-10 flex flex-col h-full justify-between">
+                        <div>
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
+                                    <Wallet className="w-5 h-5" />
+                                </div>
+                                <h3 className="font-bold text-gray-900">Total Insentif</h3>
+                            </div>
+                            <p className="text-gray-500 text-sm">Estimasi total komisi dari referensi Anda</p>
+                        </div>
+                        <div className="mt-4 flex flex-col">
+                            <span className="text-3xl font-black text-gray-900">
+                                {formatRupiah(commissions.reduce((sum: number, c: ReferralCommission) => sum + c.amount, 0))}
+                            </span>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">
+                                    {commissions.filter((c: ReferralCommission) => c.status === 'PAID').length} Dibayar
+                                </span>
+                                <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg">
+                                    {commissions.filter((c: ReferralCommission) => c.status === 'PENDING').length} Pending
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* List Referrals */}
@@ -105,9 +140,10 @@ export default function ReferralDashboard() {
                         <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
                             <tr>
                                 <th className="px-6 py-4">Nama Konsultan</th>
-                                <th className="px-6 py-4">Email</th>
-                                <th className="px-6 py-4">Tanggal Bergabung</th>
+                                <th className="px-6 py-4">Submission</th>
+                                <th className="px-6 py-4">Nominal</th>
                                 <th className="px-6 py-4">Status</th>
+                                <th className="px-6 py-4 text-right">Tanggal</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -120,28 +156,42 @@ export default function ReferralDashboard() {
                                         Memuat data...
                                     </td>
                                 </tr>
-                            ) : referrals.length === 0 ? (
+                            ) : commissions.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className="px-6 py-12 text-center">
+                                    <td colSpan={5} className="px-6 py-12 text-center">
                                         <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
                                             <Users className="w-8 h-8 text-gray-300" />
                                         </div>
-                                        <p className="text-gray-500 font-medium">Belum ada konsultan yang menggunakan kode Anda.</p>
-                                        <p className="text-gray-400 text-xs mt-1">Bagikan kode referral Anda sekarang!</p>
+                                        <p className="text-gray-500 font-medium">Belum ada insentif referal yang tercatat.</p>
+                                        <p className="text-gray-400 text-xs mt-1">Insentif akan muncul setelah konsultan referensi Anda menyelesaikan pembayaran tagihan.</p>
                                     </td>
                                 </tr>
                             ) : (
-                                referrals.map((r) => (
-                                    <tr key={r.id} className="hover:bg-gray-50/50 transition-colors">
-                                        <td className="px-6 py-4 font-semibold text-gray-900">{r.full_name}</td>
-                                        <td className="px-6 py-4 text-gray-500">{r.email}</td>
-                                        <td className="px-6 py-4 text-gray-500">
-                                            {r.created_at ? new Date(r.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                                commissions.map((c: ReferralCommission) => (
+                                    <tr key={c.id} className="hover:bg-gray-50/50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col">
+                                                <span className="font-semibold text-gray-900">{c.referred?.full_name}</span>
+                                                <span className="text-[10px] text-gray-400 font-mono">#{c.referred_id.slice(0, 8)}</span>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                Aktif
+                                            <div className="flex flex-col">
+                                                <span className="text-xs text-gray-600 font-medium">{c.submission?.client?.business_name || 'Submission'}</span>
+                                                <span className="text-[10px] text-brand-600 font-bold uppercase">{c.submission?.service_type}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 font-black text-gray-900">{formatRupiah(c.amount)}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                                c.status === 'PAID' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                                            }`}>
+                                                {c.status === 'PAID' ? <CheckCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                                                {c.status === 'PAID' ? 'Dibayar' : 'Pending'}
                                             </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-gray-500 text-xs">
+                                            {new Date(c.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
                                         </td>
                                     </tr>
                                 ))

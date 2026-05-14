@@ -144,44 +144,32 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 	}
 
 	// Trigger Referral Fee check
-	// We need to reload invoice to get submission details if not preloaded
-	sub, err := uc.submissionRepo.FindByID(invoice.SubmissionID)
-	if err == nil && sub != nil && sub.Status == domain.StatusSHTerbit {
-		// Get the user who is the "referred" one.
-		// Usually the ConsultantID or the person who created the client.
-		// Let's check ConsultantID first.
-		var referredID uuid.UUID
-		if sub.ConsultantID != nil {
-			referredID = *sub.ConsultantID
-		}
+	if invoice.PayerID != nil && *invoice.PayerID != uuid.Nil {
+		user, _ := uc.userRepo.FindByID(*invoice.PayerID)
+		if user != nil && user.ReferredByID != nil {
+			// This payer was referred! Create a commission for their referrer.
+			
+			// Get Fee from settings
+			feeStr := "0"
+			setting, _ := uc.settingRepo.GetSetting("REFERRAL_FEE_PER_SH")
+			if setting != nil {
+				feeStr = setting.Value
+			}
+			
+			var feeAmount float64
+			fmt.Sscanf(feeStr, "%f", &feeAmount)
 
-		if referredID != uuid.Nil {
-			user, _ := uc.userRepo.FindByID(referredID)
-			if user != nil && user.ReferredByID != nil {
-				// This user was referred! Create a commission for the referrer.
-				
-				// Get Fee from settings
-				feeStr := "0"
-				setting, _ := uc.settingRepo.GetSetting("REFERRAL_FEE_PER_SH")
-				if setting != nil {
-					feeStr = setting.Value
+			if feeAmount > 0 {
+				commission := &domain.ReferralCommission{
+					ID:           uuid.New(),
+					ReferrerID:   *user.ReferredByID,
+					ReferredID:   user.ID,
+					SubmissionID: invoice.SubmissionID,
+					Amount:       feeAmount,
+					Status:       domain.CommissionStatusPending,
+					CreatedAt:    time.Now(),
 				}
-				
-				var feeAmount float64
-				fmt.Sscanf(feeStr, "%f", &feeAmount)
-
-				if feeAmount > 0 {
-					commission := &domain.ReferralCommission{
-						ID:           uuid.New(),
-						ReferrerID:   *user.ReferredByID,
-						ReferredID:   user.ID,
-						SubmissionID: sub.ID,
-						Amount:       feeAmount,
-						Status:       domain.CommissionStatusPending,
-						CreatedAt:    time.Now(),
-					}
-					_ = uc.commissionRepo.Create(commission)
-				}
+				_ = uc.commissionRepo.Create(commission)
 			}
 		}
 	}

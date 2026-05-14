@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, CheckCircle, XCircle, Send, FileText, AlertTriangle, Loader2, Upload, Link as LinkIcon, Receipt, UserCheck, Eye } from 'lucide-react';
+import { ChevronLeft, CheckCircle, XCircle, Send, FileText, Loader2, Upload, Link as LinkIcon, Receipt, UserCheck, Eye } from 'lucide-react';
 import api from '../../services/api';
 import type { Submission, FormFieldValue, Invoice, AuditLog } from '../../types';
 import PaymentSection from '../../components/dashboard/PaymentSection';
@@ -10,6 +10,9 @@ import KalkulatorReguler from '../../components/dashboard/KalkulatorReguler';
 import { useAuthStore } from '../../store/authStore';
 import { formatServiceType } from '../../utils/format';
 import FileUpload from '../../components/dashboard/FileUpload';
+import toast from 'react-hot-toast';
+import Modal from '../../components/ui/Modal';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -51,6 +54,19 @@ export default function SubmissionDetail() {
     const [history, setHistory] = useState<AuditLog[]>([]);
     const [editingData, setEditingData] = useState(false);
     const [shFile, setShFile] = useState<File | null>(null);
+
+    // Confirmation Modal State
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => {},
+    });
 
     // Drafter Assignment (for QC)
     const [drafters, setDrafters] = useState<{id: string; full_name: string}[]>([]);
@@ -133,14 +149,14 @@ export default function SubmissionDetail() {
             await api.put(`/clients/${submission.client.id}`, clientForm);
             setIsEditingClient(false);
             await refreshSubmission();
+            toast.success("Data klien berhasil diperbarui");
         } catch (err: any) {
-            alert(err.response?.data?.error || "Gagal memperbarui data klien");
+            toast.error(err.response?.data?.error || "Gagal memperbarui data klien");
         } finally {
             setProcessing(false);
         }
     };
 
-    // Fetch drafters when QC_OFFICER views the detail
     useEffect(() => {
         if (submission?.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) {
             api.get('/admin/users/drafters')
@@ -152,7 +168,6 @@ export default function SubmissionDetail() {
         }
     }, [submission?.status, user?.role]);
 
-    // Fetch consultants for marketing data if needed
     useEffect(() => {
         if (submission?.data_source === 'MARKETING' && 
             (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'KOORDINATOR' || user?.role === 'QC_OFFICER')) {
@@ -172,27 +187,25 @@ export default function SubmissionDetail() {
     const handleIssueSH = async () => {
         if (!id || !shFile) return;
 
-        // Check size (2MB = 2 * 1024 * 1024 bytes)
         if (shFile.size > 2 * 1024 * 1024) {
-            alert("Ukuran file sertifikat tidak boleh lebih dari 2MB");
+            toast.error("Ukuran file sertifikat tidak boleh lebih dari 2MB");
             return;
         }
 
         setProcessing(true);
         try {
-            // 1. Upload File
             const formData = new FormData();
             formData.append('file', shFile);
             const uploadRes = await api.post('/media/upload', formData);
             const uploadedUrl = uploadRes.data.url;
 
-            // 2. Call Issue SH
             await api.post(`/submissions/${id}/issue-sh`, { sh_url: uploadedUrl });
             
             setShFile(null);
             await refreshSubmission();
+            toast.success("Sertifikat Halal berhasil diterbitkan!");
         } catch (err: any) {
-            alert(err.response?.data?.error || "Gagal menerbitkan Sertifikat Halal");
+            toast.error(err.response?.data?.error || "Gagal menerbitkan Sertifikat Halal");
         } finally {
             setProcessing(false);
         }
@@ -213,13 +226,14 @@ export default function SubmissionDetail() {
             } else if (action === 'reject') {
                 await api.post(`/submissions/${submission.id}/reject`, { note: rejectNote });
                 setShowRejectModal(false);
+                toast.success("Pengajuan berhasil dikembalikan/ditolak");
             } else if (action === 'assign_consultant') {
                 await api.post(`/submissions/${submission.id}/assign-consultant`, { consultant_id: selectedConsultantId });
-                alert("Konsultan berhasil ditunjuk");
+                toast.success("Konsultan berhasil ditunjuk");
             }
             await refreshSubmission();
         } catch (err: any) {
-            alert(err.response?.data?.error || "Action failed");
+            toast.error(err.response?.data?.error || "Action failed");
         } finally {
             setProcessing(false);
         }
@@ -232,7 +246,6 @@ export default function SubmissionDetail() {
 
     return (
         <div className="max-w-[1440px] mx-auto space-y-6 px-4 sm:px-6">
-            {/* Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-white/40 p-4 rounded-2xl backdrop-blur-md border border-white/60">
                 <div className="flex items-center gap-3">
                     <button onClick={() => navigate('/dashboard/submissions')} className="p-2 hover:bg-white/80 rounded-xl transition-all shadow-sm">
@@ -265,9 +278,7 @@ export default function SubmissionDetail() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                {/* Main Content */}
                 <div className="lg:col-span-8 space-y-6 order-2 lg:order-1">
-                    {/* Client Info */}
                     <div className="glass-panel p-6 shadow-xl border border-white/40">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-lg font-black text-gray-800 tracking-tight flex items-center gap-2">
@@ -339,7 +350,6 @@ export default function SubmissionDetail() {
                             </dl>
                         )}
 
-                        {/* Audit Info Display */}
                         {(submission.audit_date || submission.audit_result_1_url) && (
                             <div className="mt-6 pt-6 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {submission.audit_date && (
@@ -371,7 +381,6 @@ export default function SubmissionDetail() {
                         )}
                     </div>
 
-                    {/* Dynamic Form Content */}
                     <div className="space-y-6">
                         {submission.status === 'DRAFT' && serviceType ? (
                             <DynamicSubmissionForm
@@ -464,7 +473,6 @@ export default function SubmissionDetail() {
                         )}
                     </div>
 
-                    {/* Cost Calculator Section */}
                     <div className="overflow-x-auto pb-4">
                         {serviceType === 'REGULER' ? (
                             <KalkulatorReguler 
@@ -487,7 +495,6 @@ export default function SubmissionDetail() {
                         ) : null}
                     </div>
 
-                    {/* Sertifikat Halal Section */}
                     {submission.sh_url && (
                         <div className="glass-panel p-6 bg-emerald-50/40 border-emerald-200 shadow-xl shadow-emerald-100/50">
                             <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
@@ -537,7 +544,6 @@ export default function SubmissionDetail() {
                         </div>
                     )}
 
-                    {/* Invoice Info */}
                     {invoice && (
                         <div className={`glass-panel p-6 shadow-xl border ${invoice.status === 'PAID' ? 'bg-emerald-50/30 border-emerald-100' : 'bg-amber-50/30 border-amber-100'}`}>
                             <div className="flex items-center gap-3 mb-6">
@@ -571,7 +577,6 @@ export default function SubmissionDetail() {
                     )}
                 </div>
 
-                {/* Sidebar: Actions & History */}
                 <div className="lg:col-span-4 space-y-6 order-1 lg:order-2">
                     <div className="glass-panel p-6 shadow-2xl border border-white/40 lg:sticky lg:top-6">
                         <h3 className="text-lg font-black text-gray-800 tracking-tight mb-6 flex items-center gap-2">
@@ -579,7 +584,6 @@ export default function SubmissionDetail() {
                             Workflow Actions
                         </h3>
                         <div className="space-y-4">
-                            {/* Action Buttons */}
                             {(submission.status === 'DRAFT' || submission.status === 'REVISION') && (
                                 <button
                                     onClick={() => handleAction('submit')}
@@ -610,10 +614,10 @@ export default function SubmissionDetail() {
                                                 setProcessing(true);
                                                 try {
                                                     await api.post(`/submissions/${id}/audit-info`, { audit_date: auditDate });
-                                                    alert("Tanggal audit berhasil disimpan");
+                                                    toast.success("Tanggal audit berhasil disimpan");
                                                     await refreshSubmission();
                                                 } catch (err) {
-                                                    alert("Gagal menyimpan tanggal audit");
+                                                    toast.error("Gagal menyimpan tanggal audit");
                                                 } finally {
                                                     setProcessing(false);
                                                 }
@@ -624,7 +628,6 @@ export default function SubmissionDetail() {
                                             Simpan Tanggal Audit
                                         </button>
 
-                                        {/* Audit Result File Uploads */}
                                         {(submission.audit_date || auditDate) && (
                                             <div className="mt-4 pt-4 border-t border-amber-200 space-y-4">
                                                 <div className="space-y-2">
@@ -638,10 +641,11 @@ export default function SubmissionDetail() {
                                                                     url1: url, 
                                                                     url2: submission?.audit_result_2_url || "" 
                                                                 });
-                                                                refreshSubmission();
+                                                                await refreshSubmission();
+                                                                toast.success("File audit 1 berhasil disimpan");
                                                             } catch (err: any) {
                                                                 console.error("Failed to upload audit result 1:", err.response?.data || err);
-                                                                alert("Gagal menyimpan file audit");
+                                                                toast.error("Gagal menyimpan file audit");
                                                             }
                                                         }}
                                                     />
@@ -673,7 +677,7 @@ export default function SubmissionDetail() {
                                                                 refreshSubmission();
                                                             } catch (err: any) {
                                                                 console.error("Failed to upload audit result 2:", err.response?.data || err);
-                                                                alert("Gagal menyimpan file audit");
+                                                                toast.error("Gagal menyimpan file audit");
                                                             }
                                                         }}
                                                     />
@@ -695,7 +699,6 @@ export default function SubmissionDetail() {
                                     </div>
                                 )}
 
-                            {/* Consultant Assignment (Only for QC/Admin/Director/Koordinator) */}
                             {submission.status === 'QC_OFFICER' && !submission.consultant_id && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'KOORDINATOR' || user?.role === 'QC_OFFICER') && (
                                 <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 space-y-3">
                                     <label className="flex items-center gap-2 text-sm font-black text-purple-800 tracking-tight">
@@ -727,7 +730,6 @@ export default function SubmissionDetail() {
                                 </div>
                             )}
 
-                            {/* Audit Result Upload (For Drafter / Consultant) */}
                             {(submission.status === 'DRAFTER' || submission.status === 'QC_REVIEW') && (user?.role === 'DRAFTER' || user?.role === 'HALAL_KONSULTAN' || user?.role === 'ADMIN' || user?.role === 'QC_OFFICER') && (
                                 <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-200 space-y-3">
                                     <label className="flex items-center gap-2 text-sm font-black text-indigo-800 tracking-tight">
@@ -771,12 +773,12 @@ export default function SubmissionDetail() {
                                                 }
 
                                                 await api.post(`/submissions/${id}/audit-result`, { url1: res1.data.url, url2 });
-                                                alert("Hasil audit berhasil diunggah");
+                                                toast.success("Hasil audit berhasil diunggah");
                                                 setAuditResult1(null);
                                                 setAuditResult2(null);
                                                 await refreshSubmission();
                                             } catch (err) {
-                                                alert("Gagal mengunggah hasil audit");
+                                                toast.error("Gagal mengunggah hasil audit");
                                             } finally {
                                                 setProcessing(false);
                                             }
@@ -789,7 +791,6 @@ export default function SubmissionDetail() {
                                 </div>
                             )}
 
-                            {/* QC Officer: Drafter Assignment (Only if Consultant is assigned) */}
                             {submission.status === 'QC_OFFICER' && submission.consultant_id && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
                                 <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-2">
                                     <label className="flex items-center gap-2 text-sm font-semibold text-blue-800">
@@ -807,7 +808,6 @@ export default function SubmissionDetail() {
                                 </div>
                             )}
 
-                            {/* Assigned Drafter Info */}
                             {(submission as any).assigned_drafter && (
                                 <div className="p-3 bg-indigo-50 rounded-lg text-sm border border-indigo-200">
                                     <span className="text-indigo-700 font-medium">Drafter:</span>
@@ -815,7 +815,6 @@ export default function SubmissionDetail() {
                                 </div>
                             )}
 
-                            {/* Reject Note */}
                             {(submission as any).reject_note && (
                                 <div className="p-3 bg-red-50 rounded-lg text-sm border border-red-200">
                                     <p className="text-red-700 font-medium">Catatan Penolakan:</p>
@@ -823,7 +822,6 @@ export default function SubmissionDetail() {
                                 </div>
                             )}
 
-                            {/* Check for existing paid/pending payments or paid invoice */}
                             {(submission.status === 'VERVAL_PENDAMPING' || submission.status === 'WAITING_PAYMENT' || submission.status === 'QC_OFFICER' || submission.status === 'DRAFTER' || submission.status === 'QC_REVIEW' || submission.status === 'SIDANG_FATWA') && (
                                 <>
                                     {submission.status === 'SIDANG_FATWA' ? (
@@ -853,7 +851,6 @@ export default function SubmissionDetail() {
                                         </div>
                                     ) : (
                                         <>
-                                            {/* Approval/Submit Button Logic */}
                                             {((submission.status === 'VERVAL_PENDAMPING' && (user?.role === 'HALAL_KONSULTAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                                               (submission.status === 'WAITING_PAYMENT' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                                               (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
@@ -902,7 +899,6 @@ export default function SubmissionDetail() {
                         </div>
                     </div>
 
-                    {/* History Section */}
                     <div className="glass-panel p-6 sticky top-6">
                         <h3 className="text-lg font-semibold mb-4">Workflow History</h3>
                         <div className="max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
@@ -937,35 +933,41 @@ export default function SubmissionDetail() {
                 </div>
             </div>
 
-            {/* Reject Modal */}
-            {showRejectModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
-                        <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
-                            <AlertTriangle className="w-5 h-5 text-red-500" />
-                            Reject Submission
-                        </h3>
-                        <p className="text-sm text-gray-500 mb-4">Please provide a reason for rejection or revision instructions.</p>
-                        <textarea
-                            className="w-full glass-input mb-4"
-                            rows={4}
-                            placeholder="Enter notes here..."
-                            value={rejectNote}
-                            onChange={(e) => setRejectNote(e.target.value)}
-                        ></textarea>
-                        <div className="flex justify-end gap-3">
-                            <button onClick={() => setShowRejectModal(false)} className="px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100">Cancel</button>
-                            <button
-                                onClick={() => handleAction('reject')}
-                                disabled={!rejectNote}
-                                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 font-medium disabled:opacity-50"
-                            >
-                                Confirm Reject
-                            </button>
-                        </div>
+            <Modal 
+                isOpen={showRejectModal} 
+                onClose={() => setShowRejectModal(false)}
+                title="Reject Submission"
+                maxWidth="md"
+            >
+                <div className="space-y-4">
+                    <p className="text-sm text-gray-500">Please provide a reason for rejection or revision instructions.</p>
+                    <textarea
+                        className="w-full glass-input"
+                        rows={4}
+                        placeholder="Enter notes here..."
+                        value={rejectNote}
+                        onChange={(e) => setRejectNote(e.target.value)}
+                    ></textarea>
+                    <div className="flex justify-end gap-3 pt-4">
+                        <button onClick={() => setShowRejectModal(false)} className="px-4 py-2 text-sm font-bold text-gray-500 hover:bg-gray-50 rounded-xl transition-colors">Batal</button>
+                        <button
+                            onClick={() => handleAction('reject')}
+                            disabled={!rejectNote || processing}
+                            className="px-6 py-2 bg-red-600 text-white rounded-xl font-black text-sm shadow-lg shadow-red-100 hover:bg-red-700 disabled:opacity-30 transition-all"
+                        >
+                            {processing ? 'Processing...' : 'Confirm Reject'}
+                        </button>
                     </div>
                 </div>
-            )}
+            </Modal>
+
+            <ConfirmModal 
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal(p => ({ ...p, isOpen: false }))}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                onConfirm={confirmModal.onConfirm}
+            />
         </div>
     );
 }

@@ -1,14 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
     DollarSign, 
     CheckCircle2, 
     Clock, 
-    Search, 
     AlertCircle,
-    Save,
-    Calendar,
-    User as UserIcon,
-    FileText
+    Save
 } from 'lucide-react';
 import api from '../../services/api';
 import { formatRupiah } from '../../utils/format';
@@ -111,10 +107,23 @@ const ReferralFeeAdmin = () => {
                 </div>
             </div>
 
+            {error && (
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg flex items-center gap-3">
+                    <AlertCircle className="w-5 h-5" />
+                    <p className="text-sm font-medium">{error}</p>
+                    <button 
+                        onClick={() => setError(null)}
+                        className="ml-auto text-red-400 hover:text-red-600"
+                    >
+                        &times;
+                    </button>
+                </div>
+            )}
+
             {/* Config Card */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                    <div className="p-2 bg-brand-50 rounded-lg text-brand-600">
                         <DollarSign className="w-5 h-5" />
                     </div>
                     <h2 className="text-lg font-semibold">Pengaturan Besaran Fee</h2>
@@ -128,14 +137,14 @@ const ReferralFeeAdmin = () => {
                             type="number"
                             value={referralFee}
                             onChange={(e) => setReferralFee(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all"
                             placeholder="Contoh: 50000"
                         />
                     </div>
                     <button
                         onClick={saveSetting}
                         disabled={isSavingFee}
-                        className="px-6 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark transition-all disabled:opacity-50 flex items-center gap-2"
+                        className="px-6 py-2 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-all disabled:opacity-50 flex items-center gap-2"
                     >
                         <Save className="w-4 h-4" />
                         {isSavingFee ? 'Menyimpan...' : 'Simpan Perubahan'}
@@ -250,7 +259,7 @@ const ReferralFeeAdmin = () => {
                                             {comm.status === 'PENDING' && (
                                                 <button
                                                     onClick={() => markAsPaid(comm.id)}
-                                                    className="text-primary hover:text-primary-dark font-medium text-sm transition-colors"
+                                                    className="text-brand-600 hover:text-brand-700 font-medium text-sm transition-colors"
                                                 >
                                                     Bayar Fee
                                                 </button>

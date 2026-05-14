@@ -52,6 +52,7 @@ func NewUserManagementHandler(r *gin.Engine, uc usecase.UserManagementUsecase) {
 	{
 		profile.PUT("", handler.UpdateProfile)
 		profile.GET("/referrals", handler.GetReferrals)
+		profile.GET("/commissions", handler.GetCommissions)
 	}
 }
 
@@ -179,6 +180,22 @@ func (h *UserManagementHandler) GetReferrals(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, referrals)
+}
+
+func (h *UserManagementHandler) GetCommissions(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	commissions, err := h.userMgmtUC.GetMyCommissions(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, commissions)
 }
 
 func (h *UserManagementHandler) GetAllReferralAnalytics(c *gin.Context) {

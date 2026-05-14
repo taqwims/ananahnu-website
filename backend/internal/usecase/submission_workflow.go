@@ -222,48 +222,58 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 		uc.logChange(id, userID, "SUBMIT", sub.Status, nextStatus, "")
 
 		// IF SELF_DECLARE_MANDIRI -> Create immediate invoice from Master Setting
-		switch sub.ServiceType {
-		case "SELF_DECLARE_MANDIRI":
-			log.Printf("[INVOICE] Creating immediate invoice for SELF_DECLARE_MANDIRI: %s", id)
-			
-			// Default fallback if setting is missing
-			amount := 230000.0
-			if setting, err := uc.settingRepo.GetSetting("SD_MANDIRI_COST"); err == nil && setting != nil {
-				if val, parseErr := strconv.ParseFloat(setting.Value, 64); parseErr == nil {
-					amount = val
+		// 2. Prevent Duplicate Invoices: Check if an invoice for this submission and service type already exists
+		existingInvoices, _, err := uc.invoiceRepo.FindAll(map[string]interface{}{
+			"submission_id": id,
+			"service_type":  sub.ServiceType,
+		}, 1, 1)
+		
+		if err == nil && len(existingInvoices) > 0 {
+			log.Printf("[INVOICE] Invoice for submission %s already exists. Skipping creation.", id)
+		} else {
+			switch sub.ServiceType {
+			case "SELF_DECLARE_MANDIRI":
+				log.Printf("[INVOICE] Creating immediate invoice for SELF_DECLARE_MANDIRI: %s", id)
+				
+				// Default fallback if setting is missing
+				amount := 230000.0
+				if setting, err := uc.settingRepo.GetSetting("SD_MANDIRI_COST"); err == nil && setting != nil {
+					if val, parseErr := strconv.ParseFloat(setting.Value, 64); parseErr == nil {
+						amount = val
+					}
 				}
-			}
 
-			// SELF_DECLARE_MANDIRI is paid by client, not consultant.
-			uc.invoiceRepo.Create(&domain.Invoice{
-				SubmissionID: id,
-				PayerID:      nil, 
-				ServiceType:  "SELF_DECLARE_MANDIRI",
-				Amount:       amount,
-				Status:       domain.InvoiceStatusUnpaid,
-				Notes:        "Pembayaran Awal SELF_DECLARE_MANDIRI",
-			})
-		case "REGULER":
-			log.Printf("[INVOICE] Creating full payment invoice for REGULER: %s", id)
-			
-			// REGULER: Use the cost detail calculation that was filled out by Pendamping
-			costDetail, _ := uc.billingConfigRepo.GetSubmissionCostDetail(id)
-			var amount float64
-			if costDetail != nil && costDetail.TotalAmount > 0 {
-				amount = costDetail.TotalAmount
-			}
+				// SELF_DECLARE_MANDIRI is paid by client, not consultant.
+				uc.invoiceRepo.Create(&domain.Invoice{
+					SubmissionID: id,
+					PayerID:      nil, 
+					ServiceType:  "SELF_DECLARE_MANDIRI",
+					Amount:       amount,
+					Status:       domain.InvoiceStatusUnpaid,
+					Notes:        "Pembayaran Awal SELF_DECLARE_MANDIRI",
+				})
+			case "REGULER":
+				log.Printf("[INVOICE] Creating full payment invoice for REGULER: %s", id)
+				
+				// REGULER: Use the cost detail calculation that was filled out by Pendamping
+				costDetail, _ := uc.billingConfigRepo.GetSubmissionCostDetail(id)
+				var amount float64
+				if costDetail != nil && costDetail.TotalAmount > 0 {
+					amount = costDetail.TotalAmount
+				}
 
-			// Always create invoice for REGULER if it doesn't exist yet, 
-			// even if amount is 0 (it will be updated by the calculator later)
-			uc.invoiceRepo.Create(&domain.Invoice{
-				SubmissionID:  id,
-				PayerID:       nil,
-				ServiceType:   "REGULER",
-				Amount:        amount,
-				Status:        domain.InvoiceStatusUnpaid,
-				PricingSource: "COST_DETAIL",
-				Notes:         "Full Payment Layanan Reguler",
-			})
+				// Always create invoice for REGULER if it doesn't exist yet, 
+				// even if amount is 0 (it will be updated by the calculator later)
+				uc.invoiceRepo.Create(&domain.Invoice{
+					SubmissionID:  id,
+					PayerID:       nil,
+					ServiceType:   "REGULER",
+					Amount:        amount,
+					Status:        domain.InvoiceStatusUnpaid,
+					PricingSource: "COST_DETAIL",
+					Notes:         "Full Payment Layanan Reguler",
+				})
+			}
 		}
 		
 		// Notify Finance if status is WAITING_PAYMENT
@@ -412,11 +422,26 @@ func (uc *submissionWorkflowUsecase) generateSHTerbitInvoice(submissionID uuid.U
 	// SELF_DECLARE: Multi-tier pricing resolution for Management Fee
 	amount, pricingSource, salesSchemeID, discountApplied, resolvedPayerID := uc.resolveSelfDeclarePrice(sub, client)
 
-	// Use resolved payer if found, else fallback to facilitator
-	finalPayerID := resolvedPayerID
-	if finalPayerID == nil && client.FacilitatorID != uuid.Nil {
+	// Determine final payer based on who worked on the submission
+	// Priority: 1. Assigned Consultant, 2. Resolved Payer from Price Resolution, 3. Original Facilitator
+	var finalPayerID *uuid.UUID
+	if sub.ConsultantID != nil && *sub.ConsultantID != uuid.Nil {
+		finalPayerID = sub.ConsultantID
+	} else if resolvedPayerID != nil && *resolvedPayerID != uuid.Nil {
+		finalPayerID = resolvedPayerID
+	} else if client.FacilitatorID != uuid.Nil {
 		pid := client.FacilitatorID
 		finalPayerID = &pid
+	}
+
+	// 3. Prevent Duplicate Invoices: Check if an invoice for this submission and service type already exists
+	existingInvoices, _, err := uc.invoiceRepo.FindAll(map[string]interface{}{
+		"submission_id": submissionID,
+		"service_type":  serviceType,
+	}, 1, 1)
+	if err == nil && len(existingInvoices) > 0 {
+		log.Printf("[INVOICE] Invoice for submission %s already exists. Skipping creation.", submissionID)
+		return
 	}
 
 	// Create Invoice

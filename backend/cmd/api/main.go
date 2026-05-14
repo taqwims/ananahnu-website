@@ -169,10 +169,8 @@ func main() {
 	// 6. Setup Usecases
 	authUC := usecase.NewAuthUsecase(userRepo, roleRepo, clientRepo, tokenRepo, emailSender)
 	notificationUC := usecase.NewNotificationUsecase(notifRepo)
-	submissionUC := usecase.NewSubmissionWorkflowUsecase(submissionRepo, clientRepo, roleRepo, auditRepo, userRepo, notificationUC, invoiceRepo, coordinatorRateRepo, formValueRepo, billingConfigRepo, consultantRepo, participantRepo, settingRepo)
 	importUC := usecase.NewImportUsecase(clientRepo)
 	exportUC := usecase.NewExportUsecase(clientRepo)
-	paymentUC := usecase.NewPaymentUsecase(paymentRepo, submissionRepo, auditRepo, midtransGateway, invoiceRepo)
 	cmsUC := usecase.NewCMSUsecase(cmsRepo)
 	clientCRUDUC := usecase.NewClientUsecase(clientRepo, userRepo, consultantRepo, participantRepo)
 	dashboardUC := usecase.NewDashboardUsecase(submissionRepo, clientRepo, auditRepo, userRepo)
@@ -180,9 +178,15 @@ func main() {
 	geographyUC := usecase.NewGeographyUsecase(geoRepo, billingRateRepo)
 	trainingUC := usecase.NewTrainingUsecase(trainingRepo, participantRepo)
 	consultantUC := usecase.NewConsultantUsecase(consultantRepo, userRepo)
+	
+	// Initialize BillingUsecase first because PaymentUsecase now depends on it
 	billingUC := usecase.NewBillingUsecase(invoiceRepo, paymentConfigRepo, billingRateRepo, userRepo, notificationUC, commissionRepo, settingRepo, submissionRepo)
+	
+	paymentUC := usecase.NewPaymentUsecase(paymentRepo, submissionRepo, auditRepo, midtransGateway, invoiceRepo, billingUC)
+	
+	submissionUC := usecase.NewSubmissionWorkflowUsecase(submissionRepo, clientRepo, roleRepo, auditRepo, userRepo, notificationUC, invoiceRepo, coordinatorRateRepo, formValueRepo, billingConfigRepo, consultantRepo, participantRepo, settingRepo)
 
-	userMgmtUC := usecase.NewUserManagementUsecase(userRepo, roleRepo)
+	userMgmtUC := usecase.NewUserManagementUsecase(userRepo, roleRepo, commissionRepo)
 	billingConfigUC := usecase.NewBillingConfigUsecase(billingConfigRepo, coordinatorRateRepo, invoiceRepo, submissionRepo)
 	settingUC := usecase.NewSystemSettingUsecase(settingRepo)
 

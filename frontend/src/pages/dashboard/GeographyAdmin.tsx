@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { MapPin, Plus, Trash2, DollarSign, ChevronRight, Building2, Map, Navigation } from 'lucide-react';
 import api from '../../services/api';
 import type { Province, Regency, District, BillingRate } from '../../types';
+import toast from 'react-hot-toast';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 export default function GeographyAdmin() {
     const [provinces, setProvinces] = useState<Province[]>([]);
@@ -16,6 +18,19 @@ export default function GeographyAdmin() {
     const [showAddRate, setShowAddRate] = useState(false);
     const [newName, setNewName] = useState('');
     const [rateForm, setRateForm] = useState({ service_type: 'REGULER', amount: 0, description: '' });
+    
+    // Confirmation Modal State
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => {},
+    });
 
     const loadProvinces = () => {
         api.get('/geography/provinces').then(r => setProvinces(r.data || [])).catch(() => {});
@@ -50,43 +65,91 @@ export default function GeographyAdmin() {
 
     const addProvince = async () => {
         if (!newName) return;
-        await api.post('/geography/provinces', { name: newName });
-        setNewName(''); setShowAddProvince(false);
-        loadProvinces();
+        try {
+            await api.post('/geography/provinces', { name: newName });
+            setNewName(''); setShowAddProvince(false);
+            loadProvinces();
+            toast.success('Provinsi berhasil ditambahkan');
+        } catch {
+            toast.error('Gagal menambahkan provinsi');
+        }
     };
 
     const addRegency = async () => {
         if (!newName || !selectedProvince) return;
-        await api.post('/geography/regencies', { province_id: selectedProvince.id, name: newName });
-        setNewName(''); setShowAddRegency(false);
-        loadRegencies(selectedProvince.id);
+        try {
+            await api.post('/geography/regencies', { province_id: selectedProvince.id, name: newName });
+            setNewName(''); setShowAddRegency(false);
+            loadRegencies(selectedProvince.id);
+            toast.success('Kabupaten berhasil ditambahkan');
+        } catch {
+            toast.error('Gagal menambahkan kabupaten');
+        }
     };
 
     const addDistrict = async () => {
         if (!newName || !selectedRegency) return;
-        await api.post('/geography/districts', { regency_id: selectedRegency.id, name: newName });
-        setNewName(''); setShowAddDistrict(false);
-        loadDistricts(selectedRegency.id);
+        try {
+            await api.post('/geography/districts', { regency_id: selectedRegency.id, name: newName });
+            setNewName(''); setShowAddDistrict(false);
+            loadDistricts(selectedRegency.id);
+            toast.success('Kecamatan berhasil ditambahkan');
+        } catch {
+            toast.error('Gagal menambahkan kecamatan');
+        }
     };
 
     const deleteProvince = async (id: number) => {
-        if (!confirm('Hapus provinsi?')) return;
-        await api.delete(`/geography/provinces/${id}`);
-        if (selectedProvince?.id === id) { setSelectedProvince(null); setRegencies([]); }
-        loadProvinces();
+        setConfirmModal({
+            isOpen: true,
+            title: 'Hapus Provinsi',
+            message: 'Hapus provinsi ini? Data kabupaten dan kecamatan di bawahnya mungkin juga terhapus.',
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/geography/provinces/${id}`);
+                    if (selectedProvince?.id === id) { setSelectedProvince(null); setRegencies([]); }
+                    loadProvinces();
+                    toast.success('Provinsi berhasil dihapus');
+                } catch {
+                    toast.error('Gagal menghapus provinsi');
+                }
+            }
+        });
     };
 
     const deleteRegency = async (id: number) => {
-        if (!confirm('Hapus kabupaten?')) return;
-        await api.delete(`/geography/regencies/${id}`);
-        if (selectedRegency?.id === id) { setSelectedRegency(null); setDistricts([]); }
-        if (selectedProvince) loadRegencies(selectedProvince.id);
+        setConfirmModal({
+            isOpen: true,
+            title: 'Hapus Kabupaten',
+            message: 'Hapus kabupaten ini? Data kecamatan di bawahnya mungkin juga terhapus.',
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/geography/regencies/${id}`);
+                    if (selectedRegency?.id === id) { setSelectedRegency(null); setDistricts([]); }
+                    if (selectedProvince) loadRegencies(selectedProvince.id);
+                    toast.success('Kabupaten berhasil dihapus');
+                } catch {
+                    toast.error('Gagal menghapus kabupaten');
+                }
+            }
+        });
     };
 
     const deleteDistrict = async (id: number) => {
-        if (!confirm('Hapus kecamatan?')) return;
-        await api.delete(`/geography/districts/${id}`);
-        if (selectedRegency) loadDistricts(selectedRegency.id);
+        setConfirmModal({
+            isOpen: true,
+            title: 'Hapus Kecamatan',
+            message: 'Hapus kecamatan ini?',
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/geography/districts/${id}`);
+                    if (selectedRegency) loadDistricts(selectedRegency.id);
+                    toast.success('Kecamatan berhasil dihapus');
+                } catch {
+                    toast.error('Gagal menghapus kecamatan');
+                }
+            }
+        });
     };
 
     const addRate = async () => {
@@ -100,9 +163,20 @@ export default function GeographyAdmin() {
     };
 
     const deleteRate = async (id: number) => {
-        if (!confirm('Hapus tarif?')) return;
-        await api.delete(`/billing-rates/${id}`);
-        loadRates();
+        setConfirmModal({
+            isOpen: true,
+            title: 'Hapus Tarif',
+            message: 'Hapus tarif khusus ini?',
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/billing-rates/${id}`);
+                    loadRates();
+                    toast.success('Tarif berhasil dihapus');
+                } catch {
+                    toast.error('Gagal menghapus tarif');
+                }
+            }
+        });
     };
 
     useEffect(() => { loadRates(); }, []);
@@ -407,6 +481,14 @@ export default function GeographyAdmin() {
                     </div>
                 </div>
             </div>
+            
+            <ConfirmModal 
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal(p => ({ ...p, isOpen: false }))}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                onConfirm={confirmModal.onConfirm}
+            />
         </div>
     );
 }

@@ -120,6 +120,12 @@ func (r *billingConfigRepo) FindAllBillingComponents(filter map[string]interface
 	if val, ok := filter["business_scale_id"]; ok && val != "" {
 		query = query.Where("business_scale_id = ? OR business_scale_id IS NULL", val)
 	}
+	if val, ok := filter["sales_scheme_id"]; ok && val != "" {
+		query = query.Where("sales_scheme_id = ? OR sales_scheme_id IS NULL", val)
+	}
+	if val, ok := filter["data_source"]; ok && val != "" {
+		query = query.Where("data_source = ?", val)
+	}
 	resolveGeo, _ := filter["resolve_geography"].(bool)
 
 	if val, ok := filter["province_id"]; ok && val != "" {
