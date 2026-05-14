@@ -24,3 +24,14 @@ export const formatServiceType = (serviceType: string): string => {
     };
     return labels[serviceType] || serviceType.replace(/_/g, ' ');
 };
+
+export const formatCurrency = formatRupiah;
+
+export const formatDate = (dateStr: string) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+    });
+};

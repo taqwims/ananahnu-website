@@ -1,235 +1,20 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-    Filter,
-    Eye,
-    AlertCircle,
-    CheckCircle,
-    Clock,
-    Search,
-    Plus,
-    ArrowUpDown,
-    ArrowUp,
-    ArrowDown,
-    ChevronRight,
-    FileText,
-    LayoutGrid,
-    CheckCircle2,
-    XCircle,
-    Loader2,
-    User,
-    ChevronDown,
-    Trash2,
-    Copy,
-    Check
-} from 'lucide-react';
-import api from '../../services/api';
-import type { Submission } from '../../types';
-import { useAuthStore } from '../../store/authStore';
-import { formatServiceType } from '../../utils/format';
-import { motion, AnimatePresence } from 'framer-motion';
-import toast from 'react-hot-toast';
-import Modal from '../../components/ui/Modal';
+import { FileText, Plus } from 'lucide-react';
+import { useSubmissionList } from '../../hooks/useSubmissionList';
+import { SubmissionStats } from '../../components/dashboard/submission/list/SubmissionStats';
+import { SubmissionFilters } from '../../components/dashboard/submission/list/SubmissionFilters';
+import { SubmissionTable } from '../../components/dashboard/submission/list/SubmissionTable';
+import { SubmissionCreateModal } from '../../components/dashboard/submission/list/SubmissionCreateModal';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 
-// Map status to colors
-const STATUS_CONFIG: Record<string, { color: string, icon: any }> = {
-    DRAFT: { color: 'bg-gray-100 text-gray-700', icon: Clock },
-    VERVAL_PENDAMPING: { color: 'bg-amber-100 text-amber-700', icon: Clock },
-    QC_OFFICER: { color: 'bg-blue-100 text-blue-700', icon: CheckCircle2 },
-    DRAFTER: { color: 'bg-purple-100 text-purple-700', icon: FileText },
-    QC_REVIEW: { color: 'bg-indigo-100 text-indigo-700', icon: Eye },
-    SIDANG_FATWA: { color: 'bg-violet-100 text-violet-700', icon: LayoutGrid },
-    SH_TERBIT: { color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
-    REJECTED: { color: 'bg-red-100 text-red-700', icon: XCircle },
-    REVISION: { color: 'bg-orange-100 text-orange-700', icon: AlertCircle },
-};
-
-const STATUS_ORDER = [
-    'DRAFT',
-    'REVISION',
-    'VERVAL_PENDAMPING',
-    'QC_OFFICER',
-    'DRAFTER',
-    'QC_REVIEW',
-    'SIDANG_FATWA',
-    'SH_TERBIT',
-    'REJECTED'
-];
-
-type SortKey = 'business_name' | 'service_type' | 'status' | 'created_at' | 'consultant' | 'coordinator';
-type SortOrder = 'asc' | 'desc';
-
 export default function SubmissionList() {
-    const [submissions, setSubmissions] = useState<Submission[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState('');
-    const [isGrouped, setIsGrouped] = useState(true); // Default grouped
-    const [showCreateModal, setShowCreateModal] = useState(false);
-    const [newSub, setNewSub] = useState({ businessName: '', serviceType: 'SELF_DECLARE' });
-    const [isVerified, setIsVerified] = useState<boolean | null>(null);
-
-
-    const [sortKey, setSortKey] = useState<SortKey>('created_at');
-    const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-    const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-    const [copiedId, setCopiedId] = useState<string | null>(null);
-    
-    // Confirmation Modal States
-    const [confirmModal, setConfirmModal] = useState<{
-        isOpen: boolean;
-        title: string;
-        message: string;
-        onConfirm: () => void;
-    }>({
-        isOpen: false,
-        title: '',
-        message: '',
-        onConfirm: () => {},
-    });
-
-    const navigate = useNavigate();
-    const user = useAuthStore(state => state.user);
-
-    const fetchSubmissions = async () => {
-        setLoading(true);
-        try {
-            const res = await api.get('/submissions');
-            setSubmissions(res.data || []);
-        } catch (err) {
-            console.error("Failed to fetch data", err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchSubmissions();
-        const checkVerification = async () => {
-            if (user?.role === 'HALAL_KONSULTAN') {
-                try {
-                    // 1. Check Profile Verification
-                    const profileRes = await api.get(`/consultant/profile/${user.id}`);
-                    const profileVerified = profileRes.data?.is_verified ?? false;
-
-                    // 2. Check Training Graduation
-                    const trainingRes = await api.get(`/user-trainings/${user.id}`);
-                    const trainings = trainingRes.data || [];
-                    const isGraduated = trainings.some((t: any) => t.status === 'LULUS');
-
-                    setIsVerified(profileVerified && isGraduated);
-                } catch (err) {
-                    setIsVerified(false);
-                }
-            } else {
-                setIsVerified(true);
-            }
-        };
-        checkVerification();
-    }, [user]);
-
-
-    const handleDelete = async (e: React.MouseEvent, id: string) => {
-        e.stopPropagation();
-        setConfirmModal({
-            isOpen: true,
-            title: 'Hapus Pengajuan',
-            message: 'Apakah Anda yakin ingin menghapus pengajuan ini? Tindakan ini tidak dapat dibatalkan.',
-            onConfirm: async () => {
-                try {
-                    await api.delete(`/submissions/${id}`);
-                    toast.success("Pengajuan berhasil dihapus");
-                    fetchSubmissions();
-                } catch (err: any) {
-                    toast.error(err.response?.data?.error || "Gagal menghapus pengajuan");
-                }
-            }
-        });
-    };
-
-    const handleSort = (key: SortKey) => {
-        if (sortKey === key) {
-            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortKey(key);
-            setSortOrder('asc');
-        }
-    };
-
-    const handleCopy = (e: React.MouseEvent, text: string, id: string) => {
-        e.stopPropagation();
-        navigator.clipboard.writeText(text);
-        setCopiedId(id);
-        setTimeout(() => setCopiedId(null), 2000);
-    };
-
-    const filteredData = useMemo(() => {
-        return submissions.filter(s => {
-            const matchSearch = s.client?.business_name.toLowerCase().includes(search.toLowerCase()) ||
-                s.id.toLowerCase().includes(search.toLowerCase()) ||
-                s.client?.client_name?.toLowerCase().includes(search.toLowerCase()) ||
-                s.client?.facilitator?.full_name.toLowerCase().includes(search.toLowerCase()) ||
-                s.client?.facilitator?.leader?.full_name.toLowerCase().includes(search.toLowerCase());
-            const matchStatus = statusFilter === '' || s.status === statusFilter;
-            return matchSearch && matchStatus;
-        });
-    }, [submissions, search, statusFilter]);
-
-    const groupedData = useMemo(() => {
-        const groups: Record<string, { coordinator: string, submissions: Submission[] }> = {};
-
-        filteredData.forEach(sub => {
-            const coord = sub.client?.facilitator?.leader?.full_name || sub.client?.facilitator?.full_name || 'Umum / Tanpa Koordinator';
-            if (!groups[coord]) {
-                groups[coord] = { coordinator: coord, submissions: [] };
-            }
-            groups[coord].submissions.push(sub);
-        });
-
-        // Sort each group's submissions
-        Object.values(groups).forEach(group => {
-            group.submissions.sort((a, b) => {
-                let valA: any = '';
-                let valB: any = '';
-
-                if (sortKey === 'status') {
-                    const aIdx = STATUS_ORDER.indexOf(a.status);
-                    const bIdx = STATUS_ORDER.indexOf(b.status);
-                    return sortOrder === 'asc' ? aIdx - bIdx : bIdx - aIdx;
-                }
-
-                if (sortKey === 'business_name') {
-                    valA = a.client?.business_name.toLowerCase() || '';
-                    valB = b.client?.business_name.toLowerCase() || '';
-                } else if (sortKey === 'consultant') {
-                    valA = a.client?.facilitator?.full_name.toLowerCase() || '';
-                    valB = b.client?.facilitator?.full_name.toLowerCase() || '';
-                } else {
-                    valA = new Date(a.created_at).getTime();
-                    valB = new Date(b.created_at).getTime();
-                }
-                if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-                if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-                return 0;
-            });
-        });
-
-        return Object.values(groups).sort((a, b) => b.submissions.length - a.submissions.length);
-    }, [filteredData, sortKey, sortOrder]);
-
-    const stats = useMemo(() => {
-        return {
-            total: submissions.length,
-            pending: submissions.filter(s => s.status !== 'SH_TERBIT' && s.status !== 'REJECTED').length,
-            completed: submissions.filter(s => s.status === 'SH_TERBIT').length,
-            rejected: submissions.filter(s => s.status === 'REJECTED').length
-        };
-    }, [submissions]);
-
-    const handleCreate = () => {
-        navigate(`/dashboard/submissions/new?type=${newSub.serviceType}&name=${newSub.businessName}`);
-    };
+    const {
+        loading, search, setSearch, statusFilter, setStatusFilter,
+        isGrouped, setIsGrouped, showCreateModal, setShowCreateModal,
+        newSub, setNewSub, isVerified, sortKey, sortOrder,
+        expandedGroups, setExpandedGroups, copiedId, confirmModal, setConfirmModal,
+        handleDelete, handleSort, handleCopy, handleCreate,
+        stats, filteredData, groupedData, user, navigate, STATUS_ORDER
+    } = useSubmissionList();
 
     return (
         <div className="max-w-7xl mx-auto space-y-8 pb-10">
@@ -266,275 +51,46 @@ export default function SubmissionList() {
                         )}
                     </div>
                 )}
-
             </div>
 
-            {/* Quick Stats Bar */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard label="Total Pengajuan" value={stats.total} icon={FileText} color="text-brand-600" bg="bg-brand-50" />
-                <StatCard label="Dalam Proses" value={stats.pending} icon={Clock} color="text-amber-600" bg="bg-amber-50" />
-                <StatCard label="Selesai (SH Terbit)" value={stats.completed} icon={CheckCircle2} color="text-emerald-600" bg="bg-emerald-50" />
-                <StatCard label="Ditolak" value={stats.rejected} icon={XCircle} color="text-red-600" bg="bg-red-50" />
-            </div>
+            <SubmissionStats stats={stats} />
 
-            {/* Main Content Area */}
             <div className="space-y-6">
-                {/* Search & Filters */}
-                <div className="glass-panel p-4 flex flex-wrap gap-4 items-center justify-between shadow-lg border border-white/40">
-                    <div className="flex-1 min-w-[300px] relative">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Cari Bisnis, Nama Klien, Konsultan..."
-                            className="w-full pl-12 pr-4 py-3 bg-gray-50/50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-brand-500/20 transition-all outline-none"
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                        />
-                    </div>
+                <SubmissionFilters 
+                    search={search}
+                    setSearch={setSearch}
+                    statusFilter={statusFilter}
+                    setStatusFilter={setStatusFilter}
+                    isGrouped={isGrouped}
+                    setIsGrouped={setIsGrouped}
+                    statusOrder={STATUS_ORDER}
+                />
 
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 px-4 py-2.5 bg-white/50 rounded-xl border border-gray-100">
-                            <Filter className="w-4 h-4 text-gray-400" />
-                            <select
-                                className="bg-transparent border-none text-sm font-bold text-gray-700 focus:ring-0 cursor-pointer outline-none"
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                            >
-                                <option value="">Semua Status</option>
-                                {STATUS_ORDER.map(s => (
-                                    <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <button
-                            onClick={() => setIsGrouped(!isGrouped)}
-                            className={`p-2.5 rounded-xl border transition-all ${isGrouped ? 'bg-brand-600 text-white border-brand-600 shadow-md' : 'bg-white text-gray-400 border-gray-200 hover:border-brand-300'}`}
-                            title={isGrouped ? "Nonaktifkan Pengelompokan" : "Aktifkan Pengelompokan"}
-                        >
-                            <LayoutGrid className="w-5 h-5" />
-                        </button>
-                    </div>
-                </div>
-
-                {/* Data Table / List */}
-                <div className="space-y-10">
-                    {loading ? (
-                        <div className="glass-panel p-20 text-center">
-                            <Loader2 className="w-10 h-10 animate-spin text-brand-600 mx-auto" />
-                            <p className="mt-4 text-gray-500 font-medium">Memuat data pengajuan...</p>
-                        </div>
-                    ) : (isGrouped ? groupedData : [{ coordinator: 'Semua Pengajuan', submissions: filteredData }]).map((group) => (
-                        <div key={group.coordinator} className="space-y-4">
-                            {/* Group Header */}
-                            {isGrouped && (
-                                <div
-                                    className="flex items-center gap-4 px-2 cursor-pointer group/header"
-                                    onClick={() => setExpandedGroups(prev => ({ ...prev, [group.coordinator]: !prev[group.coordinator] }))}
-                                >
-                                    <div className="w-10 h-10 rounded-2xl bg-brand-100 flex items-center justify-center text-brand-700 font-black group-hover/header:bg-brand-200 transition-colors">
-                                        {group.coordinator.charAt(0)}
-                                    </div>
-                                    <div className="flex-1">
-                                        <h3 className="text-lg font-black text-gray-800 tracking-tight">{group.coordinator}</h3>
-                                        <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">{group.submissions.length} Pengajuan</p>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-px w-24 sm:w-48 bg-gradient-to-r from-gray-200 to-transparent"></div>
-                                        <div className={`p-1.5 rounded-lg transition-colors ${expandedGroups[group.coordinator] ? 'bg-brand-50 text-brand-600' : 'text-gray-400 hover:bg-gray-100'}`}>
-                                            <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${expandedGroups[group.coordinator] ? 'rotate-180' : ''}`} />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            <AnimatePresence initial={false}>
-                                {(expandedGroups[group.coordinator] || !isGrouped) && (
-                                    <motion.div
-                                        initial={isGrouped ? { height: 0, opacity: 0 } : false}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.3, ease: 'easeInOut' }}
-                                        className="overflow-hidden"
-                                    >
-                                        <div className="glass-panel overflow-hidden border border-white/40 shadow-xl">
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-left border-collapse">
-                                                    <thead className="bg-gray-50/50 border-b border-gray-100">
-                                                        <tr>
-                                                            <th onClick={() => handleSort('business_name')} className="p-4 cursor-pointer hover:bg-gray-100 transition-colors w-[30%]">
-                                                                <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                                                    Bisnis & Layanan <SortIcon currentKey="business_name" activeKey={sortKey} order={sortOrder} />
-                                                                </div>
-                                                            </th>
-                                                            <th onClick={() => handleSort('consultant')} className="p-4 cursor-pointer hover:bg-gray-100 transition-colors">
-                                                                <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                                                    Konsultan <SortIcon currentKey="consultant" activeKey={sortKey} order={sortOrder} />
-                                                                </div>
-                                                            </th>
-                                                            <th onClick={() => handleSort('status')} className="p-4 cursor-pointer hover:bg-gray-100 transition-colors">
-                                                                <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                                                    Status <SortIcon currentKey="status" activeKey={sortKey} order={sortOrder} />
-                                                                </div>
-                                                            </th>
-                                                            <th className="p-4">
-                                                                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No. Resi</div>
-                                                            </th>
-                                                            <th onClick={() => handleSort('created_at')} className="p-4 cursor-pointer hover:bg-gray-100 transition-colors">
-                                                                <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                                                    Tgl Input <SortIcon currentKey="created_at" activeKey={sortKey} order={sortOrder} />
-                                                                </div>
-                                                            </th>
-                                                            <th className="p-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Aksi</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-gray-50">
-                                                        {group.submissions.length === 0 ? (
-                                                            <tr>
-                                                                <td colSpan={5} className="p-12 text-center text-gray-400 italic text-sm">Tidak ada data</td>
-                                                            </tr>
-                                                        ) : (
-                                                            group.submissions.map((sub, idx) => (
-                                                                <motion.tr
-                                                                    initial={{ opacity: 0, y: 5 }}
-                                                                    animate={{ opacity: 1, y: 0 }}
-                                                                    transition={{ delay: idx * 0.02 }}
-                                                                    key={sub.id}
-                                                                    className="group hover:bg-brand-50/30 transition-all cursor-pointer"
-                                                                    onClick={() => navigate(`/dashboard/submissions/${sub.id}`)}
-                                                                >
-                                                                    <td className="p-4">
-                                                                        <div className="flex items-center gap-3">
-                                                                            <div className="w-10 h-10 rounded-2xl bg-brand-50 flex items-center justify-center text-brand-700 font-black text-sm group-hover:scale-110 transition-transform shadow-sm">
-                                                                                {sub.client?.business_name?.charAt(0) || '?'}
-                                                                            </div>
-                                                                            <div>
-                                                                                <div className="font-bold text-gray-800 group-hover:text-brand-700 transition-colors">{sub.client?.business_name}</div>
-                                                                                <div className="text-[10px] text-gray-500 font-medium">{sub.client?.client_name || 'Tanpa Nama Klien'}</div>
-                                                                                <div className="flex items-center gap-2 mt-1">
-                                                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider ${sub.service_type === 'REGULER' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                                                                                        }`}>
-                                                                                        {formatServiceType(sub.service_type)}
-                                                                                    </span>
-                                                                                    {sub.data_source === 'MARKETING' && (
-                                                                                        <span className="text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider bg-amber-100 text-amber-700">
-                                                                                            Partner
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="p-4">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
-                                                                                <User className="w-3 h-3" />
-                                                                            </div>
-                                                                            <div>
-                                                                                <div className="text-sm font-bold text-gray-700">{sub.client?.facilitator?.full_name}</div>
-                                                                                <div className="text-[10px] text-gray-400 font-medium">Konsultan</div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="p-4">
-                                                                        <StatusBadge status={sub.status} />
-                                                                    </td>
-                                                                    <td className="p-4">
-                                                                        {sub.tracking_number ? (
-                                                                            <div 
-                                                                                onClick={(e) => handleCopy(e, sub.tracking_number || '', sub.id)}
-                                                                                className="flex items-center gap-2 group/copy w-fit"
-                                                                            >
-                                                                                <div className="text-xs font-mono font-bold text-brand-600 uppercase tracking-tight group-hover/copy:text-brand-700 transition-colors">
-                                                                                    {sub.tracking_number}
-                                                                                </div>
-                                                                                <button
-                                                                                    className={`p-1 rounded-md transition-all ${copiedId === sub.id ? 'bg-emerald-50 text-emerald-600' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'}`}
-                                                                                >
-                                                                                    {copiedId === sub.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                                                                                </button>
-                                                                            </div>
-                                                                        ) : (
-                                                                            <div className="text-xs text-gray-400">-</div>
-                                                                        )}
-                                                                    </td>
-                                                                    <td className="p-4">
-                                                                        <div className="text-xs text-gray-600 font-medium">
-                                                                            {new Date(sub.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
-                                                                        </div>
-                                                                        <div className="text-[10px] text-gray-400">
-                                                                            {new Date(sub.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="p-4 text-right">
-                                                                        <div className="flex items-center justify-end gap-2">
-                                                                            {(user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (sub.status === 'DRAFT' && sub.client?.facilitator_id === user?.id)) && (
-                                                                                <button
-                                                                                    onClick={(e) => handleDelete(e, sub.id)}
-                                                                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                                                                                    title="Hapus Pengajuan"
-                                                                                >
-                                                                                    <Trash2 className="w-4 h-4" />
-                                                                                </button>
-                                                                            )}
-                                                                            <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white group-hover:bg-brand-600 group-hover:text-white text-gray-400 shadow-sm transition-all border border-gray-100">
-                                                                                <ChevronRight className="w-4 h-4" />
-                                                                            </div>
-                                                                        </div>
-                                                                    </td>
-                                                                </motion.tr>
-                                                            ))
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    ))}
-                </div>
+                <SubmissionTable 
+                    data={isGrouped ? groupedData : [{ coordinator: 'Semua Pengajuan', submissions: filteredData }]}
+                    isGrouped={isGrouped}
+                    loading={loading}
+                    onDelete={handleDelete}
+                    onCopy={handleCopy}
+                    onNavigate={(id) => navigate(`/dashboard/submissions/${id}`)}
+                    sortKey={sortKey}
+                    sortOrder={sortOrder}
+                    handleSort={handleSort}
+                    expandedGroups={expandedGroups}
+                    setExpandedGroups={setExpandedGroups}
+                    copiedId={copiedId}
+                    userRole={user?.role}
+                    userId={user?.id}
+                />
             </div>
 
-            <Modal 
-                isOpen={showCreateModal} 
+            <SubmissionCreateModal 
+                isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
-                title="Mulai Pengajuan"
-                maxWidth="md"
-            >
-                <div className="space-y-6">
-                    <p className="text-sm text-gray-500">Lengkapi data dasar untuk memulai proses sertifikasi</p>
-                    
-                    <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nama Usaha / Produk</label>
-                        <input
-                            type="text"
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-brand-500/20 transition-all outline-none"
-                            placeholder="Contoh: Katering Berkah"
-                            value={newSub.businessName}
-                            onChange={e => setNewSub({ ...newSub, businessName: e.target.value })}
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Jenis Layanan</label>
-                        <select
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-brand-500/20 transition-all outline-none"
-                            value={newSub.serviceType}
-                            onChange={e => setNewSub({ ...newSub, serviceType: e.target.value })}
-                        >
-                            <option value="SELF_DECLARE">Self Declare Fasilitasi (Gratis)</option>
-                            <option value="SELF_DECLARE_MANDIRI">Self Declare Mandiri</option>
-                            <option value="REGULER">Reguler</option>
-                        </select>
-                    </div>
-
-                    <div className="flex gap-3 pt-4">
-                        <button className="flex-1 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 rounded-2xl transition-colors" onClick={() => setShowCreateModal(false)}>Batal</button>
-                        <button onClick={handleCreate} disabled={!newSub.businessName} className="flex-[2] py-3 bg-brand-600 text-white rounded-2xl font-black shadow-lg shadow-brand-100 hover:bg-brand-700 disabled:opacity-30 transition-all">Lanjut ke Form</button>
-                    </div>
-                </div>
-            </Modal>
+                formData={newSub}
+                setFormData={setNewSub}
+                onCreate={handleCreate}
+            />
 
             <ConfirmModal 
                 isOpen={confirmModal.isOpen}
@@ -545,34 +101,4 @@ export default function SubmissionList() {
             />
         </div>
     );
-}
-
-function StatCard({ label, value, icon: Icon, color, bg }: { label: string, value: number, icon: any, color: string, bg: string }) {
-    return (
-        <div className="glass-panel p-5 flex items-center gap-4 border border-white/60 shadow-md">
-            <div className={`p-3 ${bg} rounded-2xl`}>
-                <Icon className={`w-6 h-6 ${color}`} />
-            </div>
-            <div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</p>
-                <p className={`text-2xl font-black text-gray-900`}>{value}</p>
-            </div>
-        </div>
-    );
-}
-
-function StatusBadge({ status }: { status: string }) {
-    const config = STATUS_CONFIG[status] || { color: 'bg-gray-100 text-gray-600', icon: Clock };
-    const Icon = config.icon;
-    return (
-        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider ${config.color} shadow-sm border border-black/5`}>
-            <Icon className="w-3 h-3" />
-            {status.replace(/_/g, ' ')}
-        </div>
-    );
-}
-
-function SortIcon({ currentKey, activeKey, order }: { currentKey: string, activeKey: string, order: 'asc' | 'desc' }) {
-    if (currentKey !== activeKey) return <ArrowUpDown className="w-3 h-3 text-gray-300" />;
-    return order === 'asc' ? <ArrowUp className="w-3 h-3 text-brand-600" /> : <ArrowDown className="w-3 h-3 text-brand-600" />;
 }
