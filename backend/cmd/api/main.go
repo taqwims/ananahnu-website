@@ -12,9 +12,11 @@ import (
 	"ananahnu/pkg/database"
 	"ananahnu/pkg/email"
 	"ananahnu/pkg/midtrans"
+	"ananahnu/pkg/whatsapp"
 
 	"ananahnu/internal/repository"
 	"ananahnu/internal/usecase"
+	"os"
 	httpDelivery "ananahnu/internal/delivery/http"
 )
 
@@ -165,10 +167,20 @@ func main() {
 	// Services
 	emailSender := email.NewGmailSender()
 	midtransGateway := midtrans.NewMidtransGateway()
+	
+	// WhatsApp Sender with dynamic token from SystemSetting
+	waSender := whatsapp.NewFonnteSender(func() string {
+		setting, err := settingRepo.GetSetting("fonnte_token")
+		if err == nil && setting != nil && setting.Value != "" {
+			return setting.Value
+		}
+		// Fallback to env
+		return os.Getenv("FONNTE_TOKEN")
+	})
 
 	// 6. Setup Usecases
 	authUC := usecase.NewAuthUsecase(userRepo, roleRepo, clientRepo, tokenRepo, emailSender)
-	notificationUC := usecase.NewNotificationUsecase(notifRepo)
+	notificationUC := usecase.NewNotificationUsecase(notifRepo, waSender)
 	importUC := usecase.NewImportUsecase(clientRepo)
 	exportUC := usecase.NewExportUsecase(clientRepo)
 	cmsUC := usecase.NewCMSUsecase(cmsRepo)
@@ -182,7 +194,7 @@ func main() {
 	// Initialize BillingUsecase first because PaymentUsecase now depends on it
 	billingUC := usecase.NewBillingUsecase(invoiceRepo, paymentConfigRepo, billingRateRepo, userRepo, notificationUC, commissionRepo, settingRepo, submissionRepo)
 	
-	paymentUC := usecase.NewPaymentUsecase(paymentRepo, submissionRepo, auditRepo, midtransGateway, invoiceRepo, billingUC)
+	paymentUC := usecase.NewPaymentUsecase(paymentRepo, submissionRepo, auditRepo, midtransGateway, invoiceRepo, billingUC, notificationUC, settingRepo)
 	
 	submissionUC := usecase.NewSubmissionWorkflowUsecase(submissionRepo, clientRepo, roleRepo, auditRepo, userRepo, notificationUC, invoiceRepo, coordinatorRateRepo, formValueRepo, billingConfigRepo, consultantRepo, participantRepo, settingRepo)
 

@@ -94,6 +94,58 @@ func (uc *submissionWorkflowUsecase) logChange(id uuid.UUID, userID uuid.UUID, a
 	})
 }
 
+// sendWhatsApp is a helper to send WA notifications if enabled
+func (uc *submissionWorkflowUsecase) sendWhatsApp(phone string, message string) {
+	enabled, _ := uc.settingRepo.GetSetting("wa_notifications_enabled")
+	if enabled == nil || enabled.Value != "true" {
+		return
+	}
+
+	if phone == "" {
+		return
+	}
+
+	// Normalize phone number (ensure it starts with 62)
+	phone = strings.ReplaceAll(phone, " ", "")
+	phone = strings.ReplaceAll(phone, "-", "")
+	phone = strings.ReplaceAll(phone, "+", "")
+	if strings.HasPrefix(phone, "0") {
+		phone = "62" + phone[1:]
+	} else if !strings.HasPrefix(phone, "62") {
+		phone = "62" + phone
+	}
+
+	_ = uc.notifUC.SendWhatsAppNotification(phone, message)
+}
+
+func (uc *submissionWorkflowUsecase) formatMessage(templateKey string, replacements map[string]string, fallback string) string {
+	setting, _ := uc.settingRepo.GetSetting(templateKey)
+	msg := fallback
+	if setting != nil && setting.Value != "" {
+		msg = setting.Value
+	}
+
+	for k, v := range replacements {
+		msg = strings.ReplaceAll(msg, "{{"+k+"}}", v)
+	}
+	return msg
+}
+
+func (uc *submissionWorkflowUsecase) shouldNotify(key string) (app bool, wa bool) {
+	// Global toggle
+	globalWA, _ := uc.settingRepo.GetSetting("wa_notifications_enabled")
+	globalWAEnabled := globalWA == nil || globalWA.Value == "true"
+
+	enableApp, _ := uc.settingRepo.GetSetting("enable_app_" + key)
+	enableWA, _ := uc.settingRepo.GetSetting("enable_wa_" + key)
+
+	// If setting not found, default to true (to maintain existing behavior)
+	app = enableApp == nil || enableApp.Value == "true"
+	wa = (enableWA == nil || enableWA.Value == "true") && globalWAEnabled
+
+	return app, wa
+}
+
 func (uc *submissionWorkflowUsecase) checkVerification(userID uuid.UUID) error {
 	user, err := uc.userRepo.FindByID(userID)
 	if err != nil {
@@ -214,7 +266,8 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 		now := time.Now()
 		randomPart := strings.ToUpper(uuid.New().String()[:4])
 		trackingNo := fmt.Sprintf("AN-%s-%s", now.Format("0601"), randomPart)
-		uc.submissionRepo.UpdateTrackingNumber(id, trackingNo)
+		_ = uc.submissionRepo.UpdateTrackingNumber(id, trackingNo)
+		sub.TrackingNumber = &trackingNo // Update in-memory object to avoid nil pointer later
 	}
 
 	err = uc.submissionRepo.UpdateStatus(id, nextStatus, 0)
@@ -283,8 +336,33 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 			for _, u := range users {
 				if u.Role.Name == "FINANCE" || u.Role.Name == "ADMIN_KEUANGAN" {
 					uc.notifUC.CreateNotification(u.ID, "Tagihan Baru", "Pengajuan baru " + sub.Client.BusinessName + " menunggu pembayaran.", id)
+					// WA to Finance
+					uc.sendWhatsApp(u.Phone, fmt.Sprintf("Halo Finance, pengajuan baru dari *%s* (%s) menunggu konfirmasi pembayaran.", sub.Client.BusinessName, sub.Client.ServiceType))
 				}
 			}
+		}
+
+		// Notify Client
+		trackingNo := ""
+		if sub.TrackingNumber != nil {
+			trackingNo = *sub.TrackingNumber
+		}
+		
+		appEnabled, waEnabled := uc.shouldNotify("submit")
+
+		clientMsg := uc.formatMessage("template_submit", map[string]string{
+			"client_name":     sub.Client.ClientName,
+			"business_name":   sub.Client.BusinessName,
+			"tracking_number": trackingNo,
+		}, fmt.Sprintf("Halo *%s*, pengajuan sertifikasi halal Anda untuk *%s* telah kami terima. No Tracking: *%s*. Silakan cek status pengajuan Anda di %s/track", sub.Client.ClientName, sub.Client.BusinessName, trackingNo, "https://ananahnu.id"))
+		
+		if waEnabled {
+			uc.sendWhatsApp(sub.Client.Phone, clientMsg)
+		}
+		if appEnabled {
+			// Also create in-app for client if they have user account
+			// In this system, clients usually track via public link, but some might have accounts
+			// We skip for now or use facilitator as proxy
 		}
 	}
 	return err
@@ -621,7 +699,17 @@ func (uc *submissionWorkflowUsecase) ApproveWithDrafter(id uuid.UUID, userID uui
 	uc.logChange(id, userID, "ASSIGN_DRAFTER", sub.Status, domain.StatusDrafter, "Assigned to drafter: "+drafterName)
 
 	// Notify the drafter
-	uc.notifUC.CreateNotification(drafterID, "Pengajuan Baru", "Anda ditugaskan untuk mengerjakan pengajuan "+sub.Client.BusinessName, id)
+	appEnabled, waEnabled := uc.shouldNotify("drafter_assigned")
+	if appEnabled {
+		uc.notifUC.CreateNotification(drafterID, "Pengajuan Baru", "Anda ditugaskan untuk mengerjakan pengajuan "+sub.Client.BusinessName, id)
+	}
+	if waEnabled && drafter != nil {
+		msg := uc.formatMessage("template_drafter_assigned", map[string]string{
+			"drafter_name":   drafter.FullName,
+			"business_name": sub.Client.BusinessName,
+		}, fmt.Sprintf("Halo *%s*, Anda telah ditugaskan untuk mengerjakan pengajuan *%s*. Silakan cek Ruang Kerja Drafter.", drafter.FullName, sub.Client.BusinessName))
+		uc.sendWhatsApp(drafter.Phone, msg)
+	}
 
 	log.Printf("[WORKFLOW] QC %s assigned submission %s to drafter %s", userID, id, drafterID)
 
@@ -687,7 +775,17 @@ func (uc *submissionWorkflowUsecase) AssignConsultant(id uuid.UUID, userID uuid.
 	uc.logChange(id, userID, "ASSIGN_CONSULTANT", sub.Status, newStatus, "Assigned to consultant: "+consultantName)
 
 	// Notify the consultant
-	uc.notifUC.CreateNotification(consultantID, "Penugasan Konsultan", "Anda ditunjuk sebagai konsultan untuk pengajuan "+sub.Client.BusinessName, id)
+	appEnabled, waEnabled := uc.shouldNotify("consultant_assigned")
+	if appEnabled {
+		uc.notifUC.CreateNotification(consultantID, "Penugasan Konsultan", "Anda ditunjuk sebagai konsultan untuk pengajuan "+sub.Client.BusinessName, id)
+	}
+	if waEnabled && consultant != nil {
+		msg := uc.formatMessage("template_consultant_assigned", map[string]string{
+			"consultant_name": consultant.FullName,
+			"business_name":   sub.Client.BusinessName,
+		}, fmt.Sprintf("Halo *%s*, Anda ditunjuk sebagai Konsultan untuk pengajuan *%s*. Silakan cek menu Referral/Submission.", consultant.FullName, sub.Client.BusinessName))
+		uc.sendWhatsApp(consultant.Phone, msg)
+	}
 
 	log.Printf("[WORKFLOW] %s assigned submission %s to consultant %s", userRole, id, consultantID)
 
@@ -724,10 +822,64 @@ func (uc *submissionWorkflowUsecase) Reject(id uuid.UUID, userID uuid.UUID, user
 		_ = uc.submissionRepo.UpdateRejectNote(id, note)
 
 		// Notify assigned drafter if returning to drafter
+		appEnabled, waEnabled := uc.shouldNotify("revision_internal")
 		if (nextStatus == domain.StatusDrafter) && sub.AssignedDrafterID != nil {
-			uc.notifUC.CreateNotification(*sub.AssignedDrafterID, "Pengajuan Dikembalikan",
-				"Pengajuan "+sub.Client.BusinessName+" dikembalikan: "+note, id)
+			if appEnabled {
+				uc.notifUC.CreateNotification(*sub.AssignedDrafterID, "Pengajuan Dikembalikan",
+					"Pengajuan "+sub.Client.BusinessName+" dikembalikan: "+note, id)
+			}
+			
+			drafter, _ := uc.userRepo.FindByID(*sub.AssignedDrafterID)
+			if waEnabled && drafter != nil {
+				msg := uc.formatMessage("template_revision_internal", map[string]string{
+					"drafter_name":   drafter.FullName,
+					"business_name": sub.Client.BusinessName,
+					"note":          note,
+				}, fmt.Sprintf("Halo *%s*, pengajuan *%s* telah dikembalikan ke Ruang Kerja Anda dengan catatan: %s", drafter.FullName, sub.Client.BusinessName, note))
+				uc.sendWhatsApp(drafter.Phone, msg)
+			}
 		}
+
+		// Notify Consultant/Facilitator
+		if sub.ConsultantID != nil {
+			cons, _ := uc.userRepo.FindByID(*sub.ConsultantID)
+			if appEnabled {
+				uc.notifUC.CreateNotification(*sub.ConsultantID, "Catatan Revisi", "Pengajuan "+sub.Client.BusinessName+" memerlukan revisi: "+note, id)
+			}
+			if waEnabled && cons != nil {
+				msg := uc.formatMessage("template_revision_internal", map[string]string{
+					"drafter_name":   cons.FullName,
+					"business_name": sub.Client.BusinessName,
+					"note":          note,
+				}, fmt.Sprintf("Halo *%s*, pengajuan bimbingan Anda *%s* mendapatkan catatan revisi: %s. Status saat ini: %s", cons.FullName, sub.Client.BusinessName, note, string(nextStatus)))
+				uc.sendWhatsApp(cons.Phone, msg)
+			}
+		} else if sub.Client.FacilitatorID != uuid.Nil {
+			fac, _ := uc.userRepo.FindByID(sub.Client.FacilitatorID)
+			if appEnabled {
+				uc.notifUC.CreateNotification(sub.Client.FacilitatorID, "Catatan Revisi", "Pengajuan "+sub.Client.BusinessName+" memerlukan revisi: "+note, id)
+			}
+			if waEnabled && fac != nil {
+				msg := uc.formatMessage("template_revision_internal", map[string]string{
+					"drafter_name":   fac.FullName,
+					"business_name": sub.Client.BusinessName,
+					"note":          note,
+				}, fmt.Sprintf("Halo *%s*, pengajuan *%s* mendapatkan catatan revisi: %s. Status saat ini: %s", fac.FullName, sub.Client.BusinessName, note, string(nextStatus)))
+				uc.sendWhatsApp(fac.Phone, msg)
+			}
+		}
+
+		// Notify Client
+		appClient, waClient := uc.shouldNotify("revision_client")
+		if waClient && sub.Client.Phone != "" {
+			msg := uc.formatMessage("template_revision_client", map[string]string{
+				"client_name":   sub.Client.ClientName,
+				"business_name": sub.Client.BusinessName,
+				"note":          note,
+			}, fmt.Sprintf("Halo *%s*, pengajuan sertifikasi halal *%s* memerlukan perbaikan dengan catatan: %s. Silakan cek detail di sistem.", sub.Client.ClientName, sub.Client.BusinessName, note))
+			uc.sendWhatsApp(sub.Client.Phone, msg)
+		}
+		_ = appClient // Not used for now
 	}
 	return err
 }
@@ -931,6 +1083,38 @@ func (uc *submissionWorkflowUsecase) IssueSH(id uuid.UUID, userID uuid.UUID, shU
 		uc.generateSHTerbitInvoice(id, sub)
 	}
 
+	// Notify Client & Consultant
+	trackingNo := ""
+	if sub.TrackingNumber != nil {
+		trackingNo = *sub.TrackingNumber
+	}
+	
+	clientMsg := uc.formatMessage("template_sh_terbit_client", map[string]string{
+		"client_name":     client.ClientName,
+		"business_name":   client.BusinessName,
+		"tracking_number": trackingNo,
+	}, fmt.Sprintf("Selamat! Sertifikat Halal untuk *%s* telah TERBIT. No Tracking: *%s*. Silakan unduh sertifikat Anda di %s", client.BusinessName, trackingNo, "https://ananahnu.id/track"))
+	
+	_, waEnabledClient := uc.shouldNotify("sh_terbit_client")
+	if waEnabledClient {
+		uc.sendWhatsApp(client.Phone, clientMsg)
+	}
+
+	if sub.ConsultantID != nil {
+		cons, _ := uc.userRepo.FindByID(*sub.ConsultantID)
+		if cons != nil {
+			msg := uc.formatMessage("template_sh_terbit_internal", map[string]string{
+				"consultant_name": cons.FullName,
+				"business_name":   client.BusinessName,
+			}, fmt.Sprintf("Halo *%s*, pengajuan bimbingan Anda *%s* telah terbit Sertifikat Halalnya. Terima kasih atas kerja kerasnya!", cons.FullName, client.BusinessName))
+			
+			_, waEnabledInternal := uc.shouldNotify("sh_terbit_internal")
+			if waEnabledInternal {
+				uc.sendWhatsApp(cons.Phone, msg)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -986,13 +1170,45 @@ func (uc *submissionWorkflowUsecase) UpdateAuditInfo(id uuid.UUID, userID uuid.U
 	uc.logChange(id, userID, "UPDATE_AUDIT_INFO", sub.Status, sub.Status, "Updated audit date to: "+dateStr)
 
 	// Notify Consultant
+	appEnabledInternal, waEnabledInternal := uc.shouldNotify("audit_scheduled_internal")
 	if sub.ConsultantID != nil {
-		uc.notifUC.CreateNotification(*sub.ConsultantID, "Jadwal Audit", "Jadwal audit untuk "+sub.Client.BusinessName+" ditetapkan pada "+dateStr, id)
+		if appEnabledInternal {
+			uc.notifUC.CreateNotification(*sub.ConsultantID, "Jadwal Audit", "Jadwal audit untuk "+sub.Client.BusinessName+" ditetapkan pada "+dateStr, id)
+		}
+		cons, _ := uc.userRepo.FindByID(*sub.ConsultantID)
+		if waEnabledInternal && cons != nil {
+			msg := uc.formatMessage("template_audit_scheduled_internal", map[string]string{
+				"business_name": sub.Client.BusinessName,
+				"date":          dateStr,
+			}, fmt.Sprintf("Halo *%s*, jadwal audit untuk pengajuan *%s* telah ditetapkan pada *%s*.", cons.FullName, sub.Client.BusinessName, dateStr))
+			uc.sendWhatsApp(cons.Phone, msg)
+		}
 	}
 
 	// Notify Facilitator (could be Marketing or Pendamping)
 	if sub.Client.FacilitatorID != uuid.Nil {
-		uc.notifUC.CreateNotification(sub.Client.FacilitatorID, "Jadwal Audit", "Jadwal audit untuk "+sub.Client.BusinessName+" ditetapkan pada "+dateStr, id)
+		if appEnabledInternal {
+			uc.notifUC.CreateNotification(sub.Client.FacilitatorID, "Jadwal Audit", "Jadwal audit untuk "+sub.Client.BusinessName+" ditetapkan pada "+dateStr, id)
+		}
+		fac, _ := uc.userRepo.FindByID(sub.Client.FacilitatorID)
+		if waEnabledInternal && fac != nil && (sub.ConsultantID == nil || *sub.ConsultantID != sub.Client.FacilitatorID) {
+			msg := uc.formatMessage("template_audit_scheduled_internal", map[string]string{
+				"business_name": sub.Client.BusinessName,
+				"date":          dateStr,
+			}, fmt.Sprintf("Halo *%s*, jadwal audit untuk pengajuan *%s* telah ditetapkan pada *%s*.", fac.FullName, sub.Client.BusinessName, dateStr))
+			uc.sendWhatsApp(fac.Phone, msg)
+		}
+	}
+
+	// Notify Client
+	_, waEnabledClient := uc.shouldNotify("audit_scheduled_client")
+	if sub.Client.Phone != "" && waEnabledClient {
+		msg := uc.formatMessage("template_audit_scheduled_client", map[string]string{
+			"client_name":     sub.Client.ClientName,
+			"business_name": sub.Client.BusinessName,
+			"date":          dateStr,
+		}, fmt.Sprintf("Halo *%s*, jadwal audit lapangan untuk pengajuan sertifikasi halal *%s* Anda telah ditetapkan pada *%s*. Silakan persiapkan dokumen dan lokasi.", sub.Client.ClientName, sub.Client.BusinessName, dateStr))
+		uc.sendWhatsApp(sub.Client.Phone, msg)
 	}
 
 	return nil

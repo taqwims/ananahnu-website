@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -42,9 +43,11 @@ type paymentUsecase struct {
 	midtrans       midtransPkg.PaymentGateway
 	invoiceRepo    domain.InvoiceRepository
 	billingUC      BillingUsecase
+	notifUC        NotificationUsecase
+	settingRepo    domain.SystemSettingRepository
 }
 
-func NewPaymentUsecase(p domain.PaymentRepository, s domain.SubmissionRepository, a domain.AuditLogRepository, m midtransPkg.PaymentGateway, i domain.InvoiceRepository, b BillingUsecase) PaymentUsecase {
+func NewPaymentUsecase(p domain.PaymentRepository, s domain.SubmissionRepository, a domain.AuditLogRepository, m midtransPkg.PaymentGateway, i domain.InvoiceRepository, b BillingUsecase, n NotificationUsecase, st domain.SystemSettingRepository) PaymentUsecase {
 	return &paymentUsecase{
 		paymentRepo:    p,
 		submissionRepo: s,
@@ -52,6 +55,8 @@ func NewPaymentUsecase(p domain.PaymentRepository, s domain.SubmissionRepository
 		midtrans:       m,
 		invoiceRepo:    i,
 		billingUC:      b,
+		notifUC:        n,
+		settingRepo:    st,
 	}
 }
 
@@ -63,6 +68,47 @@ func (uc *paymentUsecase) logPaymentActivity(submissionID uuid.UUID, action, not
 		EntityID:   submissionID.String(),
 		Notes:      note,
 	})
+}
+
+func (uc *paymentUsecase) sendWhatsApp(phone string, message string) {
+	if phone == "" {
+		return
+	}
+	// Normalize phone
+	phone = fmt.Sprintf("%s", phone) // Ensure string
+	if len(phone) > 0 && phone[0] == '0' {
+		phone = "62" + phone[1:]
+	} else if len(phone) > 0 && phone[0] != '6' {
+		phone = "62" + phone
+	}
+	_ = uc.notifUC.SendWhatsAppNotification(phone, message)
+}
+
+func (uc *paymentUsecase) formatMessage(templateKey string, replacements map[string]string, fallback string) string {
+	setting, _ := uc.settingRepo.GetSetting(templateKey)
+	msg := fallback
+	if setting != nil && setting.Value != "" {
+		msg = setting.Value
+	}
+
+	for k, v := range replacements {
+		msg = strings.ReplaceAll(msg, "{{"+k+"}}", v)
+	}
+	return msg
+}
+
+func (uc *paymentUsecase) shouldNotify(key string) (app bool, wa bool) {
+	// Global toggle
+	globalWA, _ := uc.settingRepo.GetSetting("wa_notifications_enabled")
+	globalWAEnabled := globalWA == nil || globalWA.Value == "true"
+
+	enableApp, _ := uc.settingRepo.GetSetting("enable_app_" + key)
+	enableWA, _ := uc.settingRepo.GetSetting("enable_wa_" + key)
+
+	app = enableApp == nil || enableApp.Value == "true"
+	wa = (enableWA == nil || enableWA.Value == "true") && globalWAEnabled
+
+	return app, wa
 }
 
 // CreateManualPayment creates a manual transfer payment with a proof URL.
@@ -236,6 +282,25 @@ func (uc *paymentUsecase) HandleMidtransNotification(payload map[string]interfac
 			}
 			
 			uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_SUCCESS", fmt.Sprintf("Pembayaran Midtrans berhasil: Rp %.2f", payment.Amount))
+
+			// Notify Client via WA
+			if sub.Client.Phone != "" {
+				appEnabled, waEnabled := uc.shouldNotify("payment_success")
+				if waEnabled {
+					msg := uc.formatMessage("template_payment_success", map[string]string{
+						"client_name":   sub.Client.ClientName,
+						"business_name": sub.Client.BusinessName,
+						"amount":        fmt.Sprintf("%.0f", payment.Amount),
+					}, fmt.Sprintf("Halo *%s*, pembayaran Anda senilai Rp %.0f untuk pengajuan *%s* telah kami TERIMA. Status pengajuan Anda kini dilanjutkan ke tahap berikutnya. Terima kasih!", sub.Client.ClientName, payment.Amount, sub.Client.BusinessName))
+					uc.sendWhatsApp(sub.Client.Phone, msg)
+				}
+				if appEnabled {
+					// Add in-app for facilitator/consultant as well?
+					if sub.ConsultantID != nil {
+						uc.notifUC.CreateNotification(*sub.ConsultantID, "Pembayaran Berhasil", "Pembayaran pengajuan "+sub.Client.BusinessName+" telah diterima.", *payment.SubmissionID)
+					}
+				}
+			}
 		}
 	}
 
@@ -292,6 +357,22 @@ func (uc *paymentUsecase) VerifyManualPayment(paymentID int64, approved bool, ve
 					paymentID, verifierID, *payment.SubmissionID, nextStatus)
 			}
 			uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_VERIFIED", fmt.Sprintf("Pembayaran manual disetujui: Rp %.2f", payment.Amount))
+
+			// Notify Client via WA
+			if sub.Client.Phone != "" {
+				appEnabled, waEnabled := uc.shouldNotify("payment_success")
+				if waEnabled {
+					msg := uc.formatMessage("template_payment_success", map[string]string{
+						"client_name":   sub.Client.ClientName,
+						"business_name": sub.Client.BusinessName,
+						"amount":        fmt.Sprintf("%.0f", payment.Amount),
+					}, fmt.Sprintf("Halo *%s*, pembayaran manual Anda senilai Rp %.0f untuk pengajuan *%s* telah diverifikasi dan DISETUJUI. Terima kasih!", sub.Client.ClientName, payment.Amount, sub.Client.BusinessName))
+					uc.sendWhatsApp(sub.Client.Phone, msg)
+				}
+				if appEnabled && sub.ConsultantID != nil {
+					uc.notifUC.CreateNotification(*sub.ConsultantID, "Pembayaran Disetujui", "Pembayaran manual pengajuan "+sub.Client.BusinessName+" disetujui.", *payment.SubmissionID)
+				}
+			}
 		}
 	} else if !approved && payment.SubmissionID != nil {
 		uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_REJECTED", fmt.Sprintf("Pembayaran manual ditolak: Rp %.2f", payment.Amount))
@@ -368,6 +449,23 @@ func (uc *paymentUsecase) SyncPaymentStatus(paymentID int64) error {
 					}
 					
 					uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_SYNCED", fmt.Sprintf("Status pembayaran disinkronisasi: PAID (Rp %.2f)", payment.Amount))
+					
+					// Notify Client via WA
+					if sub.Client.Phone != "" {
+						appEnabled, waEnabled := uc.shouldNotify("payment_success")
+						if waEnabled {
+							msg := uc.formatMessage("template_payment_success", map[string]string{
+								"client_name":   sub.Client.ClientName,
+								"business_name": sub.Client.BusinessName,
+								"amount":        fmt.Sprintf("%.0f", payment.Amount),
+							}, fmt.Sprintf("Halo *%s*, pembayaran Anda senilai Rp %.0f untuk pengajuan *%s* telah terverifikasi. Terima kasih!", sub.Client.ClientName, payment.Amount, sub.Client.BusinessName))
+							uc.sendWhatsApp(sub.Client.Phone, msg)
+						}
+						if appEnabled && sub.ConsultantID != nil {
+							uc.notifUC.CreateNotification(*sub.ConsultantID, "Pembayaran Terverifikasi", "Status pembayaran pengajuan "+sub.Client.BusinessName+" telah sinkron.", *payment.SubmissionID)
+						}
+					}
+
 					return uc.submissionRepo.UpdateStatus(*payment.SubmissionID, nextStatus, 0)
 				}
 			}

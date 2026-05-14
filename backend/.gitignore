@@ -1,5 +1,6 @@
-.env
+*.env
 *.DS_Store
 uploads
 consultant
 paymentproof
+.env

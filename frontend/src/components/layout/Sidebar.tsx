@@ -18,6 +18,7 @@ import {
     Shield,
     TrendingUp,
     ShieldCheck,
+    MessageSquare,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -85,6 +86,7 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
                 { name: 'Master Biaya', to: '/dashboard/billing-config', icon: Receipt, roles: ['DIRECTOR', 'MANAGER', 'ADMIN'] },
                 { name: 'Wilayah & Tarif', to: '/dashboard/geography', icon: MapPin, roles: ['DIRECTOR', 'MANAGER', 'ADMIN_KEUANGAN', 'ADMIN'] },
                 { name: 'Manajemen User', to: '/dashboard/users', icon: Users, roles: ['DIRECTOR', 'ADMIN'] },
+                { name: 'Notifikasi', to: '/dashboard/notification-settings', icon: MessageSquare, roles: ['DIRECTOR', 'ADMIN'] },
                 { name: 'CMS', to: '/dashboard/cms', icon: BookOpen, roles: ['DIRECTOR', 'ADMIN'] },
             ]
         }
