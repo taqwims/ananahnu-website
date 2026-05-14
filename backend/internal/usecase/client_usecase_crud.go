@@ -86,10 +86,15 @@ func (uc *clientUsecase) CreateClient(client *domain.Client) error {
 		return err
 	}
 
-	// Check if NIB already exists
-	existing, _ := uc.clientRepo.FindByNIB(client.NIB)
-	if existing != nil {
-		return domain.ErrNIBExists
+	// Handle empty NIB by generating a unique placeholder
+	if client.NIB == "" {
+		client.NIB = "DRAFT-" + uuid.New().String()[:8]
+	} else {
+		// Check if real NIB already exists
+		existing, _ := uc.clientRepo.FindByNIB(client.NIB)
+		if existing != nil {
+			return domain.ErrNIBExists
+		}
 	}
 
 	client.ID = uuid.New()

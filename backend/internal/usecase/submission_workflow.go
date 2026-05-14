@@ -357,6 +357,12 @@ func (uc *submissionWorkflowUsecase) Approve(id uuid.UUID, userID uuid.UUID, use
 	case domain.StatusDrafter:
 		requiredRole = "DRAFTER"
 		nextStatus = domain.StatusQCReview // Drafter returns to QC when done
+
+		// Guard: NIB must be present and not a placeholder
+		if sub.Client.NIB == "" || strings.HasPrefix(sub.Client.NIB, "DRAFT-") {
+			return errors.New("NIB wajib diisi sebelum melanjutkan pengajuan")
+		}
+
 		// Guard: Must have audit results (Only for REGULER)
 		if sub.ServiceType == "REGULER" && sub.AuditResult1URL == "" {
 			return errors.New("file hasil audit wajib diunggah sebelum dikirim ke QC Review")
@@ -364,6 +370,11 @@ func (uc *submissionWorkflowUsecase) Approve(id uuid.UUID, userID uuid.UUID, use
 	case domain.StatusQCReview:
 		requiredRole = "QC_OFFICER"
 		nextStatus = domain.StatusSidangFatwa // QC push to Fatwa
+
+		// Guard: NIB must be present and not a placeholder before Fatwa
+		if sub.Client.NIB == "" || strings.HasPrefix(sub.Client.NIB, "DRAFT-") {
+			return errors.New("NIB wajib diisi sebelum melanjutkan ke Sidang Fatwa")
+		}
 	case domain.StatusSidangFatwa:
 		// requiredRole = "FATWA"
 		// nextStatus = domain.StatusSHTerbit
@@ -789,8 +800,16 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 
 	// 1. Create or Find Client
 
+	// 1. Create or Find Client
+	nib := input.ClientData.NIB
+	isDraftNIB := false
+	if nib == "" {
+		nib = "DRAFT-" + uuid.New().String()[:8]
+		isDraftNIB = true
+	}
+
 	client := &domain.Client{
-		NIB:           input.ClientData.NIB,
+		NIB:           nib,
 		NIK:           input.ClientData.NIK,
 		BusinessName:  input.ClientData.BusinessName,
 		ClientName:    input.ClientData.ClientName,
@@ -803,8 +822,8 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 		CreatedBy:     userID,
 	}
 
-	// Try to find client by NIB first to avoid duplicates
-	if client.NIB != "" {
+	// Try to find client by NIB first to avoid duplicates (only for real NIBs)
+	if !isDraftNIB {
 		existing, _ := uc.clientRepo.FindByNIB(client.NIB)
 		if existing != nil {
 			client = existing
@@ -814,8 +833,9 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 			}
 		}
 	} else {
+		// For draft NIBs, always create a new client
 		if err := uc.clientRepo.Create(client); err != nil {
-			return nil, fmt.Errorf("failed to create client: %w", err)
+			return nil, fmt.Errorf("failed to create client with placeholder NIB: %w", err)
 		}
 	}
 
@@ -949,7 +969,7 @@ func (uc *submissionWorkflowUsecase) Delete(id uuid.UUID, userID uuid.UUID, user
 
 func (uc *submissionWorkflowUsecase) UpdateAuditInfo(id uuid.UUID, userID uuid.UUID, userRole string, auditDate *time.Time) error {
 	// Restricted roles
-	if userRole != "ADMIN" && userRole != "QC_OFFICER" && userRole != "DIRECTOR" {
+	if userRole != "ADMIN" && userRole != "QC_OFFICER" && userRole != "DIRECTOR" && userRole != "DRAFTER" {
 		return errors.New("unauthorized to update audit info")
 	}
 

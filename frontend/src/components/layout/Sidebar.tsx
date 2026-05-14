@@ -53,6 +53,7 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
                 { name: 'Distribusi Data', to: '/dashboard/distribution', icon: Users, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN'] },
                 { name: 'Monitoring Drafter', to: '/dashboard/monitoring', icon: Monitor, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN'] },
                 { name: 'Ruang Kerja Drafter', to: '/dashboard/drafter-workspace', icon: ShieldCheck, roles: ['DRAFTER', 'ADMIN'] },
+                { name: 'Ruang Kerja QC', to: '/dashboard/qc-workspace', icon: ShieldCheck, roles: ['QC_OFFICER', 'ADMIN'] },
                 { name: 'Profil Konsultan', to: '/dashboard/consultant-profile', icon: UserCheck, roles: ['HALAL_KONSULTAN'] },
             ]
         },

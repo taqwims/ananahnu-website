@@ -43,6 +43,7 @@ import ReferralDashboard from './pages/dashboard/ReferralDashboard';
 import AdminReferralDashboard from './pages/dashboard/AdminReferralDashboard';
 import ReferralFeeAdmin from './pages/dashboard/ReferralFeeAdmin';
 import DrafterWorkspace from './pages/dashboard/DrafterWorkspace';
+import QCWorkspace from './pages/dashboard/QCWorkspace';
 
 
 import { Toaster } from 'react-hot-toast';
@@ -72,6 +73,7 @@ function App() {
           <Route path="monitoring" element={<DrafterMonitoring />} />
           <Route path="coordinator-rates" element={<CoordinatorRates />} />
           <Route path="drafter-workspace" element={<DrafterWorkspace />} />
+          <Route path="qc-workspace" element={<QCWorkspace />} />
           <Route path="my-invoices" element={<MyInvoices />} />
 
           <Route path="cms" element={<CMSDashboard />} />

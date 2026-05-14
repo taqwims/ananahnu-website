@@ -74,8 +74,6 @@ export default function SubmissionDetail() {
 
     // Audit Info
     const [auditDate, setAuditDate] = useState('');
-    const [auditResult1, setAuditResult1] = useState<File | null>(null);
-    const [auditResult2, setAuditResult2] = useState<File | null>(null);
 
     // Consultant Assignment (for Marketing data)
     const [consultants, setConsultants] = useState<{id: string; full_name: string; role_name?: string}[]>([]);
@@ -606,7 +604,7 @@ export default function SubmissionDetail() {
 
                             {(submission.status === 'DRAFTER' || submission.status === 'QC_REVIEW') && 
                              submission.service_type === 'REGULER' && 
-                             (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
+                             (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'DRAFTER' || user?.role === 'HALAL_KONSULTAN') && (
                                 <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 space-y-3">
                                         <label className="flex items-center gap-2 text-sm font-black text-amber-800 tracking-tight">
                                             📅 Input Tanggal Audit
@@ -739,66 +737,6 @@ export default function SubmissionDetail() {
                                 </div>
                             )}
 
-                            {(submission.status === 'DRAFTER' || submission.status === 'QC_REVIEW') && (user?.role === 'DRAFTER' || user?.role === 'HALAL_KONSULTAN' || user?.role === 'ADMIN' || user?.role === 'QC_OFFICER') && (
-                                <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-200 space-y-3">
-                                    <label className="flex items-center gap-2 text-sm font-black text-indigo-800 tracking-tight">
-                                        📄 Upload Hasil Audit
-                                    </label>
-                                    
-                                    <div className="space-y-2">
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-indigo-600">Hasil Audit 1 (Wajib)</label>
-                                            <input 
-                                                type="file" 
-                                                className="block w-full text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-black file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
-                                                onChange={e => setAuditResult1(e.target.files?.[0] || null)}
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-indigo-600">Hasil Audit 2 (Opsional)</label>
-                                            <input 
-                                                type="file" 
-                                                className="block w-full text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-black file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
-                                                onChange={e => setAuditResult2(e.target.files?.[0] || null)}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <button 
-                                        onClick={async () => {
-                                            if (!auditResult1) return;
-                                            setProcessing(true);
-                                            try {
-                                                const formData = new FormData();
-                                                formData.append('file', auditResult1);
-                                                const res1 = await api.post('/media/upload', formData);
-                                                
-                                                let url2 = '';
-                                                if (auditResult2) {
-                                                    const formData2 = new FormData();
-                                                    formData2.append('file', auditResult2);
-                                                    const res2 = await api.post('/media/upload', formData2);
-                                                    url2 = res2.data.url;
-                                                }
-
-                                                await api.post(`/submissions/${id}/audit-result`, { url1: res1.data.url, url2 });
-                                                toast.success("Hasil audit berhasil diunggah");
-                                                setAuditResult1(null);
-                                                setAuditResult2(null);
-                                                await refreshSubmission();
-                                            } catch (err) {
-                                                toast.error("Gagal mengunggah hasil audit");
-                                            } finally {
-                                                setProcessing(false);
-                                            }
-                                        }}
-                                        disabled={processing || !auditResult1}
-                                        className="w-full py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all disabled:opacity-50"
-                                    >
-                                        Upload Hasil Audit
-                                    </button>
-                                </div>
-                            )}
 
                             {submission.status === 'QC_OFFICER' && submission.consultant_id && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
                                 <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-2">
