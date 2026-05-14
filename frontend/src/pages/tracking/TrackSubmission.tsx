@@ -4,11 +4,11 @@ import api from '../../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const STATUS_STEPS = [
-    { key: 'DRAFT', label: 'Draft', icon: FileText },
-    { key: 'VERVAL_PENDAMPING', label: 'Verval Pendamping', icon: Clock },
-    { key: 'QC_OFFICER', label: 'QC Officer', icon: CheckCircle2 },
-    { key: 'DRAFTER', label: 'Penyusunan Draft', icon: FileText },
-    { key: 'QC_REVIEW', label: 'QC Review', icon: Eye },
+    { key: 'DRAFT', label: 'Pendaftaran', icon: FileText },
+    { key: 'WAITING_PAYMENT', label: 'Pembayaran', icon: Clock },
+    { key: 'VERVAL_DOC', label: 'Verifikasi Dokumen', icon: CheckCircle2 },
+    { key: 'DRAFTER', label: 'Proses Audit', icon: FileText },
+    { key: 'QC_REVIEW', label: 'Review Hasil', icon: Eye },
     { key: 'SIDANG_FATWA', label: 'Sidang Fatwa', icon: LayoutGrid },
     { key: 'SH_TERBIT', label: 'Sertifikat Terbit', icon: CheckCircle }
 ];
@@ -38,9 +38,23 @@ export default function TrackSubmission() {
     };
 
     const getStatusIndex = (status: string) => {
-        if (status === 'REVISION') return 0; // Show as back to start
+        if (status === 'REVISION') return 0;
         if (status === 'REJECTED') return -1;
-        return STATUS_STEPS.findIndex(s => s.key === status);
+        
+        // Map multiple internal statuses to tracking steps
+        const mapping: Record<string, string> = {
+            'DRAFT': 'DRAFT',
+            'WAITING_PAYMENT': 'WAITING_PAYMENT',
+            'VERVAL_PENDAMPING': 'VERVAL_DOC',
+            'QC_OFFICER': 'VERVAL_DOC',
+            'DRAFTER': 'DRAFTER',
+            'QC_REVIEW': 'QC_REVIEW',
+            'SIDANG_FATWA': 'SIDANG_FATWA',
+            'SH_TERBIT': 'SH_TERBIT'
+        };
+
+        const mappedKey = mapping[status] || status;
+        return STATUS_STEPS.findIndex(s => s.key === mappedKey);
     };
 
     const currentIdx = result ? getStatusIndex(result.status) : -1;
@@ -133,6 +147,12 @@ export default function TrackSubmission() {
                                                     const isCurrent = idx === currentIdx;
                                                     const Icon = step.icon;
 
+                                                    // Determine label dynamically
+                                                    let displayLabel = step.label;
+                                                    if (step.key === 'DRAFTER' && result?.service_type !== 'REGULER') {
+                                                        displayLabel = 'Proses Drafting';
+                                                    }
+
                                                     return (
                                                         <div key={step.key} className="flex flex-col items-center gap-4 group">
                                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all border-4 ${
@@ -145,7 +165,7 @@ export default function TrackSubmission() {
                                                             <span className={`text-[10px] font-bold text-center max-w-[80px] uppercase tracking-tighter ${
                                                                 isCurrent ? 'text-brand-600' : 'text-slate-400'
                                                             }`}>
-                                                                {step.label}
+                                                                {displayLabel}
                                                             </span>
                                                         </div>
                                                     );
@@ -164,7 +184,15 @@ export default function TrackSubmission() {
                                                 </div>
                                                 <div>
                                                     <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Status Saat Ini</p>
-                                                    <p className="text-lg font-bold text-slate-800">{STATUS_STEPS[currentIdx]?.label || result.status.replace(/_/g, ' ')}</p>
+                                                    <p className="text-lg font-bold text-slate-800">
+                                                        {(() => {
+                                                            let label = STATUS_STEPS[currentIdx]?.label || result.status.replace(/_/g, ' ');
+                                                            if (STATUS_STEPS[currentIdx]?.key === 'DRAFTER' && result?.service_type !== 'REGULER') {
+                                                                label = 'Proses Drafting';
+                                                            }
+                                                            return label;
+                                                        })()}
+                                                    </p>
                                                 </div>
                                             </div>
                                             <div className="text-right">

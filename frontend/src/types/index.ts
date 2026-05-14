@@ -75,6 +75,9 @@ export interface Submission {
     cost_detail?: SubmissionCostDetail;
     sh_url?: string;
     tracking_number?: string;
+    audit_date?: string;
+    audit_result_1_url?: string;
+    audit_result_2_url?: string;
     created_at: string;
     updated_at: string;
 }

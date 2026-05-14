@@ -8,7 +8,7 @@ import (
 
 type AuditLog struct {
 	ID         int64          `gorm:"primaryKey" json:"id"`
-	UserID     uuid.UUID      `gorm:"type:uuid" json:"user_id"`
+	UserID     *uuid.UUID     `gorm:"type:uuid" json:"user_id"`
 	User       *User          `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	Action     string         `json:"action"`
 	EntityType string         `json:"entity_type"`

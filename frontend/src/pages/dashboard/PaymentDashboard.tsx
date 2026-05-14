@@ -186,7 +186,8 @@ export default function PaymentDashboard() {
                                     </td>
                                     <td className="p-4">
                                         {p.proof_url && (
-                                            <a href={p.proof_url} target="_blank" rel="noopener noreferrer"
+                                            <a href={p.proof_url.startsWith('http') ? p.proof_url : `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}${p.proof_url}`} 
+                                                target="_blank" rel="noopener noreferrer"
                                                 className="flex items-center gap-1 text-xs text-brand-600 hover:underline">
                                                 <Eye className="w-3 h-3" /> Bukti
                                             </a>

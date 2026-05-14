@@ -37,7 +37,10 @@ type Submission struct {
 	RegencyID           *int64           `json:"regency_id,omitempty"`
 	DistrictID          *int64           `json:"district_id,omitempty"`
 	RejectNote          string           `json:"reject_note,omitempty"`
-	TrackingNumber      string           `gorm:"uniqueIndex" json:"tracking_number,omitempty"`
+	TrackingNumber      *string          `gorm:"uniqueIndex" json:"tracking_number,omitempty"`
+	AuditDate           *time.Time       `json:"audit_date,omitempty"`
+	AuditResult1URL     string           `gorm:"column:audit_result_1_url" json:"audit_result_1_url,omitempty"`
+	AuditResult2URL     string           `gorm:"column:audit_result_2_url" json:"audit_result_2_url,omitempty"`
 	SHURL               string           `json:"sh_url,omitempty"`
 	Payments            []Payment             `gorm:"foreignKey:SubmissionID" json:"payments"`
 	Invoice             *Invoice              `gorm:"foreignKey:SubmissionID" json:"invoice,omitempty"`
@@ -64,7 +67,10 @@ type SubmissionRepository interface {
 	UpdateConsultant(id uuid.UUID, consultantID *uuid.UUID) error
 	UpdateRejectNote(id uuid.UUID, note string) error
 	UpdateSH(id uuid.UUID, shURL string) error
+	UpdateAuditInfo(id uuid.UUID, auditDate *time.Time) error
+	UpdateAuditResult(id uuid.UUID, url1, url2 string) error
 	UpdateTrackingNumber(id uuid.UUID, trackingNumber string) error
+	UpdateDataSource(id uuid.UUID, dataSource string) error
 	FindByTrackingNumber(trackingNumber string) (*Submission, error)
 	Delete(id uuid.UUID) error
 }

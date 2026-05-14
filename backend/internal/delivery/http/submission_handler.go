@@ -4,6 +4,7 @@ import (
 	"ananahnu/internal/delivery/middleware"
 	"ananahnu/internal/usecase"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -25,9 +26,11 @@ func NewSubmissionHandler(r *gin.Engine, uc usecase.SubmissionWorkflowUsecase) {
 		g.POST("/:id/approve", handler.Approve)
 		g.POST("/:id/issue-sh", handler.IssueSH)
 		g.POST("/:id/assign-drafter", handler.AssignDrafter)
+		g.POST("/:id/reject", handler.Reject)
+		g.POST("/:id/audit-info", handler.UpdateAuditInfo)
+		g.POST("/:id/audit-result", handler.UploadAuditResult)
 		g.POST("/:id/assign-consultant", handler.AssignConsultant)
 		g.POST("/bulk-assign-drafter", handler.BulkAssignDrafter)
-		g.POST("/:id/reject", handler.Reject)
 		g.GET("", handler.GetList)
 		g.GET("/:id", handler.GetDetail)
 		g.GET("/:id/history", handler.GetHistory)
@@ -385,4 +388,67 @@ func (h *SubmissionHandler) Delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "submission deleted successfully"})
+}
+
+func (h *SubmissionHandler) UpdateAuditInfo(c *gin.Context) {
+	idStr := c.Param("id")
+	id, _ := uuid.Parse(idStr)
+
+	var input struct {
+		AuditDate string `json:"audit_date" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Try multiple formats
+	var parsedDate time.Time
+	var errParse error
+	formats := []string{time.RFC3339, "2006-01-02", "2006-01-02 15:04:05"}
+	for _, f := range formats {
+		parsedDate, errParse = time.Parse(f, input.AuditDate)
+		if errParse == nil {
+			break
+		}
+	}
+
+	if errParse != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid date format, use YYYY-MM-DD"})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	role := middleware.GetUserRole(c)
+
+	if err := h.workflowUC.UpdateAuditInfo(id, userID, role, &parsedDate); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "audit info updated"})
+}
+
+func (h *SubmissionHandler) UploadAuditResult(c *gin.Context) {
+	idStr := c.Param("id")
+	id, _ := uuid.Parse(idStr)
+
+	var input struct {
+		URL1 string `json:"url1"`
+		URL2 string `json:"url2"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	role := middleware.GetUserRole(c)
+
+	if err := h.workflowUC.UpdateAuditResult(id, userID, role, input.URL1, input.URL2); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "audit results uploaded"})
 }

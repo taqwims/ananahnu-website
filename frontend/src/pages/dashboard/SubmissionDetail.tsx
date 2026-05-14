@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, CheckCircle, XCircle, Send, FileText, AlertTriangle, Loader2, Upload, Link as LinkIcon, Receipt, UserCheck } from 'lucide-react';
+import { ChevronLeft, CheckCircle, XCircle, Send, FileText, AlertTriangle, Loader2, Upload, Link as LinkIcon, Receipt, UserCheck, Eye } from 'lucide-react';
 import api from '../../services/api';
 import type { Submission, FormFieldValue, Invoice, AuditLog } from '../../types';
 import PaymentSection from '../../components/dashboard/PaymentSection';
@@ -9,6 +9,7 @@ import CostCalculator from '../../components/dashboard/CostCalculator';
 import KalkulatorReguler from '../../components/dashboard/KalkulatorReguler';
 import { useAuthStore } from '../../store/authStore';
 import { formatServiceType } from '../../utils/format';
+import FileUpload from '../../components/dashboard/FileUpload';
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -16,6 +17,15 @@ const formatCurrency = (value: number) => {
         currency: 'IDR',
         minimumFractionDigits: 0
     }).format(value);
+};
+
+const formatDate = (dateStr: string) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+    });
 };
 
 const InfoItem = ({ label, value, mono = false, highlight = false }: { label: string; value?: string; mono?: boolean; highlight?: boolean }) => (
@@ -45,6 +55,11 @@ export default function SubmissionDetail() {
     // Drafter Assignment (for QC)
     const [drafters, setDrafters] = useState<{id: string; full_name: string}[]>([]);
     const [selectedDrafterId, setSelectedDrafterId] = useState('');
+
+    // Audit Info
+    const [auditDate, setAuditDate] = useState('');
+    const [auditResult1, setAuditResult1] = useState<File | null>(null);
+    const [auditResult2, setAuditResult2] = useState<File | null>(null);
 
     // Consultant Assignment (for Marketing data)
     const [consultants, setConsultants] = useState<{id: string; full_name: string; role_name?: string}[]>([]);
@@ -140,7 +155,7 @@ export default function SubmissionDetail() {
     // Fetch consultants for marketing data if needed
     useEffect(() => {
         if (submission?.data_source === 'MARKETING' && 
-            (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'KOORDINATOR')) {
+            (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'KOORDINATOR' || user?.role === 'QC_OFFICER')) {
             api.get('/admin/users/consultants')
                 .then(res => {
                     const users = res.data || [];
@@ -152,7 +167,7 @@ export default function SubmissionDetail() {
                 })
                 .catch(() => {});
         }
-    }, [submission?.data_source, user?.role]);
+    }, [submission?.data_source, user?.role, submission?.status]);
 
     const handleIssueSH = async () => {
         if (!id || !shFile) return;
@@ -314,11 +329,37 @@ export default function SubmissionDetail() {
                                 <InfoItem label="NIK" value={submission.client?.nik} mono />
                                 <InfoItem label="Produk Utama" value={submission.client?.product_name} />
                                 <InfoItem label="Telepon" value={submission.client?.phone} />
+                                {submission.consultant_id && (
+                                    <InfoItem label="Konsultan Penanggung Jawab" value={submission.consultant?.full_name} highlight />
+                                )}
                                 <div className="sm:col-span-2 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
                                     <dt className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Alamat Lengkap</dt>
                                     <dd className="text-sm text-gray-700 font-medium leading-relaxed">{submission.client?.address || '-'}</dd>
                                 </div>
                             </dl>
+                        )}
+
+                        {/* Audit Info Display */}
+                        {(submission.audit_date || submission.audit_result_1_url) && (
+                            <div className="mt-6 pt-6 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {submission.audit_date && (
+                                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                                        <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest mb-1">📅 Tanggal Audit</p>
+                                        <p className="text-sm font-bold text-amber-900">{formatDate(submission.audit_date)}</p>
+                                    </div>
+                                )}
+                                {submission.audit_result_1_url && (
+                                    <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                                        <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mb-1">📄 Hasil Audit</p>
+                                        <div className="flex gap-2 mt-1">
+                                            <a href={`${import.meta.env.VITE_API_URL}${submission.audit_result_1_url}`} target="_blank" rel="noreferrer" className="text-xs font-bold text-indigo-700 underline">File 1</a>
+                                            {submission.audit_result_2_url && (
+                                                <a href={`${import.meta.env.VITE_API_URL}${submission.audit_result_2_url}`} target="_blank" rel="noreferrer" className="text-xs font-bold text-indigo-700 underline">File 2</a>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         )}
                         {submission.service_type === 'REGULER' && (
                             <div className="mt-6 flex flex-col sm:flex-row justify-between items-center bg-blue-50/50 p-4 rounded-2xl border border-blue-100 gap-4">
@@ -338,83 +379,87 @@ export default function SubmissionDetail() {
                                 submissionId={submission.id}
                                 onSaved={refreshSubmission}
                             />
-                        ) : submission.status === 'WAITING_PAYMENT' ? (
-                            <PaymentSection 
-                                submission={submission} 
-                                fieldValues={fieldValues}
-                                onPaymentSuccess={refreshSubmission} 
-                            />
                         ) : (
-                            <div className="glass-panel p-6 shadow-xl border border-white/40">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h3 className="text-lg font-black text-gray-800 tracking-tight flex items-center gap-2">
-                                        <div className="w-1.5 h-6 bg-blue-600 rounded-full"></div>
-                                        Dokumen & Data
-                                    </h3>
-                                    {(user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_KONSULTAN' || user?.role === 'DRAFTER' || user?.role === 'QC_OFFICER' || user?.role === 'KOORDINATOR') && (
-                                        <button 
-                                            onClick={() => setEditingData(!editingData)}
-                                            className="px-3 py-1.5 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-xl border border-blue-100 hover:bg-blue-100 transition-all"
-                                        >
-                                            {editingData ? 'Batal Edit' : 'Edit Data'}
-                                        </button>
-                                    )}
-                                </div>
-                                
-                                {editingData ? (
-                                    <DynamicSubmissionForm
-                                        formType={serviceType || ''}
-                                        submissionId={submission.id}
-                                        onSaved={() => {
-                                            setEditingData(false);
-                                            refreshSubmission();
-                                        }}
+                            <div className="space-y-6">
+                                {submission.status === 'WAITING_PAYMENT' && (
+                                    <PaymentSection 
+                                        submission={submission} 
+                                        fieldValues={fieldValues}
+                                        onPaymentSuccess={refreshSubmission} 
                                     />
-                                ) : (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        {fieldValues.map(fv => (
-                                            <div key={fv.id} className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-gray-100 hover:border-brand-200 transition-all group/item shadow-sm">
-                                                <div className="flex items-center gap-3 overflow-hidden">
-                                                    <div className="p-2 rounded-lg bg-gray-50 group-hover/item:bg-brand-50 transition-colors">
-                                                        {fv.form_field.input_type === 'FILE_UPLOAD' && <Upload className="w-4 h-4 text-brand-500" />}
-                                                        {fv.form_field.input_type === 'LINK' && <LinkIcon className="w-4 h-4 text-blue-500" />}
-                                                        {fv.form_field.input_type === 'TEXT' && <FileText className="w-4 h-4 text-gray-400" />}
+                                )}
+
+                                <div className="glass-panel p-6 shadow-xl border border-white/40">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="text-lg font-black text-gray-800 tracking-tight flex items-center gap-2">
+                                            <div className="w-1.5 h-6 bg-blue-600 rounded-full"></div>
+                                            Dokumen & Data
+                                        </h3>
+                                        {(user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_KONSULTAN' || user?.role === 'DRAFTER' || user?.role === 'QC_OFFICER' || user?.role === 'KOORDINATOR' || user?.role === 'MARKETING') && (
+                                            <button 
+                                                onClick={() => setEditingData(!editingData)}
+                                                className="px-3 py-1.5 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wider rounded-xl border border-blue-100 hover:bg-blue-100 transition-all"
+                                            >
+                                                {editingData ? 'Batal Edit' : 'Edit Data'}
+                                            </button>
+                                        )}
+                                    </div>
+                                    
+                                    {editingData ? (
+                                        <DynamicSubmissionForm
+                                            formType={serviceType || ''}
+                                            submissionId={submission.id}
+                                            onSaved={() => {
+                                                setEditingData(false);
+                                                refreshSubmission();
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            {fieldValues.map(fv => (
+                                                <div key={fv.id} className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-gray-100 hover:border-brand-200 transition-all group/item shadow-sm">
+                                                    <div className="flex items-center gap-3 overflow-hidden">
+                                                        <div className="p-2 rounded-lg bg-gray-50 group-hover/item:bg-brand-50 transition-colors">
+                                                            {fv.form_field.input_type === 'FILE_UPLOAD' && <Upload className="w-4 h-4 text-brand-500" />}
+                                                            {fv.form_field.input_type === 'LINK' && <LinkIcon className="w-4 h-4 text-blue-500" />}
+                                                            {fv.form_field.input_type === 'TEXT' && <FileText className="w-4 h-4 text-gray-400" />}
+                                                        </div>
+                                                        <div className="overflow-hidden">
+                                                            <span className="text-xs font-bold text-gray-700 block truncate">{fv.form_field.field_label}</span>
+                                                            {fv.text_value && (
+                                                                <p className="text-[10px] text-gray-400 truncate">{fv.text_value}</p>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <div className="overflow-hidden">
-                                                        <span className="text-xs font-bold text-gray-700 block truncate">{fv.form_field.field_label}</span>
-                                                        {fv.text_value && (
-                                                            <p className="text-[10px] text-gray-400 truncate">{fv.text_value}</p>
+                                                    <div className="flex items-center gap-1 ml-2 shrink-0">
+                                                        {fv.file_url && (
+                                                            <a 
+                                                                href={`${import.meta.env.VITE_API_URL}${fv.file_url}`} 
+                                                                target="_blank" 
+                                                                rel="noreferrer"
+                                                                className="p-2 hover:bg-brand-600 hover:text-white rounded-lg text-brand-600 transition-all"
+                                                                title="Lihat File"
+                                                            >
+                                                                <FileText className="w-4 h-4" />
+                                                            </a>
+                                                        )}
+                                                        {fv.link_value && (
+                                                            <a 
+                                                                href={fv.link_value} 
+                                                                target="_blank" 
+                                                                rel="noreferrer"
+                                                                className="p-2 hover:bg-blue-600 hover:text-white rounded-lg text-blue-600 transition-all"
+                                                                title="Buka Link"
+                                                            >
+                                                                <LinkIcon className="w-4 h-4" />
+                                                            </a>
                                                         )}
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-1 ml-2 shrink-0">
-                                                    {fv.file_url && (
-                                                        <a 
-                                                            href={`${import.meta.env.VITE_API_URL}${fv.file_url}`} 
-                                                            target="_blank" 
-                                                            rel="noreferrer"
-                                                            className="p-2 hover:bg-brand-600 hover:text-white rounded-lg text-brand-600 transition-all"
-                                                            title="Lihat File"
-                                                        >
-                                                            <FileText className="w-4 h-4" />
-                                                        </a>
-                                                    )}
-                                                    {fv.link_value && (
-                                                        <a 
-                                                            href={fv.link_value} 
-                                                            target="_blank" 
-                                                            rel="noreferrer"
-                                                            className="p-2 hover:bg-blue-600 hover:text-white rounded-lg text-blue-600 transition-all"
-                                                            title="Buka Link"
-                                                        >
-                                                            <LinkIcon className="w-4 h-4" />
-                                                        </a>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -538,7 +583,7 @@ export default function SubmissionDetail() {
                             {(submission.status === 'DRAFT' || submission.status === 'REVISION') && (
                                 <button
                                     onClick={() => handleAction('submit')}
-                                    disabled={processing || (submission.data_source === 'MARKETING' && !submission.consultant_id)}
+                                    disabled={processing || (user?.role !== 'MARKETING' && submission.data_source !== 'MARKETING' && !submission.consultant_id)}
                                     className="w-full py-4 bg-brand-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-brand-100 hover:bg-brand-700 hover:scale-[1.02] active:scale-95 transition-all flex justify-center items-center gap-3 disabled:opacity-50"
                                 >
                                     {processing ? <Loader2 className="animate-spin w-5 h-5" /> : <Send className="w-5 h-5" />}
@@ -546,47 +591,206 @@ export default function SubmissionDetail() {
                                 </button>
                             )}
 
-                            {/* Consultant Assignment for Marketing Data */}
-                            {submission.data_source === 'MARKETING' && (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'KOORDINATOR') && (
+                            {(submission.status === 'DRAFTER' || submission.status === 'QC_REVIEW') && 
+                             submission.service_type === 'REGULER' && 
+                             (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
+                                <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 space-y-3">
+                                        <label className="flex items-center gap-2 text-sm font-black text-amber-800 tracking-tight">
+                                            📅 Input Tanggal Audit
+                                        </label>
+                                        <input 
+                                            type="date"
+                                            className="w-full px-4 py-2 rounded-xl border-none focus:ring-2 focus:ring-amber-500/20 text-sm font-medium"
+                                            value={auditDate || (submission.audit_date ? new Date(submission.audit_date).toISOString().split('T')[0] : '')}
+                                            onChange={(e) => setAuditDate(e.target.value)}
+                                        />
+                                        <button 
+                                            onClick={async () => {
+                                                if (!auditDate) return;
+                                                setProcessing(true);
+                                                try {
+                                                    await api.post(`/submissions/${id}/audit-info`, { audit_date: auditDate });
+                                                    alert("Tanggal audit berhasil disimpan");
+                                                    await refreshSubmission();
+                                                } catch (err) {
+                                                    alert("Gagal menyimpan tanggal audit");
+                                                } finally {
+                                                    setProcessing(false);
+                                                }
+                                            }}
+                                            disabled={processing || !auditDate}
+                                            className="w-full py-2 bg-amber-600 text-white rounded-xl font-bold text-xs hover:bg-amber-700 transition-all disabled:opacity-50"
+                                        >
+                                            Simpan Tanggal Audit
+                                        </button>
+
+                                        {/* Audit Result File Uploads */}
+                                        {(submission.audit_date || auditDate) && (
+                                            <div className="mt-4 pt-4 border-t border-amber-200 space-y-4">
+                                                <div className="space-y-2">
+                                                    <label className="block text-[10px] font-black text-amber-700 uppercase tracking-widest">File Hasil Audit 1 (Utama)</label>
+                                                    <FileUpload 
+                                                        subfolder="audit" 
+                                                        label="Upload Laporan 1"
+                                                        onUploadSuccess={async (url) => {
+                                                            try {
+                                                                await api.post(`/submissions/${id}/audit-result`, { 
+                                                                    url1: url, 
+                                                                    url2: submission?.audit_result_2_url || "" 
+                                                                });
+                                                                refreshSubmission();
+                                                            } catch (err: any) {
+                                                                console.error("Failed to upload audit result 1:", err.response?.data || err);
+                                                                alert("Gagal menyimpan file audit");
+                                                            }
+                                                        }}
+                                                    />
+                                                    {submission?.audit_result_1_url && (
+                                                        <a 
+                                                            href={`${import.meta.env.VITE_API_URL}${submission.audit_result_1_url}`} 
+                                                            target="_blank" 
+                                                            rel="noreferrer"
+                                                            className="flex items-center gap-2 p-2 bg-emerald-50 rounded-lg border border-emerald-100 hover:bg-emerald-100 transition-all group"
+                                                        >
+                                                            <FileText className="w-3 h-3 text-emerald-600" />
+                                                            <span className="text-[10px] text-emerald-700 font-bold truncate group-hover:underline">Lihat Hasil Audit 1</span>
+                                                            <Eye className="w-3 h-3 text-emerald-400 ml-auto" />
+                                                        </a>
+                                                    )}
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="block text-[10px] font-black text-amber-700 uppercase tracking-widest">File Hasil Audit 2 (Opsional)</label>
+                                                    <FileUpload 
+                                                        subfolder="audit" 
+                                                        label="Upload Laporan 2"
+                                                        onUploadSuccess={async (url) => {
+                                                            try {
+                                                                await api.post(`/submissions/${id}/audit-result`, { 
+                                                                    url1: submission?.audit_result_1_url || "", 
+                                                                    url2: url 
+                                                                });
+                                                                refreshSubmission();
+                                                            } catch (err: any) {
+                                                                console.error("Failed to upload audit result 2:", err.response?.data || err);
+                                                                alert("Gagal menyimpan file audit");
+                                                            }
+                                                        }}
+                                                    />
+                                                    {submission?.audit_result_2_url && (
+                                                        <a 
+                                                            href={`${import.meta.env.VITE_API_URL}${submission.audit_result_2_url}`} 
+                                                            target="_blank" 
+                                                            rel="noreferrer"
+                                                            className="flex items-center gap-2 p-2 bg-emerald-50 rounded-lg border border-emerald-100 hover:bg-emerald-100 transition-all group"
+                                                        >
+                                                            <FileText className="w-3 h-3 text-emerald-600" />
+                                                            <span className="text-[10px] text-emerald-700 font-bold truncate group-hover:underline">Lihat Hasil Audit 2</span>
+                                                            <Eye className="w-3 h-3 text-emerald-400 ml-auto" />
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                            {/* Consultant Assignment (Only for QC/Admin/Director/Koordinator) */}
+                            {submission.status === 'QC_OFFICER' && !submission.consultant_id && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'KOORDINATOR' || user?.role === 'QC_OFFICER') && (
                                 <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 space-y-3">
                                     <label className="flex items-center gap-2 text-sm font-black text-purple-800 tracking-tight">
                                         <UserCheck className="w-4 h-4" /> Penunjukan Konsultan
                                     </label>
                                     
-                                    {submission.consultant_id ? (
-                                        <div className="text-sm font-bold text-purple-900 bg-white/60 p-2 rounded-lg border border-purple-100 flex items-center justify-between">
-                                            <span>Konsultan: {submission.consultant?.full_name || 'Memuat...'}</span>
-                                            <span className="text-[10px] font-mono opacity-50">{submission.consultant_id.slice(0, 8)}</span>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <select
-                                                className="glass-input text-sm w-full"
-                                                value={selectedConsultantId}
-                                                onChange={e => setSelectedConsultantId(e.target.value)}
-                                            >
-                                                <option value="">-- Pilih Konsultan --</option>
-                                                {consultants.map(c => (
-                                                    <option key={c.id} value={c.id}>
-                                                        {c.full_name} {c.role_name ? `(${c.role_name.replace(/_/g, ' ')})` : ''}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <button 
-                                                onClick={() => handleAction('assign_consultant')}
-                                                disabled={processing || !selectedConsultantId}
-                                                className="w-full py-2 bg-purple-600 text-white rounded-xl font-bold text-xs hover:bg-purple-700 transition-all disabled:opacity-50"
-                                            >
-                                                {processing ? <Loader2 className="animate-spin w-4 h-4 mx-auto" /> : 'Tunjuk Konsultan'}
-                                            </button>
-                                            <p className="text-[10px] text-purple-600 leading-tight">Wajib menunjuk konsultan sebelum pengajuan dapat dikirim ke proses verifikasi.</p>
-                                        </>
-                                    )}
+                                    <select
+                                        className="glass-input text-sm w-full"
+                                        value={selectedConsultantId}
+                                        onChange={e => setSelectedConsultantId(e.target.value)}
+                                    >
+                                        <option value="">-- Pilih Konsultan --</option>
+                                        {consultants.map(c => (
+                                            <option key={c.id} value={c.id}>
+                                                {c.full_name} {c.role_name ? `(${c.role_name.replace(/_/g, ' ')})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <button 
+                                        onClick={() => handleAction('assign_consultant')}
+                                        disabled={processing || !selectedConsultantId}
+                                        className="w-full py-2 bg-purple-600 text-white rounded-xl font-bold text-xs hover:bg-purple-700 transition-all disabled:opacity-50"
+                                    >
+                                        {processing ? <Loader2 className="animate-spin w-4 h-4 mx-auto" /> : 'Tunjuk Konsultan'}
+                                    </button>
+                                    <p className="text-[10px] text-purple-600 leading-tight">
+                                        Pilih konsultan yang akan melakukan verifikasi pendamping untuk pengajuan ini.
+                                    </p>
                                 </div>
                             )}
 
-                            {/* QC Officer: Drafter Assignment */}
-                            {submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
+                            {/* Audit Result Upload (For Drafter / Consultant) */}
+                            {(submission.status === 'DRAFTER' || submission.status === 'QC_REVIEW') && (user?.role === 'DRAFTER' || user?.role === 'HALAL_KONSULTAN' || user?.role === 'ADMIN' || user?.role === 'QC_OFFICER') && (
+                                <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-200 space-y-3">
+                                    <label className="flex items-center gap-2 text-sm font-black text-indigo-800 tracking-tight">
+                                        📄 Upload Hasil Audit
+                                    </label>
+                                    
+                                    <div className="space-y-2">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-indigo-600">Hasil Audit 1 (Wajib)</label>
+                                            <input 
+                                                type="file" 
+                                                className="block w-full text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-black file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
+                                                onChange={e => setAuditResult1(e.target.files?.[0] || null)}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-indigo-600">Hasil Audit 2 (Opsional)</label>
+                                            <input 
+                                                type="file" 
+                                                className="block w-full text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-black file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
+                                                onChange={e => setAuditResult2(e.target.files?.[0] || null)}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <button 
+                                        onClick={async () => {
+                                            if (!auditResult1) return;
+                                            setProcessing(true);
+                                            try {
+                                                const formData = new FormData();
+                                                formData.append('file', auditResult1);
+                                                const res1 = await api.post('/media/upload', formData);
+                                                
+                                                let url2 = '';
+                                                if (auditResult2) {
+                                                    const formData2 = new FormData();
+                                                    formData2.append('file', auditResult2);
+                                                    const res2 = await api.post('/media/upload', formData2);
+                                                    url2 = res2.data.url;
+                                                }
+
+                                                await api.post(`/submissions/${id}/audit-result`, { url1: res1.data.url, url2 });
+                                                alert("Hasil audit berhasil diunggah");
+                                                setAuditResult1(null);
+                                                setAuditResult2(null);
+                                                await refreshSubmission();
+                                            } catch (err) {
+                                                alert("Gagal mengunggah hasil audit");
+                                            } finally {
+                                                setProcessing(false);
+                                            }
+                                        }}
+                                        disabled={processing || !auditResult1}
+                                        className="w-full py-2 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all disabled:opacity-50"
+                                    >
+                                        Upload Hasil Audit
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* QC Officer: Drafter Assignment (Only if Consultant is assigned) */}
+                            {submission.status === 'QC_OFFICER' && submission.consultant_id && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
                                 <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-2">
                                     <label className="flex items-center gap-2 text-sm font-semibold text-blue-800">
                                         <UserCheck className="w-4 h-4" /> Pilih Drafter
@@ -619,7 +823,8 @@ export default function SubmissionDetail() {
                                 </div>
                             )}
 
-                            {(submission.status === 'VERVAL_PENDAMPING' || submission.status === 'QC_OFFICER' || submission.status === 'DRAFTER' || submission.status === 'QC_REVIEW' || submission.status === 'SIDANG_FATWA') && (
+                            {/* Check for existing paid/pending payments or paid invoice */}
+                            {(submission.status === 'VERVAL_PENDAMPING' || submission.status === 'WAITING_PAYMENT' || submission.status === 'QC_OFFICER' || submission.status === 'DRAFTER' || submission.status === 'QC_REVIEW' || submission.status === 'SIDANG_FATWA') && (
                                 <>
                                     {submission.status === 'SIDANG_FATWA' ? (
                                         <div className="space-y-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
@@ -647,30 +852,45 @@ export default function SubmissionDetail() {
                                             )}
                                         </div>
                                     ) : (
+                                        <>
+                                            {/* Approval/Submit Button Logic */}
+                                            {((submission.status === 'VERVAL_PENDAMPING' && (user?.role === 'HALAL_KONSULTAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+                                              (submission.status === 'WAITING_PAYMENT' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+                                              (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+                                              (submission.status === 'DRAFTER' && (user?.role === 'DRAFTER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+                                              (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR'))) && (
+                                                <button
+                                                    onClick={() => handleAction('approve')}
+                                                    disabled={processing || (submission.status === 'QC_OFFICER' && !selectedDrafterId)}
+                                                    className="w-full glass-button bg-green-600 text-white hover:bg-green-700 border-green-500 flex justify-center items-center gap-2 disabled:opacity-50"
+                                                >
+                                                    {processing ? <Loader2 className="animate-spin w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                                                    {submission.status === 'WAITING_PAYMENT' ? 'Konfirmasi Pembayaran & Lanjutkan' :
+                                                     submission.status === 'VERVAL_PENDAMPING' ? 'Selesaikan Verifikasi' : 
+                                                     submission.status === 'QC_OFFICER' ? 'Distribute to Drafter' :
+                                                     submission.status === 'DRAFTER' ? 'Submit to QC Review' : 
+                                                     submission.status === 'QC_REVIEW' ? 'Submit to Sidang Fatwa' :
+                                                     'Approve / Advance'}
+                                                </button>
+                                            )}
+                                        </>
+                                    )}
+                                    {((submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+                                      (submission.status === 'DRAFTER' && user?.role === 'DRAFTER') ||
+                                      (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+                                      (submission.status === 'SIDANG_FATWA' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR'))) && (
                                         <button
-                                            onClick={() => handleAction('approve')}
-                                            disabled={processing || (submission.status === 'QC_OFFICER' && !selectedDrafterId)}
-                                            className="w-full glass-button bg-green-600 text-white hover:bg-green-700 border-green-500 flex justify-center items-center gap-2 disabled:opacity-50"
+                                            onClick={() => setShowRejectModal(true)}
+                                            disabled={processing}
+                                            className="w-full glass-button bg-red-50 text-red-600 hover:bg-red-100 border-red-200 flex justify-center items-center gap-2"
                                         >
-                                            {processing ? <Loader2 className="animate-spin w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-                                            {submission.status === 'VERVAL_PENDAMPING' ? 'Submit to QC' : 
-                                             submission.status === 'QC_OFFICER' ? 'Distribute to Drafter' :
-                                             submission.status === 'DRAFTER' ? 'Submit to QC Review' : 
-                                             submission.status === 'QC_REVIEW' ? 'Submit to Sidang Fatwa' :
-                                             'Approve / Advance'}
+                                            <XCircle className="w-4 h-4" />
+                                            {submission.status === 'QC_OFFICER' ? 'Return to Koordinator' : 
+                                             submission.status === 'DRAFTER' ? 'Return to QC Officer' :
+                                             submission.status === 'QC_REVIEW' ? 'Return to Drafter' :
+                                             submission.status === 'SIDANG_FATWA' ? 'Return to Drafter' : 'Reject / Revision'}
                                         </button>
                                     )}
-                                    <button
-                                        onClick={() => setShowRejectModal(true)}
-                                        disabled={processing}
-                                        className="w-full glass-button bg-red-50 text-red-600 hover:bg-red-100 border-red-200 flex justify-center items-center gap-2"
-                                    >
-                                        <XCircle className="w-4 h-4" />
-                                        {submission.status === 'QC_OFFICER' ? 'Return to Koordinator' : 
-                                         submission.status === 'DRAFTER' ? 'Return to QC Officer' :
-                                         submission.status === 'QC_REVIEW' ? 'Return to Drafter' :
-                                         submission.status === 'SIDANG_FATWA' ? 'Return to Drafter' : 'Reject / Revision'}
-                                    </button>
                                 </>
                             )}
 

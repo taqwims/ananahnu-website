@@ -55,7 +55,7 @@ func NewPaymentUsecase(p domain.PaymentRepository, s domain.SubmissionRepository
 
 func (uc *paymentUsecase) logPaymentActivity(submissionID uuid.UUID, action, note string) {
 	uc.auditRepo.Create(&domain.AuditLog{
-		UserID:     uuid.Nil, // System or current user
+		UserID:     nil, // System action
 		Action:     action,
 		EntityType: "SUBMISSION",
 		EntityID:   submissionID.String(),
@@ -171,15 +171,7 @@ func (uc *paymentUsecase) HandleMidtransNotification(payload map[string]interfac
 	previousStatus := payment.Status
 
 	switch txStatus.TransactionStatus {
-	case "capture":
-		switch txStatus.FraudStatus {
-		case "accept":
-			payment.Status = domain.PaymentStatusPaid
-		case "challenge":
-			// Keep pending, requires manual review on Midtrans dashboard
-			log.Printf("[MIDTRANS WEBHOOK] Order %s fraud status: challenge", orderID)
-		}
-	case "settlement":
+	case "capture", "settlement":
 		payment.Status = domain.PaymentStatusPaid
 	case "deny", "cancel":
 		payment.Status = domain.PaymentStatusFailed
@@ -216,12 +208,24 @@ func (uc *paymentUsecase) HandleMidtransNotification(payload map[string]interfac
 		}
 
 		if payment.SubmissionID != nil {
-			if err := uc.submissionRepo.UpdateStatus(*payment.SubmissionID, domain.StatusVervalPendamping, 0); err != nil {
+			sub, _ := uc.submissionRepo.FindByID(*payment.SubmissionID)
+			
+			// Transition logic:
+			// 1. Marketing / Partner / Self Declare -> Go straight to QC_OFFICER
+			// 2. Organic Reguler WITH Consultant -> Go straight to QC_OFFICER (already has someone handling)
+			// 3. Organic Reguler WITHOUT Consultant -> Must go to VERVAL_PENDAMPING for claiming
+			nextStatus := domain.StatusQCOfficer
+			if sub != nil && (sub.DataSource == "ORGANIK" || sub.DataSource == "") && sub.ServiceType == "REGULER" && sub.ConsultantID == nil {
+				nextStatus = domain.StatusVervalPendamping
+			}
+			
+			if err := uc.submissionRepo.UpdateStatus(*payment.SubmissionID, nextStatus, 0); err != nil {
 				log.Printf("[MIDTRANS WEBHOOK] Failed to transition submission %s: %v", *payment.SubmissionID, err)
 				return fmt.Errorf("failed to transition submission: %w", err)
 			}
 			uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_SUCCESS", fmt.Sprintf("Pembayaran Midtrans berhasil: Rp %.2f", payment.Amount))
-			log.Printf("[MIDTRANS WEBHOOK] Submission %s transitioned to VERVAL_PENDAMPING", *payment.SubmissionID)
+			log.Printf("[MIDTRANS WEBHOOK] Submission %s transitioned to %s (DataSource: %s, Consultant: %v)", 
+				*payment.SubmissionID, nextStatus, sub.DataSource, sub.ConsultantID)
 		}
 	}
 
@@ -261,13 +265,19 @@ func (uc *paymentUsecase) VerifyManualPayment(paymentID int64, approved bool, ve
 		uc.updateLinkedInvoices(payment.ID)
 
 		if payment.SubmissionID != nil {
-			if err := uc.submissionRepo.UpdateStatus(*payment.SubmissionID, domain.StatusVervalPendamping, 0); err != nil {
-				log.Printf("[MANUAL VERIFY] Failed to transition submission %s: %v", *payment.SubmissionID, err)
-				return fmt.Errorf("failed to transition submission: %w", err)
+			sub, _ := uc.submissionRepo.FindByID(*payment.SubmissionID)
+			
+			nextStatus := domain.StatusQCOfficer
+			if sub != nil && (sub.DataSource == "ORGANIK" || sub.DataSource == "") && sub.ServiceType == "REGULER" && sub.ConsultantID == nil {
+				nextStatus = domain.StatusVervalPendamping
 			}
-			uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_APPROVED", fmt.Sprintf("Pembayaran manual disetujui: Rp %.2f", payment.Amount))
-			log.Printf("[MANUAL VERIFY] Payment %d approved by %s, submission %s -> VERVAL_PENDAMPING",
-				paymentID, verifierID, *payment.SubmissionID)
+
+			if err := uc.submissionRepo.UpdateStatus(*payment.SubmissionID, nextStatus, 0); err != nil {
+				log.Printf("[MANUAL VERIFY] Failed to transition submission %s: %v", *payment.SubmissionID, err)
+			}
+			uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_VERIFIED", fmt.Sprintf("Pembayaran manual disetujui: Rp %.2f", payment.Amount))
+			log.Printf("[MANUAL VERIFY] Payment %d approved by %s, submission %s -> %s (Consultant: %v)",
+				paymentID, verifierID, *payment.SubmissionID, nextStatus, sub.ConsultantID)
 		}
 	} else if !approved && payment.SubmissionID != nil {
 		uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_REJECTED", fmt.Sprintf("Pembayaran manual ditolak: Rp %.2f", payment.Amount))
@@ -309,9 +319,7 @@ func (uc *paymentUsecase) SyncPaymentStatus(paymentID int64) error {
 	// Map status (Reuse logic from webhook or extract to helper)
 	switch txStatus.TransactionStatus {
 	case "capture", "settlement":
-		if txStatus.FraudStatus == "accept" || txStatus.FraudStatus == "" {
-			payment.Status = domain.PaymentStatusPaid
-		}
+		payment.Status = domain.PaymentStatusPaid
 	case "deny", "cancel":
 		payment.Status = domain.PaymentStatusFailed
 	case "expire":
@@ -335,8 +343,16 @@ func (uc *paymentUsecase) SyncPaymentStatus(paymentID int64) error {
 			uc.updateLinkedInvoices(payment.ID)
 
 			if payment.SubmissionID != nil {
+				sub, _ := uc.submissionRepo.FindByID(*payment.SubmissionID)
+				
+				// Transition logic consistent with notification handler:
+				nextStatus := domain.StatusQCOfficer
+				if sub != nil && (sub.DataSource == "ORGANIK" || sub.DataSource == "") && sub.ServiceType == "REGULER" && sub.ConsultantID == nil {
+					nextStatus = domain.StatusVervalPendamping
+				}
+				
 				uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_SYNCED", fmt.Sprintf("Status pembayaran disinkronisasi: PAID (Rp %.2f)", payment.Amount))
-				return uc.submissionRepo.UpdateStatus(*payment.SubmissionID, domain.StatusVervalPendamping, 0)
+				return uc.submissionRepo.UpdateStatus(*payment.SubmissionID, nextStatus, 0)
 			}
 		}
 	}

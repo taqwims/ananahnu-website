@@ -32,6 +32,10 @@ func main() {
 
 	// 3. Auto Migrate
 	log.Println("Running AutoMigrate...")
+	// Force add audit result columns if they are missing (Fail-safe)
+	_ = db.Exec("ALTER TABLE submissions ADD COLUMN IF NOT EXISTS audit_result_1_url TEXT")
+	_ = db.Exec("ALTER TABLE submissions ADD COLUMN IF NOT EXISTS audit_result_2_url TEXT")
+
 	err = db.AutoMigrate(
 		// Auth & Users
 		&domain.Role{},
@@ -165,7 +169,7 @@ func main() {
 	// 6. Setup Usecases
 	authUC := usecase.NewAuthUsecase(userRepo, roleRepo, clientRepo, tokenRepo, emailSender)
 	notificationUC := usecase.NewNotificationUsecase(notifRepo)
-	submissionUC := usecase.NewSubmissionWorkflowUsecase(submissionRepo, clientRepo, roleRepo, auditRepo, userRepo, notificationUC, invoiceRepo, coordinatorRateRepo, formValueRepo, billingConfigRepo, consultantRepo, participantRepo)
+	submissionUC := usecase.NewSubmissionWorkflowUsecase(submissionRepo, clientRepo, roleRepo, auditRepo, userRepo, notificationUC, invoiceRepo, coordinatorRateRepo, formValueRepo, billingConfigRepo, consultantRepo, participantRepo, settingRepo)
 	importUC := usecase.NewImportUsecase(clientRepo)
 	exportUC := usecase.NewExportUsecase(clientRepo)
 	paymentUC := usecase.NewPaymentUsecase(paymentRepo, submissionRepo, auditRepo, midtransGateway, invoiceRepo)

@@ -177,8 +177,12 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
         }
     };
 
-    // Check for existing paid/pending payments
-    const paidPayment = paymentHistory.find(p => p.status === 'PAID') || submission.payments?.find(p => p.status === 'PAID');
+    // Check for existing paid/pending payments or paid invoice
+    const foundPayment = paymentHistory.find(p => p.status === 'PAID') || 
+                        submission.payments?.find(p => p.status === 'PAID');
+    const isInvoicePaid = submission.invoice?.status === 'PAID';
+    const paidPayment = foundPayment || (isInvoicePaid ? { amount: submission.invoice?.amount || 0, status: 'PAID' } : null);
+    
     const pendingPayment = paymentHistory.find(p => p.status === 'PENDING') || submission.payments?.find(p => p.status === 'PENDING');
 
     // Show "Payment Completed" state
@@ -191,19 +195,22 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                 </div>
                 <div className="space-y-1">
                     <p className="text-sm text-green-700">
-                        Jumlah: <span className="font-semibold">{formatRupiah(paidPayment.amount)}</span>
+                        Jumlah: <span className="font-semibold">{formatRupiah('amount' in paidPayment ? paidPayment.amount : 0)}</span>
                     </p>
-                    {paidPayment.payment_type && (
+                    {('payment_type' in paidPayment && paidPayment.payment_type) && (
                         <p className="text-sm text-green-700">
                             Metode: <span className="font-semibold capitalize">{paidPayment.payment_type.replace(/_/g, ' ')}</span>
                         </p>
                     )}
-                    {paidPayment.paid_at && (
+                    {('paid_at' in paidPayment && paidPayment.paid_at) && (
                         <p className="text-sm text-green-600">
                             Dibayar: {new Date(paidPayment.paid_at).toLocaleDateString('id-ID', {
                                 day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
                             })}
                         </p>
+                    )}
+                    {isInvoicePaid && !foundPayment && (
+                        <p className="text-xs text-green-600 italic">Dikonfirmasi secara manual oleh admin</p>
                     )}
                 </div>
             </div>
@@ -339,9 +346,20 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                             onUploadSuccess={(url) => setProofUrl(url)}
                         />
                         {proofUrl && (
-                            <div className="flex items-center gap-2 p-2 bg-brand-50 text-brand-700 rounded-lg text-[10px] font-medium break-all">
-                                <CheckCircle className="w-3 h-3 shrink-0" />
-                                {proofUrl}
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2 p-2 bg-brand-50 text-brand-700 rounded-lg text-[10px] font-medium break-all">
+                                    <CheckCircle className="w-3 h-3 shrink-0" />
+                                    {proofUrl}
+                                </div>
+                                {proofUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i) && (
+                                    <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-brand-100 bg-white">
+                                        <img 
+                                            src={proofUrl.startsWith('http') ? proofUrl : `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}${proofUrl}`} 
+                                            alt="Preview Bukti" 
+                                            className="w-full h-full object-contain"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         )}
                         <div className="relative flex items-center gap-2 my-1">

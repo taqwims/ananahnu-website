@@ -2,6 +2,7 @@ package repository
 
 import (
 	"ananahnu/internal/domain"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -76,6 +77,21 @@ func (r *submissionRepository) UpdateRejectNote(id uuid.UUID, note string) error
 
 func (r *submissionRepository) UpdateSH(id uuid.UUID, shURL string) error {
 	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("sh_url", shURL).Error
+}
+
+func (r *submissionRepository) UpdateAuditInfo(id uuid.UUID, auditDate *time.Time) error {
+	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("audit_date", auditDate).Error
+}
+
+func (r *submissionRepository) UpdateAuditResult(id uuid.UUID, url1, url2 string) error {
+	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"audit_result_1_url": url1,
+		"audit_result_2_url": url2,
+	}).Error
+}
+
+func (r *submissionRepository) UpdateDataSource(id uuid.UUID, dataSource string) error {
+	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("data_source", dataSource).Error
 }
 
 func (r *submissionRepository) UpdateTrackingNumber(id uuid.UUID, trackingNumber string) error {
