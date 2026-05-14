@@ -16,32 +16,33 @@ type ClientUsecase interface {
 	UpdateClient(client *domain.Client) error
 }
 
-type clientUsecase struct {
-	clientRepo     domain.ClientRepository
-	userRepo       domain.UserRepository
-	consultantRepo  domain.ConsultantProfileRepository
-	participantRepo domain.TrainingParticipantRepository
+type ClientUsecaseDeps struct {
+	ClientRepo      domain.ClientRepository
+	UserRepo        domain.UserRepository
+	ConsultantRepo  domain.ConsultantProfileRepository
+	ParticipantRepo domain.TrainingParticipantRepository
 }
 
-func NewClientUsecase(r domain.ClientRepository, u domain.UserRepository, con domain.ConsultantProfileRepository, p domain.TrainingParticipantRepository) ClientUsecase {
+type clientUsecase struct {
+	ClientUsecaseDeps
+}
+
+func NewClientUsecase(deps ClientUsecaseDeps) ClientUsecase {
 	return &clientUsecase{
-		clientRepo:      r,
-		userRepo:        u,
-		consultantRepo:  con,
-		participantRepo: p,
+		ClientUsecaseDeps: deps,
 	}
 }
 
 func (uc *clientUsecase) GetClients(filter map[string]interface{}, page, limit int) ([]domain.Client, int64, error) {
-	return uc.clientRepo.FindAll(filter, page, limit)
+	return uc.ClientRepo.FindAll(filter, page, limit)
 }
 
 func (uc *clientUsecase) GetClient(id uuid.UUID) (*domain.Client, error) {
-	return uc.clientRepo.FindByID(id)
+	return uc.ClientRepo.FindByID(id)
 }
 
 func (uc *clientUsecase) checkVerification(userID uuid.UUID) error {
-	user, err := uc.userRepo.FindByID(userID)
+	user, err := uc.UserRepo.FindByID(userID)
 	if err != nil {
 		return err
 	}
@@ -49,13 +50,13 @@ func (uc *clientUsecase) checkVerification(userID uuid.UUID) error {
 	// Only check verification for consultants
 	if user.Role.Name == "HALAL_KONSULTAN" {
 		// 1. Check Profile Verification
-		profile, err := uc.consultantRepo.FindByUserID(userID)
+		profile, err := uc.ConsultantRepo.FindByUserID(userID)
 		if err != nil || profile == nil || !profile.IsVerified {
 			return errors.New("akun Anda belum terverifikasi. Silakan lengkapi profil dan tunggu verifikasi data oleh admin")
 		}
 
 		// 2. Check Training Graduation
-		trainings, err := uc.participantRepo.FindByUser(userID)
+		trainings, err := uc.ParticipantRepo.FindByUser(userID)
 		isGraduated := false
 		if err == nil {
 			for _, t := range trainings {
@@ -91,16 +92,16 @@ func (uc *clientUsecase) CreateClient(client *domain.Client) error {
 		client.NIB = "DRAFT-" + uuid.New().String()[:8]
 	} else {
 		// Check if real NIB already exists
-		existing, _ := uc.clientRepo.FindByNIB(client.NIB)
+		existing, _ := uc.ClientRepo.FindByNIB(client.NIB)
 		if existing != nil {
 			return domain.ErrNIBExists
 		}
 	}
 
 	client.ID = uuid.New()
-	return uc.clientRepo.Create(client)
+	return uc.ClientRepo.Create(client)
 }
 
 func (uc *clientUsecase) UpdateClient(client *domain.Client) error {
-	return uc.clientRepo.Update(client)
+	return uc.ClientRepo.Update(client)
 }

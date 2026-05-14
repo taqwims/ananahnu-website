@@ -29,7 +29,6 @@ type BillingConfigUsecase interface {
 	UpdateBusinessScale(bs *domain.BusinessScale) error
 	DeleteBusinessScale(id int64) error
 	
-	
 	GetBillingComponents() ([]domain.BillingComponent, error)
 	GetBillingComponentsFiltered(filter map[string]interface{}) ([]domain.BillingComponent, error)
 	CreateBillingComponent(bc *domain.BillingComponent) error
@@ -51,123 +50,127 @@ type BillingConfigUsecase interface {
 	SetCoordinatorRate(rate *domain.CoordinatorRate) error
 }
 
-type billingConfigUsecase struct {
-	repo           domain.BillingConfigRepository
-	rateRepo       domain.CoordinatorRateRepository
-	invoiceRepo    domain.InvoiceRepository
-	submissionRepo domain.SubmissionRepository
+type BillingConfigUsecaseDeps struct {
+	Repo           domain.BillingConfigRepository
+	RateRepo       domain.CoordinatorRateRepository
+	InvoiceRepo    domain.InvoiceRepository
+	SubmissionRepo domain.SubmissionRepository
 }
 
-func NewBillingConfigUsecase(repo domain.BillingConfigRepository, rateRepo domain.CoordinatorRateRepository, invoiceRepo domain.InvoiceRepository, submissionRepo domain.SubmissionRepository) BillingConfigUsecase {
-	return &billingConfigUsecase{repo: repo, rateRepo: rateRepo, invoiceRepo: invoiceRepo, submissionRepo: submissionRepo}
+type billingConfigUsecase struct {
+	BillingConfigUsecaseDeps
+}
+
+func NewBillingConfigUsecase(deps BillingConfigUsecaseDeps) BillingConfigUsecase {
+	return &billingConfigUsecase{
+		BillingConfigUsecaseDeps: deps,
+	}
 }
 
 func (uc *billingConfigUsecase) GetSalesSchemes() ([]domain.SalesScheme, error) {
-	return uc.repo.FindAllSalesSchemes()
+	return uc.Repo.FindAllSalesSchemes()
 }
 func (uc *billingConfigUsecase) CreateSalesScheme(ss *domain.SalesScheme) error {
-	return uc.repo.CreateSalesScheme(ss)
+	return uc.Repo.CreateSalesScheme(ss)
 }
 func (uc *billingConfigUsecase) UpdateSalesScheme(ss *domain.SalesScheme) error {
-	return uc.repo.UpdateSalesScheme(ss)
+	return uc.Repo.UpdateSalesScheme(ss)
 }
 func (uc *billingConfigUsecase) DeleteSalesScheme(id int64) error {
-	return uc.repo.DeleteSalesScheme(id)
+	return uc.Repo.DeleteSalesScheme(id)
 }
 
 func (uc *billingConfigUsecase) GetBusinessTypes() ([]domain.BusinessType, error) {
-	return uc.repo.FindAllBusinessTypes()
+	return uc.Repo.FindAllBusinessTypes()
 }
 func (uc *billingConfigUsecase) CreateBusinessType(bt *domain.BusinessType) error {
-	return uc.repo.CreateBusinessType(bt)
+	return uc.Repo.CreateBusinessType(bt)
 }
 func (uc *billingConfigUsecase) UpdateBusinessType(bt *domain.BusinessType) error {
-	return uc.repo.UpdateBusinessType(bt)
+	return uc.Repo.UpdateBusinessType(bt)
 }
 func (uc *billingConfigUsecase) DeleteBusinessType(id int64) error {
-	return uc.repo.DeleteBusinessType(id)
+	return uc.Repo.DeleteBusinessType(id)
 }
 
 func (uc *billingConfigUsecase) GetProductCategories() ([]domain.ProductCategory, error) {
-	return uc.repo.FindAllProductCategories(nil)
+	return uc.Repo.FindAllProductCategories(nil)
 }
 func (uc *billingConfigUsecase) GetProductCategoriesFiltered(filter map[string]interface{}) ([]domain.ProductCategory, error) {
-	return uc.repo.FindAllProductCategories(filter)
+	return uc.Repo.FindAllProductCategories(filter)
 }
 func (uc *billingConfigUsecase) CreateProductCategory(pc *domain.ProductCategory) error {
-	return uc.repo.CreateProductCategory(pc)
+	return uc.Repo.CreateProductCategory(pc)
 }
 func (uc *billingConfigUsecase) UpdateProductCategory(pc *domain.ProductCategory) error {
-	return uc.repo.UpdateProductCategory(pc)
+	return uc.Repo.UpdateProductCategory(pc)
 }
 func (uc *billingConfigUsecase) DeleteProductCategory(id int64) error {
-	return uc.repo.DeleteProductCategory(id)
+	return uc.Repo.DeleteProductCategory(id)
 }
 
 func (uc *billingConfigUsecase) GetBusinessScales() ([]domain.BusinessScale, error) {
-	return uc.repo.FindAllBusinessScales()
+	return uc.Repo.FindAllBusinessScales()
 }
 func (uc *billingConfigUsecase) CreateBusinessScale(bs *domain.BusinessScale) error {
-	return uc.repo.CreateBusinessScale(bs)
+	return uc.Repo.CreateBusinessScale(bs)
 }
 func (uc *billingConfigUsecase) UpdateBusinessScale(bs *domain.BusinessScale) error {
-	return uc.repo.UpdateBusinessScale(bs)
+	return uc.Repo.UpdateBusinessScale(bs)
 }
 func (uc *billingConfigUsecase) DeleteBusinessScale(id int64) error {
-	return uc.repo.DeleteBusinessScale(id)
+	return uc.Repo.DeleteBusinessScale(id)
 }
-
 
 func (uc *billingConfigUsecase) GetBillingComponents() ([]domain.BillingComponent, error) {
-	return uc.repo.FindAllBillingComponents(nil)
+	return uc.Repo.FindAllBillingComponents(nil)
 }
 func (uc *billingConfigUsecase) GetBillingComponentsFiltered(filter map[string]interface{}) ([]domain.BillingComponent, error) {
-	return uc.repo.FindAllBillingComponents(filter)
+	return uc.Repo.FindAllBillingComponents(filter)
 }
 func (uc *billingConfigUsecase) CreateBillingComponent(bc *domain.BillingComponent) error {
-	return uc.repo.CreateBillingComponent(bc)
+	return uc.Repo.CreateBillingComponent(bc)
 }
 func (uc *billingConfigUsecase) UpdateBillingComponent(bc *domain.BillingComponent) error {
-	return uc.repo.UpdateBillingComponent(bc)
+	return uc.Repo.UpdateBillingComponent(bc)
 }
 func (uc *billingConfigUsecase) DeleteBillingComponent(id int64) error {
-	return uc.repo.DeleteBillingComponent(id)
+	return uc.Repo.DeleteBillingComponent(id)
 }
 
 // SalesSchemePrice
 func (uc *billingConfigUsecase) GetSalesSchemePrices(filter map[string]interface{}) ([]domain.SalesSchemePrice, error) {
-	return uc.repo.FindAllSalesSchemePrices(filter)
+	return uc.Repo.FindAllSalesSchemePrices(filter)
 }
 func (uc *billingConfigUsecase) CreateSalesSchemePrice(sp *domain.SalesSchemePrice) error {
-	return uc.repo.CreateSalesSchemePrice(sp)
+	return uc.Repo.CreateSalesSchemePrice(sp)
 }
 func (uc *billingConfigUsecase) UpdateSalesSchemePrice(sp *domain.SalesSchemePrice) error {
-	return uc.repo.UpdateSalesSchemePrice(sp)
+	return uc.Repo.UpdateSalesSchemePrice(sp)
 }
 func (uc *billingConfigUsecase) DeleteSalesSchemePrice(id int64) error {
-	return uc.repo.DeleteSalesSchemePrice(id)
+	return uc.Repo.DeleteSalesSchemePrice(id)
 }
 
 func (uc *billingConfigUsecase) SaveSubmissionCost(detail *domain.SubmissionCostDetail) error {
-	if err := uc.repo.SaveSubmissionCostDetail(detail); err != nil {
+	if err := uc.Repo.SaveSubmissionCostDetail(detail); err != nil {
 		return err
 	}
 
 	// Sync with Invoice if it exists (for REGULER service)
-	invoice, err := uc.invoiceRepo.FindBySubmissionID(detail.SubmissionID)
+	invoice, err := uc.InvoiceRepo.FindBySubmissionID(detail.SubmissionID)
 	if err == nil && invoice != nil {
 		invoice.Amount = detail.TotalAmount
 		invoice.PricingSource = "COST_DETAIL"
-		return uc.invoiceRepo.Update(invoice)
+		return uc.InvoiceRepo.Update(invoice)
 	}
 
 	// If invoice doesn't exist, check if we should create one
-	// This happens if the submission is already in WAITING_PAYMENT but was submitted with 0 cost
-	sub, err := uc.submissionRepo.FindByID(detail.SubmissionID)
+	sub, err := uc.SubmissionRepo.FindByID(detail.SubmissionID)
 	if err == nil && sub != nil && sub.ServiceType == "REGULER" {
 		// Only create invoice if it's already in WAITING_PAYMENT or later (except DRAFT/REVISION)
 		if sub.Status != domain.StatusDraft && sub.Status != domain.StatusRevision {
-			return uc.invoiceRepo.Create(&domain.Invoice{
+			return uc.InvoiceRepo.Create(&domain.Invoice{
 				SubmissionID:  detail.SubmissionID,
 				PayerID:       nil,
 				ServiceType:   "REGULER",
@@ -182,13 +185,13 @@ func (uc *billingConfigUsecase) SaveSubmissionCost(detail *domain.SubmissionCost
 	return nil
 }
 func (uc *billingConfigUsecase) GetSubmissionCost(submissionID uuid.UUID) (*domain.SubmissionCostDetail, error) {
-	return uc.repo.GetSubmissionCostDetail(submissionID)
+	return uc.Repo.GetSubmissionCostDetail(submissionID)
 }
 
 func (uc *billingConfigUsecase) GetCoordinatorRates() ([]domain.CoordinatorRate, error) {
-	return uc.rateRepo.FindAll()
+	return uc.RateRepo.FindAll()
 }
 
 func (uc *billingConfigUsecase) SetCoordinatorRate(rate *domain.CoordinatorRate) error {
-	return uc.rateRepo.Save(rate)
+	return uc.RateRepo.Save(rate)
 }

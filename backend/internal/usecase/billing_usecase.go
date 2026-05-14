@@ -20,7 +20,6 @@ type BillingUsecase interface {
 	GetReferralCommissions(page, limit int, status string) ([]domain.ReferralCommission, int64, error)
 	PayReferralCommission(id uuid.UUID) error
 
-
 	// Payment Config
 	GetPaymentConfigs() ([]domain.PaymentConfig, error)
 	GetPaymentConfigsByService(serviceType string) ([]domain.PaymentConfig, error)
@@ -29,27 +28,24 @@ type BillingUsecase interface {
 	DeletePaymentConfig(id int64) error
 }
 
-type billingUsecase struct {
-	invoiceRepo    domain.InvoiceRepository
-	configRepo     domain.PaymentConfigRepository
-	rateRepo       domain.BillingRateRepository
-	userRepo       domain.UserRepository
-	notifUC        NotificationUsecase
-	commissionRepo domain.ReferralCommissionRepository
-	settingRepo    domain.SystemSettingRepository
-	submissionRepo domain.SubmissionRepository
+type BillingUsecaseDeps struct {
+	InvoiceRepo    domain.InvoiceRepository
+	ConfigRepo     domain.PaymentConfigRepository
+	RateRepo       domain.BillingRateRepository
+	UserRepo       domain.UserRepository
+	NotifUC        NotificationUsecase
+	CommissionRepo domain.ReferralCommissionRepository
+	SettingRepo    domain.SystemSettingRepository
+	SubmissionRepo domain.SubmissionRepository
 }
 
-func NewBillingUsecase(i domain.InvoiceRepository, c domain.PaymentConfigRepository, r domain.BillingRateRepository, u domain.UserRepository, n NotificationUsecase, com domain.ReferralCommissionRepository, s domain.SystemSettingRepository, sub domain.SubmissionRepository) BillingUsecase {
+type billingUsecase struct {
+	BillingUsecaseDeps
+}
+
+func NewBillingUsecase(deps BillingUsecaseDeps) BillingUsecase {
 	return &billingUsecase{
-		invoiceRepo:    i,
-		configRepo:     c,
-		rateRepo:       r,
-		userRepo:       u,
-		notifUC:        n,
-		commissionRepo: com,
-		settingRepo:    s,
-		submissionRepo: sub,
+		BillingUsecaseDeps: deps,
 	}
 }
 
@@ -62,7 +58,7 @@ func (uc *billingUsecase) GetMyInvoices(userID uuid.UUID, roleName string, statu
 
 	if roleName == "KOORDINATOR" {
 		// Get team members
-		team, err := uc.userRepo.FindByLeaderID(userID)
+		team, err := uc.UserRepo.FindByLeaderID(userID)
 		if err == nil {
 			ids := []uuid.UUID{userID}
 			for _, member := range team {
@@ -76,22 +72,21 @@ func (uc *billingUsecase) GetMyInvoices(userID uuid.UUID, roleName string, statu
 		filter["payer_id"] = userID
 	}
 
-	return uc.invoiceRepo.FindAll(filter, page, limit)
+	return uc.InvoiceRepo.FindAll(filter, page, limit)
 }
 
 func (uc *billingUsecase) GetInvoices(filter map[string]interface{}, page, limit int) ([]domain.Invoice, int64, error) {
-	return uc.invoiceRepo.FindAll(filter, page, limit)
+	return uc.InvoiceRepo.FindAll(filter, page, limit)
 }
 
 func (uc *billingUsecase) GetInvoiceBySubmission(submissionID uuid.UUID) (*domain.Invoice, error) {
-	return uc.invoiceRepo.FindBySubmissionID(submissionID)
+	return uc.InvoiceRepo.FindBySubmissionID(submissionID)
 }
 
 // CreateInvoiceForSubmission generates an invoice when a submission reaches SH_TERBIT.
-// It calculates the amount based on geography billing rates.
 func (uc *billingUsecase) CreateInvoiceForSubmission(submissionID uuid.UUID, serviceType string, regencyID *int64, districtID *int64) error {
 	// Check if invoice already exists
-	if existing, _ := uc.invoiceRepo.FindBySubmissionID(submissionID); existing != nil {
+	if existing, _ := uc.InvoiceRepo.FindBySubmissionID(submissionID); existing != nil {
 		return nil // Already created, idempotent
 	}
 
@@ -99,7 +94,7 @@ func (uc *billingUsecase) CreateInvoiceForSubmission(submissionID uuid.UUID, ser
 
 	// Try geography-based billing rate first
 	if regencyID != nil {
-		rate, err := uc.rateRepo.FindByFilter(serviceType, *regencyID, districtID)
+		rate, err := uc.RateRepo.FindByFilter(serviceType, *regencyID, districtID)
 		if err == nil {
 			amount = rate.Amount
 		}
@@ -107,7 +102,7 @@ func (uc *billingUsecase) CreateInvoiceForSubmission(submissionID uuid.UUID, ser
 
 	// If no geography rate found, sum payment config items
 	if amount == 0 {
-		configs, err := uc.configRepo.FindByServiceType(serviceType)
+		configs, err := uc.ConfigRepo.FindByServiceType(serviceType)
 		if err != nil {
 			return fmt.Errorf("failed to get payment config: %w", err)
 		}
@@ -125,11 +120,11 @@ func (uc *billingUsecase) CreateInvoiceForSubmission(submissionID uuid.UUID, ser
 		DistrictID:   districtID,
 	}
 
-	return uc.invoiceRepo.Create(invoice)
+	return uc.InvoiceRepo.Create(invoice)
 }
 
 func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
-	invoices, _, err := uc.invoiceRepo.FindAll(map[string]interface{}{"id": invoiceID}, 1, 1)
+	invoices, _, err := uc.InvoiceRepo.FindAll(map[string]interface{}{"id": invoiceID}, 1, 1)
 	if err != nil || len(invoices) == 0 {
 		return fmt.Errorf("invoice not found")
 	}
@@ -139,19 +134,19 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 	now := time.Now()
 	invoice.PaidAt = &now
 
-	if err := uc.invoiceRepo.Update(invoice); err != nil {
+	if err := uc.InvoiceRepo.Update(invoice); err != nil {
 		return err
 	}
 
 	// Trigger Referral Fee check
 	if invoice.PayerID != nil && *invoice.PayerID != uuid.Nil {
-		user, _ := uc.userRepo.FindByID(*invoice.PayerID)
+		user, _ := uc.UserRepo.FindByID(*invoice.PayerID)
 		if user != nil && user.ReferredByID != nil {
 			// This payer was referred! Create a commission for their referrer.
 			
 			// Get Fee from settings
 			feeStr := "0"
-			setting, _ := uc.settingRepo.GetSetting("REFERRAL_FEE_PER_SH")
+			setting, _ := uc.SettingRepo.GetSetting("REFERRAL_FEE_PER_SH")
 			if setting != nil {
 				feeStr = setting.Value
 			}
@@ -169,7 +164,7 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 					Status:       domain.CommissionStatusPending,
 					CreatedAt:    time.Now(),
 				}
-				_ = uc.commissionRepo.Create(commission)
+				_ = uc.CommissionRepo.Create(commission)
 			}
 		}
 	}
@@ -182,17 +177,16 @@ func (uc *billingUsecase) GetReferralCommissions(page, limit int, status string)
 	if status != "" {
 		filter["status"] = status
 	}
-	return uc.commissionRepo.FindAll(filter, page, limit)
+	return uc.CommissionRepo.FindAll(filter, page, limit)
 }
 
 func (uc *billingUsecase) PayReferralCommission(id uuid.UUID) error {
 	now := time.Now()
-	return uc.commissionRepo.UpdateStatus(id, domain.CommissionStatusPaid, &now)
+	return uc.CommissionRepo.UpdateStatus(id, domain.CommissionStatusPaid, &now)
 }
 
-
 func (uc *billingUsecase) RemindPayment(invoiceID int64, senderID uuid.UUID) error {
-	invoices, _, err := uc.invoiceRepo.FindAll(map[string]interface{}{"id": invoiceID}, 1, 1)
+	invoices, _, err := uc.InvoiceRepo.FindAll(map[string]interface{}{"id": invoiceID}, 1, 1)
 	if err != nil || len(invoices) == 0 {
 		return fmt.Errorf("invoice not found")
 	}
@@ -206,7 +200,7 @@ func (uc *billingUsecase) RemindPayment(invoiceID int64, senderID uuid.UUID) err
 		return fmt.Errorf("invoice has no payer")
 	}
 
-	sender, _ := uc.userRepo.FindByID(senderID)
+	sender, _ := uc.UserRepo.FindByID(senderID)
 	senderName := "Koordinator"
 	if sender != nil {
 		senderName = sender.FullName
@@ -215,26 +209,26 @@ func (uc *billingUsecase) RemindPayment(invoiceID int64, senderID uuid.UUID) err
 	msg := fmt.Sprintf("%s mengingatkan Anda untuk membayar tagihan SH Terbit untuk %s sebesar Rp %.0f", 
 		senderName, invoice.Submission.Client.BusinessName, invoice.Amount)
 	
-	return uc.notifUC.CreateNotification(*invoice.PayerID, "Pengingat Pembayaran", msg, invoice.SubmissionID)
+	return uc.NotifUC.CreateNotification(*invoice.PayerID, "Pengingat Pembayaran", msg, invoice.SubmissionID)
 }
 
 // Payment Config CRUD
 func (uc *billingUsecase) GetPaymentConfigs() ([]domain.PaymentConfig, error) {
-	return uc.configRepo.FindAll()
+	return uc.ConfigRepo.FindAll()
 }
 
 func (uc *billingUsecase) GetPaymentConfigsByService(serviceType string) ([]domain.PaymentConfig, error) {
-	return uc.configRepo.FindByServiceType(serviceType)
+	return uc.ConfigRepo.FindByServiceType(serviceType)
 }
 
 func (uc *billingUsecase) CreatePaymentConfig(config *domain.PaymentConfig) error {
-	return uc.configRepo.Create(config)
+	return uc.ConfigRepo.Create(config)
 }
 
 func (uc *billingUsecase) UpdatePaymentConfig(config *domain.PaymentConfig) error {
-	return uc.configRepo.Update(config)
+	return uc.ConfigRepo.Update(config)
 }
 
 func (uc *billingUsecase) DeletePaymentConfig(id int64) error {
-	return uc.configRepo.Delete(id)
+	return uc.ConfigRepo.Delete(id)
 }

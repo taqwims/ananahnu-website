@@ -1,6 +1,7 @@
 package http
 
 import (
+	"ananahnu/internal/delivery/middleware"
 	"ananahnu/internal/usecase"
 	"encoding/json"
 	"log"
@@ -18,8 +19,8 @@ type PaymentHandler struct {
 func NewPaymentHandler(r *gin.Engine, uc usecase.PaymentUsecase) {
 	handler := &PaymentHandler{paymentUC: uc}
 
-	// Authenticated routes (add auth middleware here when available)
 	g := r.Group("/payments")
+	g.Use(middleware.AuthMiddleware())
 	{
 		g.POST("/manual", handler.CreateManual)
 		g.POST("/midtrans", handler.CreateMidtrans)
@@ -178,8 +179,7 @@ func (h *PaymentHandler) VerifyManual(c *gin.Context) {
 		return
 	}
 
-	// TODO: Extract verifierID from JWT auth context when middleware is implemented
-	verifierID := uuid.Nil
+	verifierID := middleware.GetUserID(c)
 
 	if err := h.paymentUC.VerifyManualPayment(paymentID, input.Approved, verifierID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

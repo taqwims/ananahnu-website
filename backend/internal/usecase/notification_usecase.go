@@ -3,6 +3,7 @@ package usecase
 import (
 	"ananahnu/internal/domain"
 	"ananahnu/pkg/whatsapp"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,22 +14,29 @@ type NotificationUsecase interface {
 	CreateNotification(userID uuid.UUID, title, message string, entityID uuid.UUID) error
 	SendWhatsAppNotification(target string, message string) error
 	MarkAsRead(id int64) error
+	
+	// Workflow specific
+	SendWorkflowNotification(key string, replacements map[string]string, targetPhone string, userID *uuid.UUID, entityID uuid.UUID, title, fallbackMsg string) error
+}
+
+type NotificationUsecaseDeps struct {
+	NotifRepo   domain.NotificationRepository
+	WASender    whatsapp.WhatsAppSender
+	SettingRepo domain.SystemSettingRepository
 }
 
 type notificationUsecase struct {
-	notifRepo domain.NotificationRepository
-	waSender  whatsapp.WhatsAppSender
+	NotificationUsecaseDeps
 }
 
-func NewNotificationUsecase(r domain.NotificationRepository, wa whatsapp.WhatsAppSender) NotificationUsecase {
+func NewNotificationUsecase(deps NotificationUsecaseDeps) NotificationUsecase {
 	return &notificationUsecase{
-		notifRepo: r,
-		waSender:  wa,
+		NotificationUsecaseDeps: deps,
 	}
 }
 
 func (uc *notificationUsecase) GetUserNotifications(userID uuid.UUID) ([]domain.Notification, error) {
-	return uc.notifRepo.FindByUserID(userID)
+	return uc.NotifRepo.FindByUserID(userID)
 }
 
 func (uc *notificationUsecase) CreateNotification(userID uuid.UUID, title, message string, entityID uuid.UUID) error {
@@ -40,16 +48,61 @@ func (uc *notificationUsecase) CreateNotification(userID uuid.UUID, title, messa
 		CreatedAt:       time.Now(),
 		IsRead:          false,
 	}
-	return uc.notifRepo.Create(notif)
+	return uc.NotifRepo.Create(notif)
 }
 
 func (uc *notificationUsecase) SendWhatsAppNotification(target string, message string) error {
-	if uc.waSender == nil {
-		return nil // No WA sender configured
+	if uc.WASender == nil {
+		return nil
 	}
-	return uc.waSender.Send(target, message)
+	
+	// Normalize phone number
+	target = strings.ReplaceAll(target, " ", "")
+	target = strings.ReplaceAll(target, "-", "")
+	target = strings.ReplaceAll(target, "+", "")
+	if strings.HasPrefix(target, "0") {
+		target = "62" + target[1:]
+	} else if !strings.HasPrefix(target, "62") {
+		target = "62" + target
+	}
+	
+	return uc.WASender.Send(target, message)
+}
+
+func (uc *notificationUsecase) SendWorkflowNotification(key string, replacements map[string]string, targetPhone string, userID *uuid.UUID, entityID uuid.UUID, title, fallbackMsg string) error {
+	// 1. Resolve template
+	msg := fallbackMsg
+	setting, _ := uc.SettingRepo.GetSetting("template_" + key)
+	if setting != nil && setting.Value != "" {
+		msg = setting.Value
+	}
+	
+	for k, v := range replacements {
+		msg = strings.ReplaceAll(msg, "{{"+k+"}}", v)
+	}
+	
+	// 2. Check toggles
+	globalWA, _ := uc.SettingRepo.GetSetting("wa_notifications_enabled")
+	globalWAEnabled := globalWA == nil || globalWA.Value == "true"
+
+	enableApp, _ := uc.SettingRepo.GetSetting("enable_app_" + key)
+	enableWA, _ := uc.SettingRepo.GetSetting("enable_wa_" + key)
+
+	appEnabled := enableApp == nil || enableApp.Value == "true"
+	waEnabled := (enableWA == nil || enableWA.Value == "true") && globalWAEnabled
+	
+	// 3. Dispatch
+	if waEnabled && targetPhone != "" {
+		_ = uc.SendWhatsAppNotification(targetPhone, msg)
+	}
+	
+	if appEnabled && userID != nil {
+		_ = uc.CreateNotification(*userID, title, msg, entityID)
+	}
+	
+	return nil
 }
 
 func (uc *notificationUsecase) MarkAsRead(id int64) error {
-	return uc.notifRepo.MarkAsRead(id)
+	return uc.NotifRepo.MarkAsRead(id)
 }

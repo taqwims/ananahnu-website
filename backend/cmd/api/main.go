@@ -179,28 +179,110 @@ func main() {
 	})
 
 	// 6. Setup Usecases
-	authUC := usecase.NewAuthUsecase(userRepo, roleRepo, clientRepo, tokenRepo, emailSender)
-	notificationUC := usecase.NewNotificationUsecase(notifRepo, waSender)
-	importUC := usecase.NewImportUsecase(clientRepo)
-	exportUC := usecase.NewExportUsecase(clientRepo)
-	cmsUC := usecase.NewCMSUsecase(cmsRepo)
-	clientCRUDUC := usecase.NewClientUsecase(clientRepo, userRepo, consultantRepo, participantRepo)
-	dashboardUC := usecase.NewDashboardUsecase(submissionRepo, clientRepo, auditRepo, userRepo)
-	formConfigUC := usecase.NewFormConfigUsecase(formConfigRepo, formValueRepo)
-	geographyUC := usecase.NewGeographyUsecase(geoRepo, billingRateRepo)
-	trainingUC := usecase.NewTrainingUsecase(trainingRepo, participantRepo)
-	consultantUC := usecase.NewConsultantUsecase(consultantRepo, userRepo)
+	authUC := usecase.NewAuthUsecase(usecase.AuthUsecaseDeps{
+		UserRepo:    userRepo,
+		RoleRepo:    roleRepo,
+		ClientRepo:  clientRepo,
+		TokenRepo:   tokenRepo,
+		EmailSender: emailSender,
+	})
+	notificationUC := usecase.NewNotificationUsecase(usecase.NotificationUsecaseDeps{
+		NotifRepo:   notifRepo,
+		WASender:    waSender,
+		SettingRepo: settingRepo,
+	})
+	importUC := usecase.NewImportUsecase(usecase.ImportUsecaseDeps{
+		ClientRepo: clientRepo,
+	})
+	exportUC := usecase.NewExportUsecase(usecase.ExportUsecaseDeps{
+		ClientRepo: clientRepo,
+	})
+	cmsUC := usecase.NewCMSUsecase(usecase.CMSUsecaseDeps{
+		CMSRepo: cmsRepo,
+	})
+	clientCRUDUC := usecase.NewClientUsecase(usecase.ClientUsecaseDeps{
+		ClientRepo:      clientRepo,
+		UserRepo:        userRepo,
+		ConsultantRepo:  consultantRepo,
+		ParticipantRepo: participantRepo,
+	})
+	dashboardUC := usecase.NewDashboardUsecase(usecase.DashboardUsecaseDeps{
+		SubmissionRepo: submissionRepo,
+		ClientRepo:     clientRepo,
+		AuditRepo:      auditRepo,
+		UserRepo:       userRepo,
+	})
+	formConfigUC := usecase.NewFormConfigUsecase(usecase.FormConfigUsecaseDeps{
+		ConfigRepo: formConfigRepo,
+		ValueRepo:  formValueRepo,
+	})
+	geographyUC := usecase.NewGeographyUsecase(usecase.GeographyUsecaseDeps{
+		GeoRepo:  geoRepo,
+		RateRepo: billingRateRepo,
+	})
+	trainingUC := usecase.NewTrainingUsecase(usecase.TrainingUsecaseDeps{
+		TrainingRepo:    trainingRepo,
+		ParticipantRepo: participantRepo,
+	})
+	consultantUC := usecase.NewConsultantUsecase(usecase.ConsultantUsecaseDeps{
+		ProfileRepo: consultantRepo,
+		UserRepo:    userRepo,
+	})
 	
-	// Initialize BillingUsecase first because PaymentUsecase now depends on it
-	billingUC := usecase.NewBillingUsecase(invoiceRepo, paymentConfigRepo, billingRateRepo, userRepo, notificationUC, commissionRepo, settingRepo, submissionRepo)
+	// Initialize in order of dependency: Billing -> Workflow -> Payment
+	billingUC := usecase.NewBillingUsecase(usecase.BillingUsecaseDeps{
+		InvoiceRepo:    invoiceRepo,
+		ConfigRepo:     paymentConfigRepo,
+		RateRepo:       billingRateRepo,
+		UserRepo:       userRepo,
+		NotifUC:        notificationUC,
+		CommissionRepo: commissionRepo,
+		SettingRepo:    settingRepo,
+		SubmissionRepo: submissionRepo,
+	})
 	
-	paymentUC := usecase.NewPaymentUsecase(paymentRepo, submissionRepo, auditRepo, midtransGateway, invoiceRepo, billingUC, notificationUC, settingRepo)
-	
-	submissionUC := usecase.NewSubmissionWorkflowUsecase(submissionRepo, clientRepo, roleRepo, auditRepo, userRepo, notificationUC, invoiceRepo, coordinatorRateRepo, formValueRepo, billingConfigRepo, consultantRepo, participantRepo, settingRepo)
+	submissionUC := usecase.NewSubmissionWorkflowUsecase(usecase.SubmissionWorkflowDeps{
+		SubmissionRepo:    submissionRepo,
+		ClientRepo:        clientRepo,
+		RoleRepo:          roleRepo,
+		AuditRepo:         auditRepo,
+		UserRepo:          userRepo,
+		NotifUC:           notificationUC,
+		InvoiceRepo:       invoiceRepo,
+		RateRepo:          coordinatorRateRepo,
+		FieldValueRepo:    formValueRepo,
+		BillingConfigRepo: billingConfigRepo,
+		ConsultantRepo:    consultantRepo,
+		ParticipantRepo:   participantRepo,
+		SettingRepo:       settingRepo,
+	})
 
-	userMgmtUC := usecase.NewUserManagementUsecase(userRepo, roleRepo, commissionRepo)
-	billingConfigUC := usecase.NewBillingConfigUsecase(billingConfigRepo, coordinatorRateRepo, invoiceRepo, submissionRepo)
-	settingUC := usecase.NewSystemSettingUsecase(settingRepo)
+	paymentUC := usecase.NewPaymentUsecase(usecase.PaymentUsecaseDeps{
+		PaymentRepo:    paymentRepo,
+		SubmissionRepo: submissionRepo,
+		AuditRepo:      auditRepo,
+		Midtrans:       midtransGateway,
+		InvoiceRepo:    invoiceRepo,
+		BillingUC:      billingUC,
+		NotifUC:        notificationUC,
+		SettingRepo:    settingRepo,
+		WorkflowUC:     submissionUC,
+	})
+
+	userMgmtUC := usecase.NewUserManagementUsecase(usecase.UserManagementUsecaseDeps{
+		UserRepo:       userRepo,
+		RoleRepo:       roleRepo,
+		CommissionRepo: commissionRepo,
+	})
+	billingConfigUC := usecase.NewBillingConfigUsecase(usecase.BillingConfigUsecaseDeps{
+		Repo:           billingConfigRepo,
+		RateRepo:       coordinatorRateRepo,
+		InvoiceRepo:    invoiceRepo,
+		SubmissionRepo: submissionRepo,
+	})
+	settingUC := usecase.NewSystemSettingUsecase(usecase.SystemSettingUsecaseDeps{
+		Repo: settingRepo,
+	})
 
 	// 7. Setup Router & Handlers
 	r := gin.Default()

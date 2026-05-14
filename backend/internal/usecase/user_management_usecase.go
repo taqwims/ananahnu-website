@@ -43,32 +43,38 @@ type UserManagementUsecase interface {
 	GetAllReferralAnalytics() ([]map[string]interface{}, error)
 }
 
-type userManagementUsecase struct {
-	userRepo       domain.UserRepository
-	roleRepo       domain.RoleRepository
-	commissionRepo domain.ReferralCommissionRepository
+type UserManagementUsecaseDeps struct {
+	UserRepo       domain.UserRepository
+	RoleRepo       domain.RoleRepository
+	CommissionRepo domain.ReferralCommissionRepository
 }
 
-func NewUserManagementUsecase(u domain.UserRepository, r domain.RoleRepository, c domain.ReferralCommissionRepository) UserManagementUsecase {
-	return &userManagementUsecase{userRepo: u, roleRepo: r, commissionRepo: c}
+type userManagementUsecase struct {
+	UserManagementUsecaseDeps
+}
+
+func NewUserManagementUsecase(deps UserManagementUsecaseDeps) UserManagementUsecase {
+	return &userManagementUsecase{
+		UserManagementUsecaseDeps: deps,
+	}
 }
 
 func (uc *userManagementUsecase) ListUsers(filter map[string]interface{}, page, limit int) ([]domain.User, int64, error) {
-	return uc.userRepo.FindAll(filter, page, limit)
+	return uc.UserRepo.FindAll(filter, page, limit)
 }
 
 func (uc *userManagementUsecase) GetUser(id uuid.UUID) (*domain.User, error) {
-	return uc.userRepo.FindByID(id)
+	return uc.UserRepo.FindByID(id)
 }
 
 func (uc *userManagementUsecase) CreateUser(input CreateUserInput) (*domain.User, string, error) {
 	// Check duplicate email
-	if _, err := uc.userRepo.FindByEmail(input.Email); err == nil {
+	if _, err := uc.UserRepo.FindByEmail(input.Email); err == nil {
 		return nil, "", errors.New("email already exists")
 	}
 
 	// Find role
-	role, err := uc.roleRepo.FindByName(input.Role)
+	role, err := uc.RoleRepo.FindByName(input.Role)
 	if err != nil {
 		return nil, "", errors.New("role not found: " + input.Role)
 	}
@@ -93,24 +99,24 @@ func (uc *userManagementUsecase) CreateUser(input CreateUserInput) (*domain.User
 		LeaderID:     input.LeaderID,
 	}
 
-	if err := uc.userRepo.Create(user); err != nil {
+	if err := uc.UserRepo.Create(user); err != nil {
 		return nil, "", err
 	}
 
 	// Reload with role preloaded
-	created, _ := uc.userRepo.FindByID(user.ID)
+	created, _ := uc.UserRepo.FindByID(user.ID)
 	return created, password, nil
 }
 
 func (uc *userManagementUsecase) UpdateUser(id uuid.UUID, input UpdateUserInput) error {
-	user, err := uc.userRepo.FindByID(id)
+	user, err := uc.UserRepo.FindByID(id)
 	if err != nil {
 		return errors.New("user not found")
 	}
 
 	// Check email uniqueness if changed
 	if input.Email != "" && input.Email != user.Email {
-		if existing, err := uc.userRepo.FindByEmail(input.Email); err == nil && existing.ID != id {
+		if existing, err := uc.UserRepo.FindByEmail(input.Email); err == nil && existing.ID != id {
 			return errors.New("email already taken")
 		}
 	}
@@ -123,7 +129,7 @@ func (uc *userManagementUsecase) UpdateUser(id uuid.UUID, input UpdateUserInput)
 		user.Username = input.Email
 	}
 	if input.Role != "" {
-		role, err := uc.roleRepo.FindByName(input.Role)
+		role, err := uc.RoleRepo.FindByName(input.Role)
 		if err != nil {
 			return errors.New("role not found: " + input.Role)
 		}
@@ -138,11 +144,11 @@ func (uc *userManagementUsecase) UpdateUser(id uuid.UUID, input UpdateUserInput)
 	}
 	user.LeaderID = input.LeaderID
 
-	return uc.userRepo.Update(user)
+	return uc.UserRepo.Update(user)
 }
 
 func (uc *userManagementUsecase) UpdateProfile(id uuid.UUID, input UpdateProfileInput) error {
-	user, err := uc.userRepo.FindByID(id)
+	user, err := uc.UserRepo.FindByID(id)
 	if err != nil {
 		return errors.New("user not found")
 	}
@@ -159,18 +165,18 @@ func (uc *userManagementUsecase) UpdateProfile(id uuid.UUID, input UpdateProfile
 		user.PasswordHash = hash
 	}
 
-	return uc.userRepo.Update(user)
+	return uc.UserRepo.Update(user)
 }
 
 func (uc *userManagementUsecase) DeleteUser(id uuid.UUID) error {
-	if _, err := uc.userRepo.FindByID(id); err != nil {
+	if _, err := uc.UserRepo.FindByID(id); err != nil {
 		return errors.New("user not found")
 	}
-	return uc.userRepo.Delete(id)
+	return uc.UserRepo.Delete(id)
 }
 
 func (uc *userManagementUsecase) ResetUserPassword(id uuid.UUID) (string, error) {
-	user, err := uc.userRepo.FindByID(id)
+	user, err := uc.UserRepo.FindByID(id)
 	if err != nil {
 		return "", errors.New("user not found")
 	}
@@ -182,7 +188,7 @@ func (uc *userManagementUsecase) ResetUserPassword(id uuid.UUID) (string, error)
 	}
 
 	user.PasswordHash = hash
-	if err := uc.userRepo.Update(user); err != nil {
+	if err := uc.UserRepo.Update(user); err != nil {
 		return "", err
 	}
 
@@ -190,19 +196,19 @@ func (uc *userManagementUsecase) ResetUserPassword(id uuid.UUID) (string, error)
 }
 
 func (uc *userManagementUsecase) ListRoles() ([]domain.Role, error) {
-	return uc.roleRepo.FindAll()
+	return uc.RoleRepo.FindAll()
 }
 
 func (uc *userManagementUsecase) GetReferrals(userID uuid.UUID) ([]domain.User, error) {
-	return uc.userRepo.FindByReferredByID(userID)
+	return uc.UserRepo.FindByReferredByID(userID)
 }
 
 func (uc *userManagementUsecase) GetMyCommissions(userID uuid.UUID) ([]domain.ReferralCommission, error) {
 	filter := map[string]interface{}{"referrer_id": userID}
-	commissions, _, err := uc.commissionRepo.FindAll(filter, 1, 1000)
+	commissions, _, err := uc.CommissionRepo.FindAll(filter, 1, 1000)
 	return commissions, err
 }
 
 func (uc *userManagementUsecase) GetAllReferralAnalytics() ([]map[string]interface{}, error) {
-	return uc.userRepo.GetAllReferralAnalytics()
+	return uc.UserRepo.GetAllReferralAnalytics()
 }

@@ -59,7 +59,7 @@ func (h *ConsultantHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	// Extract userID from JWT context
-	userID := c.MustGet("userID").(uuid.UUID)
+	userID := middleware.GetUserID(c)
 	input.UserID = userID
 
 	if err := h.consultantUC.UpdateProfile(&input); err != nil {

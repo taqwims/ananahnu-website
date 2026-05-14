@@ -28,24 +28,30 @@ type FieldValueInput struct {
 	LinkValue   string `json:"link_value,omitempty"`
 }
 
-type formConfigUsecase struct {
-	configRepo domain.FormConfigRepository
-	valueRepo  domain.FormFieldValueRepository
+type FormConfigUsecaseDeps struct {
+	ConfigRepo domain.FormConfigRepository
+	ValueRepo  domain.FormFieldValueRepository
 }
 
-func NewFormConfigUsecase(c domain.FormConfigRepository, v domain.FormFieldValueRepository) FormConfigUsecase {
-	return &formConfigUsecase{configRepo: c, valueRepo: v}
+type formConfigUsecase struct {
+	FormConfigUsecaseDeps
+}
+
+func NewFormConfigUsecase(deps FormConfigUsecaseDeps) FormConfigUsecase {
+	return &formConfigUsecase{
+		FormConfigUsecaseDeps: deps,
+	}
 }
 
 func (uc *formConfigUsecase) GetFormConfig(formType string) ([]domain.FormFieldConfig, error) {
-	configs, err := uc.configRepo.FindByFormType(formType)
+	configs, err := uc.ConfigRepo.FindByFormType(formType)
 	if err == nil && len(configs) > 0 {
 		return configs, nil
 	}
 
 	// Fallback for SELF_DECLARE_MANDIRI to use regular SELF_DECLARE form
 	if formType == "SELF_DECLARE_MANDIRI" {
-		return uc.configRepo.FindByFormType("SELF_DECLARE")
+		return uc.ConfigRepo.FindByFormType("SELF_DECLARE")
 	}
 
 	return configs, err
@@ -58,11 +64,11 @@ func (uc *formConfigUsecase) CreateField(config *domain.FormFieldConfig) error {
 	if config.InputType != "FILE_UPLOAD" && config.InputType != "LINK" && config.InputType != "TEXT" {
 		return errors.New("input_type must be FILE_UPLOAD, LINK, or TEXT")
 	}
-	return uc.configRepo.Create(config)
+	return uc.ConfigRepo.Create(config)
 }
 
 func (uc *formConfigUsecase) UpdateField(config *domain.FormFieldConfig) error {
-	existing, err := uc.configRepo.FindByID(config.ID)
+	existing, err := uc.ConfigRepo.FindByID(config.ID)
 	if err != nil {
 		return fmt.Errorf("field not found: %w", err)
 	}
@@ -75,11 +81,11 @@ func (uc *formConfigUsecase) UpdateField(config *domain.FormFieldConfig) error {
 	existing.Description = config.Description
 	existing.BusinessTypeID = config.BusinessTypeID
 
-	return uc.configRepo.Update(existing)
+	return uc.ConfigRepo.Update(existing)
 }
 
 func (uc *formConfigUsecase) DeleteField(id int64) error {
-	return uc.configRepo.Delete(id)
+	return uc.ConfigRepo.Delete(id)
 }
 
 // SubmitFieldValues validates and saves field values for a submission.
@@ -93,12 +99,12 @@ func (uc *formConfigUsecase) SubmitFieldValues(submissionID uuid.UUID, uploaderI
 
 	// Validate required fields — we need to know the form type from any field
 	if len(inputs) > 0 {
-		firstField, err := uc.configRepo.FindByID(inputs[0].FormFieldID)
+		firstField, err := uc.ConfigRepo.FindByID(inputs[0].FormFieldID)
 		if err != nil {
 			return fmt.Errorf("invalid form_field_id: %w", err)
 		}
 
-		configs, err := uc.configRepo.FindByFormType(firstField.FormType)
+		configs, err := uc.ConfigRepo.FindByFormType(firstField.FormType)
 		if err != nil {
 			return err
 		}
@@ -129,7 +135,7 @@ func (uc *formConfigUsecase) SubmitFieldValues(submissionID uuid.UUID, uploaderI
 	}
 
 	// Delete existing values and re-create
-	if err := uc.valueRepo.DeleteBySubmissionID(submissionID); err != nil {
+	if err := uc.ValueRepo.DeleteBySubmissionID(submissionID); err != nil {
 		return fmt.Errorf("failed to clear existing values: %w", err)
 	}
 
@@ -145,9 +151,9 @@ func (uc *formConfigUsecase) SubmitFieldValues(submissionID uuid.UUID, uploaderI
 		})
 	}
 
-	return uc.valueRepo.CreateBulk(values)
+	return uc.ValueRepo.CreateBulk(values)
 }
 
 func (uc *formConfigUsecase) GetFieldValues(submissionID uuid.UUID) ([]domain.FormFieldValue, error) {
-	return uc.valueRepo.FindBySubmissionID(submissionID)
+	return uc.ValueRepo.FindBySubmissionID(submissionID)
 }

@@ -14,17 +14,23 @@ type ExportUsecase interface {
 	ExportClients(filter map[string]interface{}, format string) ([]byte, error)
 }
 
-type exportUsecase struct {
-	clientRepo domain.ClientRepository
+type ExportUsecaseDeps struct {
+	ClientRepo domain.ClientRepository
 }
 
-func NewExportUsecase(c domain.ClientRepository) ExportUsecase {
-	return &exportUsecase{clientRepo: c}
+type exportUsecase struct {
+	ExportUsecaseDeps
+}
+
+func NewExportUsecase(deps ExportUsecaseDeps) ExportUsecase {
+	return &exportUsecase{
+		ExportUsecaseDeps: deps,
+	}
 }
 
 func (uc *exportUsecase) ExportClients(filter map[string]interface{}, format string) ([]byte, error) {
 	// 1. Fetch Data (No pagination limits for export)
-	clients, _, err := uc.clientRepo.FindAll(filter, 1, -1) // -1 limit hack implies all? Repo needs to support it.
+	clients, _, err := uc.ClientRepo.FindAll(filter, 1, -1) // -1 limit hack implies all? Repo needs to support it.
 	if err != nil {
 		return nil, err
 	}

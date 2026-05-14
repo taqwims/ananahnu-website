@@ -14,24 +14,30 @@ type ConsultantUsecase interface {
 	VerifyProfile(userID uuid.UUID, verified bool, leaderID *uuid.UUID) error
 }
 
-type consultantUsecase struct {
-	profileRepo domain.ConsultantProfileRepository
-	userRepo    domain.UserRepository
+type ConsultantUsecaseDeps struct {
+	ProfileRepo domain.ConsultantProfileRepository
+	UserRepo    domain.UserRepository
 }
 
-func NewConsultantUsecase(p domain.ConsultantProfileRepository, u domain.UserRepository) ConsultantUsecase {
-	return &consultantUsecase{profileRepo: p, userRepo: u}
+type consultantUsecase struct {
+	ConsultantUsecaseDeps
+}
+
+func NewConsultantUsecase(deps ConsultantUsecaseDeps) ConsultantUsecase {
+	return &consultantUsecase{
+		ConsultantUsecaseDeps: deps,
+	}
 }
 
 func (uc *consultantUsecase) GetProfile(userID uuid.UUID) (*domain.ConsultantProfile, error) {
-	return uc.profileRepo.FindByUserID(userID)
+	return uc.ProfileRepo.FindByUserID(userID)
 }
 
 func (uc *consultantUsecase) UpdateProfile(profile *domain.ConsultantProfile) error {
-	existing, err := uc.profileRepo.FindByUserID(profile.UserID)
+	existing, err := uc.ProfileRepo.FindByUserID(profile.UserID)
 	if err != nil {
 		// First time creating profile
-		return uc.profileRepo.Create(profile)
+		return uc.ProfileRepo.Create(profile)
 	}
 
 	// Update existing
@@ -41,29 +47,29 @@ func (uc *consultantUsecase) UpdateProfile(profile *domain.ConsultantProfile) er
 	existing.BankAccountURL = profile.BankAccountURL
 	existing.NPWPURL = profile.NPWPURL
 
-	return uc.profileRepo.Update(existing)
+	return uc.ProfileRepo.Update(existing)
 }
 
 func (uc *consultantUsecase) GetAllProfiles() ([]domain.ConsultantProfile, error) {
-	return uc.profileRepo.FindAll()
+	return uc.ProfileRepo.FindAll()
 }
 
 func (uc *consultantUsecase) VerifyProfile(userID uuid.UUID, verified bool, leaderID *uuid.UUID) error {
-	profile, err := uc.profileRepo.FindByUserID(userID)
+	profile, err := uc.ProfileRepo.FindByUserID(userID)
 	if err != nil {
 		return errors.New("profile not found")
 	}
 	profile.IsVerified = verified
-	if err := uc.profileRepo.Update(profile); err != nil {
+	if err := uc.ProfileRepo.Update(profile); err != nil {
 		return err
 	}
 
 	// Update user's leader if provided
 	if leaderID != nil {
-		user, err := uc.userRepo.FindByID(userID)
+		user, err := uc.UserRepo.FindByID(userID)
 		if err == nil {
 			user.LeaderID = leaderID
-			return uc.userRepo.Update(user)
+			return uc.UserRepo.Update(user)
 		}
 	}
 	return nil

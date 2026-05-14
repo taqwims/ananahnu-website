@@ -22,51 +22,57 @@ type TrainingUsecase interface {
 	RemoveParticipant(id int64) error
 }
 
-type trainingUsecase struct {
-	trainingRepo    domain.TrainingRepository
-	participantRepo domain.TrainingParticipantRepository
+type TrainingUsecaseDeps struct {
+	TrainingRepo    domain.TrainingRepository
+	ParticipantRepo domain.TrainingParticipantRepository
 }
 
-func NewTrainingUsecase(t domain.TrainingRepository, p domain.TrainingParticipantRepository) TrainingUsecase {
-	return &trainingUsecase{trainingRepo: t, participantRepo: p}
+type trainingUsecase struct {
+	TrainingUsecaseDeps
+}
+
+func NewTrainingUsecase(deps TrainingUsecaseDeps) TrainingUsecase {
+	return &trainingUsecase{
+		TrainingUsecaseDeps: deps,
+	}
 }
 
 func (uc *trainingUsecase) GetTrainings(filter map[string]interface{}) ([]domain.Training, error) {
-	return uc.trainingRepo.FindAll(filter)
+	return uc.TrainingRepo.FindAll(filter)
 }
 
 func (uc *trainingUsecase) GetTraining(id int64) (*domain.Training, error) {
-	return uc.trainingRepo.FindByID(id)
+	return uc.TrainingRepo.FindByID(id)
 }
 
 func (uc *trainingUsecase) CreateTraining(training *domain.Training) error {
 	if training.Title == "" {
 		return errors.New("title is required")
 	}
-	return uc.trainingRepo.Create(training)
+	return uc.TrainingRepo.Create(training)
 }
 
 func (uc *trainingUsecase) UpdateTraining(training *domain.Training) error {
-	return uc.trainingRepo.Update(training)
+	return uc.TrainingRepo.Update(training)
 }
 
 func (uc *trainingUsecase) UpdateTrainingStatus(id int64, status string, reason string) error {
 	if status != "APPROVED" && status != "REJECTED" && status != "PENDING" {
 		return errors.New("invalid status")
 	}
-	return uc.trainingRepo.UpdateStatus(id, status, reason)
+	return uc.TrainingRepo.UpdateStatus(id, status, reason)
 }
 
 func (uc *trainingUsecase) DeleteTraining(id int64) error {
-	return uc.trainingRepo.Delete(id)
+	return uc.TrainingRepo.Delete(id)
 }
 
 func (uc *trainingUsecase) GetParticipants(trainingID int64) ([]domain.TrainingParticipant, error) {
-	return uc.participantRepo.FindByTraining(trainingID)
+	return uc.ParticipantRepo.FindByTraining(trainingID)
 }
 
 func (uc *trainingUsecase) GetUserTrainings(userID uuid.UUID) ([]domain.TrainingParticipant, error) {
-	return uc.participantRepo.FindByUser(userID)
+	return uc.ParticipantRepo.FindByUser(userID)
 }
 
 func (uc *trainingUsecase) AddParticipant(trainingID int64, userID uuid.UUID) error {
@@ -75,16 +81,16 @@ func (uc *trainingUsecase) AddParticipant(trainingID int64, userID uuid.UUID) er
 		UserID:     userID,
 		Status:     "PESERTA",
 	}
-	return uc.participantRepo.Create(p)
+	return uc.ParticipantRepo.Create(p)
 }
 
 func (uc *trainingUsecase) UpdateParticipantStatus(trainingID int64, userID uuid.UUID, status string) error {
 	if status != "PESERTA" && status != "LULUS" {
 		return errors.New("status must be PESERTA or LULUS")
 	}
-	return uc.participantRepo.UpdateStatus(trainingID, userID, status)
+	return uc.ParticipantRepo.UpdateStatus(trainingID, userID, status)
 }
 
 func (uc *trainingUsecase) RemoveParticipant(id int64) error {
-	return uc.participantRepo.Delete(id)
+	return uc.ParticipantRepo.Delete(id)
 }

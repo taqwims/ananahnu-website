@@ -8,10 +8,10 @@ import (
 )
 
 type SystemSettingHandler struct {
-	settingUsecase *usecase.SystemSettingUsecase
+	settingUsecase usecase.SystemSettingUsecase
 }
 
-func NewSystemSettingHandler(r *gin.Engine, settingUsecase *usecase.SystemSettingUsecase) {
+func NewSystemSettingHandler(r *gin.Engine, settingUsecase usecase.SystemSettingUsecase) {
 	handler := &SystemSettingHandler{settingUsecase: settingUsecase}
 
 	// Routes

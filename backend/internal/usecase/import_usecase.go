@@ -15,12 +15,18 @@ type ImportUsecase interface {
 	ImportClients(r io.Reader) error
 }
 
-type importUsecase struct {
-	clientRepo domain.ClientRepository
+type ImportUsecaseDeps struct {
+	ClientRepo domain.ClientRepository
 }
 
-func NewImportUsecase(c domain.ClientRepository) ImportUsecase {
-	return &importUsecase{clientRepo: c}
+type importUsecase struct {
+	ImportUsecaseDeps
+}
+
+func NewImportUsecase(deps ImportUsecaseDeps) ImportUsecase {
+	return &importUsecase{
+		ImportUsecaseDeps: deps,
+	}
 }
 
 func (uc *importUsecase) ImportClients(r io.Reader) error {
@@ -81,5 +87,5 @@ func (uc *importUsecase) ImportClients(r io.Reader) error {
 	}
 
 	// 2. Transactional Insert
-	return uc.clientRepo.ImportBulk(clients)
+	return uc.ClientRepo.ImportBulk(clients)
 }

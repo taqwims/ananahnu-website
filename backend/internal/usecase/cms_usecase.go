@@ -27,81 +27,87 @@ type CMSUsecase interface {
 	DeleteCertifiedProduct(id int64) error
 }
 
-type cmsUsecase struct {
-	cmsRepo domain.CMSRepository
+type CMSUsecaseDeps struct {
+	CMSRepo domain.CMSRepository
 }
 
-func NewCMSUsecase(r domain.CMSRepository) CMSUsecase {
-	return &cmsUsecase{cmsRepo: r}
+type cmsUsecase struct {
+	CMSUsecaseDeps
+}
+
+func NewCMSUsecase(deps CMSUsecaseDeps) CMSUsecase {
+	return &cmsUsecase{
+		CMSUsecaseDeps: deps,
+	}
 }
 
 // --- News ---
 
 func (uc *cmsUsecase) GetNews() ([]domain.News, error) {
-	return uc.cmsRepo.FindAllNews(nil)
+	return uc.CMSRepo.FindAllNews(nil)
 }
 
 func (uc *cmsUsecase) CreateNews(news *domain.News) error {
-	return uc.cmsRepo.CreateNews(news)
+	return uc.CMSRepo.CreateNews(news)
 }
 
 func (uc *cmsUsecase) UpdateNews(id int64, news *domain.News) error {
 	news.ID = id
-	return uc.cmsRepo.UpdateNews(news)
+	return uc.CMSRepo.UpdateNews(news)
 }
 
 func (uc *cmsUsecase) DeleteNews(id int64) error {
-	return uc.cmsRepo.DeleteNews(id)
+	return uc.CMSRepo.DeleteNews(id)
 }
 
 // --- Content Blocks ---
 
 func (uc *cmsUsecase) GetContentBlock(key string) (*domain.ContentBlock, error) {
-	return uc.cmsRepo.FindContentBlock(key)
+	return uc.CMSRepo.FindContentBlock(key)
 }
 
 func (uc *cmsUsecase) ListContentBlocks() ([]domain.ContentBlock, error) {
-	return uc.cmsRepo.FindAllContentBlocks()
+	return uc.CMSRepo.FindAllContentBlocks()
 }
 
 func (uc *cmsUsecase) UpdateContentBlock(input domain.ContentBlock) error {
-	return uc.cmsRepo.UpdateContentBlock(&input)
+	return uc.CMSRepo.UpdateContentBlock(&input)
 }
 
 // --- Affiliates ---
 
 func (uc *cmsUsecase) ListAffiliates() ([]domain.Affiliate, error) {
-	return uc.cmsRepo.FindAllAffiliates()
+	return uc.CMSRepo.FindAllAffiliates()
 }
 
 func (uc *cmsUsecase) CreateAffiliate(a *domain.Affiliate) error {
-	return uc.cmsRepo.CreateAffiliate(a)
+	return uc.CMSRepo.CreateAffiliate(a)
 }
 
 func (uc *cmsUsecase) UpdateAffiliate(id int64, a *domain.Affiliate) error {
 	a.ID = id
-	return uc.cmsRepo.UpdateAffiliate(a)
+	return uc.CMSRepo.UpdateAffiliate(a)
 }
 
 func (uc *cmsUsecase) DeleteAffiliate(id int64) error {
-	return uc.cmsRepo.DeleteAffiliate(id)
+	return uc.CMSRepo.DeleteAffiliate(id)
 }
 
 // --- Certified Products ---
 
 func (uc *cmsUsecase) ListCertifiedProducts() ([]domain.CertifiedProduct, error) {
-	return uc.cmsRepo.FindAllCertifiedProducts()
+	return uc.CMSRepo.FindAllCertifiedProducts()
 }
 
 func (uc *cmsUsecase) CreateCertifiedProduct(p *domain.CertifiedProduct) error {
-	return uc.cmsRepo.CreateCertifiedProduct(p)
+	return uc.CMSRepo.CreateCertifiedProduct(p)
 }
 
 func (uc *cmsUsecase) UpdateCertifiedProduct(id int64, p *domain.CertifiedProduct) error {
 	p.ID = id
-	return uc.cmsRepo.UpdateCertifiedProduct(p)
+	return uc.CMSRepo.UpdateCertifiedProduct(p)
 }
 
 func (uc *cmsUsecase) DeleteCertifiedProduct(id int64) error {
-	return uc.cmsRepo.DeleteCertifiedProduct(id)
+	return uc.CMSRepo.DeleteCertifiedProduct(id)
 }

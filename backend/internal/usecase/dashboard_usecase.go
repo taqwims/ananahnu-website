@@ -10,19 +10,20 @@ type DashboardUsecase interface {
 	GetRecentActivities(userID uuid.UUID, role string, limit int) ([]domain.AuditLog, error)
 }
 
-type dashboardUsecase struct {
-	submissionRepo domain.SubmissionRepository
-	clientRepo     domain.ClientRepository
-	auditRepo      domain.AuditLogRepository
-	userRepo       domain.UserRepository
+type DashboardUsecaseDeps struct {
+	SubmissionRepo domain.SubmissionRepository
+	ClientRepo     domain.ClientRepository
+	AuditRepo      domain.AuditLogRepository
+	UserRepo       domain.UserRepository
 }
 
-func NewDashboardUsecase(s domain.SubmissionRepository, c domain.ClientRepository, a domain.AuditLogRepository, u domain.UserRepository) DashboardUsecase {
+type dashboardUsecase struct {
+	DashboardUsecaseDeps
+}
+
+func NewDashboardUsecase(deps DashboardUsecaseDeps) DashboardUsecase {
 	return &dashboardUsecase{
-		submissionRepo: s,
-		clientRepo:     c,
-		auditRepo:      a,
-		userRepo:       u,
+		DashboardUsecaseDeps: deps,
 	}
 }
 
@@ -34,7 +35,7 @@ func (uc *dashboardUsecase) GetStats(userID uuid.UUID, role string) (map[string]
 		facilitatorIDs = append(facilitatorIDs, userID)
 	case "KOORDINATOR":
 		// Find team members
-		team, _ := uc.userRepo.FindByLeaderID(userID)
+		team, _ := uc.UserRepo.FindByLeaderID(userID)
 		for _, u := range team {
 			facilitatorIDs = append(facilitatorIDs, u.ID)
 		}
@@ -49,10 +50,10 @@ func (uc *dashboardUsecase) GetStats(userID uuid.UUID, role string) (map[string]
 	}
 
 	// 1. Get total clients
-	_, totalClients, _ := uc.clientRepo.FindAll(filter, 1, 0)
+	_, totalClients, _ := uc.ClientRepo.FindAll(filter, 1, 0)
 
 	// 2. Get submission breakdown
-	submissions, _ := uc.submissionRepo.FindAll(filter)
+	submissions, _ := uc.SubmissionRepo.FindAll(filter)
 
 	shTerbit := 0
 	sidangFatwa := 0
@@ -84,7 +85,7 @@ func (uc *dashboardUsecase) GetRecentActivities(userID uuid.UUID, role string, l
 	case "HALAL_KONSULTAN":
 		filter["user_ids"] = []uuid.UUID{userID}
 	case "KOORDINATOR":
-		team, _ := uc.userRepo.FindByLeaderID(userID)
+		team, _ := uc.UserRepo.FindByLeaderID(userID)
 		userIDs := []uuid.UUID{userID}
 		for _, u := range team {
 			userIDs = append(userIDs, u.ID)
@@ -92,5 +93,5 @@ func (uc *dashboardUsecase) GetRecentActivities(userID uuid.UUID, role string, l
 		filter["user_ids"] = userIDs
 	}
 
-	return uc.auditRepo.FindRecent(limit, filter)
+	return uc.AuditRepo.FindRecent(limit, filter)
 }

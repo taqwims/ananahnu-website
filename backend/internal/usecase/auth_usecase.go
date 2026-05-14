@@ -41,26 +41,26 @@ type GenerateAccountInput struct {
 	Role  string
 }
 
-type authUsecase struct {
-	userRepo   domain.UserRepository
-	roleRepo   domain.RoleRepository
-	clientRepo domain.ClientRepository
-	tokenRepo  domain.PasswordTokenRepository
-	emailSender email.EmailSender
+type AuthUsecaseDeps struct {
+	UserRepo    domain.UserRepository
+	RoleRepo    domain.RoleRepository
+	ClientRepo  domain.ClientRepository
+	TokenRepo   domain.PasswordTokenRepository
+	EmailSender email.EmailSender
 }
 
-func NewAuthUsecase(u domain.UserRepository, r domain.RoleRepository, c domain.ClientRepository, t domain.PasswordTokenRepository, e email.EmailSender) AuthUsecase {
+type authUsecase struct {
+	AuthUsecaseDeps
+}
+
+func NewAuthUsecase(deps AuthUsecaseDeps) AuthUsecase {
 	return &authUsecase{
-		userRepo:   u,
-		roleRepo:   r,
-		clientRepo: c,
-		tokenRepo:  t,
-		emailSender: e,
+		AuthUsecaseDeps: deps,
 	}
 }
 
 func (uc *authUsecase) Login(email, password string) (string, string, *domain.User, error) {
-	user, err := uc.userRepo.FindByEmail(email)
+	user, err := uc.UserRepo.FindByEmail(email)
 	if err != nil {
 		return "", "", nil, errors.New("invalid credentials")
 	}
@@ -73,7 +73,7 @@ func (uc *authUsecase) Login(email, password string) (string, string, *domain.Us
 	if user.ReferralCode == "" {
 		user.ReferralCode = uc.generateReferralCode(user.FullName)
 		// Best effort update, ignore error
-		_ = uc.userRepo.Update(user)
+		_ = uc.UserRepo.Update(user)
 	}
 
 	// Token Expiration
@@ -104,7 +104,7 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 	}
 
 	// 2. Check if email exists
-	if _, err := uc.userRepo.FindByEmail(input.Email); err == nil {
+	if _, err := uc.UserRepo.FindByEmail(input.Email); err == nil {
 		return errors.New("email already exists")
 	}
 
@@ -115,7 +115,7 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 	}
 
 	// 4. Get Role ID
-	role, err := uc.roleRepo.FindByName(input.Role)
+	role, err := uc.RoleRepo.FindByName(input.Role)
 	if err != nil {
 		return fmt.Errorf("role %s not found", input.Role)
 	}
@@ -126,7 +126,7 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 	// Handle Referral Code
 	var referredByID *uuid.UUID
 	if input.ReferralCode != "" {
-		referrer, err := uc.userRepo.FindByReferralCode(input.ReferralCode)
+		referrer, err := uc.UserRepo.FindByReferralCode(input.ReferralCode)
 		if err == nil && referrer != nil {
 			referredByID = &referrer.ID
 		} else {
@@ -152,7 +152,7 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 		ReferredByID: referredByID,
 	}
 
-	if err := uc.userRepo.Create(user); err != nil {
+	if err := uc.UserRepo.Create(user); err != nil {
 		return err
 	}
 
@@ -162,7 +162,7 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 func (uc *authUsecase) ListFacilitators() ([]domain.User, error) {
 	// Find users with role HALAL_KONSULTAN
 	filter := map[string]interface{}{"role": "HALAL_KONSULTAN"}
-	users, _, err := uc.userRepo.FindAll(filter, 1, 1000)
+	users, _, err := uc.UserRepo.FindAll(filter, 1, 1000)
 	return users, err
 }
 
@@ -172,7 +172,7 @@ func (uc *authUsecase) GenerateAccount(input GenerateAccountInput) (string, erro
 	password := utils.RandomString(10)
 	
 	// 2. Check Email
-	if _, err := uc.userRepo.FindByEmail(input.Email); err == nil {
+	if _, err := uc.UserRepo.FindByEmail(input.Email); err == nil {
 		return "", errors.New("email already exists")
 	}
 
@@ -183,7 +183,7 @@ func (uc *authUsecase) GenerateAccount(input GenerateAccountInput) (string, erro
 	}
 
 	// 4. Find Role
-	role, err := uc.roleRepo.FindByName(input.Role)
+	role, err := uc.RoleRepo.FindByName(input.Role)
 	if err != nil {
 		return "", errors.New("role not found: " + input.Role)
 	}
@@ -198,7 +198,7 @@ func (uc *authUsecase) GenerateAccount(input GenerateAccountInput) (string, erro
 		RoleID:       role.ID,
 	}
 	
-	if err := uc.userRepo.Create(user); err != nil {
+	if err := uc.UserRepo.Create(user); err != nil {
 		return "", err
 	}
 	
@@ -206,7 +206,7 @@ func (uc *authUsecase) GenerateAccount(input GenerateAccountInput) (string, erro
 }
 
 func (uc *authUsecase) ForgotPassword(emailAddr string) error {
-	user, err := uc.userRepo.FindByEmail(emailAddr)
+	user, err := uc.UserRepo.FindByEmail(emailAddr)
 	if err != nil {
 		return errors.New("email not found") // Or return nil to avoid enumeration
 	}
@@ -220,7 +220,7 @@ func (uc *authUsecase) ForgotPassword(emailAddr string) error {
 		ExpiresAt: time.Now().Add(1 * time.Hour),
 	}
 
-	if err := uc.tokenRepo.Create(resetToken); err != nil {
+	if err := uc.TokenRepo.Create(resetToken); err != nil {
 		return err
 	}
 
@@ -229,21 +229,21 @@ func (uc *authUsecase) ForgotPassword(emailAddr string) error {
 	body := fmt.Sprintf("<p>Click here to reset your password: <a href='%s'>%s</a></p>", link, link)
 	
 	// Async send? For now sync
-	return uc.emailSender.SendEmail([]string{emailAddr}, "Reset Password Request", body)
+	return uc.EmailSender.SendEmail([]string{emailAddr}, "Reset Password Request", body)
 }
 
 func (uc *authUsecase) ResetPassword(tokenStr, newPassword string) error {
-	token, err := uc.tokenRepo.FindByToken(tokenStr)
+	token, err := uc.TokenRepo.FindByToken(tokenStr)
 	if err != nil {
 		return errors.New("invalid token")
 	}
 
 	if time.Now().After(token.ExpiresAt) {
-		uc.tokenRepo.Delete(tokenStr)
+		uc.TokenRepo.Delete(tokenStr)
 		return errors.New("token expired")
 	}
 
-	user, err := uc.userRepo.FindByID(token.UserID)
+	user, err := uc.UserRepo.FindByID(token.UserID)
 	if err != nil {
 		return err
 	}
@@ -254,12 +254,12 @@ func (uc *authUsecase) ResetPassword(tokenStr, newPassword string) error {
 	}
 	user.PasswordHash = hash
 
-	if err := uc.userRepo.Update(user); err != nil {
+	if err := uc.UserRepo.Update(user); err != nil {
 		return err
 	}
 
 	// Invalidate token
-	return uc.tokenRepo.Delete(tokenStr)
+	return uc.TokenRepo.Delete(tokenStr)
 }
 
 func (uc *authUsecase) generateReferralCode(fullName string) string {
@@ -296,7 +296,7 @@ func (uc *authUsecase) generateReferralCode(fullName string) string {
 	code := prefix
 	counter := 2
 	for {
-		_, err := uc.userRepo.FindByReferralCode(code)
+		_, err := uc.UserRepo.FindByReferralCode(code)
 		if err != nil {
 			// Record not found, so it's unique
 			return code

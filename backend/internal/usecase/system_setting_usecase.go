@@ -6,16 +6,28 @@ import (
 	"ananahnu/internal/domain"
 )
 
-type SystemSettingUsecase struct {
-	repo domain.SystemSettingRepository
+type SystemSettingUsecase interface {
+	GetSetting(key string, defaultValue string) (string, error)
+	UpdateSetting(key string, value string) error
+	GetAllSettings() ([]domain.SystemSetting, error)
 }
 
-func NewSystemSettingUsecase(repo domain.SystemSettingRepository) *SystemSettingUsecase {
-	return &SystemSettingUsecase{repo: repo}
+type SystemSettingUsecaseDeps struct {
+	Repo domain.SystemSettingRepository
 }
 
-func (u *SystemSettingUsecase) GetSetting(key string, defaultValue string) (string, error) {
-	setting, err := u.repo.GetSetting(key)
+type systemSettingUsecase struct {
+	SystemSettingUsecaseDeps
+}
+
+func NewSystemSettingUsecase(deps SystemSettingUsecaseDeps) SystemSettingUsecase {
+	return &systemSettingUsecase{
+		SystemSettingUsecaseDeps: deps,
+	}
+}
+
+func (u *systemSettingUsecase) GetSetting(key string, defaultValue string) (string, error) {
+	setting, err := u.Repo.GetSetting(key)
 	if err != nil {
 		return "", err
 	}
@@ -25,15 +37,15 @@ func (u *SystemSettingUsecase) GetSetting(key string, defaultValue string) (stri
 	return setting.Value, nil
 }
 
-func (u *SystemSettingUsecase) UpdateSetting(key string, value string) error {
+func (u *systemSettingUsecase) UpdateSetting(key string, value string) error {
 	setting := &domain.SystemSetting{
 		Key:       key,
 		Value:     value,
 		UpdatedAt: time.Now(),
 	}
-	return u.repo.UpdateSetting(setting)
+	return u.Repo.UpdateSetting(setting)
 }
 
-func (u *SystemSettingUsecase) GetAllSettings() ([]domain.SystemSetting, error) {
-	return u.repo.GetAllSettings()
+func (u *systemSettingUsecase) GetAllSettings() ([]domain.SystemSetting, error) {
+	return u.Repo.GetAllSettings()
 }

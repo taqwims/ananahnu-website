@@ -37,7 +37,9 @@ func main() {
 	// 3. Init Dependencies & Migrate
 	db.AutoMigrate(&domain.Client{})
 	clientRepo := repository.NewClientRepository(db)
-	importUC := usecase.NewImportUsecase(clientRepo)
+	importUC := usecase.NewImportUsecase(usecase.ImportUsecaseDeps{
+		ClientRepo: clientRepo,
+	})
 
 	// 4. Open File
 	file, err := os.Open(*filePath)
