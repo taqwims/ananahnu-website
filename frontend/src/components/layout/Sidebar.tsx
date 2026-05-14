@@ -17,6 +17,7 @@ import {
     Monitor,
     Shield,
     TrendingUp,
+    ShieldCheck,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -51,6 +52,7 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
             links: [
                 { name: 'Distribusi Data', to: '/dashboard/distribution', icon: Users, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN'] },
                 { name: 'Monitoring Drafter', to: '/dashboard/monitoring', icon: Monitor, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN'] },
+                { name: 'Ruang Kerja Drafter', to: '/dashboard/drafter-workspace', icon: ShieldCheck, roles: ['DRAFTER', 'ADMIN'] },
                 { name: 'Profil Konsultan', to: '/dashboard/consultant-profile', icon: UserCheck, roles: ['HALAL_KONSULTAN'] },
             ]
         },

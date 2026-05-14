@@ -42,6 +42,7 @@ import TrackSubmission from './pages/tracking/TrackSubmission';
 import ReferralDashboard from './pages/dashboard/ReferralDashboard';
 import AdminReferralDashboard from './pages/dashboard/AdminReferralDashboard';
 import ReferralFeeAdmin from './pages/dashboard/ReferralFeeAdmin';
+import DrafterWorkspace from './pages/dashboard/DrafterWorkspace';
 
 
 import { Toaster } from 'react-hot-toast';
@@ -70,6 +71,7 @@ function App() {
           <Route path="distribution" element={<DistributionAdmin />} />
           <Route path="monitoring" element={<DrafterMonitoring />} />
           <Route path="coordinator-rates" element={<CoordinatorRates />} />
+          <Route path="drafter-workspace" element={<DrafterWorkspace />} />
           <Route path="my-invoices" element={<MyInvoices />} />
 
           <Route path="cms" element={<CMSDashboard />} />

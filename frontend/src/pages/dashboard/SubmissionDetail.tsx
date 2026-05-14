@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, CheckCircle, XCircle, Send, FileText, Loader2, Upload, Link as LinkIcon, Receipt, UserCheck, Eye } from 'lucide-react';
+import { ChevronLeft, CheckCircle, XCircle, Send, FileText, Loader2, Upload, Link as LinkIcon, Receipt, UserCheck, Eye, ShieldCheck } from 'lucide-react';
 import api from '../../services/api';
 import type { Submission, FormFieldValue, Invoice, AuditLog } from '../../types';
 import PaymentSection from '../../components/dashboard/PaymentSection';
@@ -273,6 +273,15 @@ export default function SubmissionDetail() {
                             <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">No. Resi</span>
                             <span className="text-sm font-black text-brand-600 font-mono leading-none">{submission.tracking_number}</span>
                         </div>
+                    )}
+                    {user?.role === 'DRAFTER' && submission.status === 'DRAFTER' && (
+                        <button 
+                            onClick={() => navigate(`/dashboard/drafter-workspace?id=${submission.id}`)}
+                            className="px-4 py-2 bg-brand-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-brand-100 hover:scale-105 transition-all flex items-center gap-2"
+                        >
+                            <ShieldCheck className="w-4 h-4" />
+                            Buka di Ruang Kerja
+                        </button>
                     )}
                 </div>
             </div>
