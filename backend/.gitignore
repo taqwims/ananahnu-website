@@ -1,6 +1,52 @@
-*.env
-*.DS_Store
-uploads
-consultant
-paymentproof
+# Binaries and executables
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+api-server
+main
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment variables
 .env
+*.env
+!.env.example
+
+# Dependencies
+vendor/
+
+# Local data and uploads
+uploads/
+consultant/
+paymentproof/
+consultant-docs/
+temp_docx/
+scratch/
+
+# Database files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+
+# Coverage
+*.out
