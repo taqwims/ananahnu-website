@@ -9,34 +9,121 @@ export const GlobalSettingsPanel = ({
     setSystemSettings,
     onUpdate
 }: GlobalSettingsPanelProps) => {
+    const handleUpdate = async (key: string) => {
+        await onUpdate(key, systemSettings[key] || '');
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in">
+            {/* Konfigurasi Identitas Perusahaan */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-6 border-b border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-900">Pengaturan Sistem Global</h3>
-                    <p className="text-xs text-gray-500 mt-1">Konfigurasi pengaturan yang berlaku secara global pada sistem.</p>
+                    <h3 className="text-lg font-bold text-gray-900">Identitas Perusahaan (Kontrak)</h3>
+                    <p className="text-xs text-gray-500 mt-1">Data ini akan digunakan untuk mengisi informasi Pihak Pertama pada dokumen kontrak otomatis.</p>
+                </div>
+                <div className="p-6 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1.5">Nama Perusahaan</label>
+                            <div className="flex gap-2">
+                                <input 
+                                    className="flex-1 bg-gray-50 border border-gray-200 text-sm rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-semibold"
+                                    value={systemSettings['COMPANY_NAME'] || ''}
+                                    onChange={e => setSystemSettings((p: any) => ({...p, 'COMPANY_NAME': e.target.value}))}
+                                    placeholder="Contoh: PT Ana Nahnu Indonesia"
+                                />
+                                <button onClick={() => handleUpdate('COMPANY_NAME')} className="p-3 bg-brand-50 text-brand-600 rounded-xl hover:bg-brand-100 transition-all">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1.5">Nomor NIB</label>
+                            <div className="flex gap-2">
+                                <input 
+                                    className="flex-1 bg-gray-50 border border-gray-200 text-sm rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-semibold"
+                                    value={systemSettings['COMPANY_NIB'] || ''}
+                                    onChange={e => setSystemSettings((p: any) => ({...p, 'COMPANY_NIB': e.target.value}))}
+                                    placeholder="Contoh: 1234567890"
+                                />
+                                <button onClick={() => handleUpdate('COMPANY_NIB')} className="p-3 bg-brand-50 text-brand-600 rounded-xl hover:bg-brand-100 transition-all">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1.5">Alamat Lengkap Perusahaan</label>
+                        <div className="flex gap-2">
+                            <textarea 
+                                className="flex-1 bg-gray-50 border border-gray-200 text-sm rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-semibold"
+                                value={systemSettings['COMPANY_ADDRESS'] || ''}
+                                onChange={e => setSystemSettings((p: any) => ({...p, 'COMPANY_ADDRESS': e.target.value}))}
+                                placeholder="Dusun Cikohkol, Desa Sukasari..."
+                                rows={2}
+                            />
+                            <button onClick={() => handleUpdate('COMPANY_ADDRESS')} className="p-3 bg-brand-50 text-brand-600 rounded-xl hover:bg-brand-100 transition-all self-end">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1.5">Nama Penandatangan (Default)</label>
+                            <div className="flex gap-2">
+                                <input 
+                                    className="flex-1 bg-gray-50 border border-gray-200 text-sm rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-semibold"
+                                    value={systemSettings['COMPANY_DIRECTOR_NAME'] || ''}
+                                    onChange={e => setSystemSettings((p: any) => ({...p, 'COMPANY_DIRECTOR_NAME': e.target.value}))}
+                                    placeholder="Contoh: Ahmad Fauzi"
+                                />
+                                <button onClick={() => handleUpdate('COMPANY_DIRECTOR_NAME')} className="p-3 bg-brand-50 text-brand-600 rounded-xl hover:bg-brand-100 transition-all">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1.5">Jabatan Penandatangan (Default)</label>
+                            <div className="flex gap-2">
+                                <input 
+                                    className="flex-1 bg-gray-50 border border-gray-200 text-sm rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-semibold"
+                                    value={systemSettings['COMPANY_DIRECTOR_POSITION'] || ''}
+                                    onChange={e => setSystemSettings((p: any) => ({...p, 'COMPANY_DIRECTOR_POSITION': e.target.value}))}
+                                    placeholder="Contoh: Direktur Utama"
+                                />
+                                <button onClick={() => handleUpdate('COMPANY_DIRECTOR_POSITION')} className="p-3 bg-brand-50 text-brand-600 rounded-xl hover:bg-brand-100 transition-all">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Pengaturan Harga */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-6 border-b border-gray-100">
+                    <h3 className="text-lg font-bold text-gray-900">Pengaturan Harga & Layanan</h3>
                 </div>
                 <div className="p-6 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-xs font-bold text-gray-700 mb-1.5">Harga Default Self Declare Mandiri (Rp)</label>
-                            <input 
-                                type="number" 
-                                className="w-full bg-gray-50 border border-gray-200 text-sm rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-semibold"
-                                value={systemSettings['SD_MANDIRI_COST'] || ''}
-                                onChange={e => setSystemSettings((p: any) => ({...p, 'SD_MANDIRI_COST': e.target.value}))}
-                                placeholder="Contoh: 280000"
-                            />
-                            <p className="text-[10px] text-gray-500 mt-1">Digunakan sebagai harga default untuk layanan Self Declare Mandiri.</p>
+                            <div className="flex gap-2">
+                                <input 
+                                    type="number" 
+                                    className="flex-1 bg-gray-50 border border-gray-200 text-sm rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-semibold"
+                                    value={systemSettings['SD_MANDIRI_COST'] || ''}
+                                    onChange={e => setSystemSettings((p: any) => ({...p, 'SD_MANDIRI_COST': e.target.value}))}
+                                    placeholder="Contoh: 280000"
+                                />
+                                <button onClick={() => handleUpdate('SD_MANDIRI_COST')} className="p-3 bg-brand-50 text-brand-600 rounded-xl hover:bg-brand-100 transition-all">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                    <div className="flex justify-end pt-4">
-                        <button 
-                            onClick={() => onUpdate('SD_MANDIRI_COST', systemSettings['SD_MANDIRI_COST'] || '280000')} 
-                            className="px-6 py-2.5 bg-brand-600 text-white text-sm font-bold rounded-xl shadow-md shadow-brand-200 hover:bg-brand-700 transition-all"
-                        >
-                            Simpan Pengaturan
-                        </button>
                     </div>
                 </div>
             </div>

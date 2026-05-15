@@ -3,6 +3,7 @@ import { Loader2, Save, Plus, Trash, BookOpen } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { formatRupiah } from '../../utils/format';
+import { toast } from 'react-hot-toast';
 import type { BillingComponent } from '../../types';
 
 type Props = {
@@ -291,11 +292,11 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
 
         try {
             await api.post(`/submissions/${submissionId}/cost-detail`, payload);
-            alert("Rincian biaya berhasil disimpan!");
+            toast.success("Rincian biaya berhasil disimpan!");
             if (onSaved) onSaved();
         } catch (err) {
             console.error(err);
-            alert("Gagal menyimpan data");
+            toast.error("Gagal menyimpan data");
         } finally {
             setSaving(false);
         }

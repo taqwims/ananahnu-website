@@ -31,8 +31,16 @@ const Header = ({ toggleSidebar }: { toggleSidebar: () => void }) => {
                         <p className="text-sm font-medium text-gray-900">{user?.full_name || 'Guest'}</p>
                         <p className="text-xs text-gray-500 uppercase">{user?.role?.replace(/_/g, ' ') || 'Visitor'}</p>
                     </div>
-                    <div className="w-10 h-10 bg-brand-600 rounded-full flex items-center justify-center border-2 border-white shadow-sm group-hover:scale-105 transition-transform">
-                        <User className="text-white w-5 h-5" />
+                    <div className="w-10 h-10 bg-brand-600 rounded-full flex items-center justify-center border-2 border-white shadow-sm group-hover:scale-105 transition-transform overflow-hidden">
+                        {user?.avatar_url ? (
+                            <img 
+                                src={user.avatar_url.startsWith('http') ? user.avatar_url : `${import.meta.env.VITE_API_URL}${user.avatar_url}`} 
+                                alt={user.full_name} 
+                                className="w-full h-full object-cover"
+                            />
+                        ) : (
+                            <User className="text-white w-5 h-5" />
+                        )}
                     </div>
                 </div>
             </div>

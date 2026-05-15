@@ -294,8 +294,15 @@ export default function RegisterPage() {
                                                     {...register('confirm_password')}
                                                     type={showPassword ? "text" : "password"}
                                                     placeholder="••••••••"
-                                                    className="glass-input pl-12 h-14 bg-white/50"
+                                                    className="glass-input pl-12 pr-12 h-14 bg-white/50"
                                                 />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                                >
+                                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                                </button>
                                             </div>
                                             {errors.confirm_password && <p className="text-red-500 text-[10px] mt-2 font-bold ml-1">{errors.confirm_password.message}</p>}
                                         </div>

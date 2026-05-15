@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../services/api';
 import type { Submission, User } from '../types';
+import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 
 export const useDistributionAdmin = () => {
@@ -11,6 +12,7 @@ export const useDistributionAdmin = () => {
     const [selectedIDs, setSelectedIDs] = useState<string[]>([]);
     const [selectedDrafter, setSelectedDrafter] = useState('');
     const [assigning, setAssigning] = useState(false);
+    const user = useAuthStore(state => state.user);
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -66,12 +68,13 @@ export const useDistributionAdmin = () => {
     };
 
     const groupedData = useMemo(() => {
-        const filtered = submissions.filter(s => 
-            s.client?.business_name.toLowerCase().includes(search.toLowerCase()) ||
-            s.client?.client_name?.toLowerCase().includes(search.toLowerCase()) ||
-            s.client?.facilitator?.full_name.toLowerCase().includes(search.toLowerCase()) ||
-            s.client?.facilitator?.leader?.full_name.toLowerCase().includes(search.toLowerCase())
-        );
+        const filtered = submissions.filter(s => {
+            if (user?.role === 'VERIFIKATOR' && s.service_type !== 'REGULER') return false;
+            return s.client?.business_name.toLowerCase().includes(search.toLowerCase()) ||
+                s.client?.client_name?.toLowerCase().includes(search.toLowerCase()) ||
+                s.client?.facilitator?.full_name.toLowerCase().includes(search.toLowerCase()) ||
+                s.client?.facilitator?.leader?.full_name.toLowerCase().includes(search.toLowerCase());
+        });
 
         const groups: Record<string, { submissions: Submission[], coordinator: string }> = {};
         

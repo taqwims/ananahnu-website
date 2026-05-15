@@ -81,7 +81,6 @@ export const useReferralFeeAdmin = () => {
     };
 
     const markAsPaid = async (id: string) => {
-        if (!window.confirm('Apakah Anda yakin ingin menandai komisi ini sebagai SUDAH DIBAYAR?')) return;
         try {
             await api.put(`/billing/referral-commissions/${id}/pay`);
             fetchCommissions();

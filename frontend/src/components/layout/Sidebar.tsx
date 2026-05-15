@@ -19,6 +19,7 @@ import {
     TrendingUp,
     ShieldCheck,
     MessageSquare,
+    UserCircle,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -42,19 +43,21 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
             name: 'Main Menu',
             links: [
                 { name: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-                { name: 'Klien', to: '/dashboard/clients', icon: Users, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'KOORDINATOR', 'DRAFTER', 'QC_OFFICER', 'MARKETING'] },
-                { name: 'Pengajuan', to: '/dashboard/submissions', icon: FileText, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'KOORDINATOR', 'QC_OFFICER', 'DRAFTER', 'MARKETING'] },
+                { name: 'Profil Saya', to: '/dashboard/profile', icon: Settings },
+                { name: 'Klien', to: '/dashboard/clients', icon: Users, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'KOORDINATOR', 'DRAFTER', 'QC_OFFICER', 'MARKETING', 'VERIFIKATOR'] },
+                { name: 'Pengajuan', to: '/dashboard/submissions', icon: FileText, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'KOORDINATOR', 'QC_OFFICER', 'DRAFTER', 'MARKETING', 'VERIFIKATOR'] },
                 { name: 'Tagihan Saya', to: '/dashboard/my-invoices', icon: CreditCard, roles: ['KOORDINATOR', 'HALAL_KONSULTAN', 'ADMIN', 'MARKETING'] },
             ]
         },
         {
             name: 'Workflow',
-            roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN', 'HALAL_KONSULTAN'],
+            roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN', 'HALAL_KONSULTAN', 'VERIFIKATOR'],
             links: [
-                { name: 'Distribusi Data', to: '/dashboard/distribution', icon: Users, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN'] },
-                { name: 'Monitoring Drafter', to: '/dashboard/monitoring', icon: Monitor, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN'] },
+                { name: 'Distribusi Data', to: '/dashboard/distribution', icon: Users, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN', 'VERIFIKATOR'] },
+                { name: 'Monitoring Drafter', to: '/dashboard/monitoring', icon: Monitor, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN', 'VERIFIKATOR'] },
                 { name: 'Ruang Kerja Drafter', to: '/dashboard/drafter-workspace', icon: ShieldCheck, roles: ['DRAFTER', 'ADMIN'] },
                 { name: 'Ruang Kerja QC', to: '/dashboard/qc-workspace', icon: ShieldCheck, roles: ['QC_OFFICER', 'ADMIN'] },
+                { name: 'Ruang Kerja Verifikator', to: '/dashboard/verifikator-workspace', icon: ShieldCheck, roles: ['VERIFIKATOR', 'ADMIN'] },
                 { name: 'Profil Konsultan', to: '/dashboard/consultant-profile', icon: UserCheck, roles: ['HALAL_KONSULTAN'] },
             ]
         },
@@ -123,9 +126,22 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
 
                     {/* User Info */}
                     {user && (
-                        <div className="px-4 py-3 border-b border-glass-border">
-                            <p className="text-sm font-medium text-gray-800 truncate">{user.full_name}</p>
-                            <p className="text-xs text-gray-500 truncate">{roleName.replace(/_/g, ' ')}</p>
+                        <div className="px-4 py-4 border-b border-glass-border flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center border border-brand-100 overflow-hidden shrink-0 shadow-sm">
+                                {user.avatar_url ? (
+                                    <img 
+                                        src={user.avatar_url.startsWith('http') ? user.avatar_url : `${import.meta.env.VITE_API_URL}${user.avatar_url}`} 
+                                        alt={user.full_name} 
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <UserCircle className="w-6 h-6 text-brand-600" />
+                                )}
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-sm font-bold text-gray-800 truncate">{user.full_name}</p>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">{roleName.replace(/_/g, ' ')}</p>
+                            </div>
                         </div>
                     )}
 

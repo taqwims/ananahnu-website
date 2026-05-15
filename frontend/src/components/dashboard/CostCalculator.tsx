@@ -3,6 +3,7 @@ import { Loader2, Save, CheckCircle, CreditCard } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { formatRupiah } from '../../utils/format';
+import { toast } from 'react-hot-toast';
 
 type Props = {
     submissionId: string;
@@ -53,11 +54,11 @@ export default function CostCalculator({ submissionId, onSaved, readOnly = false
 
         try {
             await api.post(`/submissions/${submissionId}/cost-detail`, payload);
-            alert("Data biaya berhasil disimpan!");
+            toast.success("Data biaya berhasil disimpan!");
             if (onSaved) onSaved();
         } catch (err) {
             console.error(err);
-            alert("Gagal menyimpan data");
+            toast.error("Gagal menyimpan data");
         } finally {
             setSaving(false);
         }

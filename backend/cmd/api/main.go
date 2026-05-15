@@ -283,6 +283,10 @@ func main() {
 	settingUC := usecase.NewSystemSettingUsecase(usecase.SystemSettingUsecaseDeps{
 		Repo: settingRepo,
 	})
+	documentUC := usecase.NewDocumentUsecase(usecase.DocumentUsecaseDeps{
+		SubmissionRepo: submissionRepo,
+		SettingRepo:    settingRepo,
+	})
 
 	// 7. Setup Router & Handlers
 	r := gin.Default()
@@ -321,6 +325,7 @@ func main() {
 	httpDelivery.NewBillingConfigHandler(r, billingConfigUC)
 	httpDelivery.NewMediaHandler(r)
 	httpDelivery.NewSystemSettingHandler(r, settingUC)
+	httpDelivery.NewDocumentHandler(r, documentUC)
 
 	// Static files
 	r.Static("/uploads", "./uploads")

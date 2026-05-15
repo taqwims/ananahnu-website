@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Loader2, DollarSign, Save, Search, User as UserIcon } from 'lucide-react';
 import api from '../../services/api';
 import { formatRupiah } from '../../utils/format';
+import ConfirmModal from '../../components/ui/ConfirmModal';
+import toast from 'react-hot-toast';
 
 export default function CoordinatorRates() {
     const [loading, setLoading] = useState(true);
@@ -10,6 +12,7 @@ export default function CoordinatorRates() {
     const [coordinators, setCoordinators] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [editableRates, setEditableRates] = useState<Record<string, number>>({});
+    const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; userId: string; rate: number } | null>(null);
 
     const fetchData = async () => {
         setLoading(true);
@@ -55,8 +58,9 @@ export default function CoordinatorRates() {
             // Refresh rates
             const rateRes = await api.get('/billing-config/coordinator-rates');
             setRates(rateRes.data || []);
-        } catch (err) {
-            alert("Gagal menyimpan tarif");
+            toast.success("Tarif berhasil diperbarui");
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || "Gagal menyimpan tarif");
         } finally {
             setSaving(null);
         }
@@ -123,7 +127,11 @@ export default function CoordinatorRates() {
                                         />
                                     </div>
                                     <button 
-                                        onClick={() => handleUpdateRate(coord.id, editableRates[coord.id] || 0)}
+                                        onClick={() => setConfirmModal({ 
+                                            isOpen: true, 
+                                            userId: coord.id, 
+                                            rate: editableRates[coord.id] || 0 
+                                        })}
                                         disabled={saving === coord.id}
                                         className="p-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 disabled:opacity-50"
                                     >
@@ -144,6 +152,18 @@ export default function CoordinatorRates() {
                     <DollarSign className="w-12 h-12 text-gray-200 mx-auto mb-4" />
                     <p className="text-gray-400">Tidak ada koordinator yang ditemukan.</p>
                 </div>
+            )}
+
+            {confirmModal && (
+                <ConfirmModal 
+                    isOpen={confirmModal.isOpen}
+                    onClose={() => setConfirmModal(null)}
+                    onConfirm={() => handleUpdateRate(confirmModal.userId, confirmModal.rate)}
+                    title="Simpan Perubahan Tarif"
+                    message={`Apakah Anda yakin ingin mengubah tarif untuk koordinator ini menjadi ${formatRupiah(confirmModal.rate)} per SH Terbit?`}
+                    confirmText="Ya, Simpan"
+                    variant="info"
+                />
             )}
         </div>
     );

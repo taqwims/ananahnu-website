@@ -44,7 +44,9 @@ import AdminReferralDashboard from './pages/dashboard/AdminReferralDashboard';
 import ReferralFeeAdmin from './pages/dashboard/ReferralFeeAdmin';
 import DrafterWorkspace from './pages/dashboard/DrafterWorkspace';
 import QCWorkspace from './pages/dashboard/QCWorkspace';
+import VerifikatorWorkspace from './pages/dashboard/VerifikatorWorkspace';
 import NotificationSettings from './pages/dashboard/NotificationSettings';
+import ProfilePage from './pages/dashboard/Profile';
 
 
 import { Toaster } from 'react-hot-toast';
@@ -75,6 +77,7 @@ function App() {
           <Route path="coordinator-rates" element={<CoordinatorRates />} />
           <Route path="drafter-workspace" element={<DrafterWorkspace />} />
           <Route path="qc-workspace" element={<QCWorkspace />} />
+          <Route path="verifikator-workspace" element={<VerifikatorWorkspace />} />
           <Route path="my-invoices" element={<MyInvoices />} />
 
           <Route path="cms" element={<CMSDashboard />} />
@@ -89,11 +92,12 @@ function App() {
           <Route path="team" element={<CoordinatorDashboard />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="consultant-verification" element={<ConsultantVerification />} />
-           <Route path="referrals" element={<ReferralDashboard />} />
-           <Route path="admin-referrals" element={<AdminReferralDashboard />} />
-           <Route path="referral-fees" element={<ReferralFeeAdmin />} />
-           <Route path="notification-settings" element={<NotificationSettings />} />
-         </Route>
+          <Route path="referrals" element={<ReferralDashboard />} />
+          <Route path="admin-referrals" element={<AdminReferralDashboard />} />
+          <Route path="referral-fees" element={<ReferralFeeAdmin />} />
+          <Route path="notification-settings" element={<NotificationSettings />} />
+          <Route path="profile" element={<ProfilePage />} />
+        </Route>
 
 
         {/* Public Routes */}

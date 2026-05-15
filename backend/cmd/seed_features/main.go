@@ -29,7 +29,7 @@ func main() {
 	seedGeography(db)
 
 	// --- Roles (ensure new roles exist) ---
-	newRoles := []string{"KOORDINATOR", "ADMIN_PELATIHAN", "ADMIN_KEUANGAN", "DIRECTOR", "HALAL_KONSULTAN", "QC_OFFICER", "DRAFTER", "CLIENT"}
+	newRoles := []string{"KOORDINATOR", "ADMIN_PELATIHAN", "ADMIN_KEUANGAN", "DIRECTOR", "HALAL_KONSULTAN", "QC_OFFICER", "DRAFTER", "CLIENT", "VERIFIKATOR"}
 	for _, name := range newRoles {
 		var r domain.Role
 		db.FirstOrCreate(&r, domain.Role{Name: name})

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../services/api';
 import type { Submission } from '../types';
+import { useAuthStore } from '../store/authStore';
 
 export type TabType = 'ongoing' | 'completed';
 export type ServiceFilter = 'ALL' | 'REGULER' | 'SELF_DECLARE';
@@ -12,6 +13,7 @@ export const useDrafterMonitoring = () => {
     const [activeTab, setActiveTab] = useState<TabType>('ongoing');
     const [serviceFilter, setServiceFilter] = useState<ServiceFilter>('ALL');
     const [expandedDrafters, setExpandedDrafters] = useState<Record<string, boolean>>({});
+    const user = useAuthStore(state => state.user);
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -57,7 +59,9 @@ export const useDrafterMonitoring = () => {
                                 s.client?.client_name?.toLowerCase().includes(searchLower) ||
                                 (s as any).assigned_drafter?.full_name.toLowerCase().includes(searchLower);
 
-            return matchesTab && matchesService && matchesSearch;
+            const isVerifikatorRestricted = user?.role === 'VERIFIKATOR' && !isReguler;
+
+            return matchesTab && matchesService && matchesSearch && !isVerifikatorRestricted;
         });
     }, [submissions, activeTab, serviceFilter, search]);
 

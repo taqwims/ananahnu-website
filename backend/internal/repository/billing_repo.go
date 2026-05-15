@@ -130,5 +130,13 @@ func (r *coordinatorRateRepository) FindAll() ([]domain.CoordinatorRate, error) 
 }
 
 func (r *coordinatorRateRepository) Save(rate *domain.CoordinatorRate) error {
+	// If ID is zero, check if record with same coordinator_id exists to perform an update
+	if rate.ID == 0 {
+		var existing domain.CoordinatorRate
+		if err := r.db.Where("coordinator_id = ?", rate.CoordinatorID).First(&existing).Error; err == nil {
+			rate.ID = existing.ID
+			rate.CreatedAt = existing.CreatedAt
+		}
+	}
 	return r.db.Save(rate).Error
 }

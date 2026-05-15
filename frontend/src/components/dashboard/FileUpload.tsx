@@ -7,9 +7,16 @@ interface FileUploadProps {
     subfolder?: string;
     accept?: string;
     label?: string;
+    className?: string;
 }
 
-export default function FileUpload({ onUploadSuccess, subfolder = 'general', accept = 'image/*,.pdf', label = 'Pilih File' }: FileUploadProps) {
+export default function FileUpload({ 
+    onUploadSuccess, 
+    subfolder = 'general', 
+    accept = 'image/*,.pdf', 
+    label = 'Pilih File',
+    className = ''
+}: FileUploadProps) {
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -42,26 +49,28 @@ export default function FileUpload({ onUploadSuccess, subfolder = 'general', acc
         }
     };
 
+    const uploadId = React.useId();
+
     return (
         <div className="flex flex-col gap-1 w-full">
             <div className="flex items-center gap-2">
                 <input
                     type="file"
-                    id={`file-upload-${label.replace(/\s+/g, '-').toLowerCase()}`}
+                    id={uploadId}
                     className="hidden"
                     accept={accept}
                     onChange={handleFileChange}
                     disabled={uploading}
                 />
                 <label
-                    htmlFor={`file-upload-${label.replace(/\s+/g, '-').toLowerCase()}`}
-                    className={`flex items-center gap-2 px-3 py-2 border-2 border-dashed rounded-lg cursor-pointer transition-all ${
+                    htmlFor={uploadId}
+                    className={`flex items-center justify-center gap-2 px-3 py-2 border-2 border-dashed rounded-lg cursor-pointer transition-all ${
                         uploading ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed' : 
                         'bg-brand-50/30 border-brand-200 text-brand-700 hover:bg-brand-50 hover:border-brand-400'
-                    }`}
+                    } ${className}`}
                 >
                     {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                    <span className="text-xs font-semibold">{uploading ? 'Mengunggah...' : label}</span>
+                    {label && <span className="text-xs font-semibold">{uploading ? 'Mengunggah...' : label}</span>}
                 </label>
             </div>
             {error && (

@@ -50,6 +50,7 @@ func NewUserManagementHandler(r *gin.Engine, uc usecase.UserManagementUsecase) {
 	profile := r.Group("/profile")
 	profile.Use(middleware.AuthMiddleware())
 	{
+		profile.GET("", handler.GetProfile)
 		profile.PUT("", handler.UpdateProfile)
 		profile.GET("/referrals", handler.GetReferrals)
 		profile.GET("/commissions", handler.GetCommissions)
@@ -143,6 +144,22 @@ func (h *UserManagementHandler) UpdateUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "user updated"})
+}
+
+func (h *UserManagementHandler) GetProfile(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	user, err := h.userMgmtUC.GetUser(userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
 }
 
 func (h *UserManagementHandler) UpdateProfile(c *gin.Context) {

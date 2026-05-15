@@ -24,6 +24,14 @@ class UserService extends BaseService {
     async resetPassword(id: string) {
         return (await this.api.put(`/admin/users/${id}/reset-password`)).data;
     }
+
+    async getProfile() {
+        return (await this.api.get('/profile')).data;
+    }
+
+    async updateProfile(data: any) {
+        return (await this.api.put('/profile', data)).data;
+    }
 }
 
 export const userService = new UserService();

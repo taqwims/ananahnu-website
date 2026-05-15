@@ -2,6 +2,8 @@ import { AlertCircle } from 'lucide-react';
 import { useReferralFeeAdmin } from '../../hooks/useReferralFeeAdmin';
 import { FeeConfigCard } from '../../components/dashboard/referral/FeeConfigCard';
 import { CommissionTable } from '../../components/dashboard/referral/CommissionTable';
+import { useState } from 'react';
+import ConfirmModal from '../../components/ui/ConfirmModal';
 
 const ReferralFeeAdmin = () => {
     const {
@@ -11,6 +13,15 @@ const ReferralFeeAdmin = () => {
         isSavingFee,
         saveSetting, markAsPaid
     } = useReferralFeeAdmin();
+
+    const [paymentModal, setPaymentModal] = useState<{ isOpen: boolean; commissionId: string | null }>({
+        isOpen: false,
+        commissionId: null
+    });
+
+    const handleMarkAsPaid = (id: string) => {
+        setPaymentModal({ isOpen: true, commissionId: id });
+    };
 
     return (
         <div className="max-w-7xl mx-auto p-6 space-y-10 pb-20">
@@ -51,7 +62,21 @@ const ReferralFeeAdmin = () => {
                     loading={loading}
                     statusFilter={statusFilter}
                     onStatusChange={setStatusFilter}
-                    onMarkAsPaid={markAsPaid}
+                    onMarkAsPaid={handleMarkAsPaid}
+                />
+
+                <ConfirmModal 
+                    isOpen={paymentModal.isOpen}
+                    onClose={() => setPaymentModal({ isOpen: false, commissionId: null })}
+                    onConfirm={() => {
+                        if (paymentModal.commissionId) {
+                            markAsPaid(paymentModal.commissionId);
+                        }
+                    }}
+                    title="Konfirmasi Pembayaran Komisi"
+                    message="Apakah Anda yakin ingin menandai komisi ini sebagai SUDAH DIBAYAR? Pastikan dana telah ditransfer ke mitra."
+                    confirmText="Ya, Sudah Dibayar"
+                    variant="info"
                 />
             </div>
         </div>

@@ -193,7 +193,10 @@ func (uc *submissionWorkflowUsecase) Approve(id uuid.UUID, userID uuid.UUID, use
 		return errors.New("no approval action available for current status")
 	}
 
-	if userRole != requiredRole && userRole != "ADMIN" && userRole != "DIRECTOR" {
+	// Verifikator can only approve REGULER submissions when QC_OFFICER is required
+	isVerifikatorAllowed := userRole == "VERIFIKATOR" && requiredRole == "QC_OFFICER" && sub.ServiceType == "REGULER"
+
+	if userRole != requiredRole && userRole != "ADMIN" && userRole != "DIRECTOR" && !isVerifikatorAllowed {
 		return fmt.Errorf("unauthorized: role %s cannot approve in status %s", userRole, sub.Status)
 	}
 
@@ -221,7 +224,7 @@ func (uc *submissionWorkflowUsecase) ApproveWithDrafter(id uuid.UUID, userID uui
 		return errors.New("assign drafter only available when status is QC_OFFICER")
 	}
 
-	if userRole != "QC_OFFICER" && userRole != "ADMIN" && userRole != "DIRECTOR" {
+	if userRole != "QC_OFFICER" && userRole != "ADMIN" && userRole != "DIRECTOR" && !(userRole == "VERIFIKATOR" && sub.ServiceType == "REGULER") {
 		return fmt.Errorf("unauthorized: role %s cannot assign drafter", userRole)
 	}
 
@@ -251,8 +254,8 @@ func (uc *submissionWorkflowUsecase) ApproveWithDrafter(id uuid.UUID, userID uui
 }
 
 func (uc *submissionWorkflowUsecase) BulkApproveWithDrafter(ids []uuid.UUID, userID uuid.UUID, userRole string, drafterID uuid.UUID) error {
-	if userRole != "QC_OFFICER" && userRole != "ADMIN" && userRole != "DIRECTOR" {
-		return errors.New("unauthorized: only QC_OFFICER can distribute submissions")
+	if userRole != "QC_OFFICER" && userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "VERIFIKATOR" {
+		return errors.New("unauthorized: only QC_OFFICER/VERIFIKATOR can distribute submissions")
 	}
 
 	var errs []string
@@ -275,7 +278,7 @@ func (uc *submissionWorkflowUsecase) AssignConsultant(id uuid.UUID, userID uuid.
 		return err
 	}
 
-	if userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "KOORDINATOR" && userRole != "QC_OFFICER" {
+	if userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "KOORDINATOR" && userRole != "QC_OFFICER" && userRole != "VERIFIKATOR" {
 		return errors.New("unauthorized to assign consultant")
 	}
 

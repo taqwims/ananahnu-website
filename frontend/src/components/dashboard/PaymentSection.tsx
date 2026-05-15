@@ -4,6 +4,7 @@ import api from '../../services/api';
 import { loadSnapJs, isSnapReady } from '../../utils/midtrans';
 import { useAuthStore } from '../../store/authStore';
 import { formatRupiah } from '../../utils/format';
+import { toast } from 'react-hot-toast';
 import type { Submission, Payment, FormFieldValue } from '../../types';
 import FileUpload from './FileUpload';
 
@@ -76,7 +77,7 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
             onPaymentSuccess();
         } catch (err) {
             console.error('Failed to sync payment:', err);
-            alert('Gagal sinkronisasi status. Silakan coba lagi nanti.');
+            toast.error('Gagal sinkronisasi status. Silakan coba lagi nanti.');
         } finally {
             setLoading(false);
         }
@@ -105,7 +106,7 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
     const handlePay = async () => {
         // Prerequisites check
         if (submission.service_type === 'REGULER' && !fieldValues.find(fv => fv.form_field.field_key === 'data_kontrak' && fv.file_url)) {
-            alert('Silakan unggah Dokumen Kontrak terlebih dahulu.');
+            toast.error('Silakan unggah Dokumen Kontrak terlebih dahulu.');
             return;
         }
 
@@ -135,11 +136,11 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                             loadHistory();
                         },
                         onPending: function (_result: Record<string, unknown>) {
-                            alert('Pembayaran sedang diproses. Status akan diperbarui secara otomatis.');
+                            toast.success('Pembayaran sedang diproses. Status akan diperbarui secara otomatis.');
                             loadHistory();
                         },
                         onError: function (_result: Record<string, unknown>) {
-                            alert('Pembayaran gagal. Silakan coba lagi.');
+                            toast.error('Pembayaran gagal. Silakan coba lagi.');
                             loadHistory();
                         },
                         onClose: function () {
@@ -154,7 +155,7 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
             } else {
                 // Manual payment
                 if (!proofUrl) {
-                    alert('Silakan pilih file bukti pembayaran atau masukkan URL.');
+                    toast.error('Silakan pilih file bukti pembayaran atau masukkan URL.');
                     setLoading(false);
                     return;
                 }
@@ -164,14 +165,14 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                     amount: amount,
                     proof_url: proofUrl,
                 });
-                alert('Bukti pembayaran berhasil dikirim. Menunggu verifikasi admin.');
+                toast.success('Bukti pembayaran berhasil dikirim. Menunggu verifikasi admin.');
                 onPaymentSuccess();
                 loadHistory();
             }
         } catch (err: any) {
             console.error(err);
             const msg = err.response?.data?.error || err.message || 'Gagal membuat pembayaran';
-            alert(`Error: ${msg}`);
+            toast.error(`Error: ${msg}`);
         } finally {
             setLoading(false);
         }

@@ -59,6 +59,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			"role":          user.Role.Name,
 			"leader":        user.Leader,
 			"referral_code": user.ReferralCode,
+			"phone":         user.Phone,
+			"address":       user.Address,
+			"province_id":   user.ProvinceID,
+			"regency_id":    user.RegencyID,
+			"avatar_url":    user.AvatarURL,
 		},
 	})
 }

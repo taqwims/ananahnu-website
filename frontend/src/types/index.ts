@@ -9,6 +9,9 @@ export interface User {
     leader_id?: string;
     leader?: User;
     referral_code?: string;
+    province_id?: number;
+    regency_id?: number;
+    avatar_url?: string;
     created_at?: string;
     updated_at?: string;
 }

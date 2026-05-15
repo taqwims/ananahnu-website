@@ -25,8 +25,13 @@ type UpdateUserInput struct {
 }
 
 type UpdateProfileInput struct {
-	FullName string `json:"full_name"`
-	Password string `json:"password,omitempty"`
+	FullName   string `json:"full_name"`
+	Phone      string `json:"phone"`
+	Address    string `json:"address"`
+	ProvinceID int64  `json:"province_id"`
+	RegencyID  int64  `json:"regency_id"`
+	AvatarURL  string `json:"avatar_url"`
+	Password   string `json:"password,omitempty"`
 }
 
 type UserManagementUsecase interface {
@@ -155,6 +160,21 @@ func (uc *userManagementUsecase) UpdateProfile(id uuid.UUID, input UpdateProfile
 
 	if input.FullName != "" {
 		user.FullName = input.FullName
+	}
+	if input.Phone != "" {
+		user.Phone = input.Phone
+	}
+	if input.Address != "" {
+		user.Address = input.Address
+	}
+	if input.ProvinceID != 0 {
+		user.ProvinceID = input.ProvinceID
+	}
+	if input.RegencyID != 0 {
+		user.RegencyID = input.RegencyID
+	}
+	if input.AvatarURL != "" {
+		user.AvatarURL = input.AvatarURL
 	}
 
 	if input.Password != "" {

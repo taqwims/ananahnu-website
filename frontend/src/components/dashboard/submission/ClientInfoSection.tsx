@@ -37,7 +37,7 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, processing
         setIsEditingClient(false);
     };
 
-    const canEdit = (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'DRAFTER' || user?.role === 'QC_OFFICER' || user?.role === 'KOORDINATOR' || user?.role === 'HALAL_KONSULTAN');
+    const canEdit = (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'DRAFTER' || user?.role === 'QC_OFFICER' || user?.role === 'KOORDINATOR' || user?.role === 'HALAL_KONSULTAN' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER'));
 
     return (
         <div className="glass-panel p-6 shadow-xl border border-white/40">

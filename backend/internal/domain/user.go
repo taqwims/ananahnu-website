@@ -16,6 +16,7 @@ type User struct {
 	Address      string     `json:"address"`
 	ProvinceID   int64      `json:"province_id"`
 	RegencyID    int64      `json:"regency_id"`
+	AvatarURL    string     `json:"avatar_url"`
 	RoleID       int        `json:"role_id"`
 	Role         Role       `gorm:"foreignKey:RoleID" json:"role"`
 	LeaderID     *uuid.UUID `gorm:"type:uuid" json:"leader_id,omitempty"` // Koordinator

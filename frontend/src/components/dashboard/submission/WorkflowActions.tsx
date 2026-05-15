@@ -5,6 +5,7 @@ import { submissionService } from '../../../services/submissionService';
 import FileUpload from '../FileUpload';
 import toast from 'react-hot-toast';
 import Modal from '../../ui/Modal';
+import ConfirmModal from '../../ui/ConfirmModal';
 
 interface WorkflowActionsProps {
     submission: Submission;
@@ -33,13 +34,24 @@ export const WorkflowActions = ({
     const [shFile, setShFile] = useState<File | null>(null);
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [rejectNote, setRejectNote] = useState('');
+    const [confirmState, setConfirmState] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => {}
+    });
 
     useEffect(() => {
-        if (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) {
+        if (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'VERIFIKATOR')) {
             submissionService.getDrafters().then(setDrafters).catch(() => {});
         }
         if (submission.data_source === 'MARKETING' && 
-            (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'KOORDINATOR' || user?.role === 'QC_OFFICER')) {
+            (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'KOORDINATOR' || user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR')) {
             submissionService.getConsultants().then(setConsultants).catch(() => {});
         }
     }, [submission.status, submission.data_source, user?.role]);
@@ -67,6 +79,18 @@ export const WorkflowActions = ({
         setRejectNote('');
     };
 
+    const triggerConfirm = (title: string, message: string, onConfirm: () => void) => {
+        setConfirmState({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: async () => {
+                await onConfirm();
+                setConfirmState(prev => ({ ...prev, isOpen: false }));
+            }
+        });
+    };
+
     const getApproveLabel = () => {
         switch (submission.status) {
             case 'WAITING_PAYMENT': return 'Konfirmasi Pembayaran & Lanjutkan';
@@ -90,14 +114,23 @@ export const WorkflowActions = ({
 
     const showApprove = ((submission.status === 'VERVAL_PENDAMPING' && (user?.role === 'HALAL_KONSULTAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'WAITING_PAYMENT' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
-                        (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+                        (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER'))) ||
                         (submission.status === 'DRAFTER' && (user?.role === 'DRAFTER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
-                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')));
+                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER'))));
 
-    const showReject = ((submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+    const showReject = ((submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER'))) ||
                         (submission.status === 'DRAFTER' && user?.role === 'DRAFTER') ||
-                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER'))) ||
                         (submission.status === 'SIDANG_FATWA' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR')));
+
+    const handleDownload = async (format: 'docx' | 'pdf') => {
+        try {
+            await submissionService.downloadContract(submission.id, format);
+            toast.success(`Kontrak berhasil diunduh dalam format ${format.toUpperCase()}`);
+        } catch (err: any) {
+            toast.error(err.message || "Gagal mengunduh kontrak");
+        }
+    };
 
     return (
         <>
@@ -107,9 +140,37 @@ export const WorkflowActions = ({
                     Workflow Actions
                 </h3>
                 <div className="space-y-4">
+                    {submission.service_type === 'REGULER' && (
+                        <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-3 shadow-inner">
+                            <label className="flex items-center gap-2 text-xs font-black text-indigo-800 uppercase tracking-widest">
+                                📄 Download Kontrak Layanan
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button 
+                                    onClick={() => handleDownload('docx')}
+                                    disabled={processing}
+                                    className="py-2.5 bg-white text-indigo-600 border border-indigo-200 rounded-xl font-black text-[10px] hover:bg-indigo-600 hover:text-white transition-all shadow-sm flex items-center justify-center gap-1"
+                                >
+                                    DOCX
+                                </button>
+                                <button 
+                                    onClick={() => handleDownload('pdf')}
+                                    disabled={processing}
+                                    className="py-2.5 bg-white text-red-600 border border-red-200 rounded-xl font-black text-[10px] hover:bg-red-600 hover:text-white transition-all shadow-sm flex items-center justify-center gap-1"
+                                >
+                                    PDF
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {(submission.status === 'DRAFT' || submission.status === 'REVISION') && (
                         <button
-                            onClick={() => onAction('submit')}
+                            onClick={() => triggerConfirm(
+                                'Kirim Pengajuan',
+                                'Apakah Anda yakin ingin mengirimkan pengajuan ini untuk diverifikasi?',
+                                () => onAction('submit')
+                            )}
                             disabled={processing || (user?.role !== 'MARKETING' && submission.data_source !== 'MARKETING' && !submission.consultant_id)}
                             className="w-full py-4 bg-brand-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-brand-100 hover:bg-brand-700 hover:scale-[1.02] active:scale-95 transition-all flex justify-center items-center gap-3 disabled:opacity-50"
                         >
@@ -120,7 +181,7 @@ export const WorkflowActions = ({
 
                     {(submission.status === 'DRAFTER' || submission.status === 'QC_REVIEW') && 
                         submission.service_type === 'REGULER' && 
-                        (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'DRAFTER' || user?.role === 'HALAL_KONSULTAN') && (
+                        (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'DRAFTER' || user?.role === 'HALAL_KONSULTAN' || user?.role === 'VERIFIKATOR') && (
                         <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 space-y-3">
                                 <label className="flex items-center gap-2 text-sm font-black text-amber-800 tracking-tight">
                                     📅 Input Tanggal Audit
@@ -162,7 +223,7 @@ export const WorkflowActions = ({
                         </div>
                     )}
 
-                    {submission.status === 'QC_OFFICER' && !submission.consultant_id && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'KOORDINATOR' || user?.role === 'QC_OFFICER') && (
+                    {submission.status === 'QC_OFFICER' && !submission.consultant_id && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'KOORDINATOR' || user?.role === 'QC_OFFICER' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER')) && (
                         <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 space-y-3">
                             <label className="flex items-center gap-2 text-sm font-black text-purple-800 tracking-tight">
                                 <UserCheck className="w-4 h-4" /> Penunjukan Konsultan
@@ -187,7 +248,7 @@ export const WorkflowActions = ({
                         </div>
                     )}
 
-                    {submission.status === 'QC_OFFICER' && submission.consultant_id && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
+                    {submission.status === 'QC_OFFICER' && submission.consultant_id && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER')) && (
                         <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-2">
                             <label className="flex items-center gap-2 text-sm font-semibold text-blue-800">
                                 <UserCheck className="w-4 h-4" /> Pilih Drafter
@@ -205,7 +266,11 @@ export const WorkflowActions = ({
 
                     {showApprove && (
                         <button
-                            onClick={() => onAction('approve', { drafter_id: selectedDrafterId })}
+                            onClick={() => triggerConfirm(
+                                'Konfirmasi Aksi',
+                                `Apakah Anda yakin ingin melakukan aksi "${getApproveLabel()}"?`,
+                                () => onAction('approve', { drafter_id: selectedDrafterId })
+                            )}
                             disabled={processing || (submission.status === 'QC_OFFICER' && !selectedDrafterId)}
                             className="w-full glass-button bg-green-600 text-white hover:bg-green-700 border-green-500 flex justify-center items-center gap-2 disabled:opacity-50"
                         >
@@ -276,6 +341,14 @@ export const WorkflowActions = ({
                     </div>
                 </div>
             </Modal>
+
+            <ConfirmModal 
+                isOpen={confirmState.isOpen}
+                onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
+                title={confirmState.title}
+                message={confirmState.message}
+                onConfirm={confirmState.onConfirm}
+            />
         </>
     );
 };

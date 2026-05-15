@@ -151,6 +151,29 @@ class SubmissionService extends BaseService {
             this.handleError(error);
         }
     }
+
+    async downloadContract(id: string, format: string = 'docx'): Promise<void> {
+        try {
+            const response = await this.api.get(`/documents/submissions/${id}/contract?format=${format}`, {
+                responseType: 'blob'
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            const contentDisposition = response.headers['content-disposition'];
+            let fileName = `Kontrak_Layanan.${format}`;
+            if (contentDisposition) {
+                const fileNameMatch = contentDisposition.match(/filename=(.+)/);
+                if (fileNameMatch) fileName = fileNameMatch[1].replace(/['"]/g, '');
+            }
+            link.setAttribute('download', fileName);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
 }
 
 export const submissionService = new SubmissionService();
