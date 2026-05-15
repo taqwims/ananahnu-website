@@ -424,3 +424,23 @@ func (uc *submissionWorkflowUsecase) UpdateAuditResult(id uuid.UUID, userID uuid
 	uc.logChange(id, userID, "UPLOAD_AUDIT_RESULT", sub.Status, sub.Status, "Audit result files uploaded")
 	return nil
 }
+
+func (uc *submissionWorkflowUsecase) UpdateBusinessType(id uuid.UUID, userID uuid.UUID, userRole string, businessTypeID int64) error {
+	sub, err := uc.SubmissionRepo.FindByID(id)
+	if err != nil {
+		return err
+	}
+
+	// Permission check (same as update client)
+	canUpdate := (userRole == "ADMIN" || userRole == "DIRECTOR" || userRole == "DRAFTER" || userRole == "QC_OFFICER" || userRole == "KOORDINATOR" || userRole == "HALAL_KONSULTAN" || (userRole == "VERIFIKATOR" && sub.ServiceType == "REGULER"))
+	if !canUpdate {
+		return errors.New("unauthorized to update business type")
+	}
+
+	if err := uc.SubmissionRepo.UpdateBusinessType(id, businessTypeID); err != nil {
+		return err
+	}
+
+	uc.logChange(id, userID, "UPDATE_BUSINESS_TYPE", sub.Status, sub.Status, fmt.Sprintf("Business type updated to ID %d", businessTypeID))
+	return nil
+}

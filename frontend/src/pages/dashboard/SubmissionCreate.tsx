@@ -17,6 +17,7 @@ export default function SubmissionCreate() {
         verStatus,
         handleFileUpload,
         handleSave,
+        businessTypes,
         navigate
     } = useSubmissionCreate();
 
@@ -45,6 +46,7 @@ export default function SubmissionCreate() {
                     <ClientInfoForm 
                         clientData={clientData}
                         setClientData={setClientData}
+                        businessTypes={businessTypes}
                     />
 
                     <SubmissionConfigForm 

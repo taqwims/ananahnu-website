@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import type { Submission, User, Client } from '../../../types';
+import type { Submission, User, Client, BusinessType } from '../../../types';
 import { formatDate } from '../../../utils/format';
 
 interface ClientInfoSectionProps {
     submission: Submission;
     user: User | null;
     onUpdateClient: (clientId: string, data: Partial<Client>) => Promise<void>;
+    onUpdateBusinessType: (businessTypeID: number) => Promise<void>;
+    businessTypes: BusinessType[];
     processing: boolean;
 }
 
@@ -18,7 +20,7 @@ const InfoItem = ({ label, value, mono = false, highlight = false }: { label: st
     </div>
 );
 
-export const ClientInfoSection = ({ submission, user, onUpdateClient, processing }: ClientInfoSectionProps) => {
+export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateBusinessType, businessTypes, processing }: ClientInfoSectionProps) => {
     const [isEditingClient, setIsEditingClient] = useState(false);
     const [clientForm, setClientForm] = useState({
         business_name: submission.client?.business_name || '',
@@ -28,12 +30,16 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, processing
         product_name: submission.client?.product_name || '',
         address: submission.client?.address || '',
         contact_person: submission.client?.contact_person || '',
-        phone: submission.client?.phone || ''
+        phone: submission.client?.phone || '',
+        business_type_id: submission.business_type_id?.toString() || ''
     });
 
     const handleUpdate = async () => {
         if (!submission.client?.id) return;
-        await onUpdateClient(submission.client.id, clientForm);
+        await Promise.all([
+            onUpdateClient(submission.client.id, clientForm),
+            clientForm.business_type_id ? onUpdateBusinessType(parseInt(clientForm.business_type_id)) : Promise.resolve()
+        ]);
         setIsEditingClient(false);
     };
 
@@ -84,6 +90,19 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, processing
                             <input className="glass-input w-full" value={clientForm.phone} onChange={e => setClientForm({...clientForm, phone: e.target.value})} placeholder="08..." />
                         </div>
                         <div className="sm:col-span-2">
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Bidang Usaha <span className="text-red-500">*</span></label>
+                            <select 
+                                className="glass-input w-full" 
+                                value={clientForm.business_type_id} 
+                                onChange={e => setClientForm({...clientForm, business_type_id: e.target.value})}
+                            >
+                                <option value="">Pilih Bidang Usaha</option>
+                                {businessTypes.map(bt => (
+                                    <option key={bt.id} value={bt.id}>{bt.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="sm:col-span-2">
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Alamat Lengkap</label>
                             <textarea className="glass-input w-full" rows={2} value={clientForm.address} onChange={e => setClientForm({...clientForm, address: e.target.value})} placeholder="Alamat lengkap usaha" />
                         </div>
@@ -106,6 +125,7 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, processing
                     <InfoItem label="NIB" value={submission.client?.nib} mono />
                     <InfoItem label="NIK" value={submission.client?.nik} mono />
                     <InfoItem label="Produk Utama" value={submission.client?.product_name} />
+                    <InfoItem label="Bidang Usaha" value={submission.business_type?.name} highlight />
                     <InfoItem label="Telepon" value={submission.client?.phone} />
                     {submission.consultant_id && (
                         <InfoItem label="Konsultan Penanggung Jawab" value={submission.consultant?.full_name} highlight />

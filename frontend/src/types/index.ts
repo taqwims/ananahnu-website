@@ -21,6 +21,12 @@ export interface Role {
     name: string;
 }
 
+export interface BusinessType {
+    id: number;
+    name: string;
+    description?: string;
+}
+
 export interface Client {
     id: string;
     nib: string;
@@ -81,6 +87,8 @@ export interface Submission {
     audit_date?: string;
     audit_result_1_url?: string;
     audit_result_2_url?: string;
+    business_type_id?: number;
+    business_type?: BusinessType;
     created_at: string;
     updated_at: string;
 }

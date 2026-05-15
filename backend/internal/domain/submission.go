@@ -36,6 +36,8 @@ type Submission struct {
 	SalesSchemeID       *int64           `json:"sales_scheme_id,omitempty"`
 	RegencyID           *int64           `json:"regency_id,omitempty"`
 	DistrictID          *int64           `json:"district_id,omitempty"`
+	BusinessTypeID      *int64           `json:"business_type_id,omitempty"`
+	BusinessType        *BusinessType    `gorm:"foreignKey:BusinessTypeID" json:"business_type,omitempty"`
 	RejectNote          string           `json:"reject_note,omitempty"`
 	TrackingNumber      *string          `gorm:"uniqueIndex" json:"tracking_number,omitempty"`
 	AuditDate           *time.Time       `json:"audit_date,omitempty"`
@@ -71,6 +73,7 @@ type SubmissionRepository interface {
 	UpdateAuditResult(id uuid.UUID, url1, url2 string) error
 	UpdateTrackingNumber(id uuid.UUID, trackingNumber string) error
 	UpdateDataSource(id uuid.UUID, dataSource string) error
+	UpdateBusinessType(id uuid.UUID, businessTypeID int64) error
 	FindByTrackingNumber(trackingNumber string) (*Submission, error)
 	Delete(id uuid.UUID) error
 }

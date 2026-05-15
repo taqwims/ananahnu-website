@@ -142,6 +142,14 @@ class SubmissionService extends BaseService {
         }
     }
 
+    async updateBusinessType(id: string, businessTypeId: number): Promise<void> {
+        try {
+            await this.api.post(`/submissions/${id}/business-type`, { business_type_id: businessTypeId });
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
     async assignDrafter(id: string, drafterId: string): Promise<void> {
         try {
             await this.api.post(`/submissions/${id}/assign-drafter`, {

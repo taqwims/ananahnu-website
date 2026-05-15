@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import PaymentSection from '../../components/dashboard/PaymentSection';
@@ -13,6 +13,8 @@ import { DocumentList } from '../../components/dashboard/submission/DocumentList
 import { SubmissionCertificate } from '../../components/dashboard/submission/SubmissionCertificate';
 import { SubmissionInvoice } from '../../components/dashboard/submission/SubmissionInvoice';
 import { SubmissionHistory } from '../../components/dashboard/submission/SubmissionHistory';
+import api from '../../services/api';
+import type { BusinessType } from '../../types';
 
 export default function SubmissionDetail() {
     const { id } = useParams();
@@ -28,8 +30,14 @@ export default function SubmissionDetail() {
         handleAction, 
         issueSH, 
         saveAuditInfo, 
-        saveAuditResult 
+        saveAuditResult,
+        updateBusinessType
     } = useSubmission(id);
+
+    const [businessTypes, setBusinessTypes] = useState<BusinessType[]>([]);
+    useEffect(() => {
+        api.get('/billing-config/business-types').then(res => setBusinessTypes(res.data || []));
+    }, []);
 
     const user = useAuthStore(state => state.user);
     const [editingData, setEditingData] = useState(false);
@@ -54,6 +62,8 @@ export default function SubmissionDetail() {
                         submission={submission} 
                         user={user} 
                         onUpdateClient={updateClient} 
+                        onUpdateBusinessType={updateBusinessType}
+                        businessTypes={businessTypes}
                         processing={processing} 
                     />
 

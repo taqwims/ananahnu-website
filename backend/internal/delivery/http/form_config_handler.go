@@ -39,7 +39,14 @@ func NewFormConfigHandler(r *gin.Engine, uc usecase.FormConfigUsecase) {
 // GetConfig returns all form field configs for a given form type.
 func (h *FormConfigHandler) GetConfig(c *gin.Context) {
 	formType := c.Param("formType")
-	configs, err := h.formConfigUC.GetFormConfig(formType)
+	var btIDPtr *int64
+	if btIDStr := c.Query("business_type_id"); btIDStr != "" {
+		if id, err := strconv.ParseInt(btIDStr, 10, 64); err == nil {
+			btIDPtr = &id
+		}
+	}
+
+	configs, err := h.formConfigUC.GetFormConfig(formType, btIDPtr)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

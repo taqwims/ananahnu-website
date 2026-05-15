@@ -141,6 +141,10 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 		CreatedBy:     userID,
 	}
 
+	if client.NIB == "" {
+		client.NIB = "DRAFT-" + uuid.New().String()[:8]
+	}
+
 	if input.ID != uuid.Nil {
 		client.ID = input.ID
 	}
@@ -154,10 +158,11 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 		ID:           uuid.New(),
 		ClientID:     client.ID,
 		Status:       domain.StatusDraft,
-		ServiceType:  input.ClientData.ServiceType,
-		ConsultantID: &userID,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		ServiceType:    input.ClientData.ServiceType,
+		ConsultantID:   &userID,
+		BusinessTypeID: input.ClientData.BusinessTypeID,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
 
 	if userRole == "MARKETING" {

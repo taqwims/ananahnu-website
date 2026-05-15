@@ -30,6 +30,7 @@ func NewSubmissionHandler(r *gin.Engine, uc usecase.SubmissionWorkflowUsecase) {
 		g.POST("/:id/audit-info", handler.UpdateAuditInfo)
 		g.POST("/:id/audit-result", handler.UploadAuditResult)
 		g.POST("/:id/assign-consultant", handler.AssignConsultant)
+		g.POST("/:id/business-type", handler.UpdateBusinessType)
 		g.POST("/bulk-assign-drafter", handler.BulkAssignDrafter)
 		g.GET("", handler.GetList)
 		g.GET("/:id", handler.GetDetail)
@@ -451,4 +452,27 @@ func (h *SubmissionHandler) UploadAuditResult(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "audit results uploaded"})
+}
+
+func (h *SubmissionHandler) UpdateBusinessType(c *gin.Context) {
+	idStr := c.Param("id")
+	id, _ := uuid.Parse(idStr)
+
+	var input struct {
+		BusinessTypeID int64 `json:"business_type_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	role := middleware.GetUserRole(c)
+
+	if err := h.workflowUC.UpdateBusinessType(id, userID, role, input.BusinessTypeID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "business type updated"})
 }

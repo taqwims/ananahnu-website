@@ -1,9 +1,10 @@
 interface ClientInfoFormProps {
     clientData: any;
     setClientData: (v: any) => void;
+    businessTypes: any[];
 }
 
-export const ClientInfoForm = ({ clientData, setClientData }: ClientInfoFormProps) => {
+export const ClientInfoForm = ({ clientData, setClientData, businessTypes }: ClientInfoFormProps) => {
     return (
         <div className="glass-panel p-6">
             <h3 className="text-lg font-semibold mb-4">Informasi Klien</h3>
@@ -25,6 +26,19 @@ export const ClientInfoForm = ({ clientData, setClientData }: ClientInfoFormProp
                         onChange={e => setClientData({...clientData, client_name: e.target.value})} 
                         placeholder="Nama Lengkap Klien"
                     />
+                </div>
+                <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Bidang Usaha <span className="text-red-500">*</span></label>
+                    <select 
+                        className="glass-input w-full"
+                        value={clientData.business_type_id}
+                        onChange={e => setClientData({...clientData, business_type_id: e.target.value})}
+                    >
+                        <option value="">Pilih Bidang Usaha</option>
+                        {businessTypes.map(bt => (
+                            <option key={bt.id} value={bt.id}>{bt.name}</option>
+                        ))}
+                    </select>
                 </div>
                 <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1">NIB</label>

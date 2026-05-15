@@ -22,7 +22,7 @@ func (r *submissionRepository) Create(submission *domain.Submission) error {
 
 func (r *submissionRepository) FindByID(id uuid.UUID) (*domain.Submission, error) {
 	var submission domain.Submission
-	if err := r.db.Preload("Client").Preload("Payments").Preload("Invoice").Preload("CostDetail").Preload("AssignedDrafter").Preload("Consultant").First(&submission, "id = ?", id).Error; err != nil {
+	if err := r.db.Preload("Client").Preload("Payments").Preload("Invoice").Preload("CostDetail").Preload("AssignedDrafter").Preload("Consultant").Preload("BusinessType").First(&submission, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &submission, nil
@@ -94,13 +94,17 @@ func (r *submissionRepository) UpdateDataSource(id uuid.UUID, dataSource string)
 	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("data_source", dataSource).Error
 }
 
+func (r *submissionRepository) UpdateBusinessType(id uuid.UUID, businessTypeID int64) error {
+	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("business_type_id", businessTypeID).Error
+}
+
 func (r *submissionRepository) UpdateTrackingNumber(id uuid.UUID, trackingNumber string) error {
 	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("tracking_number", trackingNumber).Error
 }
 
 func (r *submissionRepository) FindByTrackingNumber(trackingNumber string) (*domain.Submission, error) {
 	var submission domain.Submission
-	if err := r.db.Preload("Client").Preload("Invoice").Preload("CostDetail").Preload("AssignedDrafter").Preload("Consultant").First(&submission, "tracking_number = ?", trackingNumber).Error; err != nil {
+	if err := r.db.Preload("Client").Preload("Invoice").Preload("CostDetail").Preload("AssignedDrafter").Preload("Consultant").Preload("BusinessType").First(&submission, "tracking_number = ?", trackingNumber).Error; err != nil {
 		return nil, err
 	}
 	return &submission, nil

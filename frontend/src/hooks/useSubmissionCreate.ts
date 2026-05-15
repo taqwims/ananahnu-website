@@ -22,9 +22,12 @@ export const useSubmissionCreate = () => {
         address: '',
         product_name: '',
         service_type: initialType,
+        business_type_id: '',
         contact_person: '',
         phone: ''
     });
+
+    const [businessTypes, setBusinessTypes] = useState<any[]>([]);
 
     const [configs, setConfigs] = useState<FormFieldConfig[]>([]);
     const [fieldValues, setFieldValues] = useState<Record<number, { text_value: string; file_url: string; link_value: string }>>({});
@@ -57,7 +60,11 @@ export const useSubmissionCreate = () => {
     const loadConfigs = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await api.get(`/form-config/${clientData.service_type}`);
+            const params: any = {};
+            if (clientData.business_type_id) {
+                params.business_type_id = clientData.business_type_id;
+            }
+            const res = await api.get(`/form-config/${clientData.service_type}`, { params });
             setConfigs(res.data || []);
             
             const valueMap: typeof fieldValues = {};
@@ -70,7 +77,19 @@ export const useSubmissionCreate = () => {
         } finally {
             setLoading(false);
         }
-    }, [clientData.service_type]);
+    }, [clientData.service_type, clientData.business_type_id]);
+
+    useEffect(() => {
+        const fetchBT = async () => {
+            try {
+                const res = await api.get('/billing-config/business-types');
+                setBusinessTypes(res.data || []);
+            } catch (err) {
+                console.error("Gagal memuat bidang usaha", err);
+            }
+        };
+        fetchBT();
+    }, []);
 
     useEffect(() => {
         checkVerification();
@@ -103,8 +122,8 @@ export const useSubmissionCreate = () => {
     };
 
     const handleSave = async () => {
-        if (!clientData.business_name || !clientData.client_name || !clientData.nik) {
-            toast.error("Nama Usaha, Nama Klien, dan NIK wajib diisi");
+        if (!clientData.business_name || !clientData.client_name || !clientData.nik || !clientData.business_type_id) {
+            toast.error("Nama Usaha, Nama Klien, NIK, dan Bidang Usaha wajib diisi");
             return;
         }
 
@@ -112,7 +131,10 @@ export const useSubmissionCreate = () => {
         try {
             const payload = {
                 id: submissionId,
-                client_data: clientData,
+                client_data: {
+                    ...clientData,
+                    business_type_id: clientData.business_type_id ? parseInt(clientData.business_type_id) : null
+                },
                 field_values: configs.map(cfg => ({
                     form_field_id: cfg.id,
                     ...fieldValues[cfg.id]
@@ -141,6 +163,7 @@ export const useSubmissionCreate = () => {
         verStatus,
         handleFileUpload,
         handleSave,
+        businessTypes,
         navigate
     };
 };

@@ -22,6 +22,7 @@ type SubmissionWorkflowUsecase interface {
 	IssueSH(id uuid.UUID, userID uuid.UUID, shURL string) error
 	UpdateAuditInfo(id uuid.UUID, userID uuid.UUID, userRole string, auditDate *time.Time) error
 	UpdateAuditResult(id uuid.UUID, userID uuid.UUID, userRole string, url1, url2 string) error
+	UpdateBusinessType(id uuid.UUID, userID uuid.UUID, userRole string, businessTypeID int64) error
 	TrackByNumber(trackingNumber string) (*domain.Submission, error)
 	Delete(id uuid.UUID, userID uuid.UUID, userRole string) error
 	HandlePaymentSuccess(id uuid.UUID, amount float64) error
@@ -38,7 +39,8 @@ type CreateFullInput struct {
 		ProductName   string `json:"product_name"`
 		ServiceType   string `json:"service_type"`
 		ContactPerson string `json:"contact_person"`
-		Phone         string `json:"phone"`
+		Phone          string `json:"phone"`
+		BusinessTypeID *int64 `json:"business_type_id"`
 	} `json:"client_data"`
 	FieldValues []FieldValueInput `json:"field_values"`
 }

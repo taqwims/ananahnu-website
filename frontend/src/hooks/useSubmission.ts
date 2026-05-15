@@ -131,7 +131,19 @@ export const useSubmission = (id: string | undefined) => {
             setProcessing(false);
         }
     };
-
+    const updateBusinessType = async (businessTypeID: number) => {
+        if (!id) return;
+        setProcessing(true);
+        try {
+            await submissionService.updateBusinessType(id, businessTypeID);
+            toast.success('Bidang usaha berhasil diperbarui');
+            await refresh();
+        } catch (err: any) {
+            toast.error(err.message);
+        } finally {
+            setProcessing(false);
+        }
+    };
     return {
         submission,
         history,
@@ -144,6 +156,7 @@ export const useSubmission = (id: string | undefined) => {
         handleAction,
         issueSH,
         saveAuditInfo,
-        saveAuditResult
+        saveAuditResult,
+        updateBusinessType
     };
 };
