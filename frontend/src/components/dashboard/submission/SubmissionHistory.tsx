@@ -4,7 +4,7 @@ interface SubmissionHistoryProps {
 
 export const SubmissionHistory = ({ history }: SubmissionHistoryProps) => {
     return (
-        <div className="glass-panel p-6">
+        <div className="glass-panel p-6 overflow-hidden">
             <h3 className="text-lg font-black text-gray-800 tracking-tight mb-6 flex items-center gap-2">
                 <div className="w-1.5 h-6 bg-brand-600 rounded-full"></div>
                 Workflow History

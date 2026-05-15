@@ -331,6 +331,7 @@ func main() {
 	r.Static("/uploads", "./uploads")
 	r.Static("/paymentproof", "./paymentproof")
 	r.Static("/consultant-docs", "./consultant")
+	r.Static("/templates", "./templates")
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{

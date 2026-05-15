@@ -134,7 +134,7 @@ export const WorkflowActions = ({
 
     return (
         <>
-            <div className="glass-panel p-6 shadow-2xl border border-white/40 lg:sticky lg:top-6">
+            <div className="glass-panel p-6 shadow-2xl border border-white/40 lg:sticky lg:top-6 z-20 bg-white max-h-[calc(100vh-3rem)] overflow-y-auto custom-scrollbar overflow-hidden">
                 <h3 className="text-lg font-black text-gray-800 tracking-tight mb-6 flex items-center gap-2">
                     <div className="w-1.5 h-6 bg-brand-600 rounded-full"></div>
                     Workflow Actions

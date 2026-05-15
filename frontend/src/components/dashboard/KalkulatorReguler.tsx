@@ -317,9 +317,10 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 {/* Data Source Badge */}
                 {dataSource && (
                     <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
-                        dataSource === 'MARKETING' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
+                        dataSource === 'MARKETING' ? 'bg-amber-100 text-amber-700' : 
+                        dataSource === 'BOTH' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
                     }`}>
-                        Sumber: {dataSource === 'MARKETING' ? 'Marketing (Partner)' : 'Organik (Konsultan)'}
+                        Sumber: {dataSource === 'MARKETING' ? 'Marketing (Partner)' : dataSource === 'BOTH' ? 'Semua (Internal & Partner)' : 'Organik (Konsultan)'}
                     </div>
                 )}
 

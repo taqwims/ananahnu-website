@@ -80,7 +80,7 @@ export default function NotificationDropdown() {
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-80 glass-panel bg-white/95 backdrop-blur-md shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute right-[-2rem] sm:right-0 mt-2 w-[calc(100vw-2rem)] max-w-[320px] sm:w-80 glass-panel bg-white/95 backdrop-blur-md shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="p-4 border-b border-gray-100 flex justify-between items-center">
                         <h3 className="font-bold text-gray-800 text-sm">Notifikasi</h3>
                         {unreadCount > 0 && <span className="text-[10px] bg-brand-100 text-brand-600 px-2 py-0.5 rounded-full font-bold">{unreadCount} Baru</span>}

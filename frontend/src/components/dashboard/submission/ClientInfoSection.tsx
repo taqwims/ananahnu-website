@@ -142,7 +142,11 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, processing
             {submission.service_type === 'REGULER' && (
                 <div className="mt-6 flex flex-col sm:flex-row justify-between items-center bg-blue-50/50 p-4 rounded-2xl border border-blue-100 gap-4">
                     <span className="text-xs text-blue-800 font-bold text-center sm:text-left">Layanan Reguler membutuhkan kontrak pendampingan.</span>
-                    <a href="/templates/kontrak_reguler.pdf" download className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-blue-700 transition-all text-center shadow-lg shadow-blue-100">
+                    <a 
+                        href={`${import.meta.env.VITE_API_URL}/templates/kontrak_reguler.docx`} 
+                        download 
+                        className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-blue-700 transition-all text-center shadow-lg shadow-blue-100"
+                    >
                         Unduh Template Kontrak
                     </a>
                 </div>

@@ -65,7 +65,7 @@ type BillingComponent struct {
 	
 	SalesSchemeID     *int64       `json:"sales_scheme_id,omitempty"`
 	SalesScheme       *SalesScheme `gorm:"foreignKey:SalesSchemeID" json:"sales_scheme,omitempty"`
-	DataSource        string       `gorm:"default:'ORGANIK'" json:"data_source"` // ORGANIK, MARKETING
+	DataSource        string       `gorm:"default:'ORGANIK'" json:"data_source"` // ORGANIK, MARKETING, BOTH
 	
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
@@ -83,7 +83,7 @@ type SalesSchemePrice struct {
 	BusinessType      *BusinessType `gorm:"foreignKey:BusinessTypeID" json:"business_type,omitempty"`
 	BusinessScaleID   *int64       `json:"business_scale_id,omitempty"`
 	BusinessScale     *BusinessScale `gorm:"foreignKey:BusinessScaleID" json:"business_scale,omitempty"`
-	DataSource        string       `gorm:"not null;default:'ORGANIK'" json:"data_source"` // ORGANIK, MARKETING
+	DataSource        string       `gorm:"not null;default:'ORGANIK'" json:"data_source"` // ORGANIK, MARKETING, BOTH
 	BasePrice         float64      `gorm:"not null" json:"base_price"`
 	DiscountPercent   float64      `gorm:"default:0" json:"discount_percent"` // e.g. 10% for Partnership pendampingan
 	Description       string       `json:"description"`

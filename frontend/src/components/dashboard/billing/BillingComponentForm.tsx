@@ -133,6 +133,7 @@ export const BillingComponentForm = ({
                             <select className="w-full bg-white border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" value={formData.dataSource} onChange={e => setFormData({ ...formData, dataSource: e.target.value })}>
                                 <option value="ORGANIK">Organik (Konsultan)</option>
                                 <option value="MARKETING">Marketing (Partner)</option>
+                                <option value="BOTH">Semua (Organik & Marketing)</option>
                             </select>
                         </div>
                         <div className="col-span-2 md:col-span-1">
