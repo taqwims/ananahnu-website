@@ -129,7 +129,7 @@ export default function TrackSubmission() {
                                     <div className="bg-red-50 p-6 rounded-2xl border border-red-100 text-center">
                                         <XCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
                                         <h3 className="text-xl font-bold text-red-700 mb-1">Pengajuan Ditolak</h3>
-                                        <p className="text-red-600 text-sm">Silakan hubungi konsultan pendamping Anda untuk informasi lebih lanjut.</p>
+                                        <p className="text-red-600 text-sm">Silakan hubungi advisor pendamping Anda untuk informasi lebih lanjut.</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-8">

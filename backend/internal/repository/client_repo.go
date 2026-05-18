@@ -48,12 +48,12 @@ func (r *clientRepository) FindAll(filter map[string]interface{}, page, limit in
 			Where("submissions.status = ?", s)
 	}
 
-	// Single facilitator filter (for konsultan viewing own clients)
+	// Single facilitator filter (for advisor viewing own clients)
 	if fid, ok := filter["facilitator_id"]; ok && fid != "" {
 		query = query.Where("facilitator_id = ?", fid)
 	}
 
-	// Multiple facilitator IDs filter (for koordinator viewing team clients)
+	// Multiple facilitator IDs filter (for halal_manager viewing team clients)
 	if fids, ok := filter["facilitator_ids"]; ok {
 		query = query.Where("facilitator_id IN ?", fids)
 	}

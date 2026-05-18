@@ -31,9 +31,9 @@ func (uc *dashboardUsecase) GetStats(userID uuid.UUID, role string) (map[string]
 	facilitatorIDs := []uuid.UUID{}
 
 	switch role {
-	case "HALAL_KONSULTAN":
+	case "HALAL_ADVISOR":
 		facilitatorIDs = append(facilitatorIDs, userID)
-	case "KOORDINATOR":
+	case "HALAL_MANAGER":
 		// Find team members
 		team, _ := uc.UserRepo.FindByLeaderID(userID)
 		for _, u := range team {
@@ -85,9 +85,9 @@ func (uc *dashboardUsecase) GetRecentActivities(userID uuid.UUID, role string, l
 	filter := make(map[string]interface{})
 	
 	switch role {
-	case "HALAL_KONSULTAN":
+	case "HALAL_ADVISOR":
 		filter["user_ids"] = []uuid.UUID{userID}
-	case "KOORDINATOR":
+	case "HALAL_MANAGER":
 		team, _ := uc.UserRepo.FindByLeaderID(userID)
 		userIDs := []uuid.UUID{userID}
 		for _, u := range team {

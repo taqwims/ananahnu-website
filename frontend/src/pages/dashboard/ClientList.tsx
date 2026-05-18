@@ -84,7 +84,7 @@ export default function ClientList() {
         }, 300); // 300ms debounce
 
         const checkVerification = async () => {
-            if (user?.role === 'HALAL_KONSULTAN') {
+            if (user?.role === 'HALAL_ADVISOR') {
                 try {
                     // 1. Check Profile Verification
                     const profileRes = await api.get(`/consultant/profile/${user.id}`);

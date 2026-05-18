@@ -55,13 +55,13 @@ export const RejectModal = ({
 
                     {isMarketing && (
                         <div className="space-y-3">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Tunjuk Konsultan (Data Marketing)</label>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Tunjuk Advisor (Data Marketing)</label>
                             <select 
                                 className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-xs focus:ring-4 focus:ring-brand-500/10 outline-none transition-all font-bold"
                                 value={selectedConsultant}
                                 onChange={e => setSelectedConsultant(e.target.value)}
                             >
-                                <option value="">-- Pilih Konsultan Baru --</option>
+                                <option value="">-- Pilih Advisor Baru --</option>
                                 {consultants.map(c => (
                                     <option key={c.id} value={c.id}>{c.full_name}</option>
                                 ))}
@@ -84,7 +84,7 @@ export const RejectModal = ({
                             disabled={processing || !rejectNote.trim() || (isMarketing && !selectedConsultant)}
                             className="flex-1 py-4 bg-brand-50 text-brand-700 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-brand-100 transition-all border border-brand-100 disabled:opacity-50"
                         >
-                            Balik ke Konsultan
+                            Balik ke Advisor
                         </button>
                     </div>
                     <button 

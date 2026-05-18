@@ -22,7 +22,7 @@ export const DistributionHeader = ({ stats }: DistributionHeaderProps) => {
                         <h1 className="text-3xl font-black tracking-tight">Antrian Distribusi Data</h1>
                     </div>
                     <p className="text-brand-100/80 max-w-md">
-                        Kelola pembagian tugas dari Konsultan ke Drafter. Gunakan bulk action untuk efisiensi distribusi.
+                        Kelola pembagian tugas dari Advisor ke Drafter. Gunakan bulk action untuk efisiensi distribusi.
                     </p>
                 </div>
 

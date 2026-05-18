@@ -314,16 +314,28 @@ export interface ContentBlock {
     updated_at: string;
 }
 
-export interface ReferralCommission {
+export interface Commission {
     id: string;
-    referrer_id: string;
+    type: 'REFERRAL' | 'STRUCTURAL';
+    
+    // Referral specific
+    referrer_id?: string;
     referrer?: User;
-    referred_id: string;
+    referred_id?: string;
     referred?: User;
-    submission_id: string;
+    
+    // Structural specific
+    user_id?: string;
+    user?: User;
+    period?: string;
+    base_omset?: number;
+    
+    // Common
+    submission_id?: string;
     submission?: Submission;
     amount: number;
     status: 'PENDING' | 'PAID';
     paid_at?: string;
     created_at: string;
+    updated_at?: string;
 }

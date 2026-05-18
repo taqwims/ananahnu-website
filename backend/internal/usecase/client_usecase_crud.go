@@ -48,7 +48,7 @@ func (uc *clientUsecase) checkVerification(userID uuid.UUID) error {
 	}
 
 	// Only check verification for consultants
-	if user.Role.Name == "HALAL_KONSULTAN" {
+	if user.Role.Name == "HALAL_ADVISOR" {
 		// 1. Check Profile Verification
 		profile, err := uc.ConsultantRepo.FindByUserID(userID)
 		if err != nil || profile == nil || !profile.IsVerified {
@@ -73,7 +73,7 @@ func (uc *clientUsecase) checkVerification(userID uuid.UUID) error {
 			return errors.New("Akses Dibatasi: Akun Anda belum diverifikasi admin DAN Anda belum dinyatakan lulus pelatihan.")
 		}
 		if !profile.IsVerified {
-			return errors.New("Akses Dibatasi: Akun Anda belum diverifikasi oleh admin. Silakan lengkapi dokumen di Profil Konsultan.")
+			return errors.New("Akses Dibatasi: Akun Anda belum diverifikasi oleh admin. Silakan lengkapi dokumen di Profil Advisor.")
 		}
 		if !isGraduated {
 			return errors.New("Akses Dibatasi: Anda belum dinyatakan lulus pelatihan. Silakan pastikan status kelulusan Anda di menu Pelatihan.")

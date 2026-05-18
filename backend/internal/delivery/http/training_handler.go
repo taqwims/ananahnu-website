@@ -77,7 +77,7 @@ func (h *TrainingHandler) CreateTraining(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 
 	switch role {
-	case "KOORDINATOR":
+	case "HALAL_MANAGER":
 		input.Status = "PENDING"
 		input.ProposedBy = &userID
 	case "ADMIN_PELATIHAN", "MANAGER", "DIRECTOR":

@@ -29,7 +29,7 @@ func main() {
 	seedGeography(db)
 
 	// --- Roles (ensure new roles exist) ---
-	newRoles := []string{"KOORDINATOR", "ADMIN_PELATIHAN", "ADMIN_KEUANGAN", "DIRECTOR", "HALAL_KONSULTAN", "QC_OFFICER", "DRAFTER", "CLIENT", "VERIFIKATOR"}
+	newRoles := []string{"HALAL_MANAGER", "ADMIN_PELATIHAN", "ADMIN_KEUANGAN", "DIRECTOR", "HALAL_DIRECTOR", "HALAL_ADVISOR", "QC_OFFICER", "DRAFTER", "CLIENT", "VERIFIKATOR"}
 	for _, name := range newRoles {
 		var r domain.Role
 		db.FirstOrCreate(&r, domain.Role{Name: name})
@@ -123,22 +123,22 @@ func seedUsers(db *gorm.DB) {
 
 	users := []userSeed{
 		{"admin@ananahnu.id", "admin", "Super Admin", "DIRECTOR"},
-		{"koordinator@ananahnu.id", "koordinator", "Ahmad Koordinator", "KOORDINATOR"},
+		{"halal_manager@ananahnu.id", "halal_manager", "Ahmad Halal Manager", "HALAL_MANAGER"},
 		{"pelatihan@ananahnu.id", "adm_pelatihan", "Siti Admin Pelatihan", "ADMIN_PELATIHAN"},
 		{"keuangan@ananahnu.id", "adm_keuangan", "Budi Admin Keuangan", "ADMIN_KEUANGAN"},
-		{"konsultan1@ananahnu.id", "konsultan1", "Dewi Konsultan", "HALAL_KONSULTAN"},
-		{"konsultan2@ananahnu.id", "konsultan2", "Eko Konsultan", "HALAL_KONSULTAN"},
+		{"advisor1@ananahnu.id", "advisor1", "Dewi Advisor", "HALAL_ADVISOR"},
+		{"advisor2@ananahnu.id", "advisor2", "Eko Advisor", "HALAL_ADVISOR"},
 		{"qc@ananahnu.id", "qcofficer", "Rina QC Officer", "QC_OFFICER"},
 		{"drafter@ananahnu.id", "drafter", "Hadi Drafter", "DRAFTER"},
 	}
 
-	var koordinatorID uuid.UUID
+	var halal_managerID uuid.UUID
 
 	for _, u := range users {
 		var existing domain.User
 		if err := db.Where("email = ?", u.Email).First(&existing).Error; err == nil {
-			if u.RoleName == "KOORDINATOR" {
-				koordinatorID = existing.ID
+			if u.RoleName == "HALAL_MANAGER" {
+				halal_managerID = existing.ID
 			}
 			continue
 		}
@@ -155,36 +155,36 @@ func seedUsers(db *gorm.DB) {
 		}
 		db.Create(&newUser)
 
-		if u.RoleName == "KOORDINATOR" {
-			koordinatorID = newUser.ID
+		if u.RoleName == "HALAL_MANAGER" {
+			halal_managerID = newUser.ID
 		}
 	}
 
-	// Link konsultans to koordinator
-	if koordinatorID != uuid.Nil {
-		var konsultans []domain.User
-		db.Where("email IN ?", []string{"konsultan1@ananahnu.id", "konsultan2@ananahnu.id"}).Find(&konsultans)
-		for _, k := range konsultans {
-			db.Model(&k).Update("leader_id", koordinatorID)
+	// Link advisors to halal_manager
+	if halal_managerID != uuid.Nil {
+		var advisors []domain.User
+		db.Where("email IN ?", []string{"advisor1@ananahnu.id", "advisor2@ananahnu.id"}).Find(&advisors)
+		for _, k := range advisors {
+			db.Model(&k).Update("leader_id", halal_managerID)
 		}
 	}
 
-	log.Println("✓ Users seeded (koordinator, admin pelatihan, admin keuangan, 2 konsultan, qc, drafter)")
+	log.Println("✓ Users seeded (halal_manager, admin pelatihan, admin keuangan, 2 advisor, qc, drafter)")
 
 	// Seed consultant profiles
 	seedConsultantProfiles(db)
 }
 
 func seedConsultantProfiles(db *gorm.DB) {
-	var konsultan1 domain.User
-	if err := db.Where("email = ?", "konsultan1@ananahnu.id").First(&konsultan1).Error; err != nil {
+	var advisor1 domain.User
+	if err := db.Where("email = ?", "advisor1@ananahnu.id").First(&advisor1).Error; err != nil {
 		return
 	}
 
 	var existing domain.ConsultantProfile
-	if err := db.Where("user_id = ?", konsultan1.ID).First(&existing).Error; err != nil {
+	if err := db.Where("user_id = ?", advisor1.ID).First(&existing).Error; err != nil {
 		db.Create(&domain.ConsultantProfile{
-			UserID:         konsultan1.ID,
+			UserID:         advisor1.ID,
 			KTPURL:         "https://example.com/ktp-dewi.pdf",
 			Photo3x4URL:    "https://example.com/foto-dewi.jpg",
 			IjazahSTAURL:   "https://example.com/ijazah-dewi.pdf",
@@ -194,15 +194,15 @@ func seedConsultantProfiles(db *gorm.DB) {
 		})
 	}
 
-	var konsultan2 domain.User
-	if err := db.Where("email = ?", "konsultan2@ananahnu.id").First(&konsultan2).Error; err != nil {
+	var advisor2 domain.User
+	if err := db.Where("email = ?", "advisor2@ananahnu.id").First(&advisor2).Error; err != nil {
 		return
 	}
 
 	var existing2 domain.ConsultantProfile
-	if err := db.Where("user_id = ?", konsultan2.ID).First(&existing2).Error; err != nil {
+	if err := db.Where("user_id = ?", advisor2.ID).First(&existing2).Error; err != nil {
 		db.Create(&domain.ConsultantProfile{
-			UserID:         konsultan2.ID,
+			UserID:         advisor2.ID,
 			KTPURL:         "https://example.com/ktp-eko.pdf",
 			Photo3x4URL:    "https://example.com/foto-eko.jpg",
 			IjazahSTAURL:   "",
@@ -239,26 +239,26 @@ func seedTraining(db *gorm.DB) {
 	db.Create(&training2)
 
 	// Add participants
-	var konsultan1, konsultan2 domain.User
-	db.Where("email = ?", "konsultan1@ananahnu.id").First(&konsultan1)
-	db.Where("email = ?", "konsultan2@ananahnu.id").First(&konsultan2)
+	var advisor1, advisor2 domain.User
+	db.Where("email = ?", "advisor1@ananahnu.id").First(&advisor1)
+	db.Where("email = ?", "advisor2@ananahnu.id").First(&advisor2)
 
-	if konsultan1.ID != uuid.Nil {
+	if advisor1.ID != uuid.Nil {
 		db.Create(&domain.TrainingParticipant{
 			TrainingID: training.ID,
-			UserID:     konsultan1.ID,
+			UserID:     advisor1.ID,
 			Status:     "LULUS",
 		})
 		db.Create(&domain.TrainingParticipant{
 			TrainingID: training2.ID,
-			UserID:     konsultan1.ID,
+			UserID:     advisor1.ID,
 			Status:     "PESERTA",
 		})
 	}
-	if konsultan2.ID != uuid.Nil {
+	if advisor2.ID != uuid.Nil {
 		db.Create(&domain.TrainingParticipant{
 			TrainingID: training.ID,
-			UserID:     konsultan2.ID,
+			UserID:     advisor2.ID,
 			Status:     "PESERTA",
 		})
 	}

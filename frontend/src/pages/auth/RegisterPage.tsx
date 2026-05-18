@@ -14,7 +14,7 @@ const registerSchema = z.object({
     email: z.string().email("Email tidak valid"),
     password: z.string().min(6, "Password minimal 6 karakter"),
     confirm_password: z.string().min(6, "Konfirmasi password harus diisi"),
-    role: z.literal("HALAL_KONSULTAN"),
+    role: z.literal("HALAL_ADVISOR"),
     province_id: z.string().min(1, "Provinsi harus dipilih"),
     regency_id: z.string().min(1, "Kota/Kabupaten harus dipilih"),
     address: z.string().min(5, "Alamat lengkap harus diisi"),
@@ -48,7 +48,7 @@ export default function RegisterPage() {
     const { register, handleSubmit, watch, setValue, trigger, formState: { errors } } = useForm<RegisterFormValues>({
         resolver: zodResolver(registerSchema),
         defaultValues: {
-            role: 'HALAL_KONSULTAN'
+            role: 'HALAL_ADVISOR'
         }
     });
 
@@ -184,7 +184,7 @@ export default function RegisterPage() {
                                 ))}
                             </div>
                             <div className="text-left">
-                                <p className="text-white font-black text-sm">500+ Konsultan</p>
+                                <p className="text-white font-black text-sm">500+ Advisor</p>
                                 <p className="text-brand-200 text-[10px] font-bold uppercase tracking-widest">Telah Bergabung</p>
                             </div>
                         </div>
@@ -394,7 +394,7 @@ export default function RegisterPage() {
                                             <h4 className="text-xs font-black uppercase tracking-wider">Hampir Selesai!</h4>
                                         </div>
                                         <p className="text-[11px] text-brand-700/80 leading-relaxed font-medium">
-                                            Dengan menekan tombol daftar, Anda menyetujui syarat dan ketentuan sebagai Konsultan Pendamping Halal.
+                                            Dengan menekan tombol daftar, Anda menyetujui syarat dan ketentuan sebagai Advisor Pendamping Halal.
                                         </p>
                                     </div>
                                 </motion.div>

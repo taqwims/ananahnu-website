@@ -41,7 +41,7 @@ export default function ClientForm() {
 
     useEffect(() => {
         const checkVerification = async () => {
-            if (user?.role === 'HALAL_KONSULTAN') {
+            if (user?.role === 'HALAL_ADVISOR') {
                 try {
                     // 1. Check Profile Verification
                     const profileRes = await api.get(`/consultant/profile/${user.id}`);
@@ -116,7 +116,7 @@ export default function ClientForm() {
                         <h4 className="text-sm font-bold text-red-900">Akses Dibatasi</h4>
                         <p className="text-xs text-red-700 mt-1 leading-relaxed">
                             Mohon maaf, Anda belum dapat mendaftarkan klien baru. Pastikan status verifikasi akun Anda <b>{verStatus?.profile ? 'Terverifikasi' : 'Belum Terverifikasi'}</b> dan status kelulusan pelatihan Anda <b>{verStatus?.training ? 'Lulus' : 'Belum Lulus'}</b>.
-                            Silakan cek status di <span className="font-bold cursor-pointer underline" onClick={() => navigate('/dashboard/consultant-profile')}>Profil Konsultan</span>.
+                            Silakan cek status di <span className="font-bold cursor-pointer underline" onClick={() => navigate('/dashboard/consultant-profile')}>Profil Advisor</span>.
                         </p>
                     </div>
                 </div>

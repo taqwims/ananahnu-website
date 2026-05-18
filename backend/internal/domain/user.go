@@ -19,7 +19,7 @@ type User struct {
 	AvatarURL    string     `json:"avatar_url"`
 	RoleID       int        `json:"role_id"`
 	Role         Role       `gorm:"foreignKey:RoleID" json:"role"`
-	LeaderID     *uuid.UUID `gorm:"type:uuid" json:"leader_id,omitempty"` // Koordinator
+	LeaderID     *uuid.UUID `gorm:"type:uuid" json:"leader_id,omitempty"` // Halal Manager
 	Leader       *User      `gorm:"foreignKey:LeaderID" json:"leader,omitempty"`
 	ReferralCode string     `gorm:"unique" json:"referral_code"`
 	ReferredByID *uuid.UUID `gorm:"type:uuid" json:"referred_by_id,omitempty"`
@@ -28,25 +28,45 @@ type User struct {
 	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
-type ReferralCommissionStatus string
+type CommissionStatus string
 
 const (
-	CommissionStatusPending ReferralCommissionStatus = "PENDING"
-	CommissionStatusPaid    ReferralCommissionStatus = "PAID"
+	CommissionStatusPending CommissionStatus = "PENDING"
+	CommissionStatusPaid    CommissionStatus = "PAID"
 )
 
-type ReferralCommission struct {
-	ID           uuid.UUID                `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	ReferrerID   uuid.UUID                `gorm:"type:uuid;index" json:"referrer_id"`
-	Referrer     *User                    `gorm:"foreignKey:ReferrerID" json:"referrer,omitempty"`
-	ReferredID   uuid.UUID                `gorm:"type:uuid;index" json:"referred_id"`
-	Referred     *User                    `gorm:"foreignKey:ReferredID" json:"referred,omitempty"`
-	SubmissionID uuid.UUID                `gorm:"type:uuid;index" json:"submission_id"`
-	Submission   *Submission              `gorm:"foreignKey:SubmissionID" json:"submission,omitempty"`
-	Amount       float64                  `json:"amount"`
-	Status       ReferralCommissionStatus `gorm:"default:'PENDING'" json:"status"`
-	PaidAt       *time.Time               `json:"paid_at,omitempty"`
-	CreatedAt    time.Time                `json:"created_at"`
+type CommissionType string
+
+const (
+	CommissionTypeReferral   CommissionType = "REFERRAL"
+	CommissionTypeStructural CommissionType = "STRUCTURAL"
+	CommissionTypeDirectSales CommissionType = "DIRECT_SALES"
+)
+
+type Commission struct {
+	ID             uuid.UUID        `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	Type           CommissionType   `gorm:"default:'REFERRAL'" json:"type"`
+	
+	// Referral specific
+	ReferrerID     *uuid.UUID       `gorm:"type:uuid;index" json:"referrer_id,omitempty"`
+	Referrer       *User            `gorm:"foreignKey:ReferrerID" json:"referrer,omitempty"`
+	ReferredID     *uuid.UUID       `gorm:"type:uuid;index" json:"referred_id,omitempty"`
+	Referred       *User            `gorm:"foreignKey:ReferredID" json:"referred,omitempty"`
+	
+	// Structural/Monthly specific
+	UserID         *uuid.UUID       `gorm:"type:uuid;index" json:"user_id,omitempty"`
+	User           *User            `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	Period         string           `json:"period,omitempty"` // e.g. "2026-05"
+	BaseOmset      float64          `json:"base_omset,omitempty"`
+	
+	// General
+	SubmissionID   *uuid.UUID       `gorm:"type:uuid;index" json:"submission_id,omitempty"`
+	Submission     *Submission      `gorm:"foreignKey:SubmissionID" json:"submission,omitempty"`
+	Amount         float64          `json:"amount"`
+	Status         CommissionStatus `gorm:"default:'PENDING'" json:"status"`
+	PaidAt         *time.Time       `json:"paid_at,omitempty"`
+	CreatedAt      time.Time        `json:"created_at"`
+	UpdatedAt      time.Time        `json:"updated_at"`
 }
 
 type PasswordResetToken struct {
@@ -68,11 +88,12 @@ type UserRepository interface {
 	Delete(id uuid.UUID) error
 }
 
-type ReferralCommissionRepository interface {
-	Create(commission *ReferralCommission) error
-	FindAll(filter map[string]interface{}, page, limit int) ([]ReferralCommission, int64, error)
-	UpdateStatus(id uuid.UUID, status ReferralCommissionStatus, paidAt *time.Time) error
-	FindBySubmissionID(submissionID uuid.UUID) (*ReferralCommission, error)
+type CommissionRepository interface {
+	Create(commission *Commission) error
+	UpsertStructural(commission *Commission) error
+	FindAll(filter map[string]interface{}, page, limit int) ([]Commission, int64, error)
+	UpdateStatus(id uuid.UUID, status CommissionStatus, paidAt *time.Time) error
+	FindBySubmissionID(submissionID uuid.UUID) (*Commission, error)
 }
 
 type PasswordTokenRepository interface {

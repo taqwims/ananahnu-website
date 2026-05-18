@@ -25,7 +25,7 @@ export const SubmissionFilters = ({
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                     type="text"
-                    placeholder="Cari Bisnis, Nama Klien, Konsultan..."
+                    placeholder="Cari Bisnis, Nama Klien, Advisor..."
                     className="w-full pl-12 pr-4 py-3 bg-gray-50/50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-brand-500/20 transition-all outline-none"
                     value={search}
                     onChange={e => setSearch(e.target.value)}

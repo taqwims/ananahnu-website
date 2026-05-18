@@ -22,7 +22,7 @@ export const VerificationAlert = ({
                 <h4 className="text-sm font-bold text-red-900">Akses Dibatasi</h4>
                 <p className="text-xs text-red-700 mt-1 leading-relaxed">
                     Mohon maaf, Anda belum dapat membuat pengajuan baru. Pastikan status verifikasi akun Anda <b>{verStatus?.profile ? 'Terverifikasi' : 'Belum Terverifikasi'}</b> dan status kelulusan pelatihan Anda <b>{verStatus?.training ? 'Lulus' : 'Belum Lulus'}</b>.
-                    Silakan cek status di <span className="font-bold cursor-pointer underline" onClick={onNavigateProfile}>Profil Konsultan</span>.
+                    Silakan cek status di <span className="font-bold cursor-pointer underline" onClick={onNavigateProfile}>Profil Advisor</span>.
                 </p>
             </div>
         </div>

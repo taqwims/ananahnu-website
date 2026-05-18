@@ -38,7 +38,7 @@ export default function CoordinatorDashboard() {
                         </div>
                         Manajemen Tim
                     </h1>
-                    <p className="text-gray-500 mt-2 font-medium text-lg">Oversight performa dan koordinasi konsultan wilayah</p>
+                    <p className="text-gray-500 mt-2 font-medium text-lg">Oversight performa dan koordinasi advisor wilayah</p>
                 </div>
             </header>
 
@@ -62,7 +62,7 @@ export default function CoordinatorDashboard() {
                     {activeTab === 'team' && (
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                             <div className="lg:col-span-4 space-y-6">
-                                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Roster Konsultan</h3>
+                                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Roster Advisor</h3>
                                 <TeamMemberList 
                                     members={teamMembers}
                                     profiles={profiles}
@@ -79,7 +79,7 @@ export default function CoordinatorDashboard() {
                                         </div>
                                         <h3 className="text-2xl font-black text-gray-800">Pilih Anggota Tim</h3>
                                         <p className="text-gray-500 max-w-sm mt-3 font-medium">
-                                            Klik salah satu nama konsultan di samping untuk melihat riwayat pelatihan, portofolio klien, dan dokumen administrasi.
+                                            Klik salah satu nama advisor di samping untuk melihat riwayat pelatihan, portofolio klien, dan dokumen administrasi.
                                         </p>
                                     </div>
                                 ) : (

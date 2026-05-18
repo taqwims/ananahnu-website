@@ -28,7 +28,7 @@ export const TeamClientsTable = ({ clients }: TeamClientsTableProps) => {
                             <th className="px-8 py-5">Informasi Usaha</th>
                             <th className="px-8 py-5">Jenis Produk</th>
                             <th className="px-8 py-5">Layanan</th>
-                            <th className="px-8 py-5">Konsultan</th>
+                            <th className="px-8 py-5">Advisor</th>
                             <th className="px-8 py-5">Kontak</th>
                         </tr>
                     </thead>

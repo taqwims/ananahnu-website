@@ -51,7 +51,7 @@ export const WorkflowActions = ({
             submissionService.getDrafters().then(setDrafters).catch(() => {});
         }
         if (submission.data_source === 'MARKETING' && 
-            (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'KOORDINATOR' || user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR')) {
+            (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR')) {
             submissionService.getConsultants().then(setConsultants).catch(() => {});
         }
     }, [submission.status, submission.data_source, user?.role]);
@@ -104,7 +104,7 @@ export const WorkflowActions = ({
 
     const getRejectLabel = () => {
         switch (submission.status) {
-            case 'QC_OFFICER': return 'Return to Koordinator';
+            case 'QC_OFFICER': return 'Return to Halal Manager';
             case 'DRAFTER': return 'Return to QC Officer';
             case 'QC_REVIEW': return 'Return to Drafter';
             case 'SIDANG_FATWA': return 'Return to Drafter';
@@ -112,7 +112,7 @@ export const WorkflowActions = ({
         }
     };
 
-    const showApprove = ((submission.status === 'VERVAL_PENDAMPING' && (user?.role === 'HALAL_KONSULTAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+    const showApprove = ((submission.status === 'VERVAL_PENDAMPING' && (user?.role === 'HALAL_ADVISOR' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'WAITING_PAYMENT' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER'))) ||
                         (submission.status === 'DRAFTER' && (user?.role === 'DRAFTER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
@@ -181,7 +181,7 @@ export const WorkflowActions = ({
 
                     {(submission.status === 'DRAFTER' || submission.status === 'QC_REVIEW') && 
                         submission.service_type === 'REGULER' && 
-                        (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'DRAFTER' || user?.role === 'HALAL_KONSULTAN' || user?.role === 'VERIFIKATOR') && (
+                        (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'DRAFTER' || user?.role === 'HALAL_ADVISOR' || user?.role === 'VERIFIKATOR') && (
                         <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 space-y-3">
                                 <label className="flex items-center gap-2 text-sm font-black text-amber-800 tracking-tight">
                                     📅 Input Tanggal Audit
@@ -223,17 +223,17 @@ export const WorkflowActions = ({
                         </div>
                     )}
 
-                    {submission.status === 'QC_OFFICER' && !submission.consultant_id && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'KOORDINATOR' || user?.role === 'QC_OFFICER' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER')) && (
+                    {submission.status === 'QC_OFFICER' && !submission.consultant_id && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'QC_OFFICER' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER')) && (
                         <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 space-y-3">
                             <label className="flex items-center gap-2 text-sm font-black text-purple-800 tracking-tight">
-                                <UserCheck className="w-4 h-4" /> Penunjukan Konsultan
+                                <UserCheck className="w-4 h-4" /> Penunjukan Advisor
                             </label>
                             <select
                                 className="glass-input text-sm w-full"
                                 value={selectedConsultantId}
                                 onChange={e => setSelectedConsultantId(e.target.value)}
                             >
-                                <option value="">-- Pilih Konsultan --</option>
+                                <option value="">-- Pilih Advisor --</option>
                                 {consultants.map(c => (
                                     <option key={c.id} value={c.id}>{c.full_name}</option>
                                 ))}
@@ -243,7 +243,7 @@ export const WorkflowActions = ({
                                 disabled={processing || !selectedConsultantId}
                                 className="w-full py-2 bg-purple-600 text-white rounded-xl font-bold text-xs hover:bg-purple-700 transition-all disabled:opacity-50"
                             >
-                                Tunjuk Konsultan
+                                Tunjuk Advisor
                             </button>
                         </div>
                     )}

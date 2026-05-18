@@ -20,9 +20,9 @@ export default function ConsultantVerification() {
                         <div className="p-2 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-200">
                             <Shield className="w-6 h-6 text-white" />
                         </div>
-                        Verifikasi Konsultan
+                        Verifikasi Advisor
                     </h1>
-                    <p className="text-gray-500 mt-1 font-medium">Validasi dokumen rekrutmen dan status keanggotaan konsultan</p>
+                    <p className="text-gray-500 mt-1 font-medium">Validasi dokumen rekrutmen dan status keanggotaan advisor</p>
                 </div>
                 
                 <div className="relative w-full md:w-80">
@@ -60,9 +60,9 @@ export default function ConsultantVerification() {
                                 <div className="p-6 bg-white rounded-3xl shadow-sm mb-6">
                                     <Eye className="w-12 h-12 text-gray-300" />
                                 </div>
-                                <h3 className="text-xl font-black text-gray-800">Pilih Konsultan</h3>
+                                <h3 className="text-xl font-black text-gray-800">Pilih Advisor</h3>
                                 <p className="text-gray-500 max-w-xs mt-2 text-sm">
-                                    Pilih salah satu profil konsultan dari daftar untuk meninjau dokumen dan melakukan verifikasi.
+                                    Pilih salah satu profil advisor dari daftar untuk meninjau dokumen dan melakukan verifikasi.
                                 </p>
                             </motion.div>
                         ) : (

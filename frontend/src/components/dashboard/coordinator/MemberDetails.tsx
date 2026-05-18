@@ -31,7 +31,7 @@ export const MemberDetails = ({
 
                 {!profile ? (
                     <div className="p-12 text-center bg-gray-50 rounded-3xl border border-dashed border-gray-200">
-                        <p className="text-sm font-bold text-gray-400 italic">Konsultan belum melengkapi data profil</p>
+                        <p className="text-sm font-bold text-gray-400 italic">Advisor belum melengkapi data profil</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

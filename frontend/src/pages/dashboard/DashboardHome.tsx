@@ -132,14 +132,14 @@ export default function DashboardHome() {
             </Modal>
 
             {/* Coordinator Info for Consultants */}
-            {user?.role === 'HALAL_KONSULTAN' && (
+            {user?.role === 'HALAL_ADVISOR' && (
                 <div className="glass-panel p-4 bg-indigo-50 border-indigo-100 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-indigo-600 shadow-sm">
                             <ShieldCheck className="w-6 h-6" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Koordinator Anda</p>
+                            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Halal Manager Anda</p>
                             <h3 className="text-lg font-black text-indigo-900 leading-tight">
                                 {user.leader?.full_name || 'Belum Ditentukan'}
                             </h3>
@@ -173,7 +173,7 @@ export default function DashboardHome() {
                     </div>
                     {user.leader && (
                         <div className="text-right">
-                            <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Koordinator</p>
+                            <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Halal Manager</p>
                             <p className="text-sm font-bold text-amber-800">{user.leader.full_name}</p>
                         </div>
                     )}

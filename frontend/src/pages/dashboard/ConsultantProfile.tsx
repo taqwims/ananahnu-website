@@ -63,7 +63,7 @@ export default function ConsultantProfilePage() {
             <div>
                 <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                     <UserCheck className="w-6 h-6 text-brand-600" />
-                    Profil Konsultan Halal
+                    Profil Advisor Halal
                 </h1>
                 <p className="text-sm text-gray-500 mt-1">Lengkapi dokumen rekrutmen Anda</p>
             </div>

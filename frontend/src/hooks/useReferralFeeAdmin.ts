@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
-export interface ReferralCommission {
+export interface Commission {
     id: string;
     referrer_id: string;
     referrer?: {
@@ -32,7 +32,7 @@ export interface ReferralCommission {
 }
 
 export const useReferralFeeAdmin = () => {
-    const [commissions, setCommissions] = useState<ReferralCommission[]>([]);
+    const [commissions, setCommissions] = useState<Commission[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState('');

@@ -32,8 +32,8 @@ export const UserTable = ({
         const colors: Record<string, string> = {
             DIRECTOR: 'bg-red-100 text-red-700',
             MANAGER: 'bg-orange-100 text-orange-700',
-            KOORDINATOR: 'bg-blue-100 text-blue-700',
-            HALAL_KONSULTAN: 'bg-green-100 text-green-700',
+            HALAL_MANAGER: 'bg-blue-100 text-blue-700',
+            HALAL_ADVISOR: 'bg-green-100 text-green-700',
             QC_OFFICER: 'bg-purple-100 text-purple-700',
             DRAFTER: 'bg-indigo-100 text-indigo-700',
             ADMIN_PELATIHAN: 'bg-teal-100 text-teal-700',

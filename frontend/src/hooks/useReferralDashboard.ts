@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
-import type { User, ReferralCommission } from '../types';
+import type { User, Commission } from '../types';
 
 export const useReferralDashboard = () => {
     const user = useAuthStore(state => state.user);
     const [referrals, setReferrals] = useState<User[]>([]);
-    const [commissions, setCommissions] = useState<ReferralCommission[]>([]);
+    const [commissions, setCommissions] = useState<Commission[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [copied, setCopied] = useState(false);
 
@@ -38,10 +38,13 @@ export const useReferralDashboard = () => {
         }
     };
 
-    const stats = useMemo(() => {
-        const totalIncentive = commissions.reduce((sum, c) => sum + c.amount, 0);
-        const paidCount = commissions.filter(c => c.status === 'PAID').length;
-        const pendingCount = commissions.filter(c => c.status === 'PENDING').length;
+    const referralCommissions = useMemo(() => commissions.filter(c => c.type === 'REFERRAL' || !c.type), [commissions]);
+    const structuralCommissions = useMemo(() => commissions.filter(c => c.type === 'STRUCTURAL'), [commissions]);
+
+    const referralStats = useMemo(() => {
+        const totalIncentive = referralCommissions.reduce((sum, c) => sum + c.amount, 0);
+        const paidCount = referralCommissions.filter(c => c.status === 'PAID').length;
+        const pendingCount = referralCommissions.filter(c => c.status === 'PENDING').length;
         
         return {
             totalReferrals: referrals.length,
@@ -49,15 +52,29 @@ export const useReferralDashboard = () => {
             paidCount,
             pendingCount
         };
-    }, [referrals, commissions]);
+    }, [referrals, referralCommissions]);
+
+    const structuralStats = useMemo(() => {
+        const totalIncentive = structuralCommissions.reduce((sum, c) => sum + c.amount, 0);
+        const paidCount = structuralCommissions.filter(c => c.status === 'PAID').length;
+        const pendingCount = structuralCommissions.filter(c => c.status === 'PENDING').length;
+        
+        return {
+            totalIncentive,
+            paidCount,
+            pendingCount
+        };
+    }, [structuralCommissions]);
 
     return {
         user,
         referrals,
-        commissions,
+        referralCommissions,
+        structuralCommissions,
         isLoading,
         copied,
         handleCopy,
-        stats
+        referralStats,
+        structuralStats
     };
 };

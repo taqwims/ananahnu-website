@@ -32,7 +32,7 @@ export const ReferralCodeCard = ({ user, copied, onCopy }: ReferralCodeCardProps
                     </button>
                 </div>
                 <p className="text-xs text-gray-500 mt-4 leading-relaxed">
-                    Bagikan kode ini kepada konsultan baru saat mereka mendaftar. Anda mungkin akan mendapatkan insentif khusus untuk setiap konsultan yang berhasil bergabung dan aktif melalui kode Anda.
+                    Bagikan kode ini kepada advisor baru saat mereka mendaftar. Anda mungkin akan mendapatkan insentif khusus untuk setiap advisor yang berhasil bergabung dan aktif melalui kode Anda.
                 </p>
             </div>
         </div>

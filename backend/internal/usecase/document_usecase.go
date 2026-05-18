@@ -78,7 +78,7 @@ func (uc *documentUsecase) GenerateContract(submissionID uuid.UUID, format strin
 	// Person signing for Consultant (Now using the assigned Consultant name)
 	if submission.Consultant != nil {
 		vars["[Nama Penandatangan]"] = submission.Consultant.FullName
-		vars["[Jabatan]"] = "Konsultan Halal"
+		vars["[Jabatan]"] = "Advisor Halal"
 	} else {
 		// Fallback to Director if no consultant assigned
 		vars["[Nama Penandatangan]"] = uc.getSetting(settingMap, "COMPANY_DIRECTOR_NAME", "Direktur Ana Nahnu")

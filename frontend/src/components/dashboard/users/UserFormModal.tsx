@@ -95,9 +95,9 @@ export const UserFormModal = ({
                             ))}
                         </select>
                     </div>
-                    {formData.role === 'HALAL_KONSULTAN' && (
+                    {formData.role === 'HALAL_ADVISOR' && (
                         <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Koordinator (Leader)</label>
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Halal Manager (Leader)</label>
                             <select
                                 className="glass-input w-full"
                                 value={formData.leader_id}

@@ -150,7 +150,7 @@ func (uc *submissionWorkflowUsecase) Approve(id uuid.UUID, userID uuid.UUID, use
 			return errors.New("pengajuan belum lunas. Pembayaran harus dikonfirmasi terlebih dahulu")
 		}
 	case domain.StatusVervalPendamping:
-		requiredRole = "HALAL_KONSULTAN"
+		requiredRole = "HALAL_ADVISOR"
 		nextStatus = domain.StatusQCOfficer
 		if sub.ServiceType == "REGULER" || sub.ServiceType == "SELF_DECLARE_MANDIRI" {
 			isPaid := false
@@ -201,7 +201,7 @@ func (uc *submissionWorkflowUsecase) Approve(id uuid.UUID, userID uuid.UUID, use
 	}
 
 	if sub.Status == domain.StatusQCOfficer && sub.DataSource == "MARKETING" && sub.ConsultantID == nil {
-		return errors.New("pengajuan dari Marketing harus ditunjuk konsultan terlebih dahulu sebelum didistribusikan")
+		return errors.New("pengajuan dari Marketing harus ditunjuk advisor terlebih dahulu sebelum didistribusikan")
 	}
 
 	err = uc.SubmissionRepo.UpdateStatus(id, nextStatus, 0)
@@ -249,7 +249,7 @@ func (uc *submissionWorkflowUsecase) ApproveWithDrafter(id uuid.UUID, userID uui
 	}
 
 	if sub.DataSource == "MARKETING" && sub.ConsultantID == nil {
-		return errors.New("pengajuan dari Marketing harus ditunjuk konsultan terlebih dahulu sebelum didistribusikan")
+		return errors.New("pengajuan dari Marketing harus ditunjuk advisor terlebih dahulu sebelum didistribusikan")
 	}
 
 	if err := uc.SubmissionRepo.UpdateAssignee(id, &drafterID); err != nil {
@@ -296,7 +296,7 @@ func (uc *submissionWorkflowUsecase) AssignConsultant(id uuid.UUID, userID uuid.
 		return err
 	}
 
-	if userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "KOORDINATOR" && userRole != "QC_OFFICER" && userRole != "VERIFIKATOR" {
+	if userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "HALAL_MANAGER" && userRole != "QC_OFFICER" && userRole != "VERIFIKATOR" {
 		return errors.New("unauthorized to assign consultant")
 	}
 
@@ -321,7 +321,7 @@ func (uc *submissionWorkflowUsecase) AssignConsultant(id uuid.UUID, userID uuid.
 		_ = uc.NotifUC.SendWorkflowNotification("consultant_assigned", map[string]string{
 			"consultant_name": consultant.FullName,
 			"business_name":   sub.Client.BusinessName,
-		}, consultant.Phone, &consultantID, id, "Penugasan Konsultan", "Anda ditunjuk sebagai konsultan untuk pengajuan "+sub.Client.BusinessName)
+		}, consultant.Phone, &consultantID, id, "Penugasan Advisor", "Anda ditunjuk sebagai advisor untuk pengajuan "+sub.Client.BusinessName)
 	}
 
 	return nil
@@ -492,7 +492,7 @@ func (uc *submissionWorkflowUsecase) UpdateBusinessType(id uuid.UUID, userID uui
 	}
 
 	// Permission check (same as update client)
-	canUpdate := (userRole == "ADMIN" || userRole == "DIRECTOR" || userRole == "DRAFTER" || userRole == "QC_OFFICER" || userRole == "KOORDINATOR" || userRole == "HALAL_KONSULTAN" || (userRole == "VERIFIKATOR" && sub.ServiceType == "REGULER"))
+	canUpdate := (userRole == "ADMIN" || userRole == "DIRECTOR" || userRole == "DRAFTER" || userRole == "QC_OFFICER" || userRole == "HALAL_MANAGER" || userRole == "HALAL_ADVISOR" || (userRole == "VERIFIKATOR" && sub.ServiceType == "REGULER"))
 	if !canUpdate {
 		return errors.New("unauthorized to update business type")
 	}

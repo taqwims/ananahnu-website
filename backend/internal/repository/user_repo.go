@@ -133,26 +133,49 @@ func (r *userRepository) Delete(id uuid.UUID) error {
 	return r.db.Delete(&domain.User{}, id).Error
 }
 
-// Referral Commission Implementation
-type referralCommissionRepository struct {
+// Commission Implementation
+type commissionRepository struct {
 	db *gorm.DB
 }
 
-func NewReferralCommissionRepository(db *gorm.DB) domain.ReferralCommissionRepository {
-	return &referralCommissionRepository{db: db}
+func NewCommissionRepository(db *gorm.DB) domain.CommissionRepository {
+	return &commissionRepository{db: db}
 }
 
-func (r *referralCommissionRepository) Create(commission *domain.ReferralCommission) error {
+func (r *commissionRepository) Create(commission *domain.Commission) error {
 	return r.db.Create(commission).Error
 }
 
-func (r *referralCommissionRepository) FindAll(filter map[string]interface{}, page, limit int) ([]domain.ReferralCommission, int64, error) {
-	var commissions []domain.ReferralCommission
+func (r *commissionRepository) UpsertStructural(commission *domain.Commission) error {
+	// Find if there's already a structural commission for this user and period
+	var existing domain.Commission
+	err := r.db.Where("user_id = ? AND period = ? AND type = ?", commission.UserID, commission.Period, domain.CommissionTypeStructural).First(&existing).Error
+	
+	if err == nil {
+		// Update existing
+		existing.Amount += commission.Amount
+		existing.BaseOmset += commission.BaseOmset
+		existing.UpdatedAt = time.Now()
+		return r.db.Save(&existing).Error
+	}
+	
+	// Create new
+	return r.db.Create(commission).Error
+}
+
+func (r *commissionRepository) FindAll(filter map[string]interface{}, page, limit int) ([]domain.Commission, int64, error) {
+	var commissions []domain.Commission
 	var total int64
 
-	db := r.db.Model(&domain.ReferralCommission{}).Preload("Referrer").Preload("Referred").Preload("Submission")
+	db := r.db.Model(&domain.Commission{}).Preload("Referrer").Preload("Referred").Preload("Submission").Preload("User")
 
-	// Apply filters if needed
+	if t, ok := filter["type"]; ok {
+		db = db.Where("type = ?", t)
+	}
+
+	if id, ok := filter["user_or_referrer_id"]; ok {
+		db = db.Where("referrer_id = ? OR user_id = ?", id, id)
+	}
 
 	db.Count(&total)
 
@@ -162,15 +185,15 @@ func (r *referralCommissionRepository) FindAll(filter map[string]interface{}, pa
 	return commissions, total, err
 }
 
-func (r *referralCommissionRepository) UpdateStatus(id uuid.UUID, status domain.ReferralCommissionStatus, paidAt *time.Time) error {
-	return r.db.Model(&domain.ReferralCommission{}).Where("id = ?", id).Updates(map[string]interface{}{
+func (r *commissionRepository) UpdateStatus(id uuid.UUID, status domain.CommissionStatus, paidAt *time.Time) error {
+	return r.db.Model(&domain.Commission{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"status":  status,
 		"paid_at": paidAt,
 	}).Error
 }
 
-func (r *referralCommissionRepository) FindBySubmissionID(submissionID uuid.UUID) (*domain.ReferralCommission, error) {
-	var commission domain.ReferralCommission
+func (r *commissionRepository) FindBySubmissionID(submissionID uuid.UUID) (*domain.Commission, error) {
+	var commission domain.Commission
 	if err := r.db.Where("submission_id = ?", submissionID).First(&commission).Error; err != nil {
 		return nil, err
 	}

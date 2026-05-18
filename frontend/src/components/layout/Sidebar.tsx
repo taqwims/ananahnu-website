@@ -10,6 +10,7 @@ import {
     UserCheck,
     UsersRound,
     GraduationCap,
+    Award,
     Receipt,
     Settings,
     MapPin,
@@ -44,47 +45,49 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
             links: [
                 { name: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
                 { name: 'Profil Saya', to: '/dashboard/profile', icon: Settings },
-                { name: 'Klien', to: '/dashboard/clients', icon: Users, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'KOORDINATOR', 'DRAFTER', 'QC_OFFICER', 'MARKETING', 'VERIFIKATOR'] },
-                { name: 'Pengajuan', to: '/dashboard/submissions', icon: FileText, roles: ['DIRECTOR', 'MANAGER', 'HALAL_KONSULTAN', 'KOORDINATOR', 'QC_OFFICER', 'DRAFTER', 'MARKETING', 'VERIFIKATOR'] },
-                { name: 'Tagihan Saya', to: '/dashboard/my-invoices', icon: CreditCard, roles: ['KOORDINATOR', 'HALAL_KONSULTAN', 'ADMIN', 'MARKETING'] },
+                { name: 'Klien', to: '/dashboard/clients', icon: Users, roles: ['DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'DRAFTER', 'QC_OFFICER', 'MARKETING', 'VERIFIKATOR'] },
+                { name: 'Pengajuan', to: '/dashboard/submissions', icon: FileText, roles: ['DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'QC_OFFICER', 'DRAFTER', 'MARKETING', 'VERIFIKATOR'] },
+                { name: 'Tagihan Saya', to: '/dashboard/my-invoices', icon: CreditCard, roles: ['HALAL_MANAGER', 'HALAL_ADVISOR', 'ADMIN', 'MARKETING'] },
             ]
         },
         {
             name: 'Workflow',
-            roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN', 'HALAL_KONSULTAN', 'VERIFIKATOR'],
+            roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN', 'HALAL_ADVISOR', 'VERIFIKATOR'],
             links: [
                 { name: 'Distribusi Data', to: '/dashboard/distribution', icon: Users, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN', 'VERIFIKATOR'] },
                 { name: 'Monitoring Drafter', to: '/dashboard/monitoring', icon: Monitor, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN', 'VERIFIKATOR'] },
                 { name: 'Ruang Kerja Drafter', to: '/dashboard/drafter-workspace', icon: ShieldCheck, roles: ['DRAFTER', 'ADMIN'] },
                 { name: 'Ruang Kerja QC', to: '/dashboard/qc-workspace', icon: ShieldCheck, roles: ['QC_OFFICER', 'ADMIN'] },
                 { name: 'Ruang Kerja Verifikator', to: '/dashboard/verifikator-workspace', icon: ShieldCheck, roles: ['VERIFIKATOR', 'ADMIN'] },
-                { name: 'Profil Konsultan', to: '/dashboard/consultant-profile', icon: UserCheck, roles: ['HALAL_KONSULTAN'] },
+                { name: 'Profil Advisor', to: '/dashboard/consultant-profile', icon: UserCheck, roles: ['HALAL_ADVISOR'] },
+                { name: 'Jenjang Karir', to: '/dashboard/karir', icon: Award, roles: ['HALAL_ADVISOR', 'HALAL_MANAGER'] },
             ]
         },
         {
             name: 'Jaringan & Referral',
-            roles: ['KOORDINATOR', 'HALAL_KONSULTAN', 'MARKETING', 'ADMIN', 'DIRECTOR', 'FINANCE', 'ADMIN_KEUANGAN'],
+            roles: ['HALAL_MANAGER', 'HALAL_ADVISOR', 'MARKETING', 'ADMIN', 'DIRECTOR', 'ADMIN_KEUANGAN'],
             links: [
-                { name: 'Tim Saya', to: '/dashboard/team', icon: UsersRound, roles: ['KOORDINATOR'] },
-                { name: 'Referral Saya', to: '/dashboard/referrals', icon: TrendingUp, roles: ['HALAL_KONSULTAN', 'KOORDINATOR', 'MARKETING', 'ADMIN'] },
+                { name: 'Tim Saya', to: '/dashboard/team', icon: UsersRound, roles: ['HALAL_MANAGER'] },
+                { name: 'Referral Saya', to: '/dashboard/referrals', icon: TrendingUp, roles: ['HALAL_ADVISOR', 'HALAL_MANAGER', 'MARKETING', 'ADMIN'] },
                 { name: 'Analitik Referral', to: '/dashboard/admin-referrals', icon: TrendingUp, roles: ['ADMIN_PELATIHAN', 'DIRECTOR', 'ADMIN'] },
-                { name: 'Fee Referral', to: '/dashboard/referral-fees', icon: DollarSign, roles: ['ADMIN_KEUANGAN', 'ADMIN_PELATIHAN', 'FINANCE', 'DIRECTOR', 'ADMIN'] },
-                { name: 'Tarif Koordinator', to: '/dashboard/coordinator-rates', icon: CreditCard, roles: ['FINANCE', 'ADMIN_KEUANGAN', 'ADMIN', 'DIRECTOR'] },
+                { name: 'Fee Referral', to: '/dashboard/referral-fees', icon: DollarSign, roles: ['ADMIN_KEUANGAN', 'ADMIN_PELATIHAN', 'DIRECTOR', 'ADMIN'] },
+                { name: 'Tarif Halal Manager', to: '/dashboard/coordinator-rates', icon: CreditCard, roles: ['ADMIN_KEUANGAN', 'ADMIN', 'DIRECTOR'] },
             ]
         },
         {
             name: 'Operasional',
-            roles: ['ADMIN_PELATIHAN', 'KOORDINATOR', 'DIRECTOR', 'MANAGER', 'ADMIN'],
+            roles: ['ADMIN_PELATIHAN', 'HALAL_MANAGER', 'DIRECTOR', 'MANAGER', 'ADMIN'],
             links: [
-                { name: 'Verifikasi Konsultan', to: '/dashboard/consultant-verification', icon: Shield, roles: ['ADMIN_PELATIHAN', 'DIRECTOR', 'ADMIN'] },
-                { name: 'Pelatihan', to: '/dashboard/training', icon: GraduationCap, roles: ['ADMIN_PELATIHAN', 'KOORDINATOR', 'DIRECTOR', 'MANAGER'] },
+                { name: 'Verifikasi Advisor', to: '/dashboard/consultant-verification', icon: Shield, roles: ['ADMIN_PELATIHAN', 'DIRECTOR', 'ADMIN'] },
+                { name: 'Pelatihan', to: '/dashboard/training', icon: GraduationCap, roles: ['ADMIN_PELATIHAN', 'HALAL_MANAGER', 'DIRECTOR', 'MANAGER'] },
+                { name: 'Pengajuan Promosi', to: '/dashboard/admin-promosi', icon: Award, roles: ['ADMIN_PELATIHAN', 'ADMIN'] },
             ]
         },
         {
             name: 'Pengaturan Sistem',
-            roles: ['DIRECTOR', 'MANAGER', 'ADMIN_KEUANGAN', 'FINANCE', 'ADMIN'],
+            roles: ['DIRECTOR', 'MANAGER', 'ADMIN_KEUANGAN', 'ADMIN'],
             links: [
-                { name: 'Manajemen Billing', to: '/dashboard/billing', icon: Receipt, roles: ['ADMIN_KEUANGAN', 'FINANCE', 'DIRECTOR', 'ADMIN'] },
+                { name: 'Manajemen Billing', to: '/dashboard/billing', icon: Receipt, roles: ['ADMIN_KEUANGAN', 'DIRECTOR', 'ADMIN'] },
                 { name: 'Pengaturan Form', to: '/dashboard/form-config', icon: Settings, roles: ['DIRECTOR', 'MANAGER', 'ADMIN'] },
                 { name: 'Master Biaya', to: '/dashboard/billing-config', icon: Receipt, roles: ['DIRECTOR', 'MANAGER', 'ADMIN'] },
                 { name: 'Wilayah & Tarif', to: '/dashboard/geography', icon: MapPin, roles: ['DIRECTOR', 'MANAGER', 'ADMIN_KEUANGAN', 'ADMIN'] },

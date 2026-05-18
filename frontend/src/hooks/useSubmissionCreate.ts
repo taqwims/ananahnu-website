@@ -38,7 +38,7 @@ export const useSubmissionCreate = () => {
     const [verStatus, setVerStatus] = useState<{ profile: boolean; training: boolean } | null>(null);
 
     const checkVerification = useCallback(async () => {
-        if (user?.role === 'HALAL_KONSULTAN') {
+        if (user?.role === 'HALAL_ADVISOR') {
             try {
                 const profileRes = await api.get(`/consultant/profile/${user.id}`);
                 const profileVerified = profileRes.data?.is_verified ?? false;

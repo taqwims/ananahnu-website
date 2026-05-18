@@ -21,7 +21,7 @@ export const useConsultantVerification = () => {
             ]);
             setProfiles(profilesRes.data || []);
             setCoordinators((usersRes.data.data || []).filter((u: any) => 
-                (typeof u.role === 'string' ? u.role : u.role?.name) === 'KOORDINATOR'
+                (typeof u.role === 'string' ? u.role : u.role?.name) === 'HALAL_MANAGER'
             ));
         } catch (err) {
             console.error("Failed to load verification data", err);
@@ -45,7 +45,7 @@ export const useConsultantVerification = () => {
             if (selectedProfile?.user_id === userId) {
                 setSelectedProfile(prev => prev ? { ...prev, is_verified: verified } : null);
             }
-            toast.success(verified ? 'Konsultan berhasil diverifikasi' : 'Verifikasi konsultan dibatalkan');
+            toast.success(verified ? 'Advisor berhasil diverifikasi' : 'Verifikasi advisor dibatalkan');
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Gagal update verifikasi');
         } finally {

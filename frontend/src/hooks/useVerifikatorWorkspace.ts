@@ -49,7 +49,7 @@ export const useVerifikatorWorkspace = (initialSubId: string | null) => {
                 submissionService.getAll({ status: 'QC_REVIEW', service_type: 'REGULER' }),
                 submissionService.getAll({ status: 'SIDANG_FATWA', service_type: 'REGULER' }),
                 submissionService.getDrafters(),
-                submissionService['api'].get('/admin/users?role=HALAL_KONSULTAN')
+                submissionService['api'].get('/admin/users?role=HALAL_ADVISOR')
             ]);
             
             setSubmissions([...qcOff, ...qcRev, ...fatwa]);
@@ -144,10 +144,10 @@ export const useVerifikatorWorkspace = (initialSubId: string | null) => {
                 case 'reject_consultant':
                     if (activeSubmission.data_source === 'MARKETING' && selectedConsultant) {
                         await submissionService.assignConsultant(activeSubmission.id, selectedConsultant);
-                        toast.success("Konsultan ditunjuk & pengajuan dikembalikan");
+                        toast.success("Advisor ditunjuk & pengajuan dikembalikan");
                     } else {
                         await submissionService.reject(activeSubmission.id, rejectNote);
-                        toast.success("Pengajuan dikembalikan ke Konsultan");
+                        toast.success("Pengajuan dikembalikan ke Advisor");
                     }
                     setRejectNote('');
                     setSelectedConsultant('');

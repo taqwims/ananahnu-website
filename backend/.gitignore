@@ -7,6 +7,7 @@ bin/
 *.dylib
 api-server
 main
+*.go
 
 # OS generated files
 .DS_Store

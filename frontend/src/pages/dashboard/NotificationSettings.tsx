@@ -171,7 +171,7 @@ const NotificationSettings = () => {
                             />
 
                             <TemplateField 
-                                label="Penugasan Konsultan"
+                                label="Penugasan Advisor"
                                 icon={<ShieldCheck className="w-4 h-4" />}
                                 value={settings['template_consultant_assigned'] || ''}
                                 placeholder="Halo {{consultant_name}}, Anda ditunjuk untuk {{business_name}}..."
@@ -214,7 +214,7 @@ const NotificationSettings = () => {
                                 onToggleApp={(val) => updateSetting('enable_app_audit_scheduled_internal', val ? 'true' : 'false')}
                                 onToggleWA={(val) => updateSetting('enable_wa_audit_scheduled_internal', val ? 'true' : 'false')}
                                 disabled={isSaving}
-                                hint="Drafter/Konsultan • Penetapan Jadwal"
+                                hint="Drafter/Advisor • Penetapan Jadwal"
                                 variables={['business_name', 'date']}
                             />
 
@@ -246,7 +246,7 @@ const NotificationSettings = () => {
                                 onToggleApp={(val) => updateSetting('enable_app_sh_terbit_internal', val ? 'true' : 'false')}
                                 onToggleWA={(val) => updateSetting('enable_wa_sh_terbit_internal', val ? 'true' : 'false')}
                                 disabled={isSaving}
-                                hint="Konsultan/Fasilitator • Done"
+                                hint="Advisor/Fasilitator • Done"
                                 variables={['consultant_name', 'business_name']}
                             />
 
@@ -278,7 +278,7 @@ const NotificationSettings = () => {
                                 onToggleApp={(val) => updateSetting('enable_app_revision_internal', val ? 'true' : 'false')}
                                 onToggleWA={(val) => updateSetting('enable_wa_revision_internal', val ? 'true' : 'false')}
                                 disabled={isSaving}
-                                hint="Drafter/Konsultan • Feedback"
+                                hint="Drafter/Advisor • Feedback"
                                 variables={['drafter_name', 'business_name', 'note']}
                             />
                         </div>

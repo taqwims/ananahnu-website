@@ -27,7 +27,7 @@ type RegisterInput struct {
 	FullName     string `json:"full_name" binding:"required"`
 	Email        string `json:"email" binding:"required,email"`
 	Password     string `json:"password" binding:"required,min=6"`
-	Role         string `json:"role" binding:"required"` // "HALAL_KONSULTAN"
+	Role         string `json:"role" binding:"required"` // "HALAL_ADVISOR"
 	Address       string     `json:"address" binding:"required"`
 	Phone         string     `json:"phone" binding:"required"`
 	ProvinceID    string     `json:"province_id" binding:"required"`
@@ -99,7 +99,7 @@ func (uc *authUsecase) Login(email, password string) (string, string, *domain.Us
 
 func (uc *authUsecase) Register(input RegisterInput) error {
 	// 1. Validate Role
-	if input.Role != "HALAL_KONSULTAN" {
+	if input.Role != "HALAL_ADVISOR" {
 		return errors.New("invalid role for registration")
 	}
 
@@ -160,8 +160,8 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 }
 
 func (uc *authUsecase) ListFacilitators() ([]domain.User, error) {
-	// Find users with role HALAL_KONSULTAN
-	filter := map[string]interface{}{"role": "HALAL_KONSULTAN"}
+	// Find users with role HALAL_ADVISOR
+	filter := map[string]interface{}{"role": "HALAL_ADVISOR"}
 	users, _, err := uc.UserRepo.FindAll(filter, 1, 1000)
 	return users, err
 }

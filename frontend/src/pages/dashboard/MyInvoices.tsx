@@ -31,7 +31,7 @@ export default function MyInvoices() {
     const [paying, setPaying] = useState(false);
     const [reminding, setReminding] = useState<number | null>(null);
     const currentUser = useAuthStore(state => state.user);
-    const isCoordinator = currentUser?.role === 'KOORDINATOR';
+    const isCoordinator = currentUser?.role === 'HALAL_MANAGER';
 
     useEffect(() => {
         fetchInvoices();
@@ -113,7 +113,7 @@ export default function MyInvoices() {
         setReminding(id);
         try {
             await api.post(`/billing/${id}/remind`);
-            toast.success("Pengingat berhasil dikirim ke konsultan.");
+            toast.success("Pengingat berhasil dikirim ke advisor.");
         } catch (err: any) {
             toast.error(err.response?.data?.error || "Gagal mengirim pengingat");
         } finally {
@@ -136,7 +136,7 @@ export default function MyInvoices() {
                     <h1 className="text-2xl font-bold text-gray-800">{isCoordinator ? 'Tagihan Tim & Saya' : 'Tagihan Saya'}</h1>
                     <p className="text-gray-500 text-sm">
                         {isCoordinator 
-                            ? 'Daftar tagihan sertifikasi Anda dan tim konsultan Anda.' 
+                            ? 'Daftar tagihan sertifikasi Anda dan tim advisor Anda.' 
                             : 'Daftar tagihan sertifikasi (Self Declare Fasilitasi (Gratis)) yang perlu dilunasi.'}
                     </p>
                 </div>
@@ -166,7 +166,7 @@ export default function MyInvoices() {
                                 <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Produk</th>
                                 <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Tanggal Tagihan</th>
                                 <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Nominal</th>
-                                {isCoordinator && <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Konsultan</th>}
+                                {isCoordinator && <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Advisor</th>}
                                 <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider text-right">Aksi</th>
                             </tr>
                         </thead>

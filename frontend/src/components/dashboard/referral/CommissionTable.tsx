@@ -1,9 +1,9 @@
 import { CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { formatRupiah } from '../../../utils/format';
-import type { ReferralCommission } from '../../../hooks/useReferralFeeAdmin';
+import type { Commission } from '../../../hooks/useReferralFeeAdmin';
 
 interface CommissionTableProps {
-    commissions: ReferralCommission[];
+    commissions: Commission[];
     loading: boolean;
     statusFilter: string;
     onStatusChange: (v: string) => void;

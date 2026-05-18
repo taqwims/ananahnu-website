@@ -77,8 +77,8 @@ export default function CoordinatorRates() {
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Tarif Sertifikasi Koordinator</h1>
-                    <p className="text-gray-500 text-sm">Tentukan nominal tagihan per SH yang diterbitkan untuk setiap koordinator.</p>
+                    <h1 className="text-2xl font-bold text-gray-800">Tarif Sertifikasi Halal Manager</h1>
+                    <p className="text-gray-500 text-sm">Tentukan nominal tagihan per SH yang diterbitkan untuk setiap halal_manager.</p>
                 </div>
             </div>
 
@@ -86,7 +86,7 @@ export default function CoordinatorRates() {
                 <Search className="text-gray-400 w-5 h-5" />
                 <input 
                     type="text" 
-                    placeholder="Cari koordinator..." 
+                    placeholder="Cari halal_manager..." 
                     className="bg-transparent border-none outline-none text-sm w-full"
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
@@ -150,7 +150,7 @@ export default function CoordinatorRates() {
             {filteredCoordinators.length === 0 && (
                 <div className="text-center py-24 glass-panel">
                     <DollarSign className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-                    <p className="text-gray-400">Tidak ada koordinator yang ditemukan.</p>
+                    <p className="text-gray-400">Tidak ada halal_manager yang ditemukan.</p>
                 </div>
             )}
 
@@ -160,7 +160,7 @@ export default function CoordinatorRates() {
                     onClose={() => setConfirmModal(null)}
                     onConfirm={() => handleUpdateRate(confirmModal.userId, confirmModal.rate)}
                     title="Simpan Perubahan Tarif"
-                    message={`Apakah Anda yakin ingin mengubah tarif untuk koordinator ini menjadi ${formatRupiah(confirmModal.rate)} per SH Terbit?`}
+                    message={`Apakah Anda yakin ingin mengubah tarif untuk halal_manager ini menjadi ${formatRupiah(confirmModal.rate)} per SH Terbit?`}
                     confirmText="Ya, Simpan"
                     variant="info"
                 />

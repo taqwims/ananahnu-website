@@ -12,9 +12,9 @@ import (
 func (uc *submissionWorkflowUsecase) GetSubmissions(userID uuid.UUID, role string, filter map[string]interface{}) ([]domain.Submission, error) {
 	// Role-based filtering logic
 	switch role {
-	case "HALAL_KONSULTAN", "MARKETING":
+	case "HALAL_ADVISOR", "MARKETING":
 		filter["facilitator_ids"] = []uuid.UUID{userID}
-	case "KOORDINATOR":
+	case "HALAL_MANAGER":
 		team, _ := uc.UserRepo.FindByLeaderID(userID)
 		ids := []uuid.UUID{userID}
 		for _, u := range team {
@@ -46,10 +46,10 @@ func (uc *submissionWorkflowUsecase) checkVerification(userID uuid.UUID) error {
 		return err
 	}
 
-	if user.Role.Name == "HALAL_KONSULTAN" {
+	if user.Role.Name == "HALAL_ADVISOR" {
 		profile, err := uc.ConsultantRepo.FindByUserID(userID)
 		if err != nil {
-			return errors.New("Profil Konsultan belum dibuat. Silakan lengkapi profil Anda terlebih dahulu.")
+			return errors.New("Profil Advisor belum dibuat. Silakan lengkapi profil Anda terlebih dahulu.")
 		}
 
 		// Check Training Graduation
@@ -68,7 +68,7 @@ func (uc *submissionWorkflowUsecase) checkVerification(userID uuid.UUID) error {
 			return errors.New("Akses Dibatasi: Akun Anda belum diverifikasi admin DAN Anda belum dinyatakan lulus pelatihan.")
 		}
 		if !profile.IsVerified {
-			return errors.New("Akses Dibatasi: Akun Anda belum diverifikasi oleh admin. Silakan lengkapi dokumen di Profil Konsultan.")
+			return errors.New("Akses Dibatasi: Akun Anda belum diverifikasi oleh admin. Silakan lengkapi dokumen di Profil Advisor.")
 		}
 		if !isGraduated {
 			return errors.New("Akses Dibatasi: Anda belum dinyatakan lulus pelatihan. Silakan pastikan status kelulusan Anda di menu Pelatihan.")
@@ -194,7 +194,7 @@ func (uc *submissionWorkflowUsecase) Delete(id uuid.UUID, userID uuid.UUID, user
 	switch userRole {
 	case "ADMIN", "DIRECTOR":
 		canDelete = true
-	case "HALAL_KONSULTAN", "KOORDINATOR", "MARKETING":
+	case "HALAL_ADVISOR", "HALAL_MANAGER", "MARKETING":
 		if sub.Status == domain.StatusDraft {
 			client, _ := uc.ClientRepo.FindByID(sub.ClientID)
 			if client != nil && client.FacilitatorID == userID {

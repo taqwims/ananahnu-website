@@ -64,7 +64,7 @@ export const useSubmissionList = () => {
     useEffect(() => {
         fetchSubmissions();
         const checkVerification = async () => {
-            if (user?.role === 'HALAL_KONSULTAN') {
+            if (user?.role === 'HALAL_ADVISOR') {
                 try {
                     const profileRes = await api.get(`/consultant/profile/${user.id}`);
                     const profileVerified = profileRes.data?.is_verified ?? false;
@@ -134,7 +134,7 @@ export const useSubmissionList = () => {
         const groups: Record<string, { coordinator: string, submissions: Submission[] }> = {};
 
         filteredData.forEach(sub => {
-            const coord = sub.client?.facilitator?.leader?.full_name || sub.client?.facilitator?.full_name || 'Umum / Tanpa Koordinator';
+            const coord = sub.client?.facilitator?.leader?.full_name || sub.client?.facilitator?.full_name || 'Umum / Tanpa Halal Manager';
             if (!groups[coord]) {
                 groups[coord] = { coordinator: coord, submissions: [] };
             }

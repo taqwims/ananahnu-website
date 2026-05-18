@@ -61,13 +61,13 @@ export const ConsultantVerificationDetails = ({
                 <div className="flex flex-col gap-3 w-full sm:w-auto">
                     {!profile.is_verified && (
                         <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Koordinator</label>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Halal Manager</label>
                             <select 
                                 className="glass-input text-xs py-2"
                                 value={selectedLeader}
                                 onChange={e => setSelectedLeader(e.target.value)}
                             >
-                                <option value="">-- Tanpa Koordinator --</option>
+                                <option value="">-- Tanpa Halal Manager --</option>
                                 {coordinators.map(c => (
                                     <option key={c.id} value={c.id}>{c.full_name}</option>
                                 ))}
@@ -134,7 +134,7 @@ export const ConsultantVerificationDetails = ({
                     <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Riwayat Aktivitas</h4>
                     <div className="p-6 rounded-3xl bg-gray-50 border border-gray-100 h-full flex flex-col items-center justify-center text-center opacity-50 min-h-[200px]">
                         <Clock className="w-8 h-8 text-gray-300 mb-3" />
-                        <p className="text-xs font-medium text-gray-500">Belum ada riwayat aktivitas terbaru untuk konsultan ini.</p>
+                        <p className="text-xs font-medium text-gray-500">Belum ada riwayat aktivitas terbaru untuk advisor ini.</p>
                     </div>
                 </div>
             </div>

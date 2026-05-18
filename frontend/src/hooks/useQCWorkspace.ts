@@ -48,7 +48,7 @@ export const useQCWorkspace = (initialSubId: string | null) => {
                 submissionService.getAll({ status: 'QC_REVIEW' }),
                 submissionService.getAll({ status: 'SIDANG_FATWA' }),
                 submissionService.getDrafters(),
-                submissionService['api'].get('/admin/users?role=HALAL_KONSULTAN') // Need to add to service later
+                submissionService['api'].get('/admin/users?role=HALAL_ADVISOR') // Need to add to service later
             ]);
             
             setSubmissions([...qcOff, ...qcRev, ...fatwa]);
@@ -143,10 +143,10 @@ export const useQCWorkspace = (initialSubId: string | null) => {
                 case 'reject_consultant':
                     if (activeSubmission.data_source === 'MARKETING' && selectedConsultant) {
                         await submissionService.assignConsultant(activeSubmission.id, selectedConsultant);
-                        toast.success("Konsultan ditunjuk & pengajuan dikembalikan");
+                        toast.success("Advisor ditunjuk & pengajuan dikembalikan");
                     } else {
                         await submissionService.reject(activeSubmission.id, rejectNote);
-                        toast.success("Pengajuan dikembalikan ke Konsultan");
+                        toast.success("Pengajuan dikembalikan ke Advisor");
                     }
                     setRejectNote('');
                     setSelectedConsultant('');

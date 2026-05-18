@@ -53,7 +53,7 @@ export const DistributionGroup = ({
                         <tr>
                             <th className="p-4 w-12 text-center">#</th>
                             <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Nama Bisnis & Klien</th>
-                            <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Konsultan</th>
+                            <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Advisor</th>
                             <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Kelengkapan Data</th>
                             <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Timeline</th>
                             <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Aksi</th>

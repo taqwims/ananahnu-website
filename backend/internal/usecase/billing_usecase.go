@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"ananahnu/internal/domain"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -16,8 +17,8 @@ type BillingUsecase interface {
 	MarkInvoicePaid(invoiceID int64) error
 	RemindPayment(invoiceID int64, senderID uuid.UUID) error
 
-	// Referral Commissions
-	GetReferralCommissions(page, limit int, status string) ([]domain.ReferralCommission, int64, error)
+	// Commissions
+	GetReferralCommissions(page, limit int, status string) ([]domain.Commission, int64, error)
 	PayReferralCommission(id uuid.UUID) error
 
 	// Payment Config
@@ -29,14 +30,15 @@ type BillingUsecase interface {
 }
 
 type BillingUsecaseDeps struct {
-	InvoiceRepo    domain.InvoiceRepository
-	ConfigRepo     domain.PaymentConfigRepository
-	RateRepo       domain.BillingRateRepository
-	UserRepo       domain.UserRepository
-	NotifUC        NotificationUsecase
-	CommissionRepo domain.ReferralCommissionRepository
-	SettingRepo    domain.SystemSettingRepository
-	SubmissionRepo domain.SubmissionRepository
+	InvoiceRepo       domain.InvoiceRepository
+	ConfigRepo        domain.PaymentConfigRepository
+	RateRepo          domain.BillingRateRepository
+	UserRepo          domain.UserRepository
+	NotifUC           NotificationUsecase
+	CommissionRepo    domain.CommissionRepository
+	SettingRepo       domain.SystemSettingRepository
+	SubmissionRepo    domain.SubmissionRepository
+	BillingConfigRepo domain.BillingConfigRepository
 }
 
 type billingUsecase struct {
@@ -56,7 +58,7 @@ func (uc *billingUsecase) GetMyInvoices(userID uuid.UUID, roleName string, statu
 		filter["status"] = status
 	}
 
-	if roleName == "KOORDINATOR" {
+	if roleName == "HALAL_MANAGER" {
 		// Get team members
 		team, err := uc.UserRepo.FindByLeaderID(userID)
 		if err == nil {
@@ -138,41 +140,117 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 		return err
 	}
 
-	// Trigger Referral Fee check
+	// Calculate base omset from submission cost detail (Pendampingan component)
+	var pendampinganAmount float64
+	if costDetail, err := uc.BillingConfigRepo.GetSubmissionCostDetail(invoice.SubmissionID); err == nil && costDetail != nil {
+		var breakdown []map[string]interface{}
+		if err := json.Unmarshal([]byte(costDetail.CostBreakdownData), &breakdown); err == nil {
+			for _, item := range breakdown {
+				if cat, ok := item["category"].(string); ok && cat == "PENDAMPINGAN" {
+					if amt, ok := item["total"].(float64); ok {
+						pendampinganAmount += amt
+					}
+				}
+			}
+		}
+	}
+
+	period := time.Now().Format("2006-01") // YYYY-MM
+
 	if invoice.PayerID != nil && *invoice.PayerID != uuid.Nil {
 		user, _ := uc.UserRepo.FindByID(*invoice.PayerID)
-		if user != nil && user.ReferredByID != nil {
-			// This payer was referred! Create a commission for their referrer.
-			
-			// Get Fee from settings
-			feeStr := "0"
-			setting, _ := uc.SettingRepo.GetSetting("REFERRAL_FEE_PER_SH")
-			if setting != nil {
-				feeStr = setting.Value
-			}
-			
-			var feeAmount float64
-			fmt.Sscanf(feeStr, "%f", &feeAmount)
+		if user != nil {
+	// Structural Commissions based on Pendampingan Omset
+	if pendampinganAmount > 0 {
+		submission, _ := uc.SubmissionRepo.FindByID(invoice.SubmissionID)
+		if submission != nil && submission.ConsultantID != nil {
+			// 1. Komisi Direct Sales (25%)
+			_ = uc.CommissionRepo.UpsertStructural(&domain.Commission{
+				ID:        uuid.New(),
+				Type:      domain.CommissionTypeDirectSales,
+				UserID:    submission.ConsultantID,
+				Period:    period,
+				BaseOmset: pendampinganAmount,
+				Amount:    pendampinganAmount * 0.25,
+				Status:    domain.CommissionStatusPending,
+			})
 
-			if feeAmount > 0 {
-				commission := &domain.ReferralCommission{
-					ID:           uuid.New(),
-					ReferrerID:   *user.ReferredByID,
-					ReferredID:   user.ID,
-					SubmissionID: invoice.SubmissionID,
-					Amount:       feeAmount,
-					Status:       domain.CommissionStatusPending,
-					CreatedAt:    time.Now(),
+			// 2. Hierarchical Commissions (Upline Traversal)
+			consultant, _ := uc.UserRepo.FindByID(*submission.ConsultantID)
+			if consultant != nil && consultant.LeaderID != nil {
+				currentNodeID := consultant.LeaderID
+				foundManager := false
+
+				for currentNodeID != nil {
+					nodeUser, _ := uc.UserRepo.FindByID(*currentNodeID)
+					if nodeUser == nil {
+						break
+					}
+
+					roleName := nodeUser.Role.Name
+
+					if roleName == "HALAL_ADVISOR" {
+						// Upline Advisor gets 1%
+						_ = uc.CommissionRepo.UpsertStructural(&domain.Commission{
+							ID:        uuid.New(),
+							Type:      domain.CommissionTypeStructural,
+							UserID:    &nodeUser.ID,
+							Period:    period,
+							BaseOmset: pendampinganAmount,
+							Amount:    pendampinganAmount * 0.01,
+							Status:    domain.CommissionStatusPending,
+						})
+					} else if roleName == "HALAL_MANAGER" {
+						if !foundManager {
+							// First Manager in line gets 5%
+							_ = uc.CommissionRepo.UpsertStructural(&domain.Commission{
+								ID:        uuid.New(),
+								Type:      domain.CommissionTypeStructural,
+								UserID:    &nodeUser.ID,
+								Period:    period,
+								BaseOmset: pendampinganAmount,
+								Amount:    pendampinganAmount * 0.05,
+								Status:    domain.CommissionStatusPending,
+							})
+							foundManager = true
+						} else {
+							// Second Manager in line (Senior Manager) gets 1%
+							_ = uc.CommissionRepo.UpsertStructural(&domain.Commission{
+								ID:        uuid.New(),
+								Type:      domain.CommissionTypeStructural,
+								UserID:    &nodeUser.ID,
+								Period:    period,
+								BaseOmset: pendampinganAmount,
+								Amount:    pendampinganAmount * 0.01,
+								Status:    domain.CommissionStatusPending,
+							})
+						}
+					} else if roleName == "HALAL_DIRECTOR" {
+						// Director gets 2.5%, and stops traversal
+						_ = uc.CommissionRepo.UpsertStructural(&domain.Commission{
+							ID:        uuid.New(),
+							Type:      domain.CommissionTypeStructural,
+							UserID:    &nodeUser.ID,
+							Period:    period,
+							BaseOmset: pendampinganAmount,
+							Amount:    pendampinganAmount * 0.025,
+							Status:    domain.CommissionStatusPending,
+						})
+						break // Stop traversing up after finding a director
+					}
+
+					currentNodeID = nodeUser.LeaderID
 				}
-				_ = uc.CommissionRepo.Create(commission)
 			}
+		}
+	}
 		}
 	}
 
 	return nil
 }
 
-func (uc *billingUsecase) GetReferralCommissions(page, limit int, status string) ([]domain.ReferralCommission, int64, error) {
+func (uc *billingUsecase) GetReferralCommissions(page, limit int, status string) ([]domain.Commission, int64, error) {
 	filter := map[string]interface{}{}
 	if status != "" {
 		filter["status"] = status
@@ -201,7 +279,7 @@ func (uc *billingUsecase) RemindPayment(invoiceID int64, senderID uuid.UUID) err
 	}
 
 	sender, _ := uc.UserRepo.FindByID(senderID)
-	senderName := "Koordinator"
+	senderName := "Halal Manager"
 	if sender != nil {
 		senderName = sender.FullName
 	}

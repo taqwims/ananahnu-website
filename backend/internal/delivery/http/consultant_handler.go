@@ -25,7 +25,7 @@ func NewConsultantHandler(r *gin.Engine, uc usecase.ConsultantUsecase) {
 		
 		// Admin/Training/Coordinator access
 		adminOnly := g.Group("")
-		adminOnly.Use(middleware.RoleMiddleware("ADMIN_PELATIHAN", "DIRECTOR", "KOORDINATOR", "ADMIN"))
+		adminOnly.Use(middleware.RoleMiddleware("ADMIN_PELATIHAN", "DIRECTOR", "HALAL_MANAGER", "ADMIN"))
 		{
 			adminOnly.GET("/profiles", handler.GetAllProfiles)
 			adminOnly.PUT("/profiles/:userId/verify", handler.VerifyProfile)
@@ -70,7 +70,7 @@ func (h *ConsultantHandler) UpdateProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "profile updated"})
 }
 
-// GetAllProfiles lists all consultant profiles (for Koordinator/Admin).
+// GetAllProfiles lists all consultant profiles (for Halal Manager/Admin).
 func (h *ConsultantHandler) GetAllProfiles(c *gin.Context) {
 	profiles, err := h.consultantUC.GetAllProfiles()
 	if err != nil {

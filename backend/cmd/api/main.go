@@ -6,18 +6,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 
 	"ananahnu/internal/domain"
+	"ananahnu/internal/seeder"
 	"ananahnu/pkg/database"
 	"ananahnu/pkg/email"
 	"ananahnu/pkg/midtrans"
 	"ananahnu/pkg/whatsapp"
 
+	httpDelivery "ananahnu/internal/delivery/http"
 	"ananahnu/internal/repository"
 	"ananahnu/internal/usecase"
 	"os"
-	httpDelivery "ananahnu/internal/delivery/http"
 )
 
 func main() {
@@ -88,7 +88,8 @@ func main() {
 		&domain.SubmissionCostDetail{},
 		&domain.CoordinatorRate{},
 		&domain.SystemSetting{},
-		&domain.ReferralCommission{},
+		&domain.Commission{},
+		&domain.PromotionRequest{},
 	)
 	if err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
@@ -99,9 +100,9 @@ func main() {
 	log.Println("Seeding Roles...")
 	roles := []string{
 		"DIRECTOR", "MANAGER", "QC_OFFICER", "DRAFTER",
-		"HALAL_KONSULTAN", "MARKETING", "VERIFIKATOR",
+		"HALAL_ADVISOR", "MARKETING", "VERIFIKATOR",
 		"CLIENT", "FINANCE",
-		"KOORDINATOR", "ADMIN_PELATIHAN", "ADMIN_KEUANGAN",
+		"HALAL_MANAGER", "HALAL_DIRECTOR", "ADMIN_PELATIHAN", "ADMIN_KEUANGAN",
 	}
 	for _, roleName := range roles {
 		var r domain.Role
@@ -117,7 +118,7 @@ func main() {
 		log.Println("Seeding Admin User...")
 		// Hash password
 		hashed, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
-		
+
 		// Find Director Role ID
 		var directorRole domain.Role
 		db.Where("name = ?", "DIRECTOR").First(&directorRole)
@@ -137,7 +138,7 @@ func main() {
 	}
 
 	// 4.6 Seed Default Form Configs (Idempotent)
-	seedFormConfigs(db)
+	seeder.SeedFormConfigs(db)
 
 	// 5. Setup Repositories
 	userRepo := repository.NewUserRepository(db)
@@ -161,13 +162,12 @@ func main() {
 	billingConfigRepo := repository.NewBillingConfigRepository(db)
 	coordinatorRateRepo := repository.NewCoordinatorRateRepository(db)
 	settingRepo := repository.NewPostgresSystemSettingRepository(db)
-	commissionRepo := repository.NewReferralCommissionRepository(db)
-
+	commissionRepo := repository.NewCommissionRepository(db)
 
 	// Services
 	emailSender := email.NewGmailSender()
 	midtransGateway := midtrans.NewMidtransGateway()
-	
+
 	// WhatsApp Sender with dynamic token from SystemSetting
 	waSender := whatsapp.NewFonnteSender(func() string {
 		setting, err := settingRepo.GetSetting("fonnte_token")
@@ -228,19 +228,20 @@ func main() {
 		ProfileRepo: consultantRepo,
 		UserRepo:    userRepo,
 	})
-	
+
 	// Initialize in order of dependency: Billing -> Workflow -> Payment
 	billingUC := usecase.NewBillingUsecase(usecase.BillingUsecaseDeps{
-		InvoiceRepo:    invoiceRepo,
-		ConfigRepo:     paymentConfigRepo,
-		RateRepo:       billingRateRepo,
-		UserRepo:       userRepo,
-		NotifUC:        notificationUC,
-		CommissionRepo: commissionRepo,
-		SettingRepo:    settingRepo,
-		SubmissionRepo: submissionRepo,
+		InvoiceRepo:       invoiceRepo,
+		ConfigRepo:        paymentConfigRepo,
+		RateRepo:          billingRateRepo,
+		UserRepo:          userRepo,
+		NotifUC:           notificationUC,
+		CommissionRepo:    commissionRepo,
+		SettingRepo:       settingRepo,
+		SubmissionRepo:    submissionRepo,
+		BillingConfigRepo: billingConfigRepo,
 	})
-	
+
 	submissionUC := usecase.NewSubmissionWorkflowUsecase(usecase.SubmissionWorkflowDeps{
 		SubmissionRepo:    submissionRepo,
 		ClientRepo:        clientRepo,
@@ -288,6 +289,14 @@ func main() {
 		SettingRepo:    settingRepo,
 	})
 
+	promotionRepo := repository.NewPromotionRepository(db)
+	promotionUC := usecase.NewPromotionUsecase(usecase.PromotionUsecaseDeps{
+		PromotionRepo:  promotionRepo,
+		UserRepo:       userRepo,
+		CommissionRepo: commissionRepo,
+		RoleRepo:       roleRepo,
+	})
+
 	// 7. Setup Router & Handlers
 	r := gin.Default()
 
@@ -326,6 +335,7 @@ func main() {
 	httpDelivery.NewMediaHandler(r)
 	httpDelivery.NewSystemSettingHandler(r, settingUC)
 	httpDelivery.NewDocumentHandler(r, documentUC)
+	httpDelivery.NewPromotionHandler(r, promotionUC)
 
 	// Static files
 	r.Static("/uploads", "./uploads")
@@ -339,56 +349,20 @@ func main() {
 		})
 	})
 
+	r.GET("/reset-db", func(c *gin.Context) {
+		if err := seeder.PerformResetAndSeed(db); err != nil {
+			c.JSON(500, gin.H{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
+		c.JSON(200, gin.H{
+			"status":  "success",
+			"message": "Database successfully wiped and seeded like new!",
+		})
+	})
+
 	// 8. Run
 	r.Run(":8080")
-}
-
-// seedFormConfigs seeds default form field configurations.
-func seedFormConfigs(db *gorm.DB) {
-	type seedEntry struct {
-		FormType, FieldKey, FieldLabel, InputType, Description string
-		IsRequired                                             bool
-		SortOrder                                              int
-	}
-
-	defaults := []seedEntry{
-		// SELF_DECLARE
-		{"SELF_DECLARE", "nib", "NIB", "FILE_UPLOAD", "Upload dokumen NIB (opsional)", false, 1},
-		{"SELF_DECLARE", "foto_produk", "Foto Produk", "FILE_UPLOAD", "Upload foto produk", true, 2},
-		{"SELF_DECLARE", "ktp", "KTP", "FILE_UPLOAD", "Upload KTP penanggung jawab", true, 3},
-		{"SELF_DECLARE", "foto_verval", "Foto Verval", "FILE_UPLOAD", "Upload foto verifikasi lapangan", true, 4},
-		{"SELF_DECLARE", "foto_bersama_consultant", "Foto Bersama Consultant", "FILE_UPLOAD", "Upload foto bersama consultant", true, 5},
-		{"SELF_DECLARE", "resep", "Resep", "FILE_UPLOAD", "Upload dokumen resep (opsional)", false, 6},
-		{"SELF_DECLARE", "catatan_pph", "Catatan Bahan PPH", "TEXT", "Catatan bahan PPH (opsional)", false, 7},
-		// REGULER
-		{"REGULER", "data_kontrak", "Data Kontrak", "FILE_UPLOAD", "Upload data kontrak pendampingan", true, 1},
-		{"REGULER", "bukti_bayar", "Bukti Bayar", "FILE_UPLOAD", "Upload bukti pembayaran", true, 2},
-		{"REGULER", "template_kontrak", "Template Kontrak", "LINK", "Link template kontrak pendampingan", true, 3},
-		// RECRUITMENT
-		{"RECRUITMENT", "ktp", "KTP", "FILE_UPLOAD", "Upload KTP", true, 1},
-		{"RECRUITMENT", "foto_3x4", "Foto 3x4 Latar Merah", "FILE_UPLOAD", "Upload foto 3x4 latar belakang merah", true, 2},
-		{"RECRUITMENT", "ijazah_sta", "Ijazah STA", "FILE_UPLOAD", "Upload ijazah STA", true, 3},
-		{"RECRUITMENT", "buku_rekening", "Buku Rekening", "FILE_UPLOAD", "Upload halaman depan buku rekening", true, 4},
-		{"RECRUITMENT", "npwp", "NPWP", "FILE_UPLOAD", "Upload NPWP (opsional)", false, 5},
-	}
-
-	for _, d := range defaults {
-		var existing domain.FormFieldConfig
-		result := db.Where("form_type = ? AND field_key = ?", d.FormType, d.FieldKey).First(&existing)
-		if result.Error != nil {
-			// Not found, create it
-			cfg := domain.FormFieldConfig{
-				FormType:    d.FormType,
-				FieldKey:    d.FieldKey,
-				FieldLabel:  d.FieldLabel,
-				InputType:   d.InputType,
-				IsRequired:  d.IsRequired,
-				SortOrder:   d.SortOrder,
-				Description: d.Description,
-			}
-			db.Create(&cfg)
-		}
-	}
-
-	log.Println("Form config seeding completed.")
 }

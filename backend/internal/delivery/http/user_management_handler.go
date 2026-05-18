@@ -268,7 +268,7 @@ func (h *UserManagementHandler) ListRoles(c *gin.Context) {
 }
 
 func (h *UserManagementHandler) ListCoordinators(c *gin.Context) {
-	filter := map[string]interface{}{"role_name": "KOORDINATOR"}
+	filter := map[string]interface{}{"role_name": "HALAL_MANAGER"}
 	users, _, err := h.userMgmtUC.ListUsers(filter, 1, 100)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -288,7 +288,7 @@ func (h *UserManagementHandler) ListDrafters(c *gin.Context) {
 }
 
 func (h *UserManagementHandler) ListConsultants(c *gin.Context) {
-	filter := map[string]interface{}{"roles": []string{"HALAL_KONSULTAN", "KOORDINATOR", "MARKETING"}}
+	filter := map[string]interface{}{"roles": []string{"HALAL_ADVISOR", "HALAL_MANAGER", "MARKETING"}}
 	users, _, err := h.userMgmtUC.ListUsers(filter, 1, 1000)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

@@ -109,7 +109,7 @@ export const SubmissionTable = ({
                                                     </th>
                                                     <th onClick={() => handleSort('consultant')} className="p-4 cursor-pointer hover:bg-gray-100 transition-colors">
                                                         <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                                            Konsultan <SortIcon currentKey="consultant" activeKey={sortKey} order={sortOrder} />
+                                                            Advisor <SortIcon currentKey="consultant" activeKey={sortKey} order={sortOrder} />
                                                         </div>
                                                     </th>
                                                     <th onClick={() => handleSort('status')} className="p-4 cursor-pointer hover:bg-gray-100 transition-colors">
@@ -172,7 +172,7 @@ export const SubmissionTable = ({
                                                                     </div>
                                                                     <div>
                                                                         <div className="text-sm font-bold text-gray-700">{sub.client?.facilitator?.full_name}</div>
-                                                                        <div className="text-[10px] text-gray-400 font-medium">Konsultan</div>
+                                                                        <div className="text-[10px] text-gray-400 font-medium">Advisor</div>
                                                                     </div>
                                                                 </div>
                                                             </td>

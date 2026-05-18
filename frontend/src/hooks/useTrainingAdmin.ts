@@ -17,7 +17,7 @@ export const useTrainingAdmin = () => {
     const [allUsers, setAllUsers] = useState<any[]>([]);
     
     const user = useAuthStore(state => state.user);
-    const isCoordinator = user?.role === 'KOORDINATOR';
+    const isCoordinator = user?.role === 'HALAL_MANAGER';
 
     const loadTrainings = useCallback(async () => {
         setLoading(true);
@@ -36,7 +36,7 @@ export const useTrainingAdmin = () => {
             const res = await api.get('/admin/users', { 
                 params: { 
                     limit: 200, 
-                    role: 'HALAL_KONSULTAN',
+                    role: 'HALAL_ADVISOR',
                     no_leader: 'true'
                 } 
             });

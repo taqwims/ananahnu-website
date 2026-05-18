@@ -45,11 +45,11 @@ func (h *ClientHandler) GetList(c *gin.Context) {
 		filter["facilitator_id"] = facilitatorID
 	}
 
-	// If the logged-in user is KOORDINATOR, auto-filter to their team
+	// If the logged-in user is HALAL_MANAGER, auto-filter to their team
 	role := middleware.GetUserRole(c)
 	userID := middleware.GetUserID(c)
 	switch role {
-	case "KOORDINATOR":
+	case "HALAL_MANAGER":
 		teamMembers, err := h.userRepo.FindByLeaderID(userID)
 		if err == nil && len(teamMembers) > 0 {
 			ids := make([]string, len(teamMembers))
@@ -58,8 +58,8 @@ func (h *ClientHandler) GetList(c *gin.Context) {
 			}
 			filter["facilitator_ids"] = ids
 		}
-	case "HALAL_KONSULTAN", "MARKETING":
-		// Konsultan and Marketing only see their own clients
+	case "HALAL_ADVISOR", "MARKETING":
+		// Advisor and Marketing only see their own clients
 		filter["facilitator_id"] = userID.String()
 	}
 

@@ -43,7 +43,7 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateBu
         setIsEditingClient(false);
     };
 
-    const canEdit = (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'DRAFTER' || user?.role === 'QC_OFFICER' || user?.role === 'KOORDINATOR' || user?.role === 'HALAL_KONSULTAN' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER'));
+    const canEdit = (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'DRAFTER' || user?.role === 'QC_OFFICER' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_ADVISOR' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER'));
 
     return (
         <div className="glass-panel p-6 shadow-xl border border-white/40">
@@ -128,7 +128,7 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateBu
                     <InfoItem label="Bidang Usaha" value={submission.business_type?.name} highlight />
                     <InfoItem label="Telepon" value={submission.client?.phone} />
                     {submission.consultant_id && (
-                        <InfoItem label="Konsultan Penanggung Jawab" value={submission.consultant?.full_name} highlight />
+                        <InfoItem label="Advisor Penanggung Jawab" value={submission.consultant?.full_name} highlight />
                     )}
                     <div className="sm:col-span-2 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
                         <dt className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Alamat Lengkap</dt>

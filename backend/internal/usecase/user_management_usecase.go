@@ -44,14 +44,14 @@ type UserManagementUsecase interface {
 	ResetUserPassword(id uuid.UUID) (string, error) // Returns new plaintext password
 	ListRoles() ([]domain.Role, error)
 	GetReferrals(userID uuid.UUID) ([]domain.User, error)
-	GetMyCommissions(userID uuid.UUID) ([]domain.ReferralCommission, error)
+	GetMyCommissions(userID uuid.UUID) ([]domain.Commission, error)
 	GetAllReferralAnalytics() ([]map[string]interface{}, error)
 }
 
 type UserManagementUsecaseDeps struct {
 	UserRepo       domain.UserRepository
 	RoleRepo       domain.RoleRepository
-	CommissionRepo domain.ReferralCommissionRepository
+	CommissionRepo domain.CommissionRepository
 }
 
 type userManagementUsecase struct {
@@ -223,8 +223,8 @@ func (uc *userManagementUsecase) GetReferrals(userID uuid.UUID) ([]domain.User, 
 	return uc.UserRepo.FindByReferredByID(userID)
 }
 
-func (uc *userManagementUsecase) GetMyCommissions(userID uuid.UUID) ([]domain.ReferralCommission, error) {
-	filter := map[string]interface{}{"referrer_id": userID}
+func (uc *userManagementUsecase) GetMyCommissions(userID uuid.UUID) ([]domain.Commission, error) {
+	filter := map[string]interface{}{"user_or_referrer_id": userID}
 	commissions, _, err := uc.CommissionRepo.FindAll(filter, 1, 1000)
 	return commissions, err
 }

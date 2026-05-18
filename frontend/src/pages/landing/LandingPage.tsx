@@ -57,7 +57,7 @@ export default function LandingPage() {
                                 Lacak Progres SH <ArrowRight className="w-5 h-5" />
                             </a>
                             <a href="/register" className="px-8 py-4 border border-brand-400 bg-brand-800/50 backdrop-blur-sm text-white rounded-full font-bold text-lg hover:bg-brand-800 transition-all">
-                                Gabung Konsultan
+                                Gabung Advisor
                             </a>
                         </div>
                     </motion.div>
@@ -144,7 +144,7 @@ export default function LandingPage() {
                             Lacak Progres Sertifikat
                         </a>
                         <a href="/register" className="px-10 py-4 border border-brand-400 bg-white/10 backdrop-blur-md text-white rounded-full font-bold text-lg hover:bg-white/20 transition-all">
-                            Daftar Sebagai Konsultan
+                            Daftar Sebagai Advisor
                         </a>
                     </div>
                 </div>

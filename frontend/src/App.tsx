@@ -47,6 +47,8 @@ import QCWorkspace from './pages/dashboard/QCWorkspace';
 import VerifikatorWorkspace from './pages/dashboard/VerifikatorWorkspace';
 import NotificationSettings from './pages/dashboard/NotificationSettings';
 import ProfilePage from './pages/dashboard/Profile';
+import KarirDashboard from './pages/dashboard/KarirDashboard';
+import AdminPelatihanPromosi from './pages/dashboard/AdminPelatihanPromosi';
 
 
 import { Toaster } from 'react-hot-toast';
@@ -97,6 +99,8 @@ function App() {
           <Route path="referral-fees" element={<ReferralFeeAdmin />} />
           <Route path="notification-settings" element={<NotificationSettings />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="karir" element={<KarirDashboard />} />
+          <Route path="admin-promosi" element={<AdminPelatihanPromosi />} />
         </Route>
 
 
