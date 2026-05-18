@@ -3,6 +3,7 @@ package usecase
 import (
 	"ananahnu/internal/domain"
 	"ananahnu/pkg/whatsapp"
+	"log"
 	"strings"
 	"time"
 
@@ -93,11 +94,21 @@ func (uc *notificationUsecase) SendWorkflowNotification(key string, replacements
 	
 	// 3. Dispatch
 	if waEnabled && targetPhone != "" {
-		_ = uc.SendWhatsAppNotification(targetPhone, msg)
+		err := uc.SendWhatsAppNotification(targetPhone, msg)
+		if err != nil {
+			log.Printf("[NOTIF] Failed to send WA notification to %s: %v", targetPhone, err)
+		} else {
+			log.Printf("[NOTIF] WA notification sent to %s (key: %s)", targetPhone, key)
+		}
 	}
 	
 	if appEnabled && userID != nil {
-		_ = uc.CreateNotification(*userID, title, msg, entityID)
+		err := uc.CreateNotification(*userID, title, msg, entityID)
+		if err != nil {
+			log.Printf("[NOTIF] Failed to create App notification for user %s: %v", userID, err)
+		} else {
+			log.Printf("[NOTIF] App notification created for user %s (key: %s)", userID, key)
+		}
 	}
 	
 	return nil

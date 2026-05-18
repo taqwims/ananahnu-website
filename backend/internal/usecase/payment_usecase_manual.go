@@ -63,6 +63,16 @@ func (uc *paymentUsecase) VerifyManualPayment(paymentID int64, approved bool, ve
 		}
 	} else if !approved && payment.SubmissionID != nil {
 		uc.logPaymentActivity(*payment.SubmissionID, "PAYMENT_REJECTED", fmt.Sprintf("Pembayaran manual ditolak: Rp %.2f", payment.Amount))
+		
+		// Notify Client
+		sub, _ := uc.SubmissionRepo.FindByID(*payment.SubmissionID)
+		if sub != nil {
+			_ = uc.NotifUC.SendWorkflowNotification("payment_rejected", map[string]string{
+				"client_name":   sub.Client.ClientName,
+				"business_name": sub.Client.BusinessName,
+				"amount":        fmt.Sprintf("%.0f", payment.Amount),
+			}, sub.Client.Phone, nil, *payment.SubmissionID, "Pembayaran Ditolak", fmt.Sprintf("Halo *%s*, pembayaran Anda untuk *%s* sebesar Rp %.0f telah ditolak. Silakan periksa kembali bukti pembayaran Anda atau hubungi admin.", sub.Client.ClientName, sub.Client.BusinessName, payment.Amount))
+		}
 	}
 
 	return nil

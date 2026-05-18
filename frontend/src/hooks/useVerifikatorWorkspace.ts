@@ -219,6 +219,21 @@ export const useVerifikatorWorkspace = (initialSubId: string | null) => {
         setFieldValues(newFields);
     };
 
+    const handleIssueSH = async (shUrl: string) => {
+        if (!activeSubmission) return;
+        setProcessing(true);
+        try {
+            await submissionService.issueSH(activeSubmission.id, shUrl);
+            toast.success("Sertifikat Halal berhasil diterbitkan");
+            setActiveSubId(null);
+            loadSubmissions();
+        } catch (err: any) {
+            toast.error(err.message || "Gagal menerbitkan Sertifikat Halal");
+        } finally {
+            setProcessing(false);
+        }
+    };
+
     return {
         submissions,
         filteredSubmissions,
@@ -257,6 +272,7 @@ export const useVerifikatorWorkspace = (initialSubId: string | null) => {
         handleUpdateClient,
         handleUpdateDocs,
         handleUpdateAudit,
+        handleIssueSH,
         updateFieldValue,
         loadSubmissions
     };

@@ -87,6 +87,7 @@ export interface Submission {
     audit_date?: string;
     audit_result_1_url?: string;
     audit_result_2_url?: string;
+    reject_note?: string;
     business_type_id?: number;
     business_type?: BusinessType;
     created_at: string;

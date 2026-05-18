@@ -11,6 +11,14 @@ func Terbilang(n int64) string {
 		return "Nol"
 	}
 
+	return strings.TrimSpace(terbilangRecursive(n))
+}
+
+func terbilangRecursive(n int64) string {
+	if n == 0 {
+		return ""
+	}
+
 	units := []string{"", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"}
 	
 	var result string
@@ -18,26 +26,26 @@ func Terbilang(n int64) string {
 	if n < 12 {
 		result = units[n]
 	} else if n < 20 {
-		result = Terbilang(n-10) + " Belas"
+		result = terbilangRecursive(n-10) + " Belas"
 	} else if n < 100 {
-		result = Terbilang(n/10) + " Puluh " + Terbilang(n%10)
+		result = terbilangRecursive(n/10) + " Puluh " + terbilangRecursive(n%10)
 	} else if n < 200 {
-		result = "Seratus " + Terbilang(n-100)
+		result = "Seratus " + terbilangRecursive(n-100)
 	} else if n < 1000 {
-		result = Terbilang(n/100) + " Ratus " + Terbilang(n%100)
+		result = terbilangRecursive(n/100) + " Ratus " + terbilangRecursive(n%100)
 	} else if n < 2000 {
-		result = "Seribu " + Terbilang(n-1000)
+		result = "Seribu " + terbilangRecursive(n-1000)
 	} else if n < 1000000 {
-		result = Terbilang(n/1000) + " Ribu " + Terbilang(n%1000)
+		result = terbilangRecursive(n/1000) + " Ribu " + terbilangRecursive(n%1000)
 	} else if n < 1000000000 {
-		result = Terbilang(n/1000000) + " Juta " + Terbilang(n%1000000)
+		result = terbilangRecursive(n/1000000) + " Juta " + terbilangRecursive(n%1000000)
 	} else if n < 1000000000000 {
-		result = Terbilang(n/1000000000) + " Miliar " + Terbilang(n%1000000000)
+		result = terbilangRecursive(n/1000000000) + " Miliar " + terbilangRecursive(n%1000000000)
 	} else if n < 1000000000000000 {
-		result = Terbilang(n/1000000000000) + " Triliun " + Terbilang(n%1000000000000)
+		result = terbilangRecursive(n/1000000000000) + " Triliun " + terbilangRecursive(n%1000000000000)
 	}
 
-	return strings.TrimSpace(result)
+	return result
 }
 
 // TerbilangRupiah converts a number to Indonesian words with "Rupiah" suffix.

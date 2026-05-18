@@ -1,5 +1,7 @@
-import { Calendar, X, Edit3, Loader2, Save, FileText, Eye, AlertCircle, ShieldCheck, CheckCircle, CheckCircle2 } from 'lucide-react';
+import { Calendar, X, Edit3, Loader2, Save, FileText, Eye, AlertCircle, ShieldCheck, CheckCircle, CheckCircle2, Send } from 'lucide-react';
 import type { Submission } from '../../../types';
+import FileUpload from '../FileUpload';
+import { useState } from 'react';
 
 interface QCReviewPanelProps {
     submission: Submission | null;
@@ -8,6 +10,7 @@ interface QCReviewPanelProps {
     isEditingAudit: boolean;
     setIsEditingAudit: (v: boolean) => void;
     onUpdateAudit: () => Promise<void>;
+    onIssueSH: (shUrl: string) => Promise<void>;
     processing: boolean;
 }
 
@@ -18,8 +21,11 @@ export const QCReviewPanel = ({
     isEditingAudit,
     setIsEditingAudit,
     onUpdateAudit,
+    onIssueSH,
     processing
 }: QCReviewPanelProps) => {
+    const [shUrl, setShUrl] = useState('');
+
     if (!submission) return null;
 
     const isNIBValid = submission.client?.nib && !submission.client?.nib.startsWith('DRAFT-');
@@ -100,6 +106,38 @@ export const QCReviewPanel = ({
                                     <Eye className="w-4 h-4" />
                                 </a>
                             </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Penerbitan SH (Jika status Sidang Fatwa) */}
+            {submission.status === 'SIDANG_FATWA' && (
+                <div className="glass-panel p-6 border-emerald-200 shadow-xl bg-emerald-50/30">
+                    <div className="flex items-center gap-2 mb-6">
+                        <div className="w-1 h-5 bg-emerald-600 rounded-full" />
+                        <h3 className="font-black text-emerald-900 uppercase text-[10px] tracking-widest">Penerbitan Sertifikat</h3>
+                    </div>
+                    
+                    <div className="space-y-4">
+                        <div className="p-4 bg-white/80 rounded-2xl border border-emerald-100">
+                            <label className="block text-[8px] font-black text-emerald-700 uppercase tracking-widest mb-3">Upload File Sertifikat (PDF/JPG)</label>
+                            <FileUpload 
+                                subfolder="sh" 
+                                label="Pilih Sertifikat"
+                                onUploadSuccess={(url) => setShUrl(url)}
+                            />
+                        </div>
+
+                        {shUrl && (
+                            <button
+                                onClick={() => onIssueSH(shUrl)}
+                                disabled={processing}
+                                className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-emerald-100 hover:bg-emerald-700 hover:scale-[1.02] active:scale-95 transition-all flex justify-center items-center gap-3 disabled:opacity-50"
+                            >
+                                {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                                Terbitkan Sertifikat Halal
+                            </button>
                         )}
                     </div>
                 </div>

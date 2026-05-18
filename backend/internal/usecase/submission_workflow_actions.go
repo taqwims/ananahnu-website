@@ -210,6 +210,26 @@ func (uc *submissionWorkflowUsecase) Approve(id uuid.UUID, userID uuid.UUID, use
 		if nextStatus == domain.StatusSHTerbit && sub.ServiceType == "SELF_DECLARE" {
 			uc.generateSHTerbitInvoice(id, sub)
 		}
+
+		// Notifications
+		if nextStatus == domain.StatusWaitingPayment {
+			// Notify Finance
+			financeUsers, _, _ := uc.UserRepo.FindAll(map[string]interface{}{}, 1, 100)
+			for _, u := range financeUsers {
+				if u.Role.Name == "FINANCE" || u.Role.Name == "ADMIN_KEUANGAN" {
+					_ = uc.NotifUC.SendWorkflowNotification("payment_needed_internal", map[string]string{
+						"business_name": sub.Client.BusinessName,
+						"service_type":  sub.Client.ServiceType,
+					}, u.Phone, &u.ID, id, "Tagihan Baru", fmt.Sprintf("Halo Finance, pengajuan dari *%s* (%s) menunggu pembayaran.", sub.Client.BusinessName, sub.Client.ServiceType))
+				}
+			}
+
+			// Notify Client
+			_ = uc.NotifUC.SendWorkflowNotification("payment_needed", map[string]string{
+				"client_name":   sub.Client.ClientName,
+				"business_name": sub.Client.BusinessName,
+			}, sub.Client.Phone, nil, id, "Menunggu Pembayaran", fmt.Sprintf("Halo *%s*, pengajuan Anda untuk *%s* telah disetujui dan menunggu pembayaran. Silakan cek dashboard Anda untuk rincian tagihan.", sub.Client.ClientName, sub.Client.BusinessName))
+		}
 	}
 	return err
 }
@@ -236,20 +256,18 @@ func (uc *submissionWorkflowUsecase) ApproveWithDrafter(id uuid.UUID, userID uui
 		return fmt.Errorf("failed to assign drafter: %w", err)
 	}
 
-	if err := uc.SubmissionRepo.UpdateStatus(id, domain.StatusDrafter, 0); err != nil {
-		return err
+	if err := uc.SubmissionRepo.UpdateStatus(id, domain.StatusDrafter, 0); err == nil {
+		uc.logChange(id, userID, "ASSIGN_DRAFTER", sub.Status, domain.StatusDrafter, "")
+		
+		// Notify Drafter
+		drafter, _ := uc.UserRepo.FindByID(drafterID)
+		if drafter != nil {
+			_ = uc.NotifUC.SendWorkflowNotification("drafter_assigned", map[string]string{
+				"drafter_name":  drafter.FullName,
+				"business_name": sub.Client.BusinessName,
+			}, drafter.Phone, &drafter.ID, id, "Tugas Drafting Baru", fmt.Sprintf("Halo *%s*, Anda telah ditunjuk sebagai Drafter untuk pengajuan *%s*. Silakan cek workspace Anda.", drafter.FullName, sub.Client.BusinessName))
+		}
 	}
-
-	uc.logChange(id, userID, "ASSIGN_DRAFTER", sub.Status, domain.StatusDrafter, "Assigned to drafter")
-
-	drafter, _ := uc.UserRepo.FindByID(drafterID)
-	if drafter != nil {
-		_ = uc.NotifUC.SendWorkflowNotification("drafter_assigned", map[string]string{
-			"drafter_name":  drafter.FullName,
-			"business_name": sub.Client.BusinessName,
-		}, drafter.Phone, &drafterID, id, "Penugasan Baru", "Anda ditugaskan untuk mengerjakan pengajuan "+sub.Client.BusinessName)
-	}
-
 	return nil
 }
 
@@ -338,12 +356,19 @@ func (uc *submissionWorkflowUsecase) Reject(id uuid.UUID, userID uuid.UUID, user
 			drafter, _ := uc.UserRepo.FindByID(*sub.AssignedDrafterID)
 			if drafter != nil {
 				_ = uc.NotifUC.SendWorkflowNotification("revision_internal", map[string]string{
-					"target_name":   drafter.FullName,
+					"drafter_name":  drafter.FullName,
 					"business_name": sub.Client.BusinessName,
 					"note":          note,
 				}, drafter.Phone, &drafter.ID, id, "Pengajuan Dikembalikan", "Pengajuan "+sub.Client.BusinessName+" dikembalikan: "+note)
 			}
 		}
+
+		// Notify Client
+		_ = uc.NotifUC.SendWorkflowNotification("revision_client", map[string]string{
+			"client_name":   sub.Client.ClientName,
+			"business_name": sub.Client.BusinessName,
+			"note":          note,
+		}, sub.Client.Phone, nil, id, "Catatan Revisi", "Halo *"+sub.Client.ClientName+"*, pengajuan Anda untuk *"+sub.Client.BusinessName+"* memerlukan revisi: "+note)
 
 		if sub.ConsultantID != nil {
 			cons, _ := uc.UserRepo.FindByID(*sub.ConsultantID)
@@ -381,10 +406,26 @@ func (uc *submissionWorkflowUsecase) IssueSH(id uuid.UUID, userID uuid.UUID, shU
 	uc.logChange(id, userID, "ISSUE_SH", sub.Status, nextStatus, "Sertifikat Halal diterbitkan")
 	
 	// Notify Client
-	_ = uc.NotifUC.SendWorkflowNotification("sh_issued", map[string]string{
-		"client_name":   sub.Client.ClientName,
-		"business_name": sub.Client.BusinessName,
+	trackingNo := ""
+	if sub.TrackingNumber != nil {
+		trackingNo = *sub.TrackingNumber
+	}
+	_ = uc.NotifUC.SendWorkflowNotification("sh_terbit_client", map[string]string{
+		"client_name":     sub.Client.ClientName,
+		"business_name":   sub.Client.BusinessName,
+		"tracking_number": trackingNo,
 	}, sub.Client.Phone, nil, id, "Sertifikat Halal Terbit", "Selamat! Sertifikat Halal untuk *"+sub.Client.BusinessName+"* telah terbit. Silakan cek portal Anda.")
+
+	// Notify Consultant
+	if sub.ConsultantID != nil {
+		cons, _ := uc.UserRepo.FindByID(*sub.ConsultantID)
+		if cons != nil {
+			_ = uc.NotifUC.SendWorkflowNotification("sh_terbit_internal", map[string]string{
+				"consultant_name": cons.FullName,
+				"business_name":   sub.Client.BusinessName,
+			}, cons.Phone, &cons.ID, id, "Sertifikat Halal Terbit", "Sertifikat Halal untuk *"+sub.Client.BusinessName+"* telah terbit.")
+		}
+	}
 
 	return nil
 }
@@ -404,6 +445,25 @@ func (uc *submissionWorkflowUsecase) UpdateAuditInfo(id uuid.UUID, userID uuid.U
 	}
 
 	uc.logChange(id, userID, "UPDATE_AUDIT_INFO", sub.Status, sub.Status, "Audit date set to "+auditDate.Format("2006-01-02"))
+
+	// Notify Client
+	_ = uc.NotifUC.SendWorkflowNotification("audit_scheduled_client", map[string]string{
+		"client_name":   sub.Client.ClientName,
+		"business_name": sub.Client.BusinessName,
+		"date":          auditDate.Format("02 Jan 2006"),
+	}, sub.Client.Phone, nil, id, "Jadwal Audit", "Halo *"+sub.Client.ClientName+"*, jadwal audit untuk *"+sub.Client.BusinessName+"* telah ditetapkan pada tanggal *"+auditDate.Format("02 Jan 2006")+"*. Mohon persiapkan dokumen dan tim Anda.")
+
+	// Notify Drafter
+	if sub.AssignedDrafterID != nil {
+		drafter, _ := uc.UserRepo.FindByID(*sub.AssignedDrafterID)
+		if drafter != nil {
+			_ = uc.NotifUC.SendWorkflowNotification("audit_scheduled_internal", map[string]string{
+				"business_name": sub.Client.BusinessName,
+				"date":          auditDate.Format("02 Jan 2006"),
+			}, drafter.Phone, &drafter.ID, id, "Jadwal Audit", "Halo *"+drafter.FullName+"*, jadwal audit untuk *"+sub.Client.BusinessName+"* telah ditetapkan pada tanggal *"+auditDate.Format("02 Jan 2006")+"*.")
+		}
+	}
+
 	return nil
 }
 

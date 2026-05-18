@@ -31,8 +31,11 @@ export const useDrafterWorkspace = (initialSubId: string | null) => {
     const loadSubmissions = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await submissionService.getAll({ status: 'DRAFTER' });
-            setSubmissions(data);
+            const [drafterData, revisionData] = await Promise.all([
+                submissionService.getAll({ status: 'DRAFTER' }),
+                submissionService.getAll({ status: 'REVISION' })
+            ]);
+            setSubmissions([...drafterData, ...revisionData]);
         } catch (err: any) {
             toast.error(err.message || "Gagal memuat daftar tugas");
         } finally {
@@ -153,6 +156,20 @@ export const useDrafterWorkspace = (initialSubId: string | null) => {
         setFieldValues(newFields);
     };
 
+    const handleUpdateAuditResult = async (url1: string, url2: string) => {
+        if (!activeSubmission) return;
+        setProcessing(true);
+        try {
+            await submissionService.saveAuditResult(activeSubmission.id, url1, url2);
+            toast.success("Hasil audit diperbarui");
+            if (activeSubId) await loadDetail(activeSubId);
+        } catch (err: any) {
+            toast.error(err.message || "Gagal memperbarui hasil audit");
+        } finally {
+            setProcessing(false);
+        }
+    };
+
     return {
         submissions,
         filteredSubmissions,
@@ -177,6 +194,7 @@ export const useDrafterWorkspace = (initialSubId: string | null) => {
         handleAction,
         handleUpdateClient,
         handleUpdateDocs,
+        handleUpdateAuditResult,
         updateFieldValue,
         loadSubmissions
     };

@@ -107,6 +107,22 @@ const NotificationSettings = () => {
                             />
 
                             <TemplateField 
+                                label="Tagihan Baru"
+                                icon={<CreditCard className="w-4 h-4" />}
+                                value={settings['template_payment_needed'] || ''}
+                                placeholder="Halo {{client_name}}, pengajuan {{business_name}} menunggu pembayaran..."
+                                onChange={(val) => updateLocalSetting('template_payment_needed', val)}
+                                onSave={() => updateSetting('template_payment_needed', settings['template_payment_needed'] || '')}
+                                enableApp={settings['enable_app_payment_needed'] === 'true'}
+                                enableWA={settings['enable_wa_payment_needed'] === 'true'}
+                                onToggleApp={(val) => updateSetting('enable_app_payment_needed', val ? 'true' : 'false')}
+                                onToggleWA={(val) => updateSetting('enable_wa_payment_needed', val ? 'true' : 'false')}
+                                disabled={isSaving}
+                                hint="Klien • Waiting Payment"
+                                variables={['client_name', 'business_name']}
+                            />
+
+                            <TemplateField 
                                 label="Pembayaran Berhasil"
                                 icon={<CreditCard className="w-4 h-4" />}
                                 value={settings['template_payment_success'] || ''}
@@ -119,6 +135,22 @@ const NotificationSettings = () => {
                                 onToggleWA={(val) => updateSetting('enable_wa_payment_success', val ? 'true' : 'false')}
                                 disabled={isSaving}
                                 hint="Klien • Settlement/Verified"
+                                variables={['client_name', 'business_name', 'amount']}
+                            />
+
+                            <TemplateField 
+                                label="Pembayaran Ditolak"
+                                icon={<CreditCard className="w-4 h-4" />}
+                                value={settings['template_payment_rejected'] || ''}
+                                placeholder="Halo {{client_name}}, pembayaran Rp {{amount}} ditolak..."
+                                onChange={(val) => updateLocalSetting('template_payment_rejected', val)}
+                                onSave={() => updateSetting('template_payment_rejected', settings['template_payment_rejected'] || '')}
+                                enableApp={settings['enable_app_payment_rejected'] === 'true'}
+                                enableWA={settings['enable_wa_payment_rejected'] === 'true'}
+                                onToggleApp={(val) => updateSetting('enable_app_payment_rejected', val ? 'true' : 'false')}
+                                onToggleWA={(val) => updateSetting('enable_wa_payment_rejected', val ? 'true' : 'false')}
+                                disabled={isSaving}
+                                hint="Klien • Verification Failed"
                                 variables={['client_name', 'business_name', 'amount']}
                             />
 

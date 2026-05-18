@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Loader2, ShieldCheck } from 'lucide-react';
 import { useVerifikatorWorkspace } from '../../hooks/useVerifikatorWorkspace';
 import { QCTaskSidebar } from '../../components/dashboard/qc/QCTaskSidebar';
@@ -45,8 +46,21 @@ export default function VerifikatorWorkspace() {
         handleUpdateClient,
         handleUpdateDocs,
         handleUpdateAudit,
+        handleIssueSH,
         updateFieldValue
     } = useVerifikatorWorkspace(new URLSearchParams(window.location.search).get('id'));
+
+    // Handle Escape key to exit focus mode
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isFocusMode) {
+                setIsFocusMode(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isFocusMode, setIsFocusMode]);
 
     if (loading) {
         return (
@@ -127,6 +141,7 @@ export default function VerifikatorWorkspace() {
                                     isEditingAudit={isEditingAudit}
                                     setIsEditingAudit={setIsEditingAudit}
                                     onUpdateAudit={handleUpdateAudit}
+                                    onIssueSH={handleIssueSH}
                                     processing={processing}
                                 />
                             </div>

@@ -92,10 +92,18 @@ func (uc *documentUsecase) GenerateContract(submissionID uuid.UUID, format strin
 		vars["[Nama Klien / Perusahaan]"] = client.ClientName
 	}
 	vars["[Alamat Lengkap]"] = client.Address
-	vars["[Nomor Identitas]"] = client.NIB
-	if vars["[Nomor Identitas]"] == "" {
-		vars["[Nomor Identitas]"] = client.NIK
+	idDisplay := client.NIB
+	if strings.HasPrefix(idDisplay, "DRAFT-") {
+		idDisplay = ""
 	}
+	if client.NIK != "" {
+		if idDisplay != "" {
+			idDisplay = fmt.Sprintf("%s / %s", client.NIK, idDisplay)
+		} else {
+			idDisplay = client.NIK
+		}
+	}
+	vars["[Nomor Identitas]"] = idDisplay
 	vars["[Perusahaan jika ada]"] = client.BusinessName
 
 	// Billing Info
@@ -103,7 +111,7 @@ func (uc *documentUsecase) GenerateContract(submissionID uuid.UUID, format strin
 	if submission.CostDetail != nil {
 		amount = submission.CostDetail.TotalAmount
 	}
-	vars["[Nominal]"] = fmt.Sprintf("Rp %s", uc.formatIDR(amount))
+	vars["[Nominal]"] = uc.formatIDR(amount)
 	vars["[Terbilang]"] = utils.TerbilangRupiah(amount)
 
 	// 2. Generate File

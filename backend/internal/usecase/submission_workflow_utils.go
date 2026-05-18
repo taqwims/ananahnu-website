@@ -43,6 +43,13 @@ func (uc *submissionWorkflowUsecase) HandlePaymentSuccess(id uuid.UUID, amount f
 				}, u.Phone, &u.ID, id, "Pembayaran Diterima", "Pembayaran untuk *"+sub.Client.BusinessName+"* telah diverifikasi. Silakan distribusikan ke Drafter.")
 			}
 		}
+
+		// Notify Client
+		_ = uc.NotifUC.SendWorkflowNotification("payment_success", map[string]string{
+			"client_name":   sub.Client.ClientName,
+			"business_name": sub.Client.BusinessName,
+			"amount":        fmt.Sprintf("%.0f", amount),
+		}, sub.Client.Phone, nil, id, "Pembayaran Terverifikasi", "Halo *"+sub.Client.ClientName+"*, pembayaran Anda sebesar Rp "+fmt.Sprintf("%.0f", amount)+" untuk *"+sub.Client.BusinessName+"* telah terverifikasi. Pengajuan Anda kini masuk ke tahap verifikasi dokumen.")
 	}
 
 	return nil
