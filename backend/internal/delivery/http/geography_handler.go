@@ -1,6 +1,7 @@
 package http
 
 import (
+	"ananahnu/internal/delivery/middleware"
 	"ananahnu/internal/domain"
 	"ananahnu/internal/usecase"
 	"net/http"
@@ -18,32 +19,43 @@ func NewGeographyHandler(r *gin.Engine, uc usecase.GeographyUsecase) {
 
 	geo := r.Group("/geography")
 	{
-		// Province
+		// GET boleh diakses tanpa auth (dipakai di form publik & submission)
 		geo.GET("/provinces", handler.GetProvinces)
-		geo.POST("/provinces", handler.CreateProvince)
-		geo.PUT("/provinces/:id", handler.UpdateProvince)
-		geo.DELETE("/provinces/:id", handler.DeleteProvince)
-
-		// Regency
 		geo.GET("/regencies/:provinceId", handler.GetRegencies)
-		geo.POST("/regencies", handler.CreateRegency)
-		geo.PUT("/regencies/:id", handler.UpdateRegency)
-		geo.DELETE("/regencies/:id", handler.DeleteRegency)
-
-		// District
 		geo.GET("/districts/:regencyId", handler.GetDistricts)
-		geo.POST("/districts", handler.CreateDistrict)
-		geo.PUT("/districts/:id", handler.UpdateDistrict)
-		geo.DELETE("/districts/:id", handler.DeleteDistrict)
+
+		// Write — hanya DIRECTOR, MANAGER, ADMIN_KEUANGAN
+		geoAdmin := geo.Group("")
+		geoAdmin.Use(middleware.AuthMiddleware())
+		geoAdmin.Use(middleware.RoleMiddleware("DIRECTOR", "MANAGER", "ADMIN_KEUANGAN"))
+		{
+			geoAdmin.POST("/provinces", handler.CreateProvince)
+			geoAdmin.PUT("/provinces/:id", handler.UpdateProvince)
+			geoAdmin.DELETE("/provinces/:id", handler.DeleteProvince)
+
+			geoAdmin.POST("/regencies", handler.CreateRegency)
+			geoAdmin.PUT("/regencies/:id", handler.UpdateRegency)
+			geoAdmin.DELETE("/regencies/:id", handler.DeleteRegency)
+
+			geoAdmin.POST("/districts", handler.CreateDistrict)
+			geoAdmin.PUT("/districts/:id", handler.UpdateDistrict)
+			geoAdmin.DELETE("/districts/:id", handler.DeleteDistrict)
+		}
 	}
 
 	// Billing Rates
 	rates := r.Group("/billing-rates")
 	{
 		rates.GET("/", handler.GetBillingRates)
-		rates.POST("/", handler.CreateBillingRate)
-		rates.PUT("/:id", handler.UpdateBillingRate)
-		rates.DELETE("/:id", handler.DeleteBillingRate)
+
+		ratesAdmin := rates.Group("")
+		ratesAdmin.Use(middleware.AuthMiddleware())
+		ratesAdmin.Use(middleware.RoleMiddleware("DIRECTOR", "MANAGER", "ADMIN_KEUANGAN"))
+		{
+			ratesAdmin.POST("/", handler.CreateBillingRate)
+			ratesAdmin.PUT("/:id", handler.UpdateBillingRate)
+			ratesAdmin.DELETE("/:id", handler.DeleteBillingRate)
+		}
 	}
 }
 

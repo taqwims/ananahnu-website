@@ -24,79 +24,81 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { motion, AnimatePresence } from 'framer-motion';
-
+import { canAccess } from '../../config/rbac';
 import Logo from '../ui/Logo';
 
 interface SidebarLink {
     name: string;
+    /** Path relatif dari /dashboard/ — harus sama dengan key di PAGE_ROLES */
+    pathKey: string;
     to: string;
     icon: React.ComponentType<{ className?: string }>;
-    roles?: string[];
 }
+
+interface SidebarGroup {
+    name: string;
+    links: SidebarLink[];
+}
+
+const GROUPS: SidebarGroup[] = [
+    {
+        name: 'Main Menu',
+        links: [
+            { name: 'Dashboard',    pathKey: '',            to: '/dashboard',                    icon: LayoutDashboard },
+            { name: 'Profil Saya',  pathKey: 'profile',     to: '/dashboard/profile',            icon: UserCircle },
+            { name: 'Klien',        pathKey: 'clients',     to: '/dashboard/clients',            icon: Users },
+            { name: 'Pengajuan',    pathKey: 'submissions', to: '/dashboard/submissions',        icon: FileText },
+            { name: 'Tagihan Saya', pathKey: 'my-invoices', to: '/dashboard/my-invoices',        icon: CreditCard },
+        ],
+    },
+    {
+        name: 'Workflow',
+        links: [
+            { name: 'Distribusi Data',        pathKey: 'distribution',          to: '/dashboard/distribution',          icon: Users },
+            { name: 'Monitoring Drafter',     pathKey: 'monitoring',            to: '/dashboard/monitoring',            icon: Monitor },
+            { name: 'Ruang Kerja Drafter',    pathKey: 'drafter-workspace',     to: '/dashboard/drafter-workspace',     icon: ShieldCheck },
+            { name: 'Ruang Kerja QC',         pathKey: 'qc-workspace',          to: '/dashboard/qc-workspace',          icon: ShieldCheck },
+            { name: 'Ruang Kerja Verifikator',pathKey: 'verifikator-workspace', to: '/dashboard/verifikator-workspace', icon: ShieldCheck },
+            { name: 'Profil Advisor',         pathKey: 'consultant-profile',    to: '/dashboard/consultant-profile',    icon: UserCheck },
+            { name: 'Jenjang Karir',          pathKey: 'karir',                 to: '/dashboard/karir',                 icon: Award },
+        ],
+    },
+    {
+        name: 'Jaringan & Referral',
+        links: [
+            { name: 'Tim Saya',          pathKey: 'team',              to: '/dashboard/team',              icon: UsersRound },
+            { name: 'Referral Saya',     pathKey: 'referrals',         to: '/dashboard/referrals',         icon: TrendingUp },
+            { name: 'Analitik Referral', pathKey: 'admin-referrals',   to: '/dashboard/admin-referrals',   icon: TrendingUp },
+            { name: 'Fee Referral',      pathKey: 'referral-fees',     to: '/dashboard/referral-fees',     icon: DollarSign },
+            { name: 'Tarif Halal Manager', pathKey: 'coordinator-rates', to: '/dashboard/coordinator-rates', icon: CreditCard },
+        ],
+    },
+    {
+        name: 'Operasional',
+        links: [
+            { name: 'Verifikasi Advisor',  pathKey: 'consultant-verification', to: '/dashboard/consultant-verification', icon: Shield },
+            { name: 'Pelatihan',           pathKey: 'training',                to: '/dashboard/training',                icon: GraduationCap },
+            { name: 'Pengajuan Promosi',   pathKey: 'admin-promosi',           to: '/dashboard/admin-promosi',           icon: Award },
+        ],
+    },
+    {
+        name: 'Pengaturan Sistem',
+        links: [
+            { name: 'Manajemen Billing', pathKey: 'billing',               to: '/dashboard/billing',               icon: Receipt },
+            { name: 'Pengaturan Form',   pathKey: 'form-config',           to: '/dashboard/form-config',           icon: Settings },
+            { name: 'Master Biaya',      pathKey: 'billing-config',        to: '/dashboard/billing-config',        icon: Receipt },
+            { name: 'Wilayah & Tarif',   pathKey: 'geography',             to: '/dashboard/geography',             icon: MapPin },
+            { name: 'Manajemen User',    pathKey: 'users',                 to: '/dashboard/users',                 icon: Users },
+            { name: 'Notifikasi',        pathKey: 'notification-settings', to: '/dashboard/notification-settings', icon: MessageSquare },
+            { name: 'CMS',               pathKey: 'cms',                   to: '/dashboard/cms',                   icon: BookOpen },
+        ],
+    },
+];
 
 const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) => {
     const logout = useAuthStore(state => state.logout);
     const user = useAuthStore(state => state.user);
-    const roleName = user?.role || '';
-
-    const groups: { name: string; roles?: string[]; links: SidebarLink[] }[] = [
-        {
-            name: 'Main Menu',
-            links: [
-                { name: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-                { name: 'Profil Saya', to: '/dashboard/profile', icon: Settings },
-                { name: 'Klien', to: '/dashboard/clients', icon: Users, roles: ['DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'DRAFTER', 'QC_OFFICER', 'MARKETING', 'VERIFIKATOR'] },
-                { name: 'Pengajuan', to: '/dashboard/submissions', icon: FileText, roles: ['DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'QC_OFFICER', 'DRAFTER', 'MARKETING', 'VERIFIKATOR'] },
-                { name: 'Tagihan Saya', to: '/dashboard/my-invoices', icon: CreditCard, roles: ['HALAL_MANAGER', 'HALAL_ADVISOR', 'ADMIN', 'MARKETING'] },
-            ]
-        },
-        {
-            name: 'Workflow',
-            roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN', 'HALAL_ADVISOR', 'VERIFIKATOR'],
-            links: [
-                { name: 'Distribusi Data', to: '/dashboard/distribution', icon: Users, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN', 'VERIFIKATOR'] },
-                { name: 'Monitoring Drafter', to: '/dashboard/monitoring', icon: Monitor, roles: ['QC_OFFICER', 'DIRECTOR', 'ADMIN', 'VERIFIKATOR'] },
-                { name: 'Ruang Kerja Drafter', to: '/dashboard/drafter-workspace', icon: ShieldCheck, roles: ['DRAFTER', 'ADMIN'] },
-                { name: 'Ruang Kerja QC', to: '/dashboard/qc-workspace', icon: ShieldCheck, roles: ['QC_OFFICER', 'ADMIN'] },
-                { name: 'Ruang Kerja Verifikator', to: '/dashboard/verifikator-workspace', icon: ShieldCheck, roles: ['VERIFIKATOR', 'ADMIN'] },
-                { name: 'Profil Advisor', to: '/dashboard/consultant-profile', icon: UserCheck, roles: ['HALAL_ADVISOR'] },
-                { name: 'Jenjang Karir', to: '/dashboard/karir', icon: Award, roles: ['HALAL_ADVISOR', 'HALAL_MANAGER'] },
-            ]
-        },
-        {
-            name: 'Jaringan & Referral',
-            roles: ['HALAL_MANAGER', 'HALAL_ADVISOR', 'MARKETING', 'ADMIN', 'DIRECTOR', 'ADMIN_KEUANGAN'],
-            links: [
-                { name: 'Tim Saya', to: '/dashboard/team', icon: UsersRound, roles: ['HALAL_MANAGER'] },
-                { name: 'Referral Saya', to: '/dashboard/referrals', icon: TrendingUp, roles: ['HALAL_ADVISOR', 'HALAL_MANAGER', 'MARKETING', 'ADMIN'] },
-                { name: 'Analitik Referral', to: '/dashboard/admin-referrals', icon: TrendingUp, roles: ['ADMIN_PELATIHAN', 'DIRECTOR', 'ADMIN'] },
-                { name: 'Fee Referral', to: '/dashboard/referral-fees', icon: DollarSign, roles: ['ADMIN_KEUANGAN', 'ADMIN_PELATIHAN', 'DIRECTOR', 'ADMIN'] },
-                { name: 'Tarif Halal Manager', to: '/dashboard/coordinator-rates', icon: CreditCard, roles: ['ADMIN_KEUANGAN', 'ADMIN', 'DIRECTOR'] },
-            ]
-        },
-        {
-            name: 'Operasional',
-            roles: ['ADMIN_PELATIHAN', 'HALAL_MANAGER', 'DIRECTOR', 'MANAGER', 'ADMIN'],
-            links: [
-                { name: 'Verifikasi Advisor', to: '/dashboard/consultant-verification', icon: Shield, roles: ['ADMIN_PELATIHAN', 'DIRECTOR', 'ADMIN'] },
-                { name: 'Pelatihan', to: '/dashboard/training', icon: GraduationCap, roles: ['ADMIN_PELATIHAN', 'HALAL_MANAGER', 'DIRECTOR', 'MANAGER'] },
-                { name: 'Pengajuan Promosi', to: '/dashboard/admin-promosi', icon: Award, roles: ['ADMIN_PELATIHAN', 'ADMIN'] },
-            ]
-        },
-        {
-            name: 'Pengaturan Sistem',
-            roles: ['DIRECTOR', 'MANAGER', 'ADMIN_KEUANGAN', 'ADMIN'],
-            links: [
-                { name: 'Manajemen Billing', to: '/dashboard/billing', icon: Receipt, roles: ['ADMIN_KEUANGAN', 'DIRECTOR', 'ADMIN'] },
-                { name: 'Pengaturan Form', to: '/dashboard/form-config', icon: Settings, roles: ['DIRECTOR', 'MANAGER', 'ADMIN'] },
-                { name: 'Master Biaya', to: '/dashboard/billing-config', icon: Receipt, roles: ['DIRECTOR', 'MANAGER', 'ADMIN'] },
-                { name: 'Wilayah & Tarif', to: '/dashboard/geography', icon: MapPin, roles: ['DIRECTOR', 'MANAGER', 'ADMIN_KEUANGAN', 'ADMIN'] },
-                { name: 'Manajemen User', to: '/dashboard/users', icon: Users, roles: ['DIRECTOR', 'ADMIN'] },
-                { name: 'Notifikasi', to: '/dashboard/notification-settings', icon: MessageSquare, roles: ['DIRECTOR', 'ADMIN'] },
-                { name: 'CMS', to: '/dashboard/cms', icon: BookOpen, roles: ['DIRECTOR', 'ADMIN'] },
-            ]
-        }
-    ];
+    const role = user?.role ?? '';
 
     return (
         <>
@@ -132,9 +134,9 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
                         <div className="px-4 py-4 border-b border-glass-border flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center border border-brand-100 overflow-hidden shrink-0 shadow-sm">
                                 {user.avatar_url ? (
-                                    <img 
-                                        src={user.avatar_url.startsWith('http') ? user.avatar_url : `${import.meta.env.VITE_API_URL}${user.avatar_url}`} 
-                                        alt={user.full_name} 
+                                    <img
+                                        src={user.avatar_url.startsWith('http') ? user.avatar_url : `${import.meta.env.VITE_API_URL}${user.avatar_url}`}
+                                        alt={user.full_name}
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
@@ -143,16 +145,17 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
                             </div>
                             <div className="min-w-0">
                                 <p className="text-sm font-bold text-gray-800 truncate">{user.full_name}</p>
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">{roleName.replace(/_/g, ' ')}</p>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">{role.replace(/_/g, ' ')}</p>
                             </div>
                         </div>
                     )}
 
                     {/* Navigation */}
                     <nav className="flex-1 overflow-y-auto py-6 px-3 custom-scrollbar">
-                        {groups.map((group) => {
-                            const filteredLinks = group.links.filter(l => !l.roles || l.roles.includes(roleName));
-                            if (filteredLinks.length === 0) return null;
+                        {GROUPS.map((group) => {
+                            // Filter link berdasarkan RBAC — hanya tampilkan yang boleh diakses
+                            const visibleLinks = group.links.filter(l => canAccess(role, l.pathKey));
+                            if (visibleLinks.length === 0) return null;
 
                             return (
                                 <div key={group.name} className="mb-6 last:mb-0">
@@ -160,7 +163,7 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
                                         {group.name}
                                     </p>
                                     <div className="space-y-1">
-                                        {filteredLinks.map((link) => (
+                                        {visibleLinks.map((link) => (
                                             <NavLink
                                                 key={link.to}
                                                 to={link.to}
@@ -172,7 +175,7 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
                                                         : 'text-gray-500 hover:bg-white/60 hover:text-brand-600'}
                                                 `}
                                             >
-                                                <link.icon className={`w-5 h-5 transition-transform duration-300 ${isOpen ? 'group-hover:scale-110' : ''}`} />
+                                                <link.icon className="w-5 h-5" />
                                                 <span className="truncate">{link.name}</span>
                                             </NavLink>
                                         ))}

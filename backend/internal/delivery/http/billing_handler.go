@@ -33,7 +33,7 @@ func NewBillingHandler(r *gin.Engine, bUC usecase.BillingUsecase, pUC usecase.Pa
 		
 		// Admin/Finance access
 		adminOnly := g.Group("")
-		adminOnly.Use(middleware.RoleMiddleware("ADMIN", "FINANCE", "ADMIN_KEUANGAN", "DIRECTOR"))
+		adminOnly.Use(middleware.RoleMiddleware("DIRECTOR", "FINANCE", "ADMIN_KEUANGAN"))
 		{
 			adminOnly.GET("/all-invoices", handler.GetAllInvoices)
 			adminOnly.PUT("/:id/mark-paid", handler.MarkInvoicePaid)
@@ -46,13 +46,20 @@ func NewBillingHandler(r *gin.Engine, bUC usecase.BillingUsecase, pUC usecase.Pa
 		
 		// Admin/Finance only for configs
 		adminGroup := g.Group("/configs")
-		adminGroup.Use(middleware.RoleMiddleware("ADMIN", "FINANCE"))
+		adminGroup.Use(middleware.RoleMiddleware("DIRECTOR", "FINANCE"))
 		{
 			adminGroup.GET("", handler.GetPaymentConfigs)
 			adminGroup.POST("", handler.CreatePaymentConfig)
 			adminGroup.PUT("/:id", handler.UpdatePaymentConfig)
 			adminGroup.DELETE("/:id", handler.DeletePaymentConfig)
 		}
+	}
+
+	// Fix: endpoint yang dipanggil frontend untuk invoice per submission
+	invoices := r.Group("/invoices")
+	invoices.Use(middleware.AuthMiddleware())
+	{
+		invoices.GET("/submission/:submissionId", handler.GetInvoiceBySubmission)
 	}
 }
 
@@ -225,5 +232,23 @@ func (h *BillingHandler) PayReferralCommission(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "commission marked as paid"})
+}
+
+// GetInvoiceBySubmission returns the invoice for a specific submission.
+// Fix: endpoint ini dipanggil frontend di submissionService.getInvoice()
+func (h *BillingHandler) GetInvoiceBySubmission(c *gin.Context) {
+	subID, err := uuid.Parse(c.Param("submissionId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid submission_id"})
+		return
+	}
+
+	invoice, err := h.billingUC.GetInvoiceBySubmission(subID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "invoice not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, invoice)
 }
 

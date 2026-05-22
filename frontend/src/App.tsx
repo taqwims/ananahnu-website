@@ -3,14 +3,15 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import { useAuthStore } from './store/authStore';
+import RoleRoute from './components/auth/RoleRoute';
 
-// Simple Protected Route
+// Simple Protected Route — hanya cek token
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const token = useAuthStore((state) => state.token);
   if (!token) {
     return <Navigate to="/login" replace />;
   }
-  return children;
+  return <>{children}</>;
 };
 
 import DashboardLayout from './components/layout/DashboardLayout';
@@ -28,7 +29,6 @@ import DrafterMonitoring from './pages/dashboard/DrafterMonitoring';
 import PublicLayout from './components/layout/PublicLayout';
 import LandingPage from './pages/landing/LandingPage';
 
-// Feature pages
 import FormConfigAdmin from './pages/dashboard/FormConfigAdmin';
 import BillingConfigAdmin from './pages/dashboard/BillingConfigAdmin';
 import ConsultantProfilePage from './pages/dashboard/ConsultantProfile';
@@ -50,7 +50,6 @@ import ProfilePage from './pages/dashboard/Profile';
 import KarirDashboard from './pages/dashboard/KarirDashboard';
 import AdminPelatihanPromosi from './pages/dashboard/AdminPelatihanPromosi';
 
-
 import { Toaster } from 'react-hot-toast';
 
 function App() {
@@ -66,43 +65,113 @@ function App() {
             <DashboardLayout />
           </ProtectedRoute>
         }>
+          {/* Semua role bisa akses */}
           <Route index element={<DashboardHome />} />
-          <Route path="clients" element={<ClientList />} />
-          <Route path="clients/new" element={<ClientForm />} />
-          <Route path="clients/:id" element={<ClientForm />} />
-
-          <Route path="submissions" element={<SubmissionList />} />
-          <Route path="submissions/new" element={<SubmissionCreate />} />
-          <Route path="submissions/:id" element={<SubmissionDetail />} />
-          <Route path="distribution" element={<DistributionAdmin />} />
-          <Route path="monitoring" element={<DrafterMonitoring />} />
-          <Route path="coordinator-rates" element={<CoordinatorRates />} />
-          <Route path="drafter-workspace" element={<DrafterWorkspace />} />
-          <Route path="qc-workspace" element={<QCWorkspace />} />
-          <Route path="verifikator-workspace" element={<VerifikatorWorkspace />} />
-          <Route path="my-invoices" element={<MyInvoices />} />
-
-          <Route path="cms" element={<CMSDashboard />} />
-
-          {/* Feature Routes */}
-          <Route path="form-config" element={<FormConfigAdmin />} />
-          <Route path="billing-config" element={<BillingConfigAdmin />} />
-          <Route path="consultant-profile" element={<ConsultantProfilePage />} />
-          <Route path="training" element={<TrainingAdmin />} />
-          <Route path="billing" element={<BillingManagement />} />
-          <Route path="geography" element={<GeographyAdmin />} />
-          <Route path="team" element={<CoordinatorDashboard />} />
-          <Route path="users" element={<UserManagement />} />
-          <Route path="consultant-verification" element={<ConsultantVerification />} />
-          <Route path="referrals" element={<ReferralDashboard />} />
-          <Route path="admin-referrals" element={<AdminReferralDashboard />} />
-          <Route path="referral-fees" element={<ReferralFeeAdmin />} />
-          <Route path="notification-settings" element={<NotificationSettings />} />
           <Route path="profile" element={<ProfilePage />} />
-          <Route path="karir" element={<KarirDashboard />} />
-          <Route path="admin-promosi" element={<AdminPelatihanPromosi />} />
-        </Route>
 
+          {/* Klien */}
+          <Route path="clients" element={
+            <RoleRoute path="clients"><ClientList /></RoleRoute>
+          } />
+          <Route path="clients/new" element={
+            <RoleRoute path="clients/new"><ClientForm /></RoleRoute>
+          } />
+          <Route path="clients/:id" element={
+            <RoleRoute path="clients/new"><ClientForm /></RoleRoute>
+          } />
+
+          {/* Pengajuan */}
+          <Route path="submissions" element={
+            <RoleRoute path="submissions"><SubmissionList /></RoleRoute>
+          } />
+          <Route path="submissions/new" element={
+            <RoleRoute path="submissions/new"><SubmissionCreate /></RoleRoute>
+          } />
+          <Route path="submissions/:id" element={
+            <RoleRoute path="submissions"><SubmissionDetail /></RoleRoute>
+          } />
+
+          {/* Tagihan */}
+          <Route path="my-invoices" element={
+            <RoleRoute path="my-invoices"><MyInvoices /></RoleRoute>
+          } />
+
+          {/* Workflow */}
+          <Route path="distribution" element={
+            <RoleRoute path="distribution"><DistributionAdmin /></RoleRoute>
+          } />
+          <Route path="monitoring" element={
+            <RoleRoute path="monitoring"><DrafterMonitoring /></RoleRoute>
+          } />
+          <Route path="drafter-workspace" element={
+            <RoleRoute path="drafter-workspace"><DrafterWorkspace /></RoleRoute>
+          } />
+          <Route path="qc-workspace" element={
+            <RoleRoute path="qc-workspace"><QCWorkspace /></RoleRoute>
+          } />
+          <Route path="verifikator-workspace" element={
+            <RoleRoute path="verifikator-workspace"><VerifikatorWorkspace /></RoleRoute>
+          } />
+
+          {/* Profil Advisor & Karir */}
+          <Route path="consultant-profile" element={
+            <RoleRoute path="consultant-profile"><ConsultantProfilePage /></RoleRoute>
+          } />
+          <Route path="karir" element={
+            <RoleRoute path="karir"><KarirDashboard /></RoleRoute>
+          } />
+
+          {/* Jaringan & Referral */}
+          <Route path="team" element={
+            <RoleRoute path="team"><CoordinatorDashboard /></RoleRoute>
+          } />
+          <Route path="referrals" element={
+            <RoleRoute path="referrals"><ReferralDashboard /></RoleRoute>
+          } />
+          <Route path="admin-referrals" element={
+            <RoleRoute path="admin-referrals"><AdminReferralDashboard /></RoleRoute>
+          } />
+          <Route path="referral-fees" element={
+            <RoleRoute path="referral-fees"><ReferralFeeAdmin /></RoleRoute>
+          } />
+          <Route path="coordinator-rates" element={
+            <RoleRoute path="coordinator-rates"><CoordinatorRates /></RoleRoute>
+          } />
+
+          {/* Operasional */}
+          <Route path="consultant-verification" element={
+            <RoleRoute path="consultant-verification"><ConsultantVerification /></RoleRoute>
+          } />
+          <Route path="training" element={
+            <RoleRoute path="training"><TrainingAdmin /></RoleRoute>
+          } />
+          <Route path="admin-promosi" element={
+            <RoleRoute path="admin-promosi"><AdminPelatihanPromosi /></RoleRoute>
+          } />
+
+          {/* Pengaturan Sistem */}
+          <Route path="billing" element={
+            <RoleRoute path="billing"><BillingManagement /></RoleRoute>
+          } />
+          <Route path="form-config" element={
+            <RoleRoute path="form-config"><FormConfigAdmin /></RoleRoute>
+          } />
+          <Route path="billing-config" element={
+            <RoleRoute path="billing-config"><BillingConfigAdmin /></RoleRoute>
+          } />
+          <Route path="geography" element={
+            <RoleRoute path="geography"><GeographyAdmin /></RoleRoute>
+          } />
+          <Route path="users" element={
+            <RoleRoute path="users"><UserManagement /></RoleRoute>
+          } />
+          <Route path="notification-settings" element={
+            <RoleRoute path="notification-settings"><NotificationSettings /></RoleRoute>
+          } />
+          <Route path="cms" element={
+            <RoleRoute path="cms"><CMSDashboard /></RoleRoute>
+          } />
+        </Route>
 
         {/* Public Routes */}
         <Route element={<PublicLayout />}>

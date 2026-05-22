@@ -1,6 +1,7 @@
 package http
 
 import (
+	"ananahnu/internal/delivery/middleware"
 	"ananahnu/internal/usecase"
 	"net/http"
 
@@ -14,7 +15,12 @@ type ExportHandler struct {
 func NewExportHandler(r *gin.Engine, uc usecase.ExportUsecase) {
 	handler := &ExportHandler{exportUC: uc}
 
-	r.GET("/reports/export", handler.Export)
+	// Fix: dilindungi auth, hanya DIRECTOR/MANAGER/FINANCE/ADMIN_KEUANGAN
+	r.GET("/reports/export",
+		middleware.AuthMiddleware(),
+		middleware.RoleMiddleware("DIRECTOR", "MANAGER", "FINANCE", "ADMIN_KEUANGAN"),
+		handler.Export,
+	)
 }
 
 func (h *ExportHandler) Export(c *gin.Context) {

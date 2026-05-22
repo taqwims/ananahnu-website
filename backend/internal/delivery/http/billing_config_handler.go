@@ -15,50 +15,61 @@ type BillingConfigHandler struct {
 	uc usecase.BillingConfigUsecase
 }
 
+// Role yang boleh mengelola konfigurasi billing
+var billingConfigAdminRoles = []string{"DIRECTOR", "MANAGER", "FINANCE", "ADMIN_KEUANGAN"}
+
 func NewBillingConfigHandler(r *gin.Engine, uc usecase.BillingConfigUsecase) {
 	handler := &BillingConfigHandler{uc: uc}
 
 	g := r.Group("/billing-config")
 	g.Use(middleware.AuthMiddleware())
 	{
+		// GET boleh diakses semua role yang sudah login (dipakai di form submission)
 		g.GET("/sales-schemes", handler.GetSalesSchemes)
-		g.POST("/sales-schemes", handler.CreateSalesScheme)
-		g.PUT("/sales-schemes/:id", handler.UpdateSalesScheme)
-		g.DELETE("/sales-schemes/:id", handler.DeleteSalesScheme)
-
 		g.GET("/business-types", handler.GetBusinessTypes)
-		g.POST("/business-types", handler.CreateBusinessType)
-		g.PUT("/business-types/:id", handler.UpdateBusinessType)
-		g.DELETE("/business-types/:id", handler.DeleteBusinessType)
-
 		g.GET("/product-categories", handler.GetProductCategories)
-		g.POST("/product-categories", handler.CreateProductCategory)
-		g.PUT("/product-categories/:id", handler.UpdateProductCategory)
-		g.DELETE("/product-categories/:id", handler.DeleteProductCategory)
-
 		g.GET("/business-scales", handler.GetBusinessScales)
-		g.POST("/business-scales", handler.CreateBusinessScale)
-		g.PUT("/business-scales/:id", handler.UpdateBusinessScale)
-		g.DELETE("/business-scales/:id", handler.DeleteBusinessScale)
-
 		g.GET("/components", handler.GetBillingComponents)
-		g.POST("/components", handler.CreateBillingComponent)
-		g.PUT("/components/:id", handler.UpdateBillingComponent)
-		g.DELETE("/components/:id", handler.DeleteBillingComponent)
-
 		g.GET("/scheme-prices", handler.GetSalesSchemePrices)
-		g.POST("/scheme-prices", handler.CreateSalesSchemePrice)
-		g.PUT("/scheme-prices/:id", handler.UpdateSalesSchemePrice)
-		g.DELETE("/scheme-prices/:id", handler.DeleteSalesSchemePrice)
-
 		g.GET("/coordinator-rates", handler.GetCoordinatorRates)
-		g.POST("/coordinator-rates", handler.SaveCoordinatorRate)
+
+		// Write operations — hanya admin billing
+		adminOnly := g.Group("")
+		adminOnly.Use(middleware.RoleMiddleware(billingConfigAdminRoles...))
+		{
+			adminOnly.POST("/sales-schemes", handler.CreateSalesScheme)
+			adminOnly.PUT("/sales-schemes/:id", handler.UpdateSalesScheme)
+			adminOnly.DELETE("/sales-schemes/:id", handler.DeleteSalesScheme)
+
+			adminOnly.POST("/business-types", handler.CreateBusinessType)
+			adminOnly.PUT("/business-types/:id", handler.UpdateBusinessType)
+			adminOnly.DELETE("/business-types/:id", handler.DeleteBusinessType)
+
+			adminOnly.POST("/product-categories", handler.CreateProductCategory)
+			adminOnly.PUT("/product-categories/:id", handler.UpdateProductCategory)
+			adminOnly.DELETE("/product-categories/:id", handler.DeleteProductCategory)
+
+			adminOnly.POST("/business-scales", handler.CreateBusinessScale)
+			adminOnly.PUT("/business-scales/:id", handler.UpdateBusinessScale)
+			adminOnly.DELETE("/business-scales/:id", handler.DeleteBusinessScale)
+
+			adminOnly.POST("/components", handler.CreateBillingComponent)
+			adminOnly.PUT("/components/:id", handler.UpdateBillingComponent)
+			adminOnly.DELETE("/components/:id", handler.DeleteBillingComponent)
+
+			adminOnly.POST("/scheme-prices", handler.CreateSalesSchemePrice)
+			adminOnly.PUT("/scheme-prices/:id", handler.UpdateSalesSchemePrice)
+			adminOnly.DELETE("/scheme-prices/:id", handler.DeleteSalesSchemePrice)
+
+			adminOnly.POST("/coordinator-rates", handler.SaveCoordinatorRate)
+		}
 	}
 
 	s := r.Group("/submissions")
 	s.Use(middleware.AuthMiddleware())
 	{
 		s.GET("/:id/cost-detail", handler.GetSubmissionCost)
+		// SaveSubmissionCost: role check sudah ada di handler body
 		s.POST("/:id/cost-detail", handler.SaveSubmissionCost)
 	}
 }

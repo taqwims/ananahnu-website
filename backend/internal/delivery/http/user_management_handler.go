@@ -20,27 +20,28 @@ func NewUserManagementHandler(r *gin.Engine, uc usecase.UserManagementUsecase) {
 	g := r.Group("/admin/users")
 	g.Use(middleware.AuthMiddleware())
 	{
-		// Accessible to both Director and Finance
+		// Endpoint lookup untuk dropdown/assignment — bisa diakses role operasional
 		g.GET("/coordinators", handler.ListCoordinators)
 		g.GET("/drafters", handler.ListDrafters)
 		g.GET("/consultants", handler.ListConsultants)
-		
-		// Admin/Director only
-		adminOnly := g.Group("")
-		adminOnly.Use(middleware.RoleMiddleware("DIRECTOR"))
+
+		// Semua operasi user management hanya DIRECTOR
+		directorOnly := g.Group("")
+		directorOnly.Use(middleware.RoleMiddleware("DIRECTOR"))
 		{
-			adminOnly.GET("/:id", handler.GetUser)
-			adminOnly.POST("", handler.CreateUser)
-			adminOnly.PUT("/:id", handler.UpdateUser)
-			adminOnly.DELETE("/:id", handler.DeleteUser)
-			adminOnly.PUT("/:id/reset-password", handler.ResetPassword)
+			directorOnly.GET("", handler.ListUsers)
+			directorOnly.GET("/:id", handler.GetUser)
+			directorOnly.POST("", handler.CreateUser)
+			directorOnly.PUT("/:id", handler.UpdateUser)
+			directorOnly.DELETE("/:id", handler.DeleteUser)
+			directorOnly.PUT("/:id/reset-password", handler.ResetPassword)
 		}
 
-		// Accessible to more roles (for training/selection)
-		g.GET("", handler.ListUsers)
-		
-		// Admin Referral Analytics
-		g.GET("/referrals/analytics", handler.GetAllReferralAnalytics)
+		// Referral analytics — DIRECTOR + ADMIN_PELATIHAN + ADMIN_KEUANGAN
+		g.GET("/referrals/analytics",
+			middleware.RoleMiddleware("DIRECTOR", "ADMIN_PELATIHAN", "ADMIN_KEUANGAN"),
+			handler.GetAllReferralAnalytics,
+		)
 	}
 
 	// Roles list (for dropdowns)

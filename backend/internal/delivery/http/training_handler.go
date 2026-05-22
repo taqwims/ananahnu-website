@@ -21,22 +21,26 @@ func NewTrainingHandler(r *gin.Engine, uc usecase.TrainingUsecase) {
 	g := r.Group("/trainings")
 	g.Use(middleware.AuthMiddleware())
 	{
+		// GET boleh diakses semua role yang login
 		g.GET("/", handler.GetTrainings)
 		g.GET("/:id", handler.GetTraining)
-		g.POST("/", handler.CreateTraining)
-		g.PUT("/:id", handler.UpdateTraining)
-		g.DELETE("/:id", handler.DeleteTraining)
-		g.PUT("/:id/status", handler.UpdateStatus)
+		g.GET("/:id/participants", handler.GetParticipants)
+
+		// Write — hanya role yang relevan (role check lebih detail ada di handler)
+		writeRoles := middleware.RoleMiddleware("DIRECTOR", "MANAGER", "ADMIN_PELATIHAN", "HALAL_MANAGER")
+		g.POST("/", writeRoles, handler.CreateTraining)
+		g.PUT("/:id", writeRoles, handler.UpdateTraining)
+		g.DELETE("/:id", middleware.RoleMiddleware("DIRECTOR", "MANAGER", "ADMIN_PELATIHAN"), handler.DeleteTraining)
+		g.PUT("/:id/status", middleware.RoleMiddleware("DIRECTOR", "MANAGER", "ADMIN_PELATIHAN"), handler.UpdateStatus)
 
 		// Participants
-		g.GET("/:id/participants", handler.GetParticipants)
-		g.POST("/:id/participants", handler.AddParticipant)
-		g.PUT("/:id/participants/:userId", handler.UpdateParticipantStatus)
-		g.DELETE("/participants/:participantId", handler.RemoveParticipant)
+		g.POST("/:id/participants", writeRoles, handler.AddParticipant)
+		g.PUT("/:id/participants/:userId", writeRoles, handler.UpdateParticipantStatus)
+		g.DELETE("/participants/:participantId", writeRoles, handler.RemoveParticipant)
 	}
 
-	// User's training history
-	r.GET("/user-trainings/:userId", handler.GetUserTrainings)
+	// User's training history — semua user bisa lihat history sendiri
+	r.GET("/user-trainings/:userId", middleware.AuthMiddleware(), handler.GetUserTrainings)
 }
 
 func (h *TrainingHandler) GetTrainings(c *gin.Context) {

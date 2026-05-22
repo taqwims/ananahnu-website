@@ -1,6 +1,7 @@
 package http
 
 import (
+	"ananahnu/internal/delivery/middleware"
 	"ananahnu/internal/usecase"
 	"net/http"
 
@@ -25,8 +26,9 @@ func NewAuthHandler(r *gin.Engine, uc usecase.AuthUsecase) {
 		auth.GET("/facilitators", handler.ListFacilitators)
 	}
 	
-	admin := r.Group("/admin") 
-	// Middleware check should be applied here later
+	admin := r.Group("/admin")
+	admin.Use(middleware.AuthMiddleware())
+	admin.Use(middleware.RoleMiddleware("DIRECTOR"))
 	{
 		admin.POST("/users/generate", handler.GenerateAccount)
 	}

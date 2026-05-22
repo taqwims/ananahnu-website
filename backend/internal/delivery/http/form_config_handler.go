@@ -18,16 +18,22 @@ type FormConfigHandler struct {
 func NewFormConfigHandler(r *gin.Engine, uc usecase.FormConfigUsecase) {
 	handler := &FormConfigHandler{formConfigUC: uc}
 
-	// Form config admin CRUD
+	// Form config — GET boleh semua (dipakai di form submission), write hanya admin
 	g := r.Group("/form-config")
 	{
 		g.GET("/:formType", handler.GetConfig)
-		g.POST("/", handler.CreateField)
-		g.PUT("/:id", handler.UpdateField)
-		g.DELETE("/:id", handler.DeleteField)
+
+		adminOnly := g.Group("")
+		adminOnly.Use(middleware.AuthMiddleware())
+		adminOnly.Use(middleware.RoleMiddleware("DIRECTOR", "MANAGER"))
+		{
+			adminOnly.POST("/", handler.CreateField)
+			adminOnly.PUT("/:id", handler.UpdateField)
+			adminOnly.DELETE("/:id", handler.DeleteField)
+		}
 	}
 
-	// Submission field values
+	// Submission field values — semua user login bisa submit & lihat
 	f := r.Group("/submission-fields")
 	f.Use(middleware.AuthMiddleware())
 	{

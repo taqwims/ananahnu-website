@@ -20,12 +20,16 @@ func NewConsultantHandler(r *gin.Engine, uc usecase.ConsultantUsecase) {
 	g := r.Group("/consultant")
 	g.Use(middleware.AuthMiddleware())
 	{
+		// Semua user login bisa lihat & update profil sendiri
 		g.GET("/profile/:userId", handler.GetProfile)
-		g.PUT("/profile", handler.UpdateProfile)
-		
-		// Admin/Training/Coordinator access
+		g.PUT("/profile",
+			middleware.RoleMiddleware("HALAL_ADVISOR", "HALAL_MANAGER"),
+			handler.UpdateProfile,
+		)
+
+		// Verifikasi & list semua profil — ADMIN_PELATIHAN, DIRECTOR, HALAL_MANAGER
 		adminOnly := g.Group("")
-		adminOnly.Use(middleware.RoleMiddleware("ADMIN_PELATIHAN", "DIRECTOR", "HALAL_MANAGER", "ADMIN"))
+		adminOnly.Use(middleware.RoleMiddleware("ADMIN_PELATIHAN", "DIRECTOR", "HALAL_MANAGER"))
 		{
 			adminOnly.GET("/profiles", handler.GetAllProfiles)
 			adminOnly.PUT("/profiles/:userId/verify", handler.VerifyProfile)

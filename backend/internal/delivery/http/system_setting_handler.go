@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"ananahnu/internal/delivery/middleware"
 	"ananahnu/internal/usecase"
 )
 
@@ -14,10 +15,15 @@ type SystemSettingHandler struct {
 func NewSystemSettingHandler(r *gin.Engine, settingUsecase usecase.SystemSettingUsecase) {
 	handler := &SystemSettingHandler{settingUsecase: settingUsecase}
 
-	// Routes
-	r.GET("/system-settings", handler.GetAllSettings)
-	r.GET("/system-settings/:key", handler.GetSetting)
-	r.PUT("/system-settings", handler.UpdateSetting)
+	// GET (read) boleh diakses semua user yang sudah login
+	settings := r.Group("/system-settings")
+	settings.Use(middleware.AuthMiddleware())
+	{
+		settings.GET("", handler.GetAllSettings)
+		settings.GET("/:key", handler.GetSetting)
+		// PUT (write) hanya DIRECTOR
+		settings.PUT("", middleware.RoleMiddleware("DIRECTOR"), handler.UpdateSetting)
+	}
 }
 
 func (h *SystemSettingHandler) GetSetting(c *gin.Context) {
