@@ -3,11 +3,9 @@ import { Users, FileText, CheckCircle, Clock, Loader2, ShieldCheck } from 'lucid
 import { useAuthStore } from '../../store/authStore';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import StatsCard from '../../components/ui/StatsCard';
-import Modal from '../../components/ui/Modal';
 import api from '../../services/api';
 import { formatNumber } from '../../utils/format';
 import type { AuditLog } from '../../types';
-import toast from 'react-hot-toast';
 
 interface DashboardStats {
     total_clients: number;
@@ -22,7 +20,6 @@ export default function DashboardHome() {
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [activities, setActivities] = useState<AuditLog[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const user = useAuthStore(state => state.user);
 
     useEffect(() => {
@@ -73,63 +70,9 @@ export default function DashboardHome() {
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-gray-800">Dashboard Overview</h1>
                 <div className="flex items-center gap-2">
-                    <button 
-                        onClick={() => toast.success('Berhasil menampilkan toast!')}
-                        className="btn-secondary py-1.5 px-3 text-xs"
-                    >
-                        Test Toast
-                    </button>
-                    <button 
-                        onClick={() => setIsModalOpen(true)}
-                        className="btn-primary py-1.5 px-3 text-xs"
-                    >
-                        Open Custom Modal
-                    </button>
                     <div className="text-sm text-gray-500">{new Date().toLocaleDateString()}</div>
                 </div>
             </div>
-
-            <Modal 
-                isOpen={isModalOpen} 
-                onClose={() => setIsModalOpen(false)}
-                title="Custom Modal Dialog"
-                maxWidth="md"
-            >
-                <div className="space-y-4">
-                    <p className="text-sm text-gray-600">
-                        Ini adalah contoh custom modal dialog yang dibangun menggunakan <span className="font-semibold text-brand-600">Headless UI</span> dan <span className="font-semibold text-brand-600">Framer Motion</span>.
-                    </p>
-                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                        <p className="text-xs text-gray-500 leading-relaxed">
-                            Modal ini memiliki animasi spring yang halus, backdrop blur, dan responsive design. Anda bisa menutupnya dengan klik tombol X, klik backdrop, atau menekan ESC.
-                        </p>
-                    </div>
-                    <div className="flex justify-end gap-3 mt-6">
-                        <button 
-                            onClick={() => setIsModalOpen(false)}
-                            className="btn-secondary px-4 py-2"
-                        >
-                            Tutup
-                        </button>
-                        <button 
-                            onClick={() => {
-                                setIsModalOpen(false);
-                                toast.promise(
-                                    new Promise((resolve) => setTimeout(resolve, 2000)),
-                                    {
-                                        loading: 'Menyimpan...',
-                                        success: 'Data berhasil disimpan!',
-                                        error: 'Gagal menyimpan data.',
-                                    }
-                                );
-                            }}
-                            className="btn-primary px-4 py-2"
-                        >
-                            Simpan Perubahan
-                        </button>
-                    </div>
-                </div>
-            </Modal>
 
             {/* Coordinator Info for Consultants */}
             {user?.role === 'HALAL_ADVISOR' && (

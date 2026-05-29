@@ -4,6 +4,8 @@ import (
 	"ananahnu/internal/domain"
 	"ananahnu/pkg/utils"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -46,6 +48,7 @@ type UserManagementUsecase interface {
 	GetReferrals(userID uuid.UUID) ([]domain.User, error)
 	GetMyCommissions(userID uuid.UUID) ([]domain.Commission, error)
 	GetAllReferralAnalytics() ([]map[string]interface{}, error)
+	RegenerateReferralCode(userID uuid.UUID) (string, error) // Regenerate referral code using new format (no vowels)
 }
 
 type UserManagementUsecaseDeps struct {
@@ -231,4 +234,86 @@ func (uc *userManagementUsecase) GetMyCommissions(userID uuid.UUID) ([]domain.Co
 
 func (uc *userManagementUsecase) GetAllReferralAnalytics() ([]map[string]interface{}, error) {
 	return uc.UserRepo.GetAllReferralAnalytics()
+}
+
+// RegenerateReferralCode generates a new referral code (no vowels format) for the given user
+// and persists it to the database.
+func (uc *userManagementUsecase) RegenerateReferralCode(userID uuid.UUID) (string, error) {
+	user, err := uc.UserRepo.FindByID(userID)
+	if err != nil {
+		return "", errors.New("user not found")
+	}
+
+	// If the user already has a valid vowel-free referral code, do not change it
+	if user.ReferralCode != "" && !hasVowels(user.ReferralCode) {
+		return user.ReferralCode, nil
+	}
+
+	newCode := generateReferralCodeFromName(user.FullName, uc.UserRepo, userID)
+	user.ReferralCode = newCode
+
+	if err := uc.UserRepo.Update(user); err != nil {
+		return "", err
+	}
+
+	return newCode, nil
+}
+
+// generateReferralCodeFromName builds a unique referral code by stripping vowels from fullName.
+// Mirrors the logic in authUsecase.generateReferralCode.
+func generateReferralCodeFromName(fullName string, repo domain.UserRepository, userID uuid.UUID) string {
+	prefix := strings.ToUpper(removeVowels(fullName))
+	if prefix == "" {
+		prefix = "RF"
+	}
+
+	const maxAttempts = 1000
+	code := prefix
+	counter := 2
+	for i := 0; i < maxAttempts; i++ {
+		existing, err := repo.FindByReferralCode(code)
+		if err != nil {
+			// Not found → unique
+			return code
+		}
+		// If found but belongs to the same user, it is not a collision
+		if userID != uuid.Nil && existing != nil && existing.ID == userID {
+			return code
+		}
+		code = fmt.Sprintf("%s%d", prefix, counter)
+		counter++
+	}
+	// Fallback: append short UUID segment
+	uuidStr := strings.ReplaceAll(uuid.New().String(), "-", "")
+	cleanUUID := strings.ToUpper(removeVowels(uuidStr))
+	if len(cleanUUID) > 6 {
+		cleanUUID = cleanUUID[:6]
+	}
+	return fmt.Sprintf("%s-%s", prefix, cleanUUID)
+}
+
+// removeVowels strips vowels and non-alpha characters from a string.
+func removeVowels(s string) string {
+	var out []rune
+	for _, r := range s {
+		switch r {
+		case 'a', 'i', 'u', 'e', 'o', 'A', 'I', 'U', 'E', 'O':
+			// skip vowels
+		default:
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+				out = append(out, r)
+			}
+		}
+	}
+	return string(out)
+}
+
+func hasVowels(s string) bool {
+	for _, r := range s {
+		switch r {
+		case 'a', 'i', 'u', 'e', 'o', 'A', 'I', 'U', 'E', 'O':
+			return true
+		}
+	}
+	return false
 }

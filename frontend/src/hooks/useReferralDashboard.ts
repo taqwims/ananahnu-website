@@ -5,10 +5,12 @@ import type { User, Commission } from '../types';
 
 export const useReferralDashboard = () => {
     const user = useAuthStore(state => state.user);
+    const updateUser = useAuthStore(state => state.updateUser);
     const [referrals, setReferrals] = useState<User[]>([]);
     const [commissions, setCommissions] = useState<Commission[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [copied, setCopied] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
@@ -37,6 +39,25 @@ export const useReferralDashboard = () => {
             setTimeout(() => setCopied(false), 2000);
         }
     };
+
+    /**
+     * Fetch kode referral terbaru dari backend dan update authStore.
+     * Berguna jika kode referral baru saja di-generate (misal user lama yang belum punya kode).
+     */
+    const refreshReferralCode = useCallback(async () => {
+        setIsRefreshing(true);
+        try {
+            const res = await api.post('/profile/referral/regenerate');
+            const newCode = res.data.referral_code;
+            if (newCode) {
+                updateUser({ referral_code: newCode });
+            }
+        } catch (error) {
+            console.error("Failed to refresh referral code", error);
+        } finally {
+            setIsRefreshing(false);
+        }
+    }, [updateUser]);
 
     const referralCommissions = useMemo(() => commissions.filter(c => c.type === 'REFERRAL' || !c.type), [commissions]);
     const structuralCommissions = useMemo(() => commissions.filter(c => c.type === 'STRUCTURAL'), [commissions]);
@@ -74,6 +95,8 @@ export const useReferralDashboard = () => {
         isLoading,
         copied,
         handleCopy,
+        refreshReferralCode,
+        isRefreshing,
         referralStats,
         structuralStats
     };

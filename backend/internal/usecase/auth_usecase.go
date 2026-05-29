@@ -42,11 +42,12 @@ type GenerateAccountInput struct {
 }
 
 type AuthUsecaseDeps struct {
-	UserRepo    domain.UserRepository
-	RoleRepo    domain.RoleRepository
-	ClientRepo  domain.ClientRepository
-	TokenRepo   domain.PasswordTokenRepository
-	EmailSender email.EmailSender
+	UserRepo       domain.UserRepository
+	RoleRepo       domain.RoleRepository
+	ClientRepo     domain.ClientRepository
+	TokenRepo      domain.PasswordTokenRepository
+	CommissionRepo domain.CommissionRepository
+	EmailSender    email.EmailSender
 }
 
 type authUsecase struct {
@@ -71,7 +72,7 @@ func (uc *authUsecase) Login(email, password string) (string, string, *domain.Us
 
 	// Auto-generate ReferralCode for existing users who don't have one
 	if user.ReferralCode == "" {
-		user.ReferralCode = uc.generateReferralCode(user.FullName)
+		user.ReferralCode = uc.generateReferralCode(user.FullName, user.ID)
 		// Best effort update, ignore error
 		_ = uc.UserRepo.Update(user)
 	}
@@ -125,10 +126,13 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 	
 	// Handle Referral Code
 	var referredByID *uuid.UUID
+	var leaderID *uuid.UUID
 	if input.ReferralCode != "" {
 		referrer, err := uc.UserRepo.FindByReferralCode(input.ReferralCode)
 		if err == nil && referrer != nil {
 			referredByID = &referrer.ID
+			// Otomatis set leader_id ke referrer agar masuk tim karir referrer
+			leaderID = &referrer.ID
 		} else {
 			return errors.New("invalid referral code")
 		}
@@ -148,12 +152,25 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 		ProvinceID:   pID,
 		RegencyID:    rID,
 		RoleID:       role.ID,
-		ReferralCode: uc.generateReferralCode(input.FullName),
+		ReferralCode: uc.generateReferralCode(input.FullName, userID),
 		ReferredByID: referredByID,
+		LeaderID:     leaderID,
 	}
 
 	if err := uc.UserRepo.Create(user); err != nil {
 		return err
+	}
+
+	// Buat komisi REFERRAL untuk referrer jika ada
+	if referredByID != nil && uc.CommissionRepo != nil {
+		_ = uc.CommissionRepo.Create(&domain.Commission{
+			ID:         uuid.New(),
+			Type:       domain.CommissionTypeReferral,
+			ReferrerID: referredByID,
+			ReferredID: &userID,
+			Amount:     0, // Nominal diisi saat invoice pertama dibayar, atau bisa dikonfigurasi
+			Status:     domain.CommissionStatusPending,
+		})
 	}
 
 	return nil
@@ -189,13 +206,15 @@ func (uc *authUsecase) GenerateAccount(input GenerateAccountInput) (string, erro
 	}
 
 	// 5. Create User
+	newUserID := uuid.New()
 	user := &domain.User{
-		ID:           uuid.New(),
+		ID:           newUserID,
 		Username:     input.Email,
 		Email:        input.Email,
 		PasswordHash: hash,
 		FullName:     input.Name,
 		RoleID:       role.ID,
+		ReferralCode: uc.generateReferralCode(input.Name, newUserID),
 	}
 	
 	if err := uc.UserRepo.Create(user); err != nil {
@@ -208,7 +227,8 @@ func (uc *authUsecase) GenerateAccount(input GenerateAccountInput) (string, erro
 func (uc *authUsecase) ForgotPassword(emailAddr string) error {
 	user, err := uc.UserRepo.FindByEmail(emailAddr)
 	if err != nil {
-		return errors.New("email not found") // Or return nil to avoid enumeration
+		// Return nil to avoid email enumeration — caller always returns 200
+		return nil
 	}
 
 	token := utils.RandomString(32) // Generate secure token
@@ -262,46 +282,53 @@ func (uc *authUsecase) ResetPassword(tokenStr, newPassword string) error {
 	return uc.TokenRepo.Delete(tokenStr)
 }
 
-func (uc *authUsecase) generateReferralCode(fullName string) string {
-	words := strings.Fields(fullName)
-	var prefix string
-
-	if len(words) > 0 {
-		w1 := words[0]
-		// Ambil karakter indeks 0, 2, 4 dari kata pertama
-		for _, i := range []int{0, 2, 4} {
-			if i < len(w1) {
-				prefix += string(w1[i])
+func removeVowelsAndNonAlpha(w string) string {
+	var clean []rune
+	for _, r := range w {
+		switch r {
+		case 'a', 'i', 'u', 'e', 'o', 'A', 'I', 'U', 'E', 'O':
+			// skip vowels
+		default:
+			// keep alphabetical consonants
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+				clean = append(clean, r)
 			}
 		}
 	}
+	return string(clean)
+}
 
-	if len(words) > 1 {
-		w2 := words[1]
-		// Ambil karakter pertama dari kata kedua
-		if len(w2) > 0 {
-			prefix += string(w2[0])
-		}
-		// Ambil karakter terakhir dari kata kedua
-		if len(w2) > 1 {
-			prefix += string(w2[len(w2)-1])
-		}
-	}
-
-	prefix = strings.ToUpper(prefix)
+func (uc *authUsecase) generateReferralCode(fullName string, userID uuid.UUID) string {
+	// Hapus semua vokal dari seluruh nama, ambil konsonan saja
+	prefix := strings.ToUpper(removeVowelsAndNonAlpha(fullName))
 	if prefix == "" {
-		prefix = "USER"
+		prefix = "RF"
 	}
 
+	// Cek keunikan, jika duplikat tambah angka di belakang
+	// Batasi iterasi untuk mencegah infinite loop
+	const maxAttempts = 1000
 	code := prefix
 	counter := 2
-	for {
-		_, err := uc.UserRepo.FindByReferralCode(code)
+	for i := 0; i < maxAttempts; i++ {
+		existing, err := uc.UserRepo.FindByReferralCode(code)
 		if err != nil {
-			// Record not found, so it's unique
+			// Record not found → kode unik
+			return code
+		}
+		// If found but belongs to the same user, it is not a collision
+		if userID != uuid.Nil && existing != nil && existing.ID == userID {
 			return code
 		}
 		code = fmt.Sprintf("%s%d", prefix, counter)
 		counter++
 	}
+	// Fallback: gunakan UUID pendek agar selalu unik
+	uuidStr := strings.ReplaceAll(uuid.New().String(), "-", "")
+	cleanUUID := strings.ToUpper(removeVowelsAndNonAlpha(uuidStr))
+	if len(cleanUUID) > 6 {
+		cleanUUID = cleanUUID[:6]
+	}
+	return fmt.Sprintf("%s-%s", prefix, cleanUUID)
 }
+

@@ -13,6 +13,8 @@ export default function ReferralDashboard() {
         isLoading,
         copied,
         handleCopy,
+        refreshReferralCode,
+        isRefreshing,
         referralStats,
         structuralStats
     } = useReferralDashboard();
@@ -58,6 +60,8 @@ export default function ReferralDashboard() {
                             user={user}
                             copied={copied}
                             onCopy={handleCopy}
+                            onRefresh={refreshReferralCode}
+                            isRefreshing={isRefreshing}
                         />
 
                         <ReferralStats 

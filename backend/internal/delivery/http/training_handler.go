@@ -37,6 +37,9 @@ func NewTrainingHandler(r *gin.Engine, uc usecase.TrainingUsecase) {
 		g.POST("/:id/participants", writeRoles, handler.AddParticipant)
 		g.PUT("/:id/participants/:userId", writeRoles, handler.UpdateParticipantStatus)
 		g.DELETE("/participants/:participantId", writeRoles, handler.RemoveParticipant)
+
+		// List users available to be added as participants (HALAL_ADVISOR)
+		g.GET("/available-participants", writeRoles, handler.ListAvailableParticipants)
 	}
 
 	// User's training history — semua user bisa lihat history sendiri
@@ -219,4 +222,16 @@ func (h *TrainingHandler) GetUserTrainings(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, trainings)
+}
+
+// ListAvailableParticipants returns users (HALAL_ADVISOR) that can be added to a training.
+// Accessible by ADMIN_PELATIHAN, MANAGER, DIRECTOR, HALAL_MANAGER.
+func (h *TrainingHandler) ListAvailableParticipants(c *gin.Context) {
+	search := c.Query("search")
+	users, err := h.trainingUC.GetAvailableParticipants(search)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, users)
 }

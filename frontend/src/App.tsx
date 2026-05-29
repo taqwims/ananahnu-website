@@ -5,10 +5,26 @@ import RegisterPage from './pages/auth/RegisterPage';
 import { useAuthStore } from './store/authStore';
 import RoleRoute from './components/auth/RoleRoute';
 
-// Simple Protected Route — hanya cek token
+// Decode JWT payload tanpa library eksternal
+function getTokenExpiry(token: string): number | null {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return typeof payload.exp === 'number' ? payload.exp : null;
+  } catch {
+    return null;
+  }
+}
+
+// Protected Route — cek token ada DAN belum expired
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const token = useAuthStore((state) => state.token);
   if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  const exp = getTokenExpiry(token);
+  // Jika token sudah expired, logout dan redirect ke login
+  if (exp !== null && Date.now() / 1000 > exp) {
+    useAuthStore.getState().logout();
     return <Navigate to="/login" replace />;
   }
   return <>{children}</>;

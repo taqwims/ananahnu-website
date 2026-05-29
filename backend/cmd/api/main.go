@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -137,9 +138,6 @@ func main() {
 		}
 	}
 
-	// 4.6 Seed Default Form Configs (Idempotent)
-	seeder.SeedFormConfigs(db)
-
 	// 5. Setup Repositories
 	userRepo := repository.NewUserRepository(db)
 	roleRepo := repository.NewRoleRepository(db)
@@ -180,11 +178,12 @@ func main() {
 
 	// 6. Setup Usecases
 	authUC := usecase.NewAuthUsecase(usecase.AuthUsecaseDeps{
-		UserRepo:    userRepo,
-		RoleRepo:    roleRepo,
-		ClientRepo:  clientRepo,
-		TokenRepo:   tokenRepo,
-		EmailSender: emailSender,
+		UserRepo:       userRepo,
+		RoleRepo:       roleRepo,
+		ClientRepo:     clientRepo,
+		TokenRepo:      tokenRepo,
+		CommissionRepo: commissionRepo,
+		EmailSender:    emailSender,
 	})
 	notificationUC := usecase.NewNotificationUsecase(usecase.NotificationUsecaseDeps{
 		NotifRepo:   notifRepo,
@@ -223,6 +222,7 @@ func main() {
 	trainingUC := usecase.NewTrainingUsecase(usecase.TrainingUsecaseDeps{
 		TrainingRepo:    trainingRepo,
 		ParticipantRepo: participantRepo,
+		UserRepo:        userRepo,
 	})
 	consultantUC := usecase.NewConsultantUsecase(usecase.ConsultantUsecaseDeps{
 		ProfileRepo: consultantRepo,
@@ -291,18 +291,25 @@ func main() {
 
 	promotionRepo := repository.NewPromotionRepository(db)
 	promotionUC := usecase.NewPromotionUsecase(usecase.PromotionUsecaseDeps{
-		PromotionRepo:  promotionRepo,
-		UserRepo:       userRepo,
-		CommissionRepo: commissionRepo,
-		RoleRepo:       roleRepo,
+		PromotionRepo:   promotionRepo,
+		UserRepo:        userRepo,
+		CommissionRepo:  commissionRepo,
+		RoleRepo:        roleRepo,
+		ParticipantRepo: participantRepo,
 	})
 
 	// 7. Setup Router & Handlers
 	r := gin.Default()
 
-	// CORS Middleware (simplified)
+	// CORS Middleware
+	// Access-Control-Allow-Origin cannot be wildcard when credentials are used.
+	// Use the FRONTEND_URL env var for production, fallback to localhost for dev.
 	r.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		allowedOrigin := os.Getenv("FRONTEND_URL")
+		if allowedOrigin == "" {
+			allowedOrigin = "http://localhost:5173"
+		}
+		c.Writer.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
@@ -349,19 +356,28 @@ func main() {
 		})
 	})
 
-	r.GET("/reset-db", func(c *gin.Context) {
-		if err := seeder.PerformResetAndSeed(db); err != nil {
-			c.JSON(500, gin.H{
-				"status":  "error",
-				"message": err.Error(),
+	// /reset-db hanya tersedia di mode development (non-production)
+	if os.Getenv("APP_ENV") != "production" {
+		r.GET("/reset-db", func(c *gin.Context) {
+			// Tambahan: validasi secret key agar tidak sembarang orang bisa trigger
+			secret := os.Getenv("RESET_DB_SECRET")
+			if secret != "" && c.Query("secret") != secret {
+				c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
+				return
+			}
+			if err := seeder.PerformResetAndSeed(db); err != nil {
+				c.JSON(500, gin.H{
+					"status":  "error",
+					"message": err.Error(),
+				})
+				return
+			}
+			c.JSON(200, gin.H{
+				"status":  "success",
+				"message": "Database successfully wiped and seeded like new!",
 			})
-			return
-		}
-		c.JSON(200, gin.H{
-			"status":  "success",
-			"message": "Database successfully wiped and seeded like new!",
 		})
-	})
+	}
 
 	// 8. Run
 	r.Run(":8080")

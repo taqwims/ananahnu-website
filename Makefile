@@ -1,7 +1,10 @@
-.PHONY: run docker-up docker-down migrate-up migrate-down
+.PHONY: run docker-up docker-down migrate-up migrate-down seed
 
 run:
 	cd backend && go run cmd/api/main.go
+
+seed:
+	cd backend && go run cmd/seed_features/main.go
 
 docker-up:
 	docker-compose up -d

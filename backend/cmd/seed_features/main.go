@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"ananahnu/internal/domain"
+	"ananahnu/internal/seeder"
 	"ananahnu/pkg/database"
 )
 
@@ -44,6 +46,10 @@ func main() {
 
 	// --- Payment Config ---
 	seedPaymentConfig(db)
+
+	// --- Form Configs ---
+	log.Println("Seeding Form Configs...")
+	seeder.SeedFormConfigs(db)
 
 	log.Println("=== Seeder Complete! ===")
 }
@@ -152,6 +158,7 @@ func seedUsers(db *gorm.DB) {
 			FullName:     u.FullName,
 			PasswordHash: string(hashed),
 			RoleID:       role.ID,
+			ReferralCode: removeVowels(u.Username),
 		}
 		db.Create(&newUser)
 
@@ -284,4 +291,19 @@ func seedPaymentConfig(db *gorm.DB) {
 	}
 
 	log.Println("✓ Payment configs seeded (3 REGULER, 2 SELF_DECLARE)")
+}
+
+func removeVowels(s string) string {
+	var out []rune
+	for _, r := range s {
+		switch r {
+		case 'a', 'i', 'u', 'e', 'o', 'A', 'I', 'U', 'E', 'O':
+			// skip vowels
+		default:
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+				out = append(out, r)
+			}
+		}
+	}
+	return strings.ToUpper(string(out))
 }

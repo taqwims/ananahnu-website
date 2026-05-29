@@ -17,6 +17,7 @@ import (
 
 type DocumentUsecase interface {
 	GenerateContract(submissionID uuid.UUID, format string) ([]byte, string, error)
+	GenerateSPH(submissionID uuid.UUID) ([]byte, string, error)
 }
 
 type DocumentUsecaseDeps struct {
@@ -336,4 +337,71 @@ func (uc *documentUsecase) cleanXml(xml string) string {
 	xml = strings.ReplaceAll(xml, "</w:t></w:r><w:r><w:t xml:space=\"preserve\">", "")
 
 	return xml
+}
+
+// GenerateSPH generates a Surat Penawaran Halal (SPH) from Template_SPH.docx
+// for a REGULER submission.
+func (uc *documentUsecase) GenerateSPH(submissionID uuid.UUID) ([]byte, string, error) {
+	submission, err := uc.SubmissionRepo.FindByID(submissionID)
+	if err != nil {
+		return nil, "", fmt.Errorf("submission not found: %w", err)
+	}
+
+	if submission.ServiceType != "REGULER" {
+		return nil, "", fmt.Errorf("SPH hanya tersedia untuk pengajuan REGULER")
+	}
+
+	businessName := ""
+	if submission.Client.BusinessName != "" {
+		businessName = submission.Client.BusinessName
+	} else {
+		businessName = submission.Client.ClientName
+	}
+
+	vars := map[string]string{
+		"[Nama Perusahaan/Usaha]": businessName,
+	}
+
+	templatePath := "templates/Template_SPH.docx"
+	r, err := zip.OpenReader(templatePath)
+	if err != nil {
+		return nil, "", fmt.Errorf("template SPH tidak ditemukan: %w", err)
+	}
+	defer r.Close()
+
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+
+	for _, f := range r.File {
+		fw, err := w.Create(f.Name)
+		if err != nil {
+			return nil, "", err
+		}
+		rc, err := f.Open()
+		if err != nil {
+			return nil, "", err
+		}
+
+		if f.Name == "word/document.xml" {
+			content, err := io.ReadAll(rc)
+			if err != nil {
+				return nil, "", err
+			}
+			xmlStr := uc.cleanXml(string(content))
+			for k, v := range vars {
+				xmlStr = strings.ReplaceAll(xmlStr, k, v)
+			}
+			_, err = fw.Write([]byte(xmlStr))
+		} else {
+			_, err = io.Copy(fw, rc)
+		}
+		rc.Close()
+		if err != nil {
+			return nil, "", err
+		}
+	}
+	w.Close()
+
+	filename := fmt.Sprintf("SPH_%s.docx", strings.ReplaceAll(businessName, " ", "_"))
+	return buf.Bytes(), filename, nil
 }

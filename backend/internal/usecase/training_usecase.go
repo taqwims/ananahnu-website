@@ -20,11 +20,15 @@ type TrainingUsecase interface {
 	AddParticipant(trainingID int64, userID uuid.UUID) error
 	UpdateParticipantStatus(trainingID int64, userID uuid.UUID, status string) error
 	RemoveParticipant(id int64) error
+
+	// GetAvailableParticipants returns users eligible to be added as training participants
+	GetAvailableParticipants(search string) ([]domain.User, error)
 }
 
 type TrainingUsecaseDeps struct {
 	TrainingRepo    domain.TrainingRepository
 	ParticipantRepo domain.TrainingParticipantRepository
+	UserRepo        domain.UserRepository
 }
 
 type trainingUsecase struct {
@@ -93,4 +97,17 @@ func (uc *trainingUsecase) UpdateParticipantStatus(trainingID int64, userID uuid
 
 func (uc *trainingUsecase) RemoveParticipant(id int64) error {
 	return uc.ParticipantRepo.Delete(id)
+}
+
+// GetAvailableParticipants returns HALAL_ADVISOR users that can be added as participants.
+// Optionally filter by name/email via search string.
+func (uc *trainingUsecase) GetAvailableParticipants(search string) ([]domain.User, error) {
+	filter := map[string]interface{}{
+		"role": "HALAL_ADVISOR",
+	}
+	if search != "" {
+		filter["search"] = search
+	}
+	users, _, err := uc.UserRepo.FindAll(filter, 1, 1000)
+	return users, err
 }

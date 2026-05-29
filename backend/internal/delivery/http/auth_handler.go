@@ -51,6 +51,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	// Guard against unloaded Role relation
+	roleName := user.Role.Name
+
 	c.JSON(http.StatusOK, gin.H{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
@@ -58,7 +61,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			"id":            user.ID,
 			"email":         user.Email,
 			"full_name":     user.FullName,
-			"role":          user.Role.Name,
+			"role":          roleName,
 			"leader":        user.Leader,
 			"referral_code": user.ReferralCode,
 			"phone":         user.Phone,
@@ -78,7 +81,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	if err := h.authUseCase.Register(input); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		// Business logic errors (email exists, invalid referral, etc.) → 400
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -117,13 +121,10 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 		return
 	}
 
-	if err := h.authUseCase.ForgotPassword(input.Email); err != nil {
-		// Log error but maybe return generics to avoid enumeration
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	
-	c.JSON(http.StatusOK, gin.H{"message": "reset link sent"})
+	// Always return 200 regardless of whether the email exists,
+	// to prevent email enumeration attacks.
+	_ = h.authUseCase.ForgotPassword(input.Email)
+	c.JSON(http.StatusOK, gin.H{"message": "If that email is registered, a reset link has been sent."})
 }
 
 func (h *AuthHandler) ResetPassword(c *gin.Context) {

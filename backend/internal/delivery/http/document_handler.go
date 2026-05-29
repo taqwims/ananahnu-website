@@ -22,6 +22,7 @@ func NewDocumentHandler(r *gin.Engine, uc usecase.DocumentUsecase) {
 	g.Use(middleware.AuthMiddleware())
 	{
 		g.GET("/submissions/:id/contract", handler.GenerateContract)
+		g.GET("/submissions/:id/sph", handler.GenerateSPH)
 	}
 }
 
@@ -52,4 +53,21 @@ func (h *DocumentHandler) GenerateContract(c *gin.Context) {
 
 	c.Header("Content-Disposition", "attachment; filename="+filename)
 	c.Data(http.StatusOK, contentType, data)
+}
+
+func (h *DocumentHandler) GenerateSPH(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid submission id"})
+		return
+	}
+
+	data, filename, err := h.documentUsecase.GenerateSPH(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Header("Content-Disposition", "attachment; filename="+filename)
+	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", data)
 }

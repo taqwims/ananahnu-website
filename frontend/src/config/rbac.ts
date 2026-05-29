@@ -109,9 +109,14 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   'cms':            ['DIRECTOR', 'MANAGER'],
 };
 
-/** Cek apakah role boleh mengakses path tertentu */
+/**
+ * Cek apakah role boleh mengakses path tertentu.
+ * Path yang tidak terdaftar di PAGE_ROLES dianggap TIDAK BOLEH diakses
+ * (fail-closed / deny-by-default) untuk mencegah privilege escalation.
+ */
 export function canAccess(role: string, path: string): boolean {
   const allowed = PAGE_ROLES[path];
-  if (!allowed) return true; // path tidak terdaftar = bebas
+  // Path tidak terdaftar → tolak akses (deny-by-default)
+  if (!allowed) return false;
   return allowed.includes(role as AppRole);
 }

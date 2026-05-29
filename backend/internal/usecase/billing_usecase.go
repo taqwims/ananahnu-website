@@ -157,9 +157,6 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 
 	period := time.Now().Format("2006-01") // YYYY-MM
 
-	if invoice.PayerID != nil && *invoice.PayerID != uuid.Nil {
-		user, _ := uc.UserRepo.FindByID(*invoice.PayerID)
-		if user != nil {
 	// Structural Commissions based on Pendampingan Omset
 	if pendampinganAmount > 0 {
 		submission, _ := uc.SubmissionRepo.FindByID(invoice.SubmissionID)
@@ -242,8 +239,6 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 					currentNodeID = nodeUser.LeaderID
 				}
 			}
-		}
-	}
 		}
 	}
 

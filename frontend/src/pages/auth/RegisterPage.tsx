@@ -82,7 +82,9 @@ export default function RegisterPage() {
         setIsLoading(true);
         setError('');
         try {
-            await api.post('/auth/register', data);
+            // Strip confirm_password — backend tidak mengharapkan field ini
+            const { confirm_password: _omit, ...payload } = data;
+            await api.post('/auth/register', payload);
             setSuccess(true);
             setTimeout(() => navigate('/login'), 3000);
         } catch (err: any) {

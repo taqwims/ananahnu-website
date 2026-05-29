@@ -10,22 +10,27 @@ export default function LandingPage() {
     const [aboutBlock, setAboutBlock] = useState<ContentBlock | null>(null);
 
     useEffect(() => {
-        // Parallel Fetching
+        let cancelled = false;
+
         const loadData = async () => {
-            try {
-                const [newsRes, welcomeRes, aboutRes] = await Promise.all([
-                    api.get('/public/cms/news').catch(() => ({ data: [] })),
-                    api.get('/public/cms/blocks/welcome_message').catch(() => ({ data: null })),
-                    api.get('/public/cms/blocks/about_us').catch(() => ({ data: null })),
-                ]);
-                setNews(newsRes.data);
-                setWelcomeBlock(welcomeRes.data);
-                setAboutBlock(aboutRes.data);
-            } catch (err) {
-                console.error("Failed to load CMS content", err);
-            }
+            const [newsRes, welcomeRes, aboutRes] = await Promise.allSettled([
+                api.get('/public/cms/news').catch(() => ({ data: [] })),
+                api.get('/public/cms/blocks/welcome_message').catch(() => ({ data: null })),
+                api.get('/public/cms/blocks/about_us').catch(() => ({ data: null })),
+            ]);
+
+            if (cancelled) return;
+
+            if (newsRes.status === 'fulfilled') setNews(newsRes.value.data ?? []);
+            if (welcomeRes.status === 'fulfilled') setWelcomeBlock(welcomeRes.value.data);
+            if (aboutRes.status === 'fulfilled') setAboutBlock(aboutRes.value.data);
         };
+
         loadData();
+
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     return (
@@ -70,7 +75,7 @@ export default function LandingPage() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                         <div className="relative">
                             <img
-                                src="https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&q=80&w=2940"
+                                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjehK-7dO2ryv_QPg1pm8K7dik1R-ZQcR37A&s"
                                 alt="Halal Core Team"
                                 className="rounded-2xl shadow-2xl relative z-10"
                             />

@@ -29,13 +29,16 @@ func NewUserManagementHandler(r *gin.Engine, uc usecase.UserManagementUsecase) {
 		directorOnly := g.Group("")
 		directorOnly.Use(middleware.RoleMiddleware("DIRECTOR"))
 		{
-			directorOnly.GET("", handler.ListUsers)
-			directorOnly.GET("/:id", handler.GetUser)
 			directorOnly.POST("", handler.CreateUser)
 			directorOnly.PUT("/:id", handler.UpdateUser)
 			directorOnly.DELETE("/:id", handler.DeleteUser)
 			directorOnly.PUT("/:id/reset-password", handler.ResetPassword)
 		}
+
+		// List & detail user — DIRECTOR + ADMIN_PELATIHAN (untuk lihat daftar pendaftar HALAL_ADVISOR)
+		readRoles := middleware.RoleMiddleware("DIRECTOR", "ADMIN_PELATIHAN")
+		g.GET("", readRoles, handler.ListUsers)
+		g.GET("/:id", readRoles, handler.GetUser)
 
 		// Referral analytics — DIRECTOR + ADMIN_PELATIHAN + ADMIN_KEUANGAN
 		g.GET("/referrals/analytics",
@@ -55,6 +58,7 @@ func NewUserManagementHandler(r *gin.Engine, uc usecase.UserManagementUsecase) {
 		profile.PUT("", handler.UpdateProfile)
 		profile.GET("/referrals", handler.GetReferrals)
 		profile.GET("/commissions", handler.GetCommissions)
+		profile.POST("/referral/regenerate", handler.RegenerateReferralCode)
 	}
 }
 
@@ -296,4 +300,23 @@ func (h *UserManagementHandler) ListConsultants(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, users)
+}
+
+func (h *UserManagementHandler) RegenerateReferralCode(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == uuid.Nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	newCode, err := h.userMgmtUC.RegenerateReferralCode(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"referral_code": newCode,
+		"message":       "referral code regenerated successfully",
+	})
 }

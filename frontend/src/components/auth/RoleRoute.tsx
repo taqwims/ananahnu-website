@@ -13,7 +13,15 @@ interface RoleRouteProps {
  * Jika role tidak punya akses → redirect ke /dashboard (home).
  */
 export default function RoleRoute({ path, children }: RoleRouteProps) {
-  const role = useAuthStore((s) => s.user?.role ?? '');
+  const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
+
+  // Jika tidak ada user atau token, redirect ke login
+  if (!user || !token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const role = user.role ?? '';
 
   if (!canAccess(role, path)) {
     return <Navigate to="/dashboard" replace />;

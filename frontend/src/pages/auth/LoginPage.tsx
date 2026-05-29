@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Lock, Mail, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import api from '../../services/api';
@@ -34,8 +34,8 @@ export default function LoginPage() {
         setError('');
         try {
             const response = await api.post('/auth/login', data);
-            const { user, access_token } = response.data;
-            setAuth(user, access_token);
+            const { user, access_token, refresh_token } = response.data;
+            setAuth(user, access_token, refresh_token ?? '');
             navigate('/dashboard');
         } catch (err: any) {
             setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
@@ -130,7 +130,7 @@ export default function LoginPage() {
                         <div className="space-y-2">
                             <div className="flex justify-between items-center px-1">
                                 <label className="text-sm font-semibold text-gray-700">Password</label>
-                                <a href="/forgot-password" className="text-xs font-bold text-brand-600 hover:text-brand-700 hover:underline">Forgot password?</a>
+                                <Link to="/forgot-password" className="text-xs font-bold text-brand-600 hover:text-brand-700 hover:underline">Forgot password?</Link>
                             </div>
                             <div className="relative group">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 group-focus-within:text-brand-600 transition-colors" />
@@ -170,9 +170,9 @@ export default function LoginPage() {
                     <div className="mt-12 text-center">
                         <p className="text-gray-500">
                             Don't have an account?{" "}
-                            <a href="/register" className="text-brand-600 font-bold hover:text-brand-700 hover:underline">
+                            <Link to="/register" className="text-brand-600 font-bold hover:text-brand-700 hover:underline">
                                 Create an account
-                            </a>
+                            </Link>
                         </p>
                     </div>
                     
