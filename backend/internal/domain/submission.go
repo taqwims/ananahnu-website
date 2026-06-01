@@ -46,6 +46,7 @@ type Submission struct {
 	SHURL               string           `json:"sh_url,omitempty"`
 	Payments            []Payment             `gorm:"foreignKey:SubmissionID" json:"payments"`
 	Invoice             *Invoice              `gorm:"foreignKey:SubmissionID" json:"invoice,omitempty"`
+	Expenses            []Expense             `gorm:"foreignKey:SubmissionID" json:"expenses"`
 	CostDetail          *SubmissionCostDetail `gorm:"foreignKey:SubmissionID" json:"cost_detail,omitempty"`
 	FieldValues         []FormFieldValue      `gorm:"foreignKey:SubmissionID" json:"field_values,omitempty"`
 	CreatedAt           time.Time        `json:"created_at"`

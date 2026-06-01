@@ -91,9 +91,10 @@ func main() {
 		&domain.SystemSetting{},
 		&domain.Commission{},
 		&domain.PromotionRequest{},
-		// SPH & Targets
+		// SPH & Targets & Expenses
 		&domain.SPH{},
 		&domain.CompanyTarget{},
+		&domain.Expense{},
 	)
 	if err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
@@ -167,6 +168,7 @@ func main() {
 	commissionRepo := repository.NewCommissionRepository(db)
 	sphRepo := repository.NewSPHRepository(db)
 	companyTargetRepo := repository.NewCompanyTargetRepository(db)
+	expenseRepo := repository.NewExpenseRepository(db)
 
 	// Services
 	emailSender := email.NewGmailSender()
@@ -317,6 +319,7 @@ func main() {
 		ClientRepo:     clientRepo,
 		SubmissionRepo: submissionRepo,
 		SettingRepo:    settingRepo,
+		ExpenseRepo:    expenseRepo,
 		NotifUC:        notificationUC,
 		RoleRepo:       roleRepo,
 	})

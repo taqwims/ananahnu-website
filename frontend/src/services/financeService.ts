@@ -57,6 +57,20 @@ class FinanceService extends BaseService {
         return (await this.api.get('/finance/managers', { params: { page, limit } })).data;
     }
 
+    // Expenses
+    async getExpenses(page = 1, limit = 20, filters?: Record<string, string | boolean | number>) {
+        const params: Record<string, string | number | boolean> = { page, limit, ...filters };
+        return (await this.api.get('/finance/expenses', { params })).data;
+    }
+
+    async createExpense(expense: any) {
+        return (await this.api.post('/finance/expenses', expense)).data;
+    }
+
+    async deleteExpense(id: number) {
+        return await this.api.delete(`/finance/expenses/${id}`);
+    }
+
     // SPH
     async generateSPH(submissionId: string) {
         return (await this.api.post(`/sph/generate/${submissionId}`)).data;

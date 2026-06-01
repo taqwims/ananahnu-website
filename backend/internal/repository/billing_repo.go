@@ -21,7 +21,7 @@ func (r *invoiceRepository) FindAll(filter map[string]interface{}, page, limit i
 	var invoices []domain.Invoice
 	var count int64
 
-	query := r.db.Model(&domain.Invoice{}).Preload("Payer").Preload("Submission.Client")
+	query := r.db.Model(&domain.Invoice{}).Preload("Payer").Preload("Submission.Client").Preload("Submission.BusinessType")
 	if len(filter) > 0 {
 		query = query.Where(filter)
 	}
@@ -51,7 +51,7 @@ func (r *invoiceRepository) FindBySubmissionID(submissionID uuid.UUID) (*domain.
 
 func (r *invoiceRepository) FindByIDs(ids []int64) ([]domain.Invoice, error) {
 	var invoices []domain.Invoice
-	if err := r.db.Preload("Payer").Preload("Submission.Client").Where("id IN ?", ids).Find(&invoices).Error; err != nil {
+	if err := r.db.Preload("Payer").Preload("Submission.Client").Preload("Submission.BusinessType").Where("id IN ?", ids).Find(&invoices).Error; err != nil {
 		return nil, err
 	}
 	return invoices, nil

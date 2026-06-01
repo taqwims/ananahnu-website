@@ -1,22 +1,28 @@
 import { useEffect, useState } from 'react';
 import { financeService } from '../../services/financeService';
+import { paymentService } from '../../services/paymentService';
 import {
     DollarSign, TrendingUp, TrendingDown, Users, FileText, Briefcase,
-    CreditCard, Download, Send, ChevronDown
+    CreditCard, Download, Send, ChevronDown, Plus, Trash2, Wallet
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface DashboardData {
     total_income: number;
+    net_balance: number;
     commission_paid: number;
     commission_pending: number;
+    total_expense: number;
+    total_expense_sub: number;
+    total_expense_op: number;
     income_reguler: number;
     income_self_declare_paid: number;
     count_self_declare_free: number;
     count_self_declare_paid: number;
     count_reguler: number;
-    expense_by_type: Record<string, number>;
     expense_by_business: Record<string, number>;
+    expense_operational: Record<string, number>;
+    income_by_business: Record<string, number>;
 }
 
 interface Commission {
@@ -32,6 +38,19 @@ interface Commission {
     paid_at?: string;
 }
 
+interface Expense {
+    id: number;
+    submission_id?: string;
+    submission?: {
+        client?: { business_name: string };
+        service_type: string;
+    };
+    category: string;
+    amount: number;
+    description: string;
+    date: string;
+}
+
 const formatIDR = (n: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
 
@@ -42,13 +61,17 @@ const COMMISSION_LABELS: Record<string, string> = {
     REFERRAL: 'Referral',
 };
 
-type TabKey = 'overview' | 'commissions' | 'agents' | 'clients' | 'submissions' | 'managers';
+type TabKey = 'overview' | 'incomes' | 'expenses' | 'commissions' | 'agents' | 'clients' | 'submissions' | 'managers';
 
 export default function FinanceDashboard() {
     const [tab, setTab] = useState<TabKey>('overview');
     const [dashboard, setDashboard] = useState<DashboardData | null>(null);
     const [commissions, setCommissions] = useState<Commission[]>([]);
     const [commTotal, setCommTotal] = useState(0);
+    const [expenses, setExpenses] = useState<Expense[]>([]);
+    const [expTotal, setExpTotal] = useState(0);
+    const [incomes, setIncomes] = useState<any[]>([]);
+    const [incomeTotal, setIncomeTotal] = useState(0);
     const [agents, setAgents] = useState<any[]>([]);
     const [clients, setClients] = useState<any[]>([]);
     const [submissions, setSubmissions] = useState<any[]>([]);
@@ -57,7 +80,10 @@ export default function FinanceDashboard() {
     const [month, setMonth] = useState(0);
     const [statusFilter, setStatusFilter] = useState('');
     const [typeFilter, setTypeFilter] = useState('');
-    const [loading, setLoading] = useState(true);
+    const [subServiceFilter, setSubServiceFilter] = useState('');
+
+    const [showExpenseModal, setShowExpenseModal] = useState(false);
+    const [newExpense, setNewExpense] = useState({ category: '', amount: 0, description: '', submission_id: '' });
 
     useEffect(() => {
         loadDashboard();
@@ -65,19 +91,22 @@ export default function FinanceDashboard() {
 
     useEffect(() => {
         if (tab === 'commissions') loadCommissions();
+        if (tab === 'expenses') {
+            loadExpenses();
+            if (submissions.length === 0) loadSubmissions(); // for the dropdown
+        }
+        if (tab === 'incomes') loadIncomes();
         if (tab === 'agents') loadAgents();
         if (tab === 'clients') loadClients();
         if (tab === 'submissions') loadSubmissions();
         if (tab === 'managers') loadManagers();
-    }, [tab, statusFilter, typeFilter]);
+    }, [tab, statusFilter, typeFilter, subServiceFilter]);
 
     const loadDashboard = async () => {
-        setLoading(true);
         try {
             const data = await financeService.getDashboard(month || undefined, year);
             setDashboard(data);
         } catch { toast.error('Gagal memuat dashboard'); }
-        setLoading(false);
     };
 
     const loadCommissions = async () => {
@@ -88,6 +117,26 @@ export default function FinanceDashboard() {
         } catch { /* silent */ }
     };
 
+    const loadExpenses = async () => {
+        try {
+            const res = await financeService.getExpenses(1, 100);
+            setExpenses(res.data || []);
+            setExpTotal(res.total || 0);
+        } catch { /* */ }
+    };
+
+    const loadIncomes = async () => {
+        try {
+            const params = new URLSearchParams();
+            params.append('status', 'PAID');
+            params.append('page', '1');
+            params.append('limit', '100');
+            const res = await paymentService.getAllInvoices(params);
+            setIncomes(res.data || []);
+            setIncomeTotal(res.total || 0);
+        } catch { toast.error('Gagal memuat detail pendapatan'); }
+    };
+
     const loadAgents = async () => {
         try { setAgents((await financeService.getAgents(1, 100)).data || []); } catch { /* */ }
     };
@@ -95,7 +144,7 @@ export default function FinanceDashboard() {
         try { setClients((await financeService.getClients(1, 100)).data || []); } catch { /* */ }
     };
     const loadSubmissions = async () => {
-        try { setSubmissions((await financeService.getSubmissions(1, 100)).data || []); } catch { /* */ }
+        try { setSubmissions((await financeService.getSubmissions(1, 1000, subServiceFilter || undefined)).data || []); } catch { /* */ }
     };
     const loadManagers = async () => {
         try { setManagers((await financeService.getManagers(1, 100)).data || []); } catch { /* */ }
@@ -110,6 +159,34 @@ export default function FinanceDashboard() {
         } catch { toast.error('Gagal membayar komisi'); }
     };
 
+    const handleCreateExpense = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const payload: any = { ...newExpense };
+            if (!payload.submission_id) delete payload.submission_id;
+            
+            await financeService.createExpense(payload);
+            toast.success('Pengeluaran berhasil dicatat');
+            setShowExpenseModal(false);
+            setNewExpense({ category: '', amount: 0, description: '', submission_id: '' });
+            loadExpenses();
+            loadDashboard();
+        } catch {
+            toast.error('Gagal mencatat pengeluaran');
+        }
+    };
+
+    const handleDeleteExpense = async (id: number) => {
+        if (!window.confirm('Yakin ingin menghapus pengeluaran ini?')) return;
+        try {
+            await financeService.deleteExpense(id);
+            toast.success('Pengeluaran dihapus');
+            loadExpenses();
+            loadDashboard();
+        } catch { toast.error('Gagal menghapus'); }
+    };
+
+    // (Download & Send WA omitted for brevity, same as before)
     const handleDownloadSlip = async (id: string) => {
         try {
             const res = await financeService.downloadSlip(id);
@@ -122,7 +199,6 @@ export default function FinanceDashboard() {
             link.remove();
         } catch { toast.error('Gagal download slip'); }
     };
-
     const handleSendWA = async (id: string) => {
         try {
             await financeService.sendSlipWA(id);
@@ -132,12 +208,33 @@ export default function FinanceDashboard() {
 
     const tabs: { key: TabKey; label: string; icon: any }[] = [
         { key: 'overview', label: 'Ringkasan', icon: TrendingUp },
+        { key: 'incomes', label: 'Pendapatan', icon: TrendingUp },
+        { key: 'expenses', label: 'Pos Pengeluaran', icon: Wallet },
         { key: 'commissions', label: 'Komisi', icon: DollarSign },
-        { key: 'agents', label: 'Daftar Agen', icon: Users },
-        { key: 'clients', label: 'Daftar Klien', icon: Briefcase },
-        { key: 'submissions', label: 'Daftar Ajuan', icon: FileText },
-        { key: 'managers', label: 'Daftar Manager', icon: Users },
+        { key: 'agents', label: 'Agen', icon: Users },
+        { key: 'clients', label: 'Klien', icon: Briefcase },
+        { key: 'submissions', label: 'Ajuan', icon: FileText },
+        { key: 'managers', label: 'Manager', icon: Users },
     ];
+
+    // Combine expenses for the chart
+    const combinedExpenses: Record<string, number> = {};
+    if (dashboard) {
+        Object.entries(dashboard.expense_by_business).forEach(([k, v]) => { combinedExpenses[k + ' (Ajuan)'] = v; });
+        Object.entries(dashboard.expense_operational).forEach(([k, v]) => { combinedExpenses[k + ' (Ops)'] = v; });
+    }
+
+    const businessTypes = Array.from(new Set([
+        ...Object.keys(dashboard?.income_by_business || {}),
+        ...Object.keys(dashboard?.expense_by_business || {})
+    ]));
+    const marginAnalysis = businessTypes.map(name => {
+        const income = dashboard?.income_by_business?.[name] || 0;
+        const expense = dashboard?.expense_by_business?.[name] || 0;
+        const margin = income - expense;
+        const pct = income > 0 ? (margin / income) * 100 : 0;
+        return { name, income, expense, margin, pct };
+    }).sort((a, b) => b.margin - a.margin);
 
     return (
         <div className="space-y-6">
@@ -168,10 +265,10 @@ export default function FinanceDashboard() {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+            <div className="flex gap-1 overflow-x-auto bg-gray-100 rounded-xl p-1 no-scrollbar">
                 {tabs.map(t => (
                     <button key={t.key} onClick={() => setTab(t.key)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all
+                        className={`flex whitespace-nowrap items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all
                             ${tab === t.key ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
                         <t.icon className="w-4 h-4" />
                         {t.label}
@@ -184,60 +281,122 @@ export default function FinanceDashboard() {
                 <div className="space-y-6">
                     {/* Summary Cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <SummaryCard icon={TrendingUp} label="Total Pendapatan" value={formatIDR(dashboard.total_income)} color="emerald" />
+                        <SummaryCard icon={Wallet} label="Total Saldo Bersih" value={formatIDR(dashboard.net_balance)} color="brand" />
+                        <SummaryCard icon={TrendingUp} label="Total Pemasukan" value={formatIDR(dashboard.total_income)} color="emerald" />
+                        <SummaryCard icon={TrendingDown} label="Total Pengeluaran" value={formatIDR(dashboard.total_expense)} color="rose" />
                         <SummaryCard icon={CreditCard} label="Komisi Dibayar" value={formatIDR(dashboard.commission_paid)} color="blue" />
-                        <SummaryCard icon={TrendingDown} label="Tanggungan Komisi" value={formatIDR(dashboard.commission_pending)} color="amber" />
-                        <SummaryCard icon={DollarSign} label="Pendapatan Reguler" value={formatIDR(dashboard.income_reguler)} color="purple" />
                     </div>
 
-                    {/* Self Declare Cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="glass-panel rounded-xl p-5">
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Self Declare Mandiri</p>
-                            <p className="text-2xl font-black text-gray-800 mt-1">{formatIDR(dashboard.income_self_declare_paid)}</p>
-                            <p className="text-xs text-gray-500 mt-1">{dashboard.count_self_declare_paid} pengajuan</p>
-                        </div>
-                        <div className="glass-panel rounded-xl p-5">
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Self Declare Gratis (SEHATI)</p>
-                            <p className="text-2xl font-black text-gray-800 mt-1">{dashboard.count_self_declare_free}</p>
-                            <p className="text-xs text-gray-500 mt-1">layanan</p>
-                        </div>
-                        <div className="glass-panel rounded-xl p-5">
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Reguler</p>
-                            <p className="text-2xl font-black text-gray-800 mt-1">{dashboard.count_reguler}</p>
-                            <p className="text-xs text-gray-500 mt-1">pengajuan</p>
-                        </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <SummaryCard icon={CreditCard} label="Komisi Tertunda" value={formatIDR(dashboard.commission_pending)} color="amber" />
+                        <SummaryCard icon={DollarSign} label="Pendapatan Reguler" value={formatIDR(dashboard.income_reguler)} color="indigo" />
+                        <SummaryCard icon={FileText} label="Pengeluaran Ajuan" value={formatIDR(dashboard.total_expense_sub)} color="teal" />
+                        <SummaryCard icon={TrendingDown} label="Pengeluaran Ops." value={formatIDR(dashboard.total_expense_op)} color="orange" />
                     </div>
 
-                    {/* Expense Breakdown */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Expense Charts */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div className="glass-panel rounded-xl p-6">
-                            <h3 className="text-sm font-black text-gray-700 mb-4">Pos Uang Keluar per Jenis Pengajuan</h3>
-                            {Object.entries(dashboard.expense_by_type).length === 0 ? (
+                            <h3 className="text-sm font-black text-gray-700 mb-4">Pengeluaran per Bidang Usaha (Ajuan)</h3>
+                            {Object.entries(dashboard.expense_by_business).length === 0 ? (
                                 <p className="text-sm text-gray-400">Belum ada data</p>
                             ) : (
                                 <div className="space-y-3">
-                                    {Object.entries(dashboard.expense_by_type).map(([type, amount]) => (
-                                        <div key={type} className="flex items-center justify-between">
-                                            <span className="text-sm font-medium text-gray-600">{type}</span>
-                                            <span className="text-sm font-bold text-gray-800">{formatIDR(amount)}</span>
+                                    {Object.entries(dashboard.expense_by_business).map(([k, v]) => (
+                                        <div key={k} className="flex items-center justify-between">
+                                            <span className="text-sm font-medium text-gray-600 truncate mr-2">{k}</span>
+                                            <span className="text-sm font-bold text-gray-800">{formatIDR(v)}</span>
                                         </div>
                                     ))}
                                 </div>
                             )}
                         </div>
+
                         <div className="glass-panel rounded-xl p-6">
-                            <h3 className="text-sm font-black text-gray-700 mb-4">Pos Uang Keluar per Bidang Usaha</h3>
-                            {Object.entries(dashboard.expense_by_business).length === 0 ? (
+                            <h3 className="text-sm font-black text-gray-700 mb-4">Pengeluaran Operasional Umum</h3>
+                            {Object.entries(dashboard.expense_operational).length === 0 ? (
                                 <p className="text-sm text-gray-400">Belum ada data</p>
                             ) : (
                                 <div className="space-y-3">
-                                    {Object.entries(dashboard.expense_by_business).map(([biz, amount]) => (
-                                        <div key={biz} className="flex items-center justify-between">
-                                            <span className="text-sm font-medium text-gray-600">{biz}</span>
-                                            <span className="text-sm font-bold text-gray-800">{formatIDR(amount)}</span>
+                                    {Object.entries(dashboard.expense_operational).map(([k, v]) => (
+                                        <div key={k} className="flex items-center justify-between">
+                                            <span className="text-sm font-medium text-gray-600 truncate mr-2">{k}</span>
+                                            <span className="text-sm font-bold text-gray-800">{formatIDR(v)}</span>
                                         </div>
                                     ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="glass-panel rounded-xl p-6 border-2 border-brand-100">
+                            <h3 className="text-sm font-black text-brand-700 mb-4">Gabungan Pengeluaran</h3>
+                            {Object.entries(combinedExpenses).length === 0 ? (
+                                <p className="text-sm text-gray-400">Belum ada data</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {Object.entries(combinedExpenses).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+                                        <div key={k} className="flex items-center justify-between border-b border-gray-50 pb-1">
+                                            <span className="text-xs font-medium text-gray-600 truncate mr-2">{k}</span>
+                                            <span className="text-xs font-bold text-gray-800">{formatIDR(v)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Revenue & Margin Analysis */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Pendapatan per Bidang Usaha */}
+                        <div className="glass-panel rounded-xl p-6">
+                            <h3 className="text-sm font-black text-gray-700 mb-4">Pendapatan per Bidang Usaha</h3>
+                            {Object.entries(dashboard.income_by_business || {}).length === 0 ? (
+                                <p className="text-sm text-gray-400">Belum ada data</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {Object.entries(dashboard.income_by_business).map(([k, v]) => (
+                                        <div key={k} className="flex items-center justify-between">
+                                            <span className="text-sm font-medium text-gray-600 truncate mr-2">{k}</span>
+                                            <span className="text-sm font-bold text-gray-800">{formatIDR(v)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Analisis Profitabilitas / Margin */}
+                        <div className="lg:col-span-2 glass-panel rounded-xl p-6 border-2 border-emerald-100">
+                            <h3 className="text-sm font-black text-emerald-800 mb-4">Analisis Profitabilitas per Bidang Usaha</h3>
+                            {marginAnalysis.length === 0 ? (
+                                <p className="text-sm text-gray-400">Belum ada data</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-xs text-left">
+                                        <thead>
+                                            <tr className="border-b border-gray-150 pb-2 text-gray-500 font-bold uppercase">
+                                                <th className="pb-2">Bidang Usaha</th>
+                                                <th className="pb-2 text-right">Pendapatan</th>
+                                                <th className="pb-2 text-right">Pengeluaran</th>
+                                                <th className="pb-2 text-right">Margin Bersih</th>
+                                                <th className="pb-2 text-right">Persentase</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {marginAnalysis.map((item) => (
+                                                <tr key={item.name} className="border-b border-gray-50 py-2">
+                                                    <td className="py-2 font-medium text-gray-700">{item.name}</td>
+                                                    <td className="py-2 text-right text-emerald-600 font-bold">{formatIDR(item.income)}</td>
+                                                    <td className="py-2 text-right text-rose-500 font-medium">{formatIDR(item.expense)}</td>
+                                                    <td className={`py-2 text-right font-black ${item.margin >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                                        {formatIDR(item.margin)}
+                                                    </td>
+                                                    <td className="py-2 text-right font-semibold text-gray-500">
+                                                        {item.pct.toFixed(1)}%
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             )}
                         </div>
@@ -245,9 +404,157 @@ export default function FinanceDashboard() {
                 </div>
             )}
 
-            {tab === 'overview' && loading && (
-                <div className="flex items-center justify-center py-20">
-                    <div className="animate-spin w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full" />
+            {/* Incomes Tab */}
+            {tab === 'incomes' && (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-500">Total {incomeTotal} data transaksi pendapatan</span>
+                        <div className="text-sm font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
+                            Total Pendapatan Terbayar: {dashboard ? formatIDR(dashboard.total_income) : 'Rp 0'}
+                        </div>
+                    </div>
+
+                    <div className="glass-panel rounded-xl overflow-hidden">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="bg-gray-50/80 border-b border-gray-100">
+                                    <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Tanggal Bayar</th>
+                                    <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">No. Invoice / SPH</th>
+                                    <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Nama Klien</th>
+                                    <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Bidang Usaha</th>
+                                    <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Jenis Layanan</th>
+                                    <th className="text-right px-4 py-3 font-bold text-gray-500 text-xs uppercase">Jumlah</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {incomes.map((inv) => (
+                                    <tr key={inv.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                                        <td className="px-4 py-3 text-gray-600">
+                                            {inv.paid_at ? new Date(inv.paid_at).toLocaleDateString('id') : new Date(inv.created_at).toLocaleDateString('id')}
+                                        </td>
+                                        <td className="px-4 py-3 font-medium text-gray-800">
+                                            INV-{inv.id}
+                                        </td>
+                                        <td className="px-4 py-3 text-gray-700">
+                                            {inv.submission?.client?.business_name || 'Klien Sistem'}
+                                        </td>
+                                        <td className="px-4 py-3 text-gray-600 text-xs">
+                                            {inv.submission?.business_type?.name || 'Lainnya'}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${inv.service_type === 'REGULER' ? 'bg-indigo-50 text-indigo-600' : 'bg-teal-50 text-teal-600'}`}>
+                                                {inv.service_type}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-black text-emerald-600">{formatIDR(inv.amount)}</td>
+                                    </tr>
+                                ))}
+                                {incomes.length === 0 && (
+                                    <tr><td colSpan={6} className="text-center py-8 text-gray-400">Belum ada data pendapatan terbayar</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Expenses Tab */}
+            {tab === 'expenses' && (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-500">Total {expTotal} data pengeluaran</span>
+                        <button onClick={() => setShowExpenseModal(true)}
+                            className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-brand-700 transition-all">
+                            <Plus className="w-4 h-4" /> Tambah Pengeluaran
+                        </button>
+                    </div>
+
+                    <div className="glass-panel rounded-xl overflow-hidden">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="bg-gray-50/80 border-b border-gray-100">
+                                    <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Tanggal</th>
+                                    <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Kategori</th>
+                                    <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Deskripsi</th>
+                                    <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Terkait Ajuan</th>
+                                    <th className="text-right px-4 py-3 font-bold text-gray-500 text-xs uppercase">Jumlah</th>
+                                    <th className="text-center px-4 py-3 font-bold text-gray-500 text-xs uppercase">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {expenses.map((e) => (
+                                    <tr key={e.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                                        <td className="px-4 py-3 text-gray-600">{new Date(e.date).toLocaleDateString('id')}</td>
+                                        <td className="px-4 py-3">
+                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${e.submission_id ? 'bg-teal-50 text-teal-600' : 'bg-orange-50 text-orange-600'}`}>
+                                                {e.category}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-gray-800">{e.description || '-'}</td>
+                                        <td className="px-4 py-3 text-gray-600 text-xs">
+                                            {e.submission_id ? `${e.submission?.client?.business_name} (${e.submission?.service_type})` : <span className="text-gray-400 italic">Operasional Umum</span>}
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-bold text-gray-800">{formatIDR(e.amount)}</td>
+                                        <td className="px-4 py-3 text-center">
+                                            <button onClick={() => handleDeleteExpense(e.id)}
+                                                className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors" title="Hapus">
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {expenses.length === 0 && (
+                                    <tr><td colSpan={6} className="text-center py-8 text-gray-400">Belum ada data pengeluaran</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Expense Modal */}
+                    {showExpenseModal && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
+                            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+                                <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                                    <h3 className="text-lg font-black text-gray-800">Tambah Pengeluaran</h3>
+                                    <button onClick={() => setShowExpenseModal(false)} className="text-gray-400 hover:text-gray-600">&times;</button>
+                                </div>
+                                <form onSubmit={handleCreateExpense} className="p-6 space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Terkait Pengajuan (Opsional)</label>
+                                        <select value={newExpense.submission_id} onChange={e => setNewExpense({ ...newExpense, submission_id: e.target.value })}
+                                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 text-sm">
+                                            <option value="">-- Operasional Umum (Tidak Terkait Pengajuan) --</option>
+                                            {submissions.map(sub => (
+                                                <option key={sub.id} value={sub.id}>{sub.client?.business_name} - {sub.service_type}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Kategori (Teks Bebas)</label>
+                                        <input type="text" required value={newExpense.category} onChange={e => setNewExpense({ ...newExpense, category: e.target.value })}
+                                            placeholder="Contoh: BPJPH, Operasional, Marketing, Gaji..."
+                                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 text-sm" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Jumlah (Rp)</label>
+                                        <input type="number" required min="1" value={newExpense.amount || ''} onChange={e => setNewExpense({ ...newExpense, amount: Number(e.target.value) })}
+                                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 text-sm font-bold" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Keterangan (Opsional)</label>
+                                        <textarea value={newExpense.description} onChange={e => setNewExpense({ ...newExpense, description: e.target.value })}
+                                            className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 text-sm resize-none" rows={2} />
+                                    </div>
+                                    <div className="pt-4 flex gap-3">
+                                        <button type="button" onClick={() => setShowExpenseModal(false)}
+                                            className="flex-1 px-4 py-2 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-100 transition-colors">Batal</button>
+                                        <button type="submit"
+                                            className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-xl text-sm font-bold hover:bg-brand-700 transition-all">Simpan Pengeluaran</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -291,14 +598,14 @@ export default function FinanceDashboard() {
                                             {c.user?.full_name || c.referrer?.full_name || '-'}
                                         </td>
                                         <td className="px-4 py-3">
-                                            <span className="px-2 py-1 rounded-full text-xs font-bold bg-brand-50 text-brand-600">
+                                            <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-brand-50 text-brand-600">
                                                 {COMMISSION_LABELS[c.type] || c.type}
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-gray-600">{c.period}</td>
                                         <td className="px-4 py-3 text-right font-bold text-gray-800">{formatIDR(c.amount)}</td>
                                         <td className="px-4 py-3 text-center">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${c.status === 'PAID' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${c.status === 'PAID' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
                                                 {c.status}
                                             </span>
                                         </td>
@@ -351,13 +658,81 @@ export default function FinanceDashboard() {
                     { key: 'phone', label: 'Telepon' },
                 ]} />}
 
-            {tab === 'submissions' && <DataTable title="Daftar Ajuan" data={submissions}
-                columns={[
-                    { key: 'client.business_name', label: 'Klien' },
-                    { key: 'service_type', label: 'Jenis' },
-                    { key: 'status', label: 'Status' },
-                    { key: 'created_at', label: 'Tanggal', render: (v: string) => new Date(v).toLocaleDateString('id') },
-                ]} />}
+            {tab === 'submissions' && (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-500">Filter Layanan:</span>
+                            <div className="relative">
+                                <select value={subServiceFilter} onChange={(e) => setSubServiceFilter(e.target.value)}
+                                    className="appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2 pr-8 text-sm font-medium focus:ring-2 focus:ring-brand-500">
+                                    <option value="">Semua Layanan</option>
+                                    <option value="REGULER">Reguler</option>
+                                    <option value="SELF_DECLARE">Self Declare</option>
+                                </select>
+                                <ChevronDown className="absolute right-2 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
+                            </div>
+                        </div>
+                        <span className="text-sm text-gray-500">{submissions.length} ajuan ditemukan</span>
+                    </div>
+
+                    <div className="glass-panel rounded-xl overflow-hidden">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="bg-gray-50/80 border-b border-gray-100">
+                                    <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Klien (Usaha)</th>
+                                    <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Layanan</th>
+                                    <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Status</th>
+                                    <th className="text-right px-4 py-3 font-bold text-gray-500 text-xs uppercase">Pendapatan</th>
+                                    <th className="text-right px-4 py-3 font-bold text-gray-500 text-xs uppercase">Pengeluaran</th>
+                                    <th className="text-right px-4 py-3 font-bold text-gray-500 text-xs uppercase">Margin Bersih</th>
+                                    <th className="text-center px-4 py-3 font-bold text-gray-500 text-xs uppercase">Tanggal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {submissions.map((sub) => {
+                                    const income = sub.invoice?.amount || 0;
+                                    const expense = sub.expenses?.reduce((sum: number, exp: any) => sum + exp.amount, 0) || 0;
+                                    const margin = income - expense;
+                                    return (
+                                        <tr key={sub.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                                            <td className="px-4 py-3 font-medium text-gray-800">
+                                                {sub.client?.business_name || 'Klien Baru'}
+                                                <div className="text-[10px] text-gray-400 font-normal">Pemilik: {sub.client?.client_name || '-'}</div>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${sub.service_type === 'REGULER' ? 'bg-indigo-50 text-indigo-600' : 'bg-teal-50 text-teal-600'}`}>
+                                                    {sub.service_type}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-xs">
+                                                <span className={`px-2 py-0.5 rounded font-medium ${sub.status === 'SH_TERBIT' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                                                    {sub.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-bold text-emerald-600">
+                                                {income > 0 ? formatIDR(income) : <span className="text-gray-400 font-normal italic">Rp 0</span>}
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-bold text-rose-500">
+                                                {expense > 0 ? formatIDR(expense) : <span className="text-gray-400 font-normal italic">Rp 0</span>}
+                                            </td>
+                                            <td className={`px-4 py-3 text-right font-black ${margin >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                                {formatIDR(margin)}
+                                            </td>
+                                            <td className="px-4 py-3 text-center text-gray-600 text-xs">
+                                                {new Date(sub.created_at).toLocaleDateString('id')}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                                {submissions.length === 0 && (
+                                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">Tidak ada data ajuan</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {tab === 'managers' && <DataTable title="Daftar Manager" data={managers}
                 columns={[
@@ -372,16 +747,21 @@ export default function FinanceDashboard() {
 function SummaryCard({ icon: Icon, label, value, color }: { icon: any; label: string; value: string; color: string }) {
     const colorMap: Record<string, string> = {
         emerald: 'from-emerald-500 to-emerald-600',
+        brand: 'from-brand-600 to-brand-700',
         blue: 'from-blue-500 to-blue-600',
         amber: 'from-amber-500 to-amber-600',
         purple: 'from-purple-500 to-purple-600',
+        rose: 'from-rose-500 to-rose-600',
+        teal: 'from-teal-500 to-teal-600',
+        indigo: 'from-indigo-500 to-indigo-600',
+        orange: 'from-orange-500 to-orange-600',
     };
     return (
         <div className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${colorMap[color]} p-5 text-white shadow-lg`}>
             <div className="absolute top-2 right-2 opacity-20">
                 <Icon className="w-12 h-12" />
             </div>
-            <p className="text-xs font-bold uppercase tracking-wider opacity-80">{label}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">{label}</p>
             <p className="text-xl font-black mt-2">{value}</p>
         </div>
     );

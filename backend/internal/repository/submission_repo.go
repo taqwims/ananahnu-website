@@ -36,6 +36,18 @@ func (r *submissionRepository) FindAll(filter map[string]interface{}) ([]domain.
 		db = db.Where("submissions.status = ?", status)
 	}
 
+	if serviceType, ok := filter["service_type"]; ok && serviceType != "" {
+		db = db.Where("submissions.service_type = ?", serviceType)
+	}
+
+	if preloadInvoice, ok := filter["preload_invoice"]; ok && preloadInvoice == true {
+		db = db.Preload("Invoice")
+	}
+
+	if preloadExpenses, ok := filter["preload_expenses"]; ok && preloadExpenses == true {
+		db = db.Preload("Expenses")
+	}
+
 	// Filter by Facilitator ID (Consultant/Coordinator logic or Marketing)
 	if fIDs, ok := filter["facilitator_ids"]; ok {
 		ids := fIDs.([]uuid.UUID)
