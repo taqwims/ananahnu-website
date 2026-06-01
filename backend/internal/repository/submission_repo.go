@@ -30,7 +30,7 @@ func (r *submissionRepository) FindByID(id uuid.UUID) (*domain.Submission, error
 
 func (r *submissionRepository) FindAll(filter map[string]interface{}) ([]domain.Submission, error) {
 	var submissions []domain.Submission
-	db := r.db.Preload("Client.Facilitator.Leader").Preload("AssignedDrafter").Preload("Consultant")
+	db := r.db.Preload("Client.Facilitator.Role").Preload("Client.Facilitator.Leader.Role").Preload("Client.Facilitator.Leader.Leader.Role").Preload("AssignedDrafter").Preload("Consultant")
 	
 	if status, ok := filter["status"]; ok && status != "" {
 		db = db.Where("submissions.status = ?", status)

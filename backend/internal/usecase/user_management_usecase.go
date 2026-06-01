@@ -16,6 +16,8 @@ type CreateUserInput struct {
 	Role     string     `json:"role"`
 	LeaderID *uuid.UUID `json:"leader_id,omitempty"`
 	Password string     `json:"password,omitempty"`
+	Phone    string     `json:"phone,omitempty"`
+	Address  string     `json:"address,omitempty"`
 }
 
 type UpdateUserInput struct {
@@ -24,6 +26,8 @@ type UpdateUserInput struct {
 	Role     string     `json:"role"`
 	LeaderID *uuid.UUID `json:"leader_id,omitempty"`
 	Password string     `json:"password,omitempty"`
+	Phone    string     `json:"phone,omitempty"`
+	Address  string     `json:"address,omitempty"`
 }
 
 type UpdateProfileInput struct {
@@ -97,14 +101,20 @@ func (uc *userManagementUsecase) CreateUser(input CreateUserInput) (*domain.User
 		return nil, "", err
 	}
 
+	userID := uuid.New()
+	refCode := generateReferralCodeFromName(input.FullName, uc.UserRepo, userID)
+
 	user := &domain.User{
-		ID:           uuid.New(),
+		ID:           userID,
 		Username:     input.Email,
 		Email:        input.Email,
 		PasswordHash: hash,
 		FullName:     input.FullName,
 		RoleID:       role.ID,
 		LeaderID:     input.LeaderID,
+		ReferralCode: refCode,
+		Phone:        input.Phone,
+		Address:      input.Address,
 	}
 
 	if err := uc.UserRepo.Create(user); err != nil {
@@ -149,6 +159,12 @@ func (uc *userManagementUsecase) UpdateUser(id uuid.UUID, input UpdateUserInput)
 			return err
 		}
 		user.PasswordHash = hash
+	}
+	if input.Phone != "" {
+		user.Phone = input.Phone
+	}
+	if input.Address != "" {
+		user.Address = input.Address
 	}
 	user.LeaderID = input.LeaderID
 

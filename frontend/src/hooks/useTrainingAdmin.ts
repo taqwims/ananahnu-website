@@ -33,14 +33,8 @@ export const useTrainingAdmin = () => {
 
     const loadUsers = useCallback(async () => {
         try {
-            const res = await api.get('/admin/users', { 
-                params: { 
-                    limit: 200, 
-                    role: 'HALAL_ADVISOR',
-                    no_leader: 'true'
-                } 
-            });
-            setAllUsers(res.data.data || []);
+            const res = await api.get('/trainings/available-participants');
+            setAllUsers(res.data || []);
         } catch {
             setAllUsers([]);
         }

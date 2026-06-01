@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import { financeService } from '../../services/financeService';
+import { useAuthStore } from '../../store/authStore';
 import {
-    BarChart3, Target, FileText, Users, TrendingUp, ChevronDown, Building2
+    BarChart3, Target, FileText, Users, TrendingUp, ChevronDown, Building2, Trash2, X, Loader2, Edit2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -12,6 +13,26 @@ interface MonthlyPerf {
     revenue: number;
     reguler: number;
     self_declare: number;
+}
+
+interface TeamMemberPerformance {
+    user_id: string;
+    full_name: string;
+    role_name: string;
+    total_submissions: number;
+    sh_terbit: number;
+    in_progress: number;
+}
+
+interface LeaderPerformance {
+    user_id: string;
+    full_name: string;
+    role_name: string;
+    total_submissions: number;
+    sh_terbit: number;
+    in_progress: number;
+    team_size: number;
+    team_members: TeamMemberPerformance[];
 }
 
 interface DashboardData {
@@ -29,6 +50,7 @@ interface DashboardData {
         target_reguler?: number;
         target_self_declare?: number;
     };
+    leader_performance: LeaderPerformance[];
 }
 
 const formatIDR = (n: number) =>
@@ -37,22 +59,126 @@ const formatIDR = (n: number) =>
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
 export default function BizDevDashboard() {
+    const user = useAuthStore(state => state.user);
     const [dashboard, setDashboard] = useState<DashboardData | null>(null);
     const [year, setYear] = useState(new Date().getFullYear());
     const [submissions, setSubmissions] = useState<any[]>([]);
     const [subTotal, setSubTotal] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [searchName, setSearchName] = useState('');
+    const [roleFilter, setRoleFilter] = useState('');
     const [showSubmissions, setShowSubmissions] = useState(false);
+    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-    useEffect(() => { loadDashboard(); }, [year]);
+    // Target settings states
+    const [showTargetModal, setShowTargetModal] = useState(false);
+    const [targetsList, setTargetsList] = useState<any[]>([]);
+    const [targetLoading, setTargetLoading] = useState(false);
+
+    // Form Target states
+    const [periodType, setPeriodType] = useState<'monthly' | 'yearly'>('monthly');
+    const [targetYear, setTargetYear] = useState(new Date().getFullYear());
+    const [targetMonth, setTargetMonth] = useState(new Date().getMonth() + 1);
+
+    // Target inputs
+    const [tSH, setTSH] = useState('');
+    const [tRevenue, setTRevenue] = useState('');
+    const [tClients, setTClients] = useState('');
+    const [tReguler, setTReguler] = useState('');
+    const [tSelfDeclare, setTSelfDeclare] = useState('');
+
+    const toggleRow = (id: string) => {
+        const newExpanded = new Set(expandedRows);
+        if (newExpanded.has(id)) {
+            newExpanded.delete(id);
+        } else {
+            newExpanded.add(id);
+        }
+        setExpandedRows(newExpanded);
+    };
+
+    const [month, setMonth] = useState<number | 'all'>('all');
+
+    useEffect(() => { loadDashboard(); }, [year, month]);
 
     const loadDashboard = async () => {
         setLoading(true);
         try {
-            const data = await financeService.getBizDevDashboard(undefined, year);
+            const m = month === 'all' ? undefined : month;
+            const data = await financeService.getBizDevDashboard(m, year);
             setDashboard(data);
         } catch { toast.error('Gagal memuat dashboard'); }
         setLoading(false);
+    };
+
+    const loadTargets = async () => {
+        try {
+            const list = await financeService.getTargets();
+            setTargetsList(list);
+        } catch {
+            toast.error('Gagal memuat daftar target');
+        }
+    };
+
+    const handleSaveTarget = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setTargetLoading(true);
+
+        const period = periodType === 'yearly'
+            ? String(targetYear)
+            : `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+
+        const payload: any = { period };
+        if (tSH !== '') payload.target_sh = Number(tSH);
+        if (tRevenue !== '') payload.target_revenue = Number(tRevenue);
+        if (tClients !== '') payload.target_clients = Number(tClients);
+        if (tReguler !== '') payload.target_reguler = Number(tReguler);
+        if (tSelfDeclare !== '') payload.target_self_declare = Number(tSelfDeclare);
+
+        try {
+            await financeService.setTarget(payload);
+            toast.success('Target berhasil disimpan');
+            setTSH('');
+            setTRevenue('');
+            setTClients('');
+            setTReguler('');
+            setTSelfDeclare('');
+            loadTargets();
+            loadDashboard();
+        } catch {
+            toast.error('Gagal menyimpan target');
+        } finally {
+            setTargetLoading(false);
+        }
+    };
+
+    const handleDeleteTarget = async (id: number) => {
+        if (!confirm('Apakah Anda yakin ingin menghapus target ini?')) return;
+        try {
+            await financeService.deleteTarget(id);
+            toast.success('Target berhasil dihapus');
+            loadTargets();
+            loadDashboard();
+        } catch {
+            toast.error('Gagal menghapus target');
+        }
+    };
+
+    const handleEditTarget = (t: any) => {
+        if (t.period.includes('-')) {
+            const [y, m] = t.period.split('-');
+            setPeriodType('monthly');
+            setTargetYear(Number(y));
+            setTargetMonth(Number(m));
+        } else {
+            setPeriodType('yearly');
+            setTargetYear(Number(t.period));
+        }
+        setTSH(t.target_sh != null ? String(t.target_sh) : '');
+        setTRevenue(t.target_revenue != null ? String(t.target_revenue) : '');
+        setTClients(t.target_clients != null ? String(t.target_clients) : '');
+        setTReguler(t.target_reguler != null ? String(t.target_reguler) : '');
+        setTSelfDeclare(t.target_self_declare != null ? String(t.target_self_declare) : '');
     };
 
     const loadSubmissions = async () => {
@@ -79,9 +205,21 @@ export default function BizDevDashboard() {
     const maxSubs = Math.max(...stats.map(s => s.total_submissions), 1);
     const totalRevenue = stats.reduce((sum, s) => sum + s.revenue, 0);
 
+    const ROLE_LABELS: Record<string, string> = {
+        HALAL_ADVISOR: 'Halal Advisor',
+        HALAL_MANAGER: 'Halal Manager',
+        DIRECTOR: 'Halal Director',
+    };
+
+    const filteredPerformance = (dashboard?.leader_performance || []).filter(p => {
+        const matchesName = p.full_name.toLowerCase().includes(searchName.toLowerCase());
+        const matchesRole = roleFilter ? p.role_name === roleFilter : true;
+        return matchesName && matchesRole;
+    });
+
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
                     <h1 className="text-2xl font-black text-gray-800 flex items-center gap-3">
                         <BarChart3 className="w-7 h-7 text-brand-500" />
@@ -89,12 +227,33 @@ export default function BizDevDashboard() {
                     </h1>
                     <p className="text-sm text-gray-500 mt-1">Monitoring pencapaian dan progress layanan</p>
                 </div>
-                <div className="relative">
-                    <select value={year} onChange={(e) => setYear(Number(e.target.value))}
-                        className="appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2 pr-8 text-sm font-medium focus:ring-2 focus:ring-brand-500">
-                        {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
+                <div className="flex items-center gap-3">
+                    {user?.role === 'DIRECTOR' && (
+                        <button onClick={() => {
+                            setShowTargetModal(true);
+                            loadTargets();
+                        }} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-500 text-white font-bold text-xs shadow-md hover:bg-brand-600 transition-all">
+                            <Target className="w-4 h-4" />
+                            Kelola Target
+                        </button>
+                    )}
+                    <div className="relative">
+                        <select value={month} onChange={(e) => setMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                            className="appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2 pr-8 text-sm font-medium focus:ring-2 focus:ring-brand-500">
+                            <option value="all">Semua Bulan</option>
+                            {MONTH_LABELS.map((m, idx) => (
+                                <option key={idx} value={idx + 1}>{m}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
+                    </div>
+                    <div className="relative">
+                        <select value={year} onChange={(e) => setYear(Number(e.target.value))}
+                            className="appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2 pr-8 text-sm font-medium focus:ring-2 focus:ring-brand-500">
+                            {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
+                    </div>
                 </div>
             </div>
 
@@ -204,6 +363,114 @@ export default function BizDevDashboard() {
                 </div>
             </div>
 
+            {/* Progress & Kinerja Tim */}
+            <div className="glass-panel rounded-xl p-6 space-y-4">
+                <div className="flex justify-between items-center flex-wrap gap-4">
+                    <div>
+                        <h3 className="text-sm font-black text-gray-700 uppercase tracking-wider">Progress & Kinerja Tim</h3>
+                        <p className="text-xs text-gray-400 mt-1">Kinerja pengajuan berdasarkan Halal Advisor, Halal Manager, dan Halal Director</p>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                        {/* Search Input */}
+                        <input type="text" placeholder="Cari nama..." value={searchName} onChange={(e) => setSearchName(e.target.value)}
+                            className="bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-medium focus:ring-2 focus:ring-brand-500 w-40" />
+                        {/* Role Filter */}
+                        <div className="relative">
+                            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
+                                className="appearance-none bg-white border border-gray-200 rounded-xl px-3 py-1.5 pr-8 text-xs font-medium focus:ring-2 focus:ring-brand-500">
+                                <option value="">Semua Peran</option>
+                                <option value="HALAL_ADVISOR">Halal Advisor</option>
+                                <option value="HALAL_MANAGER">Halal Manager</option>
+                                <option value="DIRECTOR">Director</option>
+                            </select>
+                            <ChevronDown className="absolute right-2 top-2.5 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead>
+                            <tr className="bg-gray-50 border-b border-gray-100">
+                                <th className="px-4 py-2.5 font-bold text-gray-500 text-xs uppercase">Nama</th>
+                                <th className="px-4 py-2.5 font-bold text-gray-500 text-xs uppercase">Peran</th>
+                                <th className="px-4 py-2.5 font-bold text-gray-500 text-xs uppercase text-center">Total Pengajuan</th>
+                                <th className="px-4 py-2.5 font-bold text-gray-500 text-xs uppercase text-center">SH Terbit</th>
+                                <th className="px-4 py-2.5 font-bold text-gray-500 text-xs uppercase text-center">In Progress</th>
+                                <th className="px-4 py-2.5 font-bold text-gray-500 text-xs uppercase text-center">Jumlah Tim</th>
+                                <th className="px-4 py-2.5 font-bold text-gray-500 text-xs uppercase text-center">Rasio Sukses</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredPerformance.map((item) => {
+                                const successRate = item.total_submissions > 0 ? (item.sh_terbit / item.total_submissions) * 100 : 0;
+                                const hasTeam = item.team_members && item.team_members.length > 0;
+                                const isExpanded = expandedRows.has(item.user_id);
+                                return (
+                                    <Fragment key={item.user_id}>
+                                        <tr onClick={() => hasTeam && toggleRow(item.user_id)}
+                                            className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${hasTeam ? 'cursor-pointer font-bold' : ''}`}>
+                                            <td className="px-4 py-3 font-semibold text-gray-800 flex items-center gap-2">
+                                                {hasTeam && (
+                                                    <span className="text-gray-400 text-[10px] w-4">{isExpanded ? '▼' : '▶'}</span>
+                                                )}
+                                                {!hasTeam && <span className="w-4 inline-block" />}
+                                                {item.full_name}
+                                            </td>
+                                            <td className="px-4 py-3 text-xs font-normal">
+                                                <span className={`px-2.5 py-0.5 rounded-full font-bold
+                                                    ${item.role_name === 'DIRECTOR' ? 'bg-purple-50 text-purple-600' :
+                                                      item.role_name === 'HALAL_MANAGER' ? 'bg-blue-50 text-blue-600' :
+                                                      'bg-teal-50 text-teal-600'}`}>
+                                                    {ROLE_LABELS[item.role_name] || item.role_name}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-center font-bold text-gray-700">{item.total_submissions}</td>
+                                            <td className="px-4 py-3 text-center font-bold text-emerald-600">{item.sh_terbit}</td>
+                                            <td className="px-4 py-3 text-center font-bold text-amber-600">{item.in_progress}</td>
+                                            <td className="px-4 py-3 text-center font-medium text-gray-600">
+                                                {item.team_size > 0 ? `${item.team_size} orang` : '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-center font-bold text-gray-500">{successRate.toFixed(0)}%</td>
+                                        </tr>
+                                        {/* Expanded Tim Details */}
+                                        {hasTeam && isExpanded && (
+                                            <tr className="bg-gray-50/45">
+                                                <td colSpan={7} className="px-8 py-4">
+                                                    <div className="border-l-2 border-brand-500 pl-4 space-y-3">
+                                                        <h4 className="text-xs font-black text-brand-700 uppercase tracking-wider">Produktivitas Anggota Tim ({item.team_members.length} Orang)</h4>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                            {item.team_members.sort((a, b) => b.total_submissions - a.total_submissions).map(member => (
+                                                                <div key={member.user_id} className="bg-white p-3 rounded-xl border border-gray-150 shadow-sm flex flex-col justify-between hover:border-gray-200 transition-colors">
+                                                                    <div>
+                                                                        <p className="text-xs font-black text-gray-800 truncate">{member.full_name}</p>
+                                                                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{ROLE_LABELS[member.role_name] || member.role_name}</p>
+                                                                    </div>
+                                                                    <div className="flex justify-between items-center mt-3 border-t border-gray-50 pt-2 text-[10px] text-gray-500">
+                                                                        <span>Total: <strong className="text-gray-800">{member.total_submissions}</strong></span>
+                                                                        <span className="text-emerald-600">SH: <strong className="text-emerald-700">{member.sh_terbit}</strong></span>
+                                                                        <span className="text-amber-500">Progres: <strong className="text-amber-600">{member.in_progress}</strong></span>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </Fragment>
+                                );
+                            })}
+                            {filteredPerformance.length === 0 && (
+                                <tr>
+                                    <td colSpan={7} className="text-center py-8 text-gray-400">Tidak ada data anggota tim</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             {/* Toggle Submissions */}
             <div>
                 <button onClick={() => setShowSubmissions(!showSubmissions)}
@@ -246,6 +513,159 @@ export default function BizDevDashboard() {
                             )}
                         </tbody>
                     </table>
+                </div>
+            )}
+
+            {/* Modal Kelola Target */}
+            {showTargetModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white/95 border border-gray-150 backdrop-blur-md rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                            <h2 className="font-black text-gray-800 flex items-center gap-2">
+                                <Target className="w-5 h-5 text-brand-500" />
+                                Kelola Target Perusahaan
+                            </h2>
+                            <button onClick={() => setShowTargetModal(false)} className="p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {/* Form Section */}
+                            <div className="space-y-4">
+                                <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest border-b border-gray-50 pb-2 flex justify-between items-center">
+                                    <span>Set / Edit Target</span>
+                                    {(tSH || tRevenue || tClients || tReguler || tSelfDeclare) && (
+                                        <button type="button" onClick={() => {
+                                            setTSH('');
+                                            setTRevenue('');
+                                            setTClients('');
+                                            setTReguler('');
+                                            setTSelfDeclare('');
+                                        }} className="text-[10px] text-gray-400 hover:text-brand-500 font-bold transition-colors">
+                                            Reset Form
+                                        </button>
+                                    )}
+                                </h3>
+                                <form onSubmit={handleSaveTarget} className="space-y-4">
+                                    {/* Period Type Toggle */}
+                                    <div className="flex rounded-lg bg-gray-100 p-0.5">
+                                        <button type="button" onClick={() => setPeriodType('monthly')}
+                                            className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${periodType === 'monthly' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                                            Bulanan
+                                        </button>
+                                        <button type="button" onClick={() => setPeriodType('yearly')}
+                                            className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${periodType === 'yearly' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                                            Tahunan
+                                        </button>
+                                    </div>
+
+                                    {/* Period Selection */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {periodType === 'monthly' && (
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Bulan</label>
+                                                <select value={targetMonth} onChange={(e) => setTargetMonth(Number(e.target.value))}
+                                                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-500">
+                                                    {MONTH_LABELS.map((m, idx) => (
+                                                        <option key={idx} value={idx + 1}>{m}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
+                                        <div className={periodType === 'yearly' ? 'col-span-2' : ''}>
+                                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tahun</label>
+                                            <select value={targetYear} onChange={(e) => setTargetYear(Number(e.target.value))}
+                                                className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-500">
+                                                {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Inputs Grid */}
+                                    <div className="space-y-3">
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Target SH Terbit (Sertifikat)</label>
+                                            <input type="number" placeholder="Contoh: 100" value={tSH} onChange={(e) => setTSH(e.target.value)}
+                                                className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-500" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Target Revenue (Rupiah)</label>
+                                            <input type="number" placeholder="Contoh: 50000000" value={tRevenue} onChange={(e) => setTRevenue(e.target.value)}
+                                                className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-500" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Target Klien Baru</label>
+                                            <input type="number" placeholder="Contoh: 50" value={tClients} onChange={(e) => setTClients(e.target.value)}
+                                                className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-500" />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Target Reguler</label>
+                                                <input type="number" placeholder="Contoh: 20" value={tReguler} onChange={(e) => setTReguler(e.target.value)}
+                                                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-500" />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Target Self Declare</label>
+                                                <input type="number" placeholder="Contoh: 30" value={tSelfDeclare} onChange={(e) => setTSelfDeclare(e.target.value)}
+                                                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-500" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" disabled={targetLoading}
+                                        className="w-full py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all disabled:opacity-50">
+                                        {targetLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Simpan Target'}
+                                    </button>
+                                </form>
+                            </div>
+
+                            {/* List Section */}
+                            <div className="flex flex-col h-full overflow-hidden">
+                                <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest border-b border-gray-50 pb-2 mb-4">Target Aktif</h3>
+                                <div className="flex-1 overflow-y-auto">
+                                    <table className="w-full text-xs text-left">
+                                        <thead>
+                                            <tr className="bg-gray-50 text-gray-400 font-bold border-b border-gray-150 sticky top-0 bg-white">
+                                                <th className="py-2 px-3">Periode</th>
+                                                <th className="py-2 px-3 text-center">SH</th>
+                                                <th className="py-2 px-3 text-right">Revenue</th>
+                                                <th className="py-2 px-3 text-center">Klien</th>
+                                                <th className="py-2 px-3 text-center">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-50">
+                                            {targetsList.map((t) => (
+                                                <tr key={t.id} className="hover:bg-gray-50/50">
+                                                    <td className="py-2.5 px-3 font-semibold text-gray-700">{t.period}</td>
+                                                    <td className="py-2.5 px-3 text-center font-medium text-gray-600">{t.target_sh || '-'}</td>
+                                                    <td className="py-2.5 px-3 text-right font-medium text-gray-600">
+                                                        {t.target_revenue ? formatIDR(t.target_revenue) : '-'}
+                                                    </td>
+                                                    <td className="py-2.5 px-3 text-center font-medium text-gray-600">{t.target_clients || '-'}</td>
+                                                    <td className="py-2.5 px-3 text-center flex items-center justify-center gap-1">
+                                                        <button onClick={() => handleEditTarget(t)} className="p-1 rounded text-brand-500 hover:bg-brand-50 transition-colors" title="Edit Target">
+                                                            <Edit2 className="w-3.5 h-3.5" />
+                                                        </button>
+                                                        <button onClick={() => handleDeleteTarget(t.id)} className="p-1 rounded text-red-500 hover:bg-red-50 transition-colors" title="Hapus Target">
+                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {targetsList.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={5} className="text-center py-8 text-gray-400">Belum ada target yang diset</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

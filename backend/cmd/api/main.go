@@ -329,6 +329,7 @@ func main() {
 		ClientRepo:     clientRepo,
 		InvoiceRepo:    invoiceRepo,
 		TargetRepo:     companyTargetRepo,
+		UserRepo:       userRepo,
 	})
 
 	// 7. Setup Router & Handlers
