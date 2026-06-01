@@ -157,18 +157,24 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 
 	period := time.Now().Format("2006-01") // YYYY-MM
 
-	// Structural Commissions based on Pendampingan Omset
+	// Read dynamic fee rates from SystemSettings (configurable by Keuangan)
+	feeDirectSales := uc.getFeeRate("fee_direct_sales_percent", 25.0) / 100.0
+	feeOverride := uc.getFeeRate("fee_override_percent", 5.0) / 100.0
+	feeStructural := uc.getFeeRate("fee_structural_percent", 1.0) / 100.0
+	feeDirector := uc.getFeeRate("fee_director_percent", 2.5) / 100.0
+
+	// Commissions based on Pendampingan Omset
 	if pendampinganAmount > 0 {
 		submission, _ := uc.SubmissionRepo.FindByID(invoice.SubmissionID)
 		if submission != nil && submission.ConsultantID != nil {
-			// 1. Komisi Direct Sales (25%)
+			// 1. Insentif Pendampingan untuk Halal Advisor (default 25%)
 			_ = uc.CommissionRepo.UpsertStructural(&domain.Commission{
 				ID:        uuid.New(),
 				Type:      domain.CommissionTypeDirectSales,
 				UserID:    submission.ConsultantID,
 				Period:    period,
 				BaseOmset: pendampinganAmount,
-				Amount:    pendampinganAmount * 0.25,
+				Amount:    pendampinganAmount * feeDirectSales,
 				Status:    domain.CommissionStatusPending,
 			})
 
@@ -187,50 +193,50 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 					roleName := nodeUser.Role.Name
 
 					if roleName == "HALAL_ADVISOR" {
-						// Upline Advisor gets 1%
+						// Upline Advisor gets structural fee (default 1%)
 						_ = uc.CommissionRepo.UpsertStructural(&domain.Commission{
 							ID:        uuid.New(),
 							Type:      domain.CommissionTypeStructural,
 							UserID:    &nodeUser.ID,
 							Period:    period,
 							BaseOmset: pendampinganAmount,
-							Amount:    pendampinganAmount * 0.01,
+							Amount:    pendampinganAmount * feeStructural,
 							Status:    domain.CommissionStatusPending,
 						})
 					} else if roleName == "HALAL_MANAGER" {
 						if !foundManager {
-							// First Manager in line gets 5%
+							// First Manager: Override (default 5%)
 							_ = uc.CommissionRepo.UpsertStructural(&domain.Commission{
 								ID:        uuid.New(),
-								Type:      domain.CommissionTypeStructural,
+								Type:      domain.CommissionTypeOverride,
 								UserID:    &nodeUser.ID,
 								Period:    period,
 								BaseOmset: pendampinganAmount,
-								Amount:    pendampinganAmount * 0.05,
+								Amount:    pendampinganAmount * feeOverride,
 								Status:    domain.CommissionStatusPending,
 							})
 							foundManager = true
 						} else {
-							// Second Manager in line (Senior Manager) gets 1%
+							// Second Manager: Structural (default 1%)
 							_ = uc.CommissionRepo.UpsertStructural(&domain.Commission{
 								ID:        uuid.New(),
 								Type:      domain.CommissionTypeStructural,
 								UserID:    &nodeUser.ID,
 								Period:    period,
 								BaseOmset: pendampinganAmount,
-								Amount:    pendampinganAmount * 0.01,
+								Amount:    pendampinganAmount * feeStructural,
 								Status:    domain.CommissionStatusPending,
 							})
 						}
 					} else if roleName == "HALAL_DIRECTOR" {
-						// Director gets 2.5%, and stops traversal
+						// Director gets director fee (default 2.5%), stops traversal
 						_ = uc.CommissionRepo.UpsertStructural(&domain.Commission{
 							ID:        uuid.New(),
 							Type:      domain.CommissionTypeStructural,
 							UserID:    &nodeUser.ID,
 							Period:    period,
 							BaseOmset: pendampinganAmount,
-							Amount:    pendampinganAmount * 0.025,
+							Amount:    pendampinganAmount * feeDirector,
 							Status:    domain.CommissionStatusPending,
 						})
 						break // Stop traversing up after finding a director
@@ -243,6 +249,19 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 	}
 
 	return nil
+}
+
+// getFeeRate reads a fee percentage from SystemSettings with a fallback default.
+func (uc *billingUsecase) getFeeRate(key string, defaultValue float64) float64 {
+	setting, err := uc.SettingRepo.GetSetting(key)
+	if err != nil || setting == nil || setting.Value == "" {
+		return defaultValue
+	}
+	var val float64
+	if _, err := fmt.Sscanf(setting.Value, "%f", &val); err == nil && val > 0 {
+		return val
+	}
+	return defaultValue
 }
 
 func (uc *billingUsecase) GetReferralCommissions(page, limit int, status string) ([]domain.Commission, int64, error) {

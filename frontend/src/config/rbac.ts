@@ -25,13 +25,15 @@ export type AppRole =
   | 'HALAL_MANAGER'
   | 'HALAL_DIRECTOR'
   | 'ADMIN_PELATIHAN'
-  | 'ADMIN_KEUANGAN';
+  | 'ADMIN_KEUANGAN'
+  | 'BUSINESS_DEVELOPMENT';
 
 /** Semua role yang ada — dipakai untuk "semua role bisa akses" */
 export const ALL_ROLES: AppRole[] = [
   'DIRECTOR', 'MANAGER', 'QC_OFFICER', 'DRAFTER', 'HALAL_ADVISOR',
   'MARKETING', 'VERIFIKATOR', 'CLIENT', 'FINANCE',
   'HALAL_MANAGER', 'HALAL_DIRECTOR', 'ADMIN_PELATIHAN', 'ADMIN_KEUANGAN',
+  'BUSINESS_DEVELOPMENT',
 ];
 
 /**
@@ -107,6 +109,17 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   'users':          ['DIRECTOR'],
   'notification-settings': ['DIRECTOR'],
   'cms':            ['DIRECTOR', 'MANAGER'],
+
+  // ── Keuangan ────────────────────────────────────────────────────────
+  'finance':               ['DIRECTOR', 'ADMIN_KEUANGAN', 'FINANCE'],
+  'fee-config':            ['DIRECTOR', 'ADMIN_KEUANGAN'],
+  'commission-management': ['DIRECTOR', 'ADMIN_KEUANGAN', 'FINANCE'],
+
+  // ── Business Development ───────────────────────────────────────────
+  'bizdev':                ['DIRECTOR', 'BUSINESS_DEVELOPMENT'],
+
+  // ── SPH ────────────────────────────────────────────────────────────
+  'sph':                   ['DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'ADMIN_KEUANGAN'],
 };
 
 /**

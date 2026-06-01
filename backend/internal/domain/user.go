@@ -38,9 +38,10 @@ const (
 type CommissionType string
 
 const (
-	CommissionTypeReferral   CommissionType = "REFERRAL"
-	CommissionTypeStructural CommissionType = "STRUCTURAL"
+	CommissionTypeReferral    CommissionType = "REFERRAL"
+	CommissionTypeStructural  CommissionType = "STRUCTURAL"
 	CommissionTypeDirectSales CommissionType = "DIRECT_SALES"
+	CommissionTypeOverride    CommissionType = "OVERRIDE"
 )
 
 type Commission struct {

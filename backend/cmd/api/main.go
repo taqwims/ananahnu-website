@@ -91,6 +91,9 @@ func main() {
 		&domain.SystemSetting{},
 		&domain.Commission{},
 		&domain.PromotionRequest{},
+		// SPH & Targets
+		&domain.SPH{},
+		&domain.CompanyTarget{},
 	)
 	if err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
@@ -104,6 +107,7 @@ func main() {
 		"HALAL_ADVISOR", "MARKETING", "VERIFIKATOR",
 		"CLIENT", "FINANCE",
 		"HALAL_MANAGER", "HALAL_DIRECTOR", "ADMIN_PELATIHAN", "ADMIN_KEUANGAN",
+		"BUSINESS_DEVELOPMENT",
 	}
 	for _, roleName := range roles {
 		var r domain.Role
@@ -161,6 +165,8 @@ func main() {
 	coordinatorRateRepo := repository.NewCoordinatorRateRepository(db)
 	settingRepo := repository.NewPostgresSystemSettingRepository(db)
 	commissionRepo := repository.NewCommissionRepository(db)
+	sphRepo := repository.NewSPHRepository(db)
+	companyTargetRepo := repository.NewCompanyTargetRepository(db)
 
 	// Services
 	emailSender := email.NewGmailSender()
@@ -298,6 +304,30 @@ func main() {
 		ParticipantRepo: participantRepo,
 	})
 
+	sphUC := usecase.NewSPHUsecase(usecase.SPHUsecaseDeps{
+		SPHRepo:           sphRepo,
+		SubmissionRepo:    submissionRepo,
+		BillingConfigRepo: billingConfigRepo,
+	})
+
+	financeUC := usecase.NewFinanceUsecase(usecase.FinanceUsecaseDeps{
+		InvoiceRepo:    invoiceRepo,
+		CommissionRepo: commissionRepo,
+		UserRepo:       userRepo,
+		ClientRepo:     clientRepo,
+		SubmissionRepo: submissionRepo,
+		SettingRepo:    settingRepo,
+		NotifUC:        notificationUC,
+		RoleRepo:       roleRepo,
+	})
+
+	bizDevUC := usecase.NewBizDevUsecase(usecase.BizDevUsecaseDeps{
+		SubmissionRepo: submissionRepo,
+		ClientRepo:     clientRepo,
+		InvoiceRepo:    invoiceRepo,
+		TargetRepo:     companyTargetRepo,
+	})
+
 	// 7. Setup Router & Handlers
 	r := gin.Default()
 
@@ -343,6 +373,9 @@ func main() {
 	httpDelivery.NewSystemSettingHandler(r, settingUC)
 	httpDelivery.NewDocumentHandler(r, documentUC)
 	httpDelivery.NewPromotionHandler(r, promotionUC)
+	httpDelivery.NewSPHHandler(r, sphUC)
+	httpDelivery.NewFinanceHandler(r, financeUC)
+	httpDelivery.NewBizDevHandler(r, bizDevUC)
 
 	// Static files
 	r.Static("/uploads", "./uploads")

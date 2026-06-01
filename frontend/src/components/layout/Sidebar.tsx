@@ -21,6 +21,8 @@ import {
     ShieldCheck,
     MessageSquare,
     UserCircle,
+    BarChart3,
+    Wallet,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -91,6 +93,19 @@ const GROUPS: SidebarGroup[] = [
             { name: 'Manajemen User',    pathKey: 'users',                 to: '/dashboard/users',                 icon: Users },
             { name: 'Notifikasi',        pathKey: 'notification-settings', to: '/dashboard/notification-settings', icon: MessageSquare },
             { name: 'CMS',               pathKey: 'cms',                   to: '/dashboard/cms',                   icon: BookOpen },
+        ],
+    },
+    {
+        name: 'Keuangan',
+        links: [
+            { name: 'Dashboard Keuangan',  pathKey: 'finance',               to: '/dashboard/finance',               icon: Wallet },
+            { name: 'Pengaturan Fee',      pathKey: 'fee-config',            to: '/dashboard/fee-config',            icon: DollarSign },
+        ],
+    },
+    {
+        name: 'Business Development',
+        links: [
+            { name: 'Dashboard BD',        pathKey: 'bizdev',                to: '/dashboard/bizdev',                icon: BarChart3 },
         ],
     },
 ];

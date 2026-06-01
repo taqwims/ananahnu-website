@@ -65,6 +65,10 @@ import NotificationSettings from './pages/dashboard/NotificationSettings';
 import ProfilePage from './pages/dashboard/Profile';
 import KarirDashboard from './pages/dashboard/KarirDashboard';
 import AdminPelatihanPromosi from './pages/dashboard/AdminPelatihanPromosi';
+import FinanceDashboard from './pages/dashboard/FinanceDashboard';
+import FeeConfigAdmin from './pages/dashboard/FeeConfigAdmin';
+import BizDevDashboard from './pages/dashboard/BizDevDashboard';
+import SPHForm from './pages/dashboard/SPHForm';
 
 import { Toaster } from 'react-hot-toast';
 
@@ -186,6 +190,24 @@ function App() {
           } />
           <Route path="cms" element={
             <RoleRoute path="cms"><CMSDashboard /></RoleRoute>
+          } />
+
+          {/* Keuangan */}
+          <Route path="finance" element={
+            <RoleRoute path="finance"><FinanceDashboard /></RoleRoute>
+          } />
+          <Route path="fee-config" element={
+            <RoleRoute path="fee-config"><FeeConfigAdmin /></RoleRoute>
+          } />
+
+          {/* Business Development */}
+          <Route path="bizdev" element={
+            <RoleRoute path="bizdev"><BizDevDashboard /></RoleRoute>
+          } />
+
+          {/* SPH */}
+          <Route path="sph/:id" element={
+            <RoleRoute path="sph"><SPHForm /></RoleRoute>
           } />
         </Route>
 
