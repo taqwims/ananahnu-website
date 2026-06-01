@@ -95,18 +95,28 @@ export const UserFormModal = ({
                             ))}
                         </select>
                     </div>
-                    {formData.role === 'HALAL_ADVISOR' && (
+                    {(formData.role === 'HALAL_ADVISOR' || formData.role === 'HALAL_MANAGER') && (
                         <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Halal Manager (Leader)</label>
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                                {formData.role === 'HALAL_MANAGER' ? 'Halal Director (Leader)' : 'Halal Manager (Leader)'}
+                            </label>
                             <select
                                 className="glass-input w-full"
                                 value={formData.leader_id}
                                 onChange={e => setFormData({ ...formData, leader_id: e.target.value })}
                             >
                                 <option value="">-- Tanpa Leader --</option>
-                                {coordinators.map(c => (
-                                    <option key={c.id} value={c.id}>{c.full_name}</option>
-                                ))}
+                                {coordinators
+                                    .filter(c => {
+                                        const rName = typeof c.role === 'string' ? c.role : (c.role as any)?.name;
+                                        if (formData.role === 'HALAL_MANAGER') {
+                                            return rName === 'HALAL_DIRECTOR';
+                                        }
+                                        return rName === 'HALAL_MANAGER';
+                                    })
+                                    .map(c => (
+                                        <option key={c.id} value={c.id}>{c.full_name}</option>
+                                    ))}
                             </select>
                         </div>
                     )}

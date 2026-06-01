@@ -17,7 +17,7 @@ export const useTrainingAdmin = () => {
     const [allUsers, setAllUsers] = useState<any[]>([]);
     
     const user = useAuthStore(state => state.user);
-    const isCoordinator = user?.role === 'HALAL_MANAGER';
+    const isCoordinator = user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR';
 
     const loadTrainings = useCallback(async () => {
         setLoading(true);

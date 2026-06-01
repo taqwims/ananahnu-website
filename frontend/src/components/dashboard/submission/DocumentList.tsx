@@ -20,7 +20,7 @@ export const DocumentList = ({
     onRefresh 
 }: DocumentListProps) => {
     const serviceType = submission.service_type || submission.client?.service_type || '';
-    const canEdit = (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_ADVISOR' || user?.role === 'DRAFTER' || user?.role === 'QC_OFFICER' || user?.role === 'HALAL_MANAGER' || user?.role === 'MARKETING' || (user?.role === 'VERIFIKATOR' && serviceType === 'REGULER'));
+    const canEdit = (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_ADVISOR' || user?.role === 'DRAFTER' || user?.role === 'QC_OFFICER' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'MARKETING' || (user?.role === 'VERIFIKATOR' && serviceType === 'REGULER'));
 
     return (
         <div className="glass-panel p-6 shadow-xl border border-white/40">

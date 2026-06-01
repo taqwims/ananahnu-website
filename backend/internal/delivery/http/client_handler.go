@@ -45,10 +45,26 @@ func (h *ClientHandler) GetList(c *gin.Context) {
 		filter["facilitator_id"] = facilitatorID
 	}
 
-	// If the logged-in user is HALAL_MANAGER, auto-filter to their team
+	// If the logged-in user is HALAL_MANAGER or HALAL_DIRECTOR, auto-filter to their team
 	role := middleware.GetUserRole(c)
 	userID := middleware.GetUserID(c)
 	switch role {
+	case "HALAL_DIRECTOR":
+		var ids []string
+		managers, err := h.userRepo.FindByLeaderID(userID)
+		if err == nil {
+			for _, m := range managers {
+				ids = append(ids, m.ID.String())
+				advisors, errAdv := h.userRepo.FindByLeaderID(m.ID)
+				if errAdv == nil {
+					for _, a := range advisors {
+						ids = append(ids, a.ID.String())
+					}
+				}
+			}
+		}
+		ids = append(ids, userID.String())
+		filter["facilitator_ids"] = ids
 	case "HALAL_MANAGER":
 		teamMembers, err := h.userRepo.FindByLeaderID(userID)
 		if err == nil && len(teamMembers) > 0 {
@@ -181,25 +197,37 @@ func (h *ClientHandler) GetByTeam(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 
-	// Get team members
-	teamMembers, err := h.userRepo.FindByLeaderID(coordinatorID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+	var userIDs []string
+
+	// Get the coordinator user to check their role
+	leader, err := h.userRepo.FindByID(coordinatorID)
+	if err == nil && leader.Role.Name == "HALAL_DIRECTOR" {
+		// If leader is a HALAL_DIRECTOR, find managers and their advisors
+		managers, _ := h.userRepo.FindByLeaderID(coordinatorID)
+		for _, m := range managers {
+			userIDs = append(userIDs, m.ID.String())
+			advisors, _ := h.userRepo.FindByLeaderID(m.ID)
+			for _, a := range advisors {
+				userIDs = append(userIDs, a.ID.String())
+			}
+		}
+	} else {
+		// Default (HALAL_MANAGER or other)
+		teamMembers, err := h.userRepo.FindByLeaderID(coordinatorID)
+		if err == nil {
+			for _, m := range teamMembers {
+				userIDs = append(userIDs, m.ID.String())
+			}
+		}
 	}
 
-	if len(teamMembers) == 0 {
+	if len(userIDs) == 0 {
 		c.JSON(http.StatusOK, gin.H{"data": []interface{}{}, "meta": gin.H{"total": 0}})
 		return
 	}
 
-	ids := make([]string, len(teamMembers))
-	for i, m := range teamMembers {
-		ids[i] = m.ID.String()
-	}
-
 	filter := map[string]interface{}{
-		"facilitator_ids": ids,
+		"facilitator_ids": userIDs,
 	}
 
 	clients, total, err := h.clientUC.GetClients(filter, page, limit)

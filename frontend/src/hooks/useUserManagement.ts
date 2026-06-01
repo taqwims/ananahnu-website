@@ -45,7 +45,7 @@ export const useUserManagement = () => {
             const res = await userService.getUsers({ limit: 100 });
             setCoordinators((res.data || []).filter((u: any) => {
                 const rName = typeof u.role === 'string' ? u.role : u.role?.name;
-                return rName === 'HALAL_MANAGER';
+                return rName === 'HALAL_MANAGER' || rName === 'HALAL_DIRECTOR';
             }));
         } catch (err) {
             console.error("Failed to fetch coordinators", err);

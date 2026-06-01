@@ -52,25 +52,25 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
 
   // ── Klien & Pengajuan ─────────────────────────────────────────────
   'clients': [
-    'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER',
+    'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR',
     'DRAFTER', 'QC_OFFICER', 'MARKETING', 'VERIFIKATOR',
   ],
   'clients/new': [
-    'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'MARKETING',
+    'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'MARKETING',
   ],
   // clients/:id  → sama dengan clients/new (edit)
   'submissions': [
-    'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER',
+    'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR',
     'QC_OFFICER', 'DRAFTER', 'MARKETING', 'VERIFIKATOR',
   ],
   'submissions/new': [
-    'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'MARKETING',
+    'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'MARKETING',
   ],
   // submissions/:id → sama dengan submissions
 
   // ── Tagihan ───────────────────────────────────────────────────────
   'my-invoices': [
-    'HALAL_MANAGER', 'HALAL_ADVISOR', 'MARKETING', 'FINANCE',
+    'HALAL_MANAGER', 'HALAL_DIRECTOR', 'HALAL_ADVISOR', 'MARKETING', 'FINANCE',
     'ADMIN_KEUANGAN', 'DIRECTOR',
   ],
 
@@ -86,19 +86,19 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   'verifikator-workspace': ['VERIFIKATOR', 'DIRECTOR'],
 
   // ── Profil Advisor & Karir ────────────────────────────────────────
-  'consultant-profile': ['HALAL_ADVISOR', 'HALAL_MANAGER'],
+  'consultant-profile': ['HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR'],
   'karir':              ['HALAL_ADVISOR', 'HALAL_MANAGER'],
 
   // ── Jaringan & Referral ───────────────────────────────────────────
-  'team':           ['HALAL_MANAGER'],
-  'referrals':      ['HALAL_ADVISOR', 'HALAL_MANAGER', 'MARKETING', 'DIRECTOR'],
+  'team':           ['HALAL_MANAGER', 'HALAL_DIRECTOR'],
+  'referrals':      ['HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'MARKETING', 'DIRECTOR'],
   'admin-referrals':['DIRECTOR', 'ADMIN_PELATIHAN', 'ADMIN_KEUANGAN'],
   'referral-fees':  ['DIRECTOR', 'ADMIN_KEUANGAN', 'ADMIN_PELATIHAN'],
   'coordinator-rates': ['DIRECTOR', 'ADMIN_KEUANGAN'],
 
   // ── Operasional ───────────────────────────────────────────────────
-  'consultant-verification': ['DIRECTOR', 'ADMIN_PELATIHAN', 'HALAL_MANAGER'],
-  'training':       ['DIRECTOR', 'MANAGER', 'ADMIN_PELATIHAN', 'HALAL_MANAGER'],
+  'consultant-verification': ['DIRECTOR', 'ADMIN_PELATIHAN', 'HALAL_MANAGER', 'HALAL_DIRECTOR'],
+  'training':       ['DIRECTOR', 'MANAGER', 'ADMIN_PELATIHAN', 'HALAL_MANAGER', 'HALAL_DIRECTOR'],
   'admin-promosi':  ['DIRECTOR', 'ADMIN_PELATIHAN'],
 
   // ── Pengaturan Sistem ─────────────────────────────────────────────
@@ -119,7 +119,7 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   'bizdev':                ['DIRECTOR', 'BUSINESS_DEVELOPMENT'],
 
   // ── SPH ────────────────────────────────────────────────────────────
-  'sph':                   ['DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'ADMIN_KEUANGAN'],
+  'sph':                   ['DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'ADMIN_KEUANGAN'],
 };
 
 /**

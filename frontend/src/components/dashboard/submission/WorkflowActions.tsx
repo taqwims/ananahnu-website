@@ -51,7 +51,7 @@ export const WorkflowActions = ({
             submissionService.getDrafters().then(setDrafters).catch(() => {});
         }
         if (submission.data_source === 'MARKETING' && 
-            (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR')) {
+            (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR')) {
             submissionService.getConsultants().then(setConsultants).catch(() => {});
         }
     }, [submission.status, submission.data_source, user?.role]);
@@ -223,7 +223,7 @@ export const WorkflowActions = ({
                         </div>
                     )}
 
-                    {submission.status === 'QC_OFFICER' && !submission.consultant_id && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'QC_OFFICER' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER')) && (
+                    {submission.status === 'QC_OFFICER' && !submission.consultant_id && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER')) && (
                         <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 space-y-3">
                             <label className="flex items-center gap-2 text-sm font-black text-purple-800 tracking-tight">
                                 <UserCheck className="w-4 h-4" /> Penunjukan Advisor

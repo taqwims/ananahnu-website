@@ -92,7 +92,7 @@ export default function SubmissionDetail() {
                                 submissionId={submission.id} 
                                 readOnly={!(
                                     ['ADMIN', 'FINANCE', 'ADMIN_KEUANGAN', 'DIRECTOR'].includes(user?.role || '') ||
-                                    (['HALAL_ADVISOR', 'MARKETING', 'HALAL_MANAGER'].includes(user?.role || '') && (submission.status === 'DRAFT' || submission.status === 'REVISION'))
+                                    (['HALAL_ADVISOR', 'MARKETING', 'HALAL_MANAGER', 'HALAL_DIRECTOR'].includes(user?.role || '') && (submission.status === 'DRAFT' || submission.status === 'REVISION'))
                                 )} 
                                 onSaved={refresh}
                                 salesSchemeId={submission.sales_scheme_id || undefined}

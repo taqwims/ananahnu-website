@@ -296,7 +296,7 @@ func (uc *submissionWorkflowUsecase) AssignConsultant(id uuid.UUID, userID uuid.
 		return err
 	}
 
-	if userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "HALAL_MANAGER" && userRole != "QC_OFFICER" && userRole != "VERIFIKATOR" {
+	if userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "HALAL_MANAGER" && userRole != "HALAL_DIRECTOR" && userRole != "QC_OFFICER" && userRole != "VERIFIKATOR" {
 		return errors.New("unauthorized to assign consultant")
 	}
 
@@ -492,7 +492,7 @@ func (uc *submissionWorkflowUsecase) UpdateBusinessType(id uuid.UUID, userID uui
 	}
 
 	// Permission check (same as update client)
-	canUpdate := (userRole == "ADMIN" || userRole == "DIRECTOR" || userRole == "DRAFTER" || userRole == "QC_OFFICER" || userRole == "HALAL_MANAGER" || userRole == "HALAL_ADVISOR" || (userRole == "VERIFIKATOR" && sub.ServiceType == "REGULER"))
+	canUpdate := (userRole == "ADMIN" || userRole == "DIRECTOR" || userRole == "DRAFTER" || userRole == "QC_OFFICER" || userRole == "HALAL_MANAGER" || userRole == "HALAL_DIRECTOR" || userRole == "HALAL_ADVISOR" || (userRole == "VERIFIKATOR" && sub.ServiceType == "REGULER"))
 	if !canUpdate {
 		return errors.New("unauthorized to update business type")
 	}

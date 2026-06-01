@@ -27,9 +27,9 @@ func NewConsultantHandler(r *gin.Engine, uc usecase.ConsultantUsecase) {
 			handler.UpdateProfile,
 		)
 
-		// Verifikasi & list semua profil — ADMIN_PELATIHAN, DIRECTOR, HALAL_MANAGER
+		// Verifikasi & list semua profil — ADMIN_PELATIHAN, DIRECTOR, HALAL_MANAGER, HALAL_DIRECTOR
 		adminOnly := g.Group("")
-		adminOnly.Use(middleware.RoleMiddleware("ADMIN_PELATIHAN", "DIRECTOR", "HALAL_MANAGER"))
+		adminOnly.Use(middleware.RoleMiddleware("ADMIN_PELATIHAN", "DIRECTOR", "HALAL_MANAGER", "HALAL_DIRECTOR"))
 		{
 			adminOnly.GET("/profiles", handler.GetAllProfiles)
 			adminOnly.PUT("/profiles/:userId/verify", handler.VerifyProfile)
@@ -76,11 +76,39 @@ func (h *ConsultantHandler) UpdateProfile(c *gin.Context) {
 
 // GetAllProfiles lists all consultant profiles (for Halal Manager/Admin).
 func (h *ConsultantHandler) GetAllProfiles(c *gin.Context) {
+	role := middleware.GetUserRole(c)
+	userID := middleware.GetUserID(c)
+
 	profiles, err := h.consultantUC.GetAllProfiles()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Filter based on role
+	if role == "HALAL_MANAGER" {
+		var filtered []domain.ConsultantProfile
+		for _, p := range profiles {
+			if p.User.LeaderID != nil && *p.User.LeaderID == userID {
+				filtered = append(filtered, p)
+			}
+		}
+		profiles = filtered
+	} else if role == "HALAL_DIRECTOR" {
+		var filtered []domain.ConsultantProfile
+		for _, p := range profiles {
+			isDirect := p.User.LeaderID != nil && *p.User.LeaderID == userID
+			isIndirect := false
+			if p.User.Leader != nil && p.User.Leader.LeaderID != nil && *p.User.Leader.LeaderID == userID {
+				isIndirect = true
+			}
+			if isDirect || isIndirect {
+				filtered = append(filtered, p)
+			}
+		}
+		profiles = filtered
+	}
+
 	c.JSON(http.StatusOK, profiles)
 }
 

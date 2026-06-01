@@ -31,7 +31,7 @@ export default function MyInvoices() {
     const [paying, setPaying] = useState(false);
     const [reminding, setReminding] = useState<number | null>(null);
     const currentUser = useAuthStore(state => state.user);
-    const isCoordinator = currentUser?.role === 'HALAL_MANAGER';
+    const isCoordinator = currentUser?.role === 'HALAL_MANAGER' || currentUser?.role === 'HALAL_DIRECTOR';
 
     useEffect(() => {
         fetchInvoices();

@@ -21,6 +21,18 @@ func (uc *submissionWorkflowUsecase) GetSubmissions(userID uuid.UUID, role strin
 			ids = append(ids, u.ID)
 		}
 		filter["facilitator_ids"] = ids
+	case "HALAL_DIRECTOR":
+		var ids []uuid.UUID
+		ids = append(ids, userID)
+		managers, _ := uc.UserRepo.FindByLeaderID(userID)
+		for _, m := range managers {
+			ids = append(ids, m.ID)
+			advisors, _ := uc.UserRepo.FindByLeaderID(m.ID)
+			for _, a := range advisors {
+				ids = append(ids, a.ID)
+			}
+		}
+		filter["facilitator_ids"] = ids
 	case "DRAFTER":
 		filter["assigned_drafter_id"] = userID
 	}
@@ -192,7 +204,7 @@ func (uc *submissionWorkflowUsecase) Delete(id uuid.UUID, userID uuid.UUID, user
 	// Only owner or admin can delete draft
 	canDelete := false
 	switch userRole {
-	case "ADMIN", "DIRECTOR":
+	case "ADMIN", "DIRECTOR", "HALAL_DIRECTOR":
 		canDelete = true
 	case "HALAL_ADVISOR", "HALAL_MANAGER", "MARKETING":
 		if sub.Status == domain.StatusDraft {

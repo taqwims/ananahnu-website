@@ -70,6 +70,23 @@ func (uc *billingUsecase) GetMyInvoices(userID uuid.UUID, roleName string, statu
 		} else {
 			filter["payer_id"] = userID
 		}
+	} else if roleName == "HALAL_DIRECTOR" {
+		// Get managers and their advisors
+		var ids []uuid.UUID
+		ids = append(ids, userID)
+		managers, err := uc.UserRepo.FindByLeaderID(userID)
+		if err == nil {
+			for _, m := range managers {
+				ids = append(ids, m.ID)
+				advisors, errAdv := uc.UserRepo.FindByLeaderID(m.ID)
+				if errAdv == nil {
+					for _, a := range advisors {
+						ids = append(ids, a.ID)
+					}
+				}
+			}
+		}
+		filter["payer_id"] = ids
 	} else {
 		filter["payer_id"] = userID
 	}

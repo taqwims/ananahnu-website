@@ -304,7 +304,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
 
     if (loading) return <div className="flex justify-center p-4"><Loader2 className="animate-spin text-brand-600" /></div>;
 
-    const canEdit = user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_ADVISOR' || user?.role === 'MARKETING' || user?.role === 'HALAL_MANAGER';
+    const canEdit = user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_ADVISOR' || user?.role === 'MARKETING' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR';
     const isEditable = !readOnly && canEdit;
     const canEditOptional = isEditable && (user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR');
 

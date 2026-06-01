@@ -41,6 +41,19 @@ func (uc *dashboardUsecase) GetStats(userID uuid.UUID, role string) (map[string]
 		}
 		// Also include self
 		facilitatorIDs = append(facilitatorIDs, userID)
+	case "HALAL_DIRECTOR":
+		// Find all managers immediately under this director
+		managers, _ := uc.UserRepo.FindByLeaderID(userID)
+		for _, m := range managers {
+			facilitatorIDs = append(facilitatorIDs, m.ID)
+			// Find advisors under each manager
+			advisors, _ := uc.UserRepo.FindByLeaderID(m.ID)
+			for _, a := range advisors {
+				facilitatorIDs = append(facilitatorIDs, a.ID)
+			}
+		}
+		// Also include self
+		facilitatorIDs = append(facilitatorIDs, userID)
 	}
 
 	// Filter
@@ -92,6 +105,17 @@ func (uc *dashboardUsecase) GetRecentActivities(userID uuid.UUID, role string, l
 		userIDs := []uuid.UUID{userID}
 		for _, u := range team {
 			userIDs = append(userIDs, u.ID)
+		}
+		filter["user_ids"] = userIDs
+	case "HALAL_DIRECTOR":
+		userIDs := []uuid.UUID{userID}
+		managers, _ := uc.UserRepo.FindByLeaderID(userID)
+		for _, m := range managers {
+			userIDs = append(userIDs, m.ID)
+			advisors, _ := uc.UserRepo.FindByLeaderID(m.ID)
+			for _, a := range advisors {
+				userIDs = append(userIDs, a.ID)
+			}
 		}
 		filter["user_ids"] = userIDs
 	}

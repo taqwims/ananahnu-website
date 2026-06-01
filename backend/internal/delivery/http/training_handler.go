@@ -27,7 +27,7 @@ func NewTrainingHandler(r *gin.Engine, uc usecase.TrainingUsecase) {
 		g.GET("/:id/participants", handler.GetParticipants)
 
 		// Write — hanya role yang relevan (role check lebih detail ada di handler)
-		writeRoles := middleware.RoleMiddleware("DIRECTOR", "MANAGER", "ADMIN_PELATIHAN", "HALAL_MANAGER")
+		writeRoles := middleware.RoleMiddleware("DIRECTOR", "MANAGER", "ADMIN_PELATIHAN", "HALAL_MANAGER", "HALAL_DIRECTOR")
 		g.POST("/", writeRoles, handler.CreateTraining)
 		g.PUT("/:id", writeRoles, handler.UpdateTraining)
 		g.DELETE("/:id", middleware.RoleMiddleware("DIRECTOR", "MANAGER", "ADMIN_PELATIHAN"), handler.DeleteTraining)
@@ -84,7 +84,7 @@ func (h *TrainingHandler) CreateTraining(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 
 	switch role {
-	case "HALAL_MANAGER":
+	case "HALAL_MANAGER", "HALAL_DIRECTOR":
 		input.Status = "PENDING"
 		input.ProposedBy = &userID
 	case "ADMIN_PELATIHAN", "MANAGER", "DIRECTOR":

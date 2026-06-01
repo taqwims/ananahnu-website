@@ -25,7 +25,7 @@ func (r *consultantProfileRepository) FindByUserID(userID uuid.UUID) (*domain.Co
 
 func (r *consultantProfileRepository) FindAll() ([]domain.ConsultantProfile, error) {
 	var profiles []domain.ConsultantProfile
-	if err := r.db.Preload("User").Order("created_at DESC").Find(&profiles).Error; err != nil {
+	if err := r.db.Preload("User").Preload("User.Leader").Order("created_at DESC").Find(&profiles).Error; err != nil {
 		return nil, err
 	}
 	return profiles, nil
