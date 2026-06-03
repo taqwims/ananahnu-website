@@ -32,27 +32,27 @@ export default function AnalyticsPage() {
 
   if (!analytics) {
     return (
-      <div className="text-center py-12 text-dark-400">
+      <div className="text-center py-12 text-dark-500">
         Gagal memuat data analytics
       </div>
     );
   }
 
   const summaryCards = [
-    { label: 'Total Form', value: analytics.total_forms, icon: FileText, color: 'text-primary-400', bg: 'bg-gradient-card' },
-    { label: 'Akun Dibuat', value: analytics.total_account_created, icon: UserCheck, color: 'text-emerald-400', bg: 'bg-gradient-emerald' },
-    { label: 'Dibayar', value: analytics.total_paid, icon: CreditCard, color: 'text-amber-400', bg: 'bg-gradient-amber' },
-    { label: 'Conversion', value: `${analytics.conversion_rate.toFixed(1)}%`, icon: Percent, color: 'text-primary-400', bg: 'bg-gradient-card' },
+    { label: 'Total Form', value: analytics.total_forms, icon: FileText, color: 'text-primary-700', bg: 'bg-gradient-card' },
+    { label: 'Akun Dibuat', value: analytics.total_account_created, icon: UserCheck, color: 'text-emerald-600', bg: 'bg-gradient-emerald' },
+    { label: 'Dibayar', value: analytics.total_paid, icon: CreditCard, color: 'text-amber-600', bg: 'bg-gradient-amber' },
+    { label: 'Conversion', value: `${analytics.conversion_rate.toFixed(1)}%`, icon: Percent, color: 'text-primary-700', bg: 'bg-gradient-card' },
   ];
 
   // Custom tooltip component
   const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) => {
     if (!active || !payload) return null;
     return (
-      <div className="glass-card p-3 !rounded-lg text-xs">
-        <p className="text-dark-300 mb-1">{label}</p>
+      <div className="glass p-3 !rounded-lg text-xs border border-primary-500/10 shadow-md">
+        <p className="text-dark-700 font-bold mb-1">{label}</p>
         {payload.map((entry, i) => (
-          <p key={i} style={{ color: entry.color }} className="font-medium">
+          <p key={i} style={{ color: entry.color }} className="font-semibold">
             {entry.name}: {entry.value}
           </p>
         ))}
@@ -63,10 +63,10 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <BarChart3 className="w-6 h-6 text-primary-400" /> Analytics
+        <h1 className="text-2xl font-bold text-primary-900 flex items-center gap-2">
+          <BarChart3 className="w-6 h-6 text-primary-600" /> Analytics
         </h1>
-        <p className="text-dark-400 text-sm mt-1">Data konversi dan performa telemarketing</p>
+        <p className="text-dark-500 text-sm mt-1">Data konversi dan performa telemarketing</p>
       </div>
 
       {/* Summary Cards */}
@@ -81,10 +81,10 @@ export default function AnalyticsPage() {
           >
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-dark-400 text-xs font-medium uppercase tracking-wider">{card.label}</p>
-                <p className={`text-3xl font-bold mt-2 ${card.color}`}>{card.value}</p>
+                <p className="text-dark-500 text-xs font-semibold uppercase tracking-wider">{card.label}</p>
+                <p className={`text-3xl font-extrabold mt-2 ${card.color}`}>{card.value}</p>
               </div>
-              <div className={`p-2.5 rounded-xl ${card.bg}`}>
+              <div className={`p-2.5 rounded-xl ${card.bg} border border-primary-500/10`}>
                 <card.icon className={`w-5 h-5 ${card.color}`} />
               </div>
             </div>
@@ -100,8 +100,8 @@ export default function AnalyticsPage() {
           transition={{ delay: 0.4 }}
           className="glass-card p-6"
         >
-          <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-            <ArrowDown className="w-4 h-4 text-primary-400" /> Conversion Funnel
+          <h3 className="text-base font-bold text-primary-900 mb-4 flex items-center gap-2">
+            <ArrowDown className="w-4 h-4 text-primary-600" /> Conversion Funnel
           </h3>
 
           <div className="space-y-3">
@@ -115,12 +115,12 @@ export default function AnalyticsPage() {
                 <div key={step.step} className="group">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <Icon className="w-3.5 h-3.5 text-dark-400 group-hover:text-primary-400 transition-colors" />
-                      <span className="text-sm text-dark-300">{step.step}</span>
+                      <Icon className="w-3.5 h-3.5 text-dark-500 group-hover:text-primary-600 transition-colors" />
+                      <span className="text-sm text-dark-700 font-medium">{step.step}</span>
                     </div>
-                    <span className="text-sm font-bold text-white">{step.count}</span>
+                    <span className="text-sm font-bold text-dark-900">{step.count}</span>
                   </div>
-                  <div className="h-2.5 rounded-full bg-dark-800 overflow-hidden">
+                  <div className="h-2.5 rounded-full bg-dark-100 overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${percentage}%` }}
@@ -146,53 +146,53 @@ export default function AnalyticsPage() {
           transition={{ delay: 0.5 }}
           className="glass-card p-6"
         >
-          <h3 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-emerald-400" /> Distribusi Routing
+          <h3 className="text-base font-bold text-primary-900 mb-4 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-emerald-600" /> Distribusi Routing
           </h3>
 
           <div className="flex items-center gap-8 justify-center py-8">
             {/* Teleconference */}
             <div className="text-center">
-              <div className="w-28 h-28 rounded-full border-[6px] border-primary-500/30 flex items-center justify-center mx-auto relative">
+              <div className="w-28 h-28 rounded-full border-[6px] border-primary-100 flex items-center justify-center mx-auto relative">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-primary-400">{analytics.total_teleconference}</p>
-                  <p className="text-[10px] text-dark-400">form</p>
+                  <p className="text-2xl font-bold text-primary-700">{analytics.total_teleconference}</p>
+                  <p className="text-[10px] text-dark-500 font-bold uppercase">form</p>
                 </div>
                 <svg className="absolute inset-0" viewBox="0 0 36 36">
                   <path
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     fill="none"
-                    stroke="rgb(99, 102, 241)"
+                    stroke="#004033"
                     strokeWidth="2"
                     strokeDasharray={`${analytics.total_forms > 0 ? (analytics.total_teleconference / analytics.total_forms) * 100 : 0}, 100`}
                     strokeLinecap="round"
                   />
                 </svg>
               </div>
-              <p className="text-sm text-dark-300 mt-3 font-medium">Teleconference</p>
-              <p className="text-xs text-dark-500">Reguler</p>
+              <p className="text-sm text-dark-800 mt-3 font-bold">Teleconference</p>
+              <p className="text-[10px] text-dark-500 font-bold uppercase">Reguler</p>
             </div>
 
             {/* Self Declare */}
             <div className="text-center">
-              <div className="w-28 h-28 rounded-full border-[6px] border-amber-500/30 flex items-center justify-center mx-auto relative">
+              <div className="w-28 h-28 rounded-full border-[6px] border-amber-100 flex items-center justify-center mx-auto relative">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-amber-400">{analytics.total_self_declare}</p>
-                  <p className="text-[10px] text-dark-400">form</p>
+                  <p className="text-2xl font-bold text-amber-600">{analytics.total_self_declare}</p>
+                  <p className="text-[10px] text-dark-500 font-bold uppercase">form</p>
                 </div>
                 <svg className="absolute inset-0" viewBox="0 0 36 36">
                   <path
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     fill="none"
-                    stroke="rgb(245, 158, 11)"
+                    stroke="#c0a060"
                     strokeWidth="2"
                     strokeDasharray={`${analytics.total_forms > 0 ? (analytics.total_self_declare / analytics.total_forms) * 100 : 0}, 100`}
                     strokeLinecap="round"
                   />
                 </svg>
               </div>
-              <p className="text-sm text-dark-300 mt-3 font-medium">Self Declare</p>
-              <p className="text-xs text-dark-500">Mandiri</p>
+              <p className="text-sm text-dark-800 mt-3 font-bold">Self Declare</p>
+              <p className="text-[10px] text-dark-500 font-bold uppercase">Mandiri</p>
             </div>
           </div>
         </motion.div>
@@ -206,21 +206,21 @@ export default function AnalyticsPage() {
           transition={{ delay: 0.6 }}
           className="glass-card p-6"
         >
-          <h3 className="text-base font-semibold text-white mb-4">Tren Bulanan</h3>
+          <h3 className="text-base font-bold text-primary-900 mb-4">Tren Bulanan</h3>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={analytics.monthly_trend}>
                 <defs>
                   <linearGradient id="formGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#004033" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#004033" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="paidGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
                     <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(100,116,139,0.15)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,64,51,0.06)" />
                 <XAxis dataKey="month" stroke="#64748b" fontSize={11} />
                 <YAxis stroke="#64748b" fontSize={11} />
                 <Tooltip content={<CustomTooltip />} />
@@ -228,7 +228,7 @@ export default function AnalyticsPage() {
                   type="monotone"
                   dataKey="forms_received"
                   name="Form Masuk"
-                  stroke="#6366f1"
+                  stroke="#004033"
                   fill="url(#formGrad)"
                   strokeWidth={2}
                 />
@@ -236,7 +236,7 @@ export default function AnalyticsPage() {
                   type="monotone"
                   dataKey="accounts_created"
                   name="Akun Dibuat"
-                  stroke="#f59e0b"
+                  stroke="#c0a060"
                   fill="none"
                   strokeWidth={2}
                   strokeDasharray="5 5"
@@ -254,16 +254,16 @@ export default function AnalyticsPage() {
           </div>
           <div className="flex items-center justify-center gap-6 mt-4">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-primary-500" />
-              <span className="text-xs text-dark-400">Form Masuk</span>
+              <div className="w-3 h-3 rounded-full bg-primary-600" />
+              <span className="text-xs text-dark-500 font-semibold">Form Masuk</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-amber-500" />
-              <span className="text-xs text-dark-400">Akun Dibuat</span>
+              <div className="w-3 h-3 rounded-full bg-gold-500" />
+              <span className="text-xs text-dark-500 font-semibold">Akun Dibuat</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-emerald-500" />
-              <span className="text-xs text-dark-400">Dibayar</span>
+              <span className="text-xs text-dark-500 font-semibold">Dibayar</span>
             </div>
           </div>
         </motion.div>

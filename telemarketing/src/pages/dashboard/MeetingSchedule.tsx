@@ -8,10 +8,10 @@ import {
 import toast from 'react-hot-toast';
 
 const MEETING_STATUS_COLORS: Record<string, string> = {
-  SCHEDULED: 'bg-blue-500/20 text-blue-400',
-  COMPLETED: 'bg-emerald-500/20 text-emerald-400',
-  CANCELLED: 'bg-dark-600/50 text-dark-400',
-  NO_SHOW: 'bg-rose-500/20 text-rose-400',
+  SCHEDULED: 'bg-blue-50 text-blue-700 border border-blue-100',
+  COMPLETED: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
+  CANCELLED: 'bg-dark-50 text-dark-400 border border-dark-100',
+  NO_SHOW: 'bg-rose-50 text-rose-700 border border-rose-100',
 };
 
 const TYPE_ICONS: Record<string, typeof Video> = {
@@ -105,10 +105,10 @@ export default function MeetingSchedule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Calendar className="w-6 h-6 text-primary-400" /> Jadwal Meeting
+          <h1 className="text-2xl font-bold text-primary-900 flex items-center gap-2">
+            <Calendar className="w-6 h-6 text-primary-600" /> Jadwal Meeting
           </h1>
-          <p className="text-dark-400 text-sm mt-1">Kelola penjadwalan teleconference dengan client</p>
+          <p className="text-dark-500 text-sm mt-1">Kelola penjadwalan teleconference dengan client</p>
         </div>
         <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" /> Jadwalkan
@@ -122,14 +122,14 @@ export default function MeetingSchedule() {
         </div>
       ) : Object.keys(groupedMeetings).length === 0 ? (
         <div className="glass-card p-12 text-center">
-          <Calendar className="w-12 h-12 text-dark-600 mx-auto mb-3" />
-          <p className="text-dark-400">Belum ada meeting terjadwal</p>
+          <Calendar className="w-12 h-12 text-dark-400 mx-auto mb-3" />
+          <p className="text-dark-500 font-medium">Belum ada meeting terjadwal</p>
         </div>
       ) : (
         <div className="space-y-6">
           {Object.entries(groupedMeetings).map(([date, dateMeetings]) => (
             <div key={date}>
-              <h3 className="text-sm font-semibold text-dark-400 mb-3">{date}</h3>
+              <h3 className="text-sm font-bold text-primary-800 mb-3 uppercase tracking-wider">{date}</h3>
               <div className="space-y-3">
                 {dateMeetings.map((meeting, i) => {
                   const Icon = TYPE_ICONS[meeting.meeting_type] || MessageCircle;
@@ -143,28 +143,28 @@ export default function MeetingSchedule() {
                     >
                       {/* Time */}
                       <div className="text-center min-w-[60px]">
-                        <p className="text-lg font-bold text-white">
+                        <p className="text-lg font-extrabold text-dark-900">
                           {new Date(meeting.scheduled_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                         </p>
-                        <p className="text-[10px] text-dark-400">{meeting.duration} min</p>
+                        <p className="text-[10px] text-dark-500 font-bold uppercase tracking-wider">{meeting.duration} min</p>
                       </div>
 
-                      <div className="w-px h-12 bg-dark-700/50" />
+                      <div className="w-px h-12 bg-dark-100" />
 
                       {/* Icon */}
-                      <div className="w-10 h-10 rounded-xl bg-primary-600/20 flex items-center justify-center flex-shrink-0">
-                        <Icon className="w-5 h-5 text-primary-400" />
+                      <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
+                        <Icon className="w-5 h-5 text-primary-700" />
                       </div>
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white">{meeting.tele_form?.name || 'Client'}</p>
-                        <p className="text-xs text-dark-400">{meeting.meeting_type} · {meeting.tele_form?.phone}</p>
-                        {meeting.notes && <p className="text-xs text-dark-500 mt-1">{meeting.notes}</p>}
+                        <p className="text-sm font-bold text-dark-900">{meeting.tele_form?.name || 'Client'}</p>
+                        <p className="text-xs text-dark-500 font-medium">{meeting.meeting_type} · {meeting.tele_form?.phone}</p>
+                        {meeting.notes && <p className="text-xs text-dark-600 mt-1 italic font-medium">{meeting.notes}</p>}
                       </div>
 
                       {/* Status */}
-                      <span className={`text-[10px] px-2 py-1 rounded-full font-medium ${MEETING_STATUS_COLORS[meeting.status]}`}>
+                      <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold border ${MEETING_STATUS_COLORS[meeting.status]}`}>
                         {meeting.status}
                       </span>
 
@@ -175,7 +175,7 @@ export default function MeetingSchedule() {
                             href={meeting.meeting_link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-1.5 rounded-lg text-blue-400 hover:bg-blue-500/20 transition-colors"
+                            className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-100 transition-colors"
                             title="Join Meeting"
                           >
                             <ArrowUpRight className="w-4 h-4" />
@@ -185,21 +185,21 @@ export default function MeetingSchedule() {
                           <>
                             <button
                               onClick={() => handleStatusUpdate(meeting.id, 'COMPLETED')}
-                              className="p-1.5 rounded-lg text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                              className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 border border-transparent hover:border-emerald-100 transition-colors"
                               title="Selesai"
                             >
                               <CheckCircle2 className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleStatusUpdate(meeting.id, 'NO_SHOW')}
-                              className="p-1.5 rounded-lg text-rose-400 hover:bg-rose-500/20 transition-colors"
+                              className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-colors"
                               title="No Show"
                             >
                               <AlertCircle className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleStatusUpdate(meeting.id, 'CANCELLED')}
-                              className="p-1.5 rounded-lg text-dark-400 hover:bg-dark-700 transition-colors"
+                              className="p-1.5 rounded-lg text-dark-500 hover:bg-dark-50 border border-transparent hover:border-dark-100 transition-colors"
                               title="Batal"
                             >
                               <XCircle className="w-4 h-4" />
@@ -219,7 +219,7 @@ export default function MeetingSchedule() {
       {/* Schedule Modal */}
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -227,8 +227,8 @@ export default function MeetingSchedule() {
               className="glass-card p-6 max-w-md w-full"
             >
               <div className="flex items-center justify-between mb-5">
-                <h3 className="text-lg font-semibold text-white">Jadwalkan Meeting</h3>
-                <button onClick={() => setShowModal(false)} className="text-dark-400 hover:text-white">
+                <h3 className="text-lg font-bold text-primary-900">Jadwalkan Meeting</h3>
+                <button onClick={() => setShowModal(false)} className="text-dark-400 hover:text-primary-600 cursor-pointer">
                   <X className="w-5 h-5" />
                 </button>
               </div>

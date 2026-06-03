@@ -8,6 +8,7 @@ import DashboardLayout from './components/layout/DashboardLayout';
 
 // Pages
 import LoginPage from './pages/auth/LoginPage';
+import LandingPage from './pages/public/LandingPage';
 import PublicFormPage from './pages/public/FormPage';
 import DashboardHome from './pages/dashboard/DashboardHome';
 import ClientManagement from './pages/dashboard/ClientManagement';
@@ -46,17 +47,18 @@ function App() {
         reverseOrder={false}
         toastOptions={{
           style: {
-            background: '#1e293b',
-            color: '#e2e8f0',
-            border: '1px solid rgba(100,116,139,0.2)',
+            background: '#ffffff',
+            color: '#004033',
+            border: '1px solid rgba(0, 64, 51, 0.1)',
             borderRadius: '12px',
             fontSize: '14px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
           },
         }}
       />
       <Routes>
         {/* Public Routes */}
-        <Route path="/" element={<PublicFormPage />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/form" element={<PublicFormPage />} />
         <Route path="/login" element={<LoginPage />} />
 

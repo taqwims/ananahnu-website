@@ -96,50 +96,50 @@ export default function PublicFormPage() {
           animate={{ opacity: 1, scale: 1 }}
           className="glass-card p-10 max-w-lg w-full text-center"
         >
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-emerald-500/20 mb-6">
-            <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-emerald-100 mb-6 border border-emerald-200">
+            <CheckCircle2 className="w-10 h-10 text-emerald-600" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Pengajuan Berhasil!</h2>
-          <p className="text-dark-300 mb-6">
+          <h2 className="text-2xl font-bold text-primary-900 mb-2">Pengajuan Berhasil!</h2>
+          <p className="text-dark-600 mb-6">
             Terima kasih, {form.name}. Data Anda telah kami terima.
           </p>
 
-          <div className="glass-card p-4 mb-6 text-left space-y-3">
+          <div className="glass p-4 mb-6 text-left space-y-3 rounded-xl border border-primary-500/10">
             <div className="flex justify-between">
-              <span className="text-dark-400 text-sm">ID Pengajuan</span>
-              <span className="text-primary-400 text-sm font-mono">{result.form_id.slice(0, 8)}...</span>
+              <span className="text-dark-500 text-sm">ID Pengajuan</span>
+              <span className="text-primary-700 text-sm font-mono">{result.form_id.slice(0, 8)}...</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-dark-400 text-sm">Kategori</span>
-              <span className={`text-sm font-semibold ${result.route_type === 'TELECONFERENCE' ? 'text-primary-400' : 'text-amber-400'}`}>
+              <span className="text-dark-500 text-sm">Kategori</span>
+              <span className={`text-sm font-semibold ${result.route_type === 'TELECONFERENCE' ? 'text-primary-600' : 'text-amber-600'}`}>
                 {result.route_type === 'TELECONFERENCE' ? '📞 Teleconference' : '📝 Self Declare'}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-dark-400 text-sm">Status</span>
-              <span className="text-emerald-400 text-sm font-semibold">{result.status}</span>
+              <span className="text-dark-500 text-sm">Status</span>
+              <span className="text-emerald-600 text-sm font-semibold">{result.status}</span>
             </div>
           </div>
 
           {result.route_type === 'TELECONFERENCE' ? (
-            <div className="p-4 rounded-xl bg-primary-600/10 border border-primary-500/20 text-left">
+            <div className="p-4 rounded-xl bg-primary-50 border border-primary-100 text-left">
               <div className="flex gap-3">
-                <Headphones className="w-5 h-5 text-primary-400 flex-shrink-0 mt-0.5" />
+                <Headphones className="w-5 h-5 text-primary-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm text-white font-medium">Tim telemarketing kami akan menghubungi Anda</p>
-                  <p className="text-xs text-dark-400 mt-1">
+                  <p className="text-sm text-primary-900 font-bold">Tim telemarketing kami akan menghubungi Anda</p>
+                  <p className="text-xs text-dark-600 mt-1">
                     Jadwal konsultasi via video call (Zoom/WA/GMeet) akan dikirimkan ke nomor WhatsApp Anda.
                   </p>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-left">
+            <div className="p-4 rounded-xl bg-amber-50 border border-amber-100 text-left">
               <div className="flex gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm text-white font-medium">Pengajuan Anda masuk kategori Self Declare</p>
-                  <p className="text-xs text-dark-400 mt-1">
+                  <p className="text-sm text-amber-800 font-bold">Pengajuan Anda masuk kategori Self Declare</p>
+                  <p className="text-xs text-dark-600 mt-1">
                     Anda akan menerima akun untuk melengkapi data secara mandiri via email & WhatsApp.
                   </p>
                 </div>
@@ -157,8 +157,8 @@ export default function PublicFormPage() {
 
       {/* Decorative */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 right-20 w-72 h-72 bg-primary-600/8 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 left-20 w-60 h-60 bg-emerald-600/8 rounded-full blur-3xl" />
+        <div className="absolute top-20 right-20 w-72 h-72 bg-primary-200/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 left-20 w-60 h-60 bg-gold-200/20 rounded-full blur-3xl" />
       </div>
 
       <div className="w-full max-w-2xl relative">
@@ -167,12 +167,12 @@ export default function PublicFormPage() {
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 mb-4 shadow-xl shadow-primary-600/25"
+            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 mb-4 shadow-xl shadow-primary-600/10"
           >
             <Headphones className="w-7 h-7 text-white" />
           </motion.div>
-          <h1 className="text-2xl font-bold text-white">Pengajuan Sertifikasi Halal</h1>
-          <p className="text-dark-400 text-sm mt-1">Isi formulir di bawah untuk memulai proses pendampingan</p>
+          <h1 className="text-2xl font-bold text-primary-900">Pengajuan Sertifikasi Halal</h1>
+          <p className="text-dark-500 text-sm mt-1">Isi formulir di bawah untuk memulai proses pendampingan</p>
         </div>
 
         {/* Progress Bar */}
@@ -180,12 +180,12 @@ export default function PublicFormPage() {
           {[1, 2].map((s) => (
             <div key={s} className="flex-1 flex items-center gap-2">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
-                step >= s ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30' : 'bg-dark-700 text-dark-400'
+                step >= s ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/20' : 'bg-dark-200 text-dark-500'
               }`}>
                 {s}
               </div>
               {s < 2 && (
-                <div className="flex-1 h-1 rounded-full bg-dark-700 overflow-hidden">
+                <div className="flex-1 h-1 rounded-full bg-dark-200 overflow-hidden">
                   <motion.div
                     className="h-full bg-primary-500 rounded-full"
                     initial={{ width: 0 }}
@@ -212,15 +212,15 @@ export default function PublicFormPage() {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-5"
               >
-                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-primary-400" /> Data Usaha
+                <h2 className="text-lg font-bold text-primary-900 flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-primary-500" /> Data Usaha
                 </h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {/* Nama */}
                   <div>
                     <label className="form-label flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5" /> Nama Lengkap
+                      <User className="w-3.5 h-3.5 text-dark-500" /> Nama Lengkap
                     </label>
                     <input
                       type="text"
@@ -234,7 +234,7 @@ export default function PublicFormPage() {
                   {/* Phone */}
                   <div>
                     <label className="form-label flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5" /> No. Telepon
+                      <Phone className="w-3.5 h-3.5 text-dark-500" /> No. Telepon
                     </label>
                     <input
                       type="tel"
@@ -248,7 +248,7 @@ export default function PublicFormPage() {
                   {/* Email */}
                   <div>
                     <label className="form-label flex items-center gap-1.5">
-                      <Mail className="w-3.5 h-3.5" /> Email
+                      <Mail className="w-3.5 h-3.5 text-dark-500" /> Email
                     </label>
                     <input
                       type="email"
@@ -262,7 +262,7 @@ export default function PublicFormPage() {
                   {/* Jenis Usaha */}
                   <div>
                     <label className="form-label flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5" /> Jenis Usaha
+                      <Building2 className="w-3.5 h-3.5 text-dark-500" /> Jenis Usaha
                     </label>
                     <input
                       type="text"
@@ -276,73 +276,77 @@ export default function PublicFormPage() {
                   {/* Skala Usaha */}
                   <div>
                     <label className="form-label flex items-center gap-1.5">
-                      <Scale className="w-3.5 h-3.5" /> Skala Usaha
+                      <Scale className="w-3.5 h-3.5 text-dark-500" /> Skala Usaha
                     </label>
-                    <select
-                      className="form-select"
-                      value={form.business_scale}
-                      onChange={(e) => updateForm('business_scale', e.target.value)}
-                    >
-                      <option value="">Pilih skala usaha</option>
-                      {SCALE_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <select
+                        className="form-select"
+                        value={form.business_scale}
+                        onChange={(e) => updateForm('business_scale', e.target.value)}
+                      >
+                        <option value="">Pilih skala usaha</option>
+                        {SCALE_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   {/* Provinsi */}
                   <div>
                     <label className="form-label flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5" /> Provinsi
+                      <MapPin className="w-3.5 h-3.5 text-dark-500" /> Provinsi
                     </label>
-                    <select
-                      className="form-select"
-                      value={form.province_id}
-                      onChange={(e) => updateForm('province_id', Number(e.target.value))}
-                    >
-                      <option value={0}>Pilih provinsi</option>
-                      {provinces.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <select
+                        className="form-select"
+                        value={form.province_id}
+                        onChange={(e) => updateForm('province_id', Number(e.target.value))}
+                      >
+                        <option value={0}>Pilih provinsi</option>
+                        {provinces.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
 
                 {/* Checkbox Fields */}
                 <div className="space-y-3 pt-2">
-                  <p className="text-sm font-medium text-dark-300">Informasi Tambahan</p>
+                  <p className="text-sm font-semibold text-dark-600">Informasi Tambahan</p>
 
-                  <label className="flex items-center gap-3 p-3 rounded-xl bg-dark-800/40 border border-dark-700/50 cursor-pointer hover:border-primary-500/30 transition-colors">
+                  <label className="flex items-center gap-3 p-3 rounded-xl bg-white border border-dark-200 cursor-pointer hover:border-primary-500/30 transition-colors">
                     <input
                       type="checkbox"
                       className="form-checkbox"
                       checked={form.uses_meat}
                       onChange={(e) => updateForm('uses_meat', e.target.checked)}
                     />
-                    <Beef className="w-4 h-4 text-rose-400" />
-                    <span className="text-sm text-dark-200">Menggunakan bahan daging</span>
+                    <Beef className="w-4 h-4 text-rose-500" />
+                    <span className="text-sm text-dark-700">Menggunakan bahan daging</span>
                   </label>
 
-                  <label className="flex items-center gap-3 p-3 rounded-xl bg-dark-800/40 border border-dark-700/50 cursor-pointer hover:border-primary-500/30 transition-colors">
+                  <label className="flex items-center gap-3 p-3 rounded-xl bg-white border border-dark-200 cursor-pointer hover:border-primary-500/30 transition-colors">
                     <input
                       type="checkbox"
                       className="form-checkbox"
                       checked={form.is_catering}
                       onChange={(e) => updateForm('is_catering', e.target.checked)}
                     />
-                    <UtensilsCrossed className="w-4 h-4 text-amber-400" />
-                    <span className="text-sm text-dark-200">Catering / Restoran / SPPG</span>
+                    <UtensilsCrossed className="w-4 h-4 text-amber-500" />
+                    <span className="text-sm text-dark-700">Catering / Restoran / SPPG</span>
                   </label>
 
-                  <label className="flex items-center gap-3 p-3 rounded-xl bg-dark-800/40 border border-dark-700/50 cursor-pointer hover:border-primary-500/30 transition-colors">
+                  <label className="flex items-center gap-3 p-3 rounded-xl bg-white border border-dark-200 cursor-pointer hover:border-primary-500/30 transition-colors">
                     <input
                       type="checkbox"
                       className="form-checkbox"
                       checked={form.is_amdk}
                       onChange={(e) => updateForm('is_amdk', e.target.checked)}
                     />
-                    <Droplets className="w-4 h-4 text-blue-400" />
-                    <span className="text-sm text-dark-200">Depot Air Minum / AMDK</span>
+                    <Droplets className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm text-dark-700">Depot Air Minum / AMDK</span>
                   </label>
                 </div>
 
@@ -366,50 +370,50 @@ export default function PublicFormPage() {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-5"
               >
-                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <CheckSquare className="w-5 h-5 text-primary-400" /> Persetujuan
+                <h2 className="text-lg font-bold text-primary-900 flex items-center gap-2">
+                  <CheckSquare className="w-5 h-5 text-primary-500" /> Persetujuan
                 </h2>
 
-                <div className="p-4 rounded-xl bg-dark-800/40 border border-dark-700/50">
-                  <p className="text-sm text-dark-300 leading-relaxed">
+                <div className="p-4 rounded-xl bg-white border border-dark-200 shadow-sm">
+                  <p className="text-sm text-dark-600 leading-relaxed">
                     Dengan mengajukan formulir ini, Anda menyetujui untuk menggunakan layanan pendampingan sertifikasi halal dari HalalCore 
                     (unit layanan PT Ana Nahnu Indonesia). Keputusan sertifikasi halal sepenuhnya merupakan kewenangan regulator yang berwenang.
                   </p>
                 </div>
 
                 <div className="space-y-3">
-                  <label className="flex items-start gap-3 p-4 rounded-xl bg-dark-800/40 border border-dark-700/50 cursor-pointer hover:border-primary-500/30 transition-colors">
+                  <label className="flex items-start gap-3 p-4 rounded-xl bg-white border border-dark-200 cursor-pointer hover:border-primary-500/30 transition-colors">
                     <input
                       type="checkbox"
                       className="form-checkbox mt-0.5"
                       checked={form.term_data_accuracy}
                       onChange={(e) => updateForm('term_data_accuracy', e.target.checked)}
                     />
-                    <span className="text-sm text-dark-200">
+                    <span className="text-sm text-dark-700">
                       Saya menyatakan data yang saya berikan benar dan dapat dipertanggungjawabkan.
                     </span>
                   </label>
 
-                  <label className="flex items-start gap-3 p-4 rounded-xl bg-dark-800/40 border border-dark-700/50 cursor-pointer hover:border-primary-500/30 transition-colors">
+                  <label className="flex items-start gap-3 p-4 rounded-xl bg-white border border-dark-200 cursor-pointer hover:border-primary-500/30 transition-colors">
                     <input
                       type="checkbox"
                       className="form-checkbox mt-0.5"
                       checked={form.term_agreement}
                       onChange={(e) => updateForm('term_agreement', e.target.checked)}
                     />
-                    <span className="text-sm text-dark-200">
+                    <span className="text-sm text-dark-700">
                       Saya telah membaca dan menyetujui Perjanjian Layanan HalalCore.
                     </span>
                   </label>
 
-                  <label className="flex items-start gap-3 p-4 rounded-xl bg-dark-800/40 border border-dark-700/50 cursor-pointer hover:border-primary-500/30 transition-colors">
+                  <label className="flex items-start gap-3 p-4 rounded-xl bg-white border border-dark-200 cursor-pointer hover:border-primary-500/30 transition-colors">
                     <input
                       type="checkbox"
                       className="form-checkbox mt-0.5"
                       checked={form.term_regulator}
                       onChange={(e) => updateForm('term_regulator', e.target.checked)}
                     />
-                    <span className="text-sm text-dark-200">
+                    <span className="text-sm text-dark-700">
                       Saya memahami bahwa keputusan sertifikasi halal merupakan kewenangan regulator dan bukan kewenangan HalalCore.
                     </span>
                   </label>

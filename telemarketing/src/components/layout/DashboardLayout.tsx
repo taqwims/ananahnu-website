@@ -26,7 +26,7 @@ export default function DashboardLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-gradient-main text-white overflow-hidden">
+    <div className="flex h-screen bg-gradient-main text-dark-800 overflow-hidden">
       {/* Mobile Overlay */}
       <AnimatePresence>
         {mobileOpen && (
@@ -34,7 +34,7 @@ export default function DashboardLayout() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+            className="fixed inset-0 bg-black/40 z-40 lg:hidden"
             onClick={() => setMobileOpen(false)}
           />
         )}
@@ -44,15 +44,15 @@ export default function DashboardLayout() {
       <aside
         className={`
           fixed lg:relative z-50 h-full flex flex-col
-          bg-dark-900/90 backdrop-blur-xl border-r border-dark-700/50
+          bg-white/95 backdrop-blur-xl border-r border-dark-100 shadow-sm
           transition-all duration-300 ease-in-out
           ${sidebarOpen ? 'w-64' : 'w-20'}
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-5 h-16 border-b border-dark-700/50">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center flex-shrink-0">
+        <div className="flex items-center gap-3 px-5 h-16 border-b border-dark-100">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center flex-shrink-0 shadow-md shadow-primary-600/10">
             <Headphones className="w-5 h-5 text-white" />
           </div>
           {sidebarOpen && (
@@ -61,10 +61,10 @@ export default function DashboardLayout() {
               animate={{ opacity: 1, x: 0 }}
               className="overflow-hidden"
             >
-              <h1 className="text-base font-bold bg-gradient-to-r from-primary-400 to-primary-200 bg-clip-text text-transparent">
+              <h1 className="text-base font-extrabold bg-gradient-to-r from-primary-700 to-primary-900 bg-clip-text text-transparent">
                 HalalCore
               </h1>
-              <p className="text-[10px] text-dark-400 -mt-0.5">Telemarketing</p>
+              <p className="text-[10px] text-gold-600 font-bold uppercase tracking-wider -mt-0.5">Telemarketing</p>
             </motion.div>
           )}
         </div>
@@ -80,8 +80,8 @@ export default function DashboardLayout() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
                   isActive
-                    ? 'bg-primary-600/20 text-primary-400 shadow-lg shadow-primary-600/10'
-                    : 'text-dark-400 hover:text-white hover:bg-dark-800/50'
+                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/15 font-semibold'
+                    : 'text-dark-500 hover:text-primary-700 hover:bg-primary-50/50'
                 }`
               }
             >
@@ -97,21 +97,21 @@ export default function DashboardLayout() {
         </nav>
 
         {/* User Section */}
-        <div className="border-t border-dark-700/50 p-3">
+        <div className="border-t border-dark-100 p-3 bg-dark-50/50">
           {sidebarOpen ? (
             <div className="flex items-center gap-3 p-2">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center flex-shrink-0">
-                <span className="text-sm font-bold text-white">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-700 flex items-center justify-center flex-shrink-0 shadow-sm">
+                <span className="text-sm font-bold text-white font-mono">
                   {user?.full_name?.charAt(0) || 'T'}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{user?.full_name || 'Telemarketer'}</p>
-                <p className="text-xs text-dark-400 truncate">{user?.email}</p>
+                <p className="text-sm font-bold text-dark-900 truncate">{user?.full_name || 'Telemarketer'}</p>
+                <p className="text-xs text-dark-500 truncate">{user?.email}</p>
               </div>
               <button
                 onClick={handleLogout}
-                className="p-1.5 rounded-lg text-dark-400 hover:text-rose-400 hover:bg-dark-800 transition-colors"
+                className="p-1.5 rounded-lg text-dark-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                 title="Logout"
               >
                 <LogOut className="w-4 h-4" />
@@ -120,7 +120,7 @@ export default function DashboardLayout() {
           ) : (
             <button
               onClick={handleLogout}
-              className="w-full p-2.5 rounded-xl text-dark-400 hover:text-rose-400 hover:bg-dark-800 transition-colors flex justify-center"
+              className="w-full p-2.5 rounded-xl text-dark-400 hover:text-rose-600 hover:bg-rose-50 transition-colors flex justify-center"
               title="Logout"
             >
               <LogOut className="w-5 h-5" />
@@ -131,7 +131,7 @@ export default function DashboardLayout() {
         {/* Toggle Button (desktop) */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="hidden lg:flex absolute -right-3 top-20 w-6 h-6 rounded-full bg-dark-700 border border-dark-600 items-center justify-center text-dark-400 hover:text-white transition-colors"
+          className="hidden lg:flex absolute -right-3 top-20 w-6 h-6 rounded-full bg-white border border-dark-200 items-center justify-center text-dark-500 hover:text-primary-600 shadow-sm cursor-pointer hover:bg-dark-50 transition-colors"
         >
           <ChevronRight className={`w-3 h-3 transition-transform ${sidebarOpen ? 'rotate-180' : ''}`} />
         </button>
@@ -140,16 +140,18 @@ export default function DashboardLayout() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
-        <header className="h-16 flex items-center justify-between px-6 border-b border-dark-700/50 bg-dark-900/50 backdrop-blur-sm">
+        <header className="h-16 flex items-center justify-between px-6 border-b border-dark-100 bg-white/75 backdrop-blur-sm shadow-sm shadow-dark-900/[0.01]">
           <button
             onClick={() => setMobileOpen(true)}
-            className="lg:hidden p-2 rounded-lg text-dark-400 hover:text-white hover:bg-dark-800 transition-colors"
+            className="lg:hidden p-2 rounded-lg text-dark-500 hover:text-primary-600 hover:bg-primary-50 transition-colors"
           >
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
           <div className="flex-1" />
           <div className="flex items-center gap-3">
-            <span className="text-sm text-dark-400">{user?.role === 'TELEMARKETER' ? 'Telemarketer' : user?.role}</span>
+            <span className="text-sm font-semibold text-primary-700 bg-primary-50 px-3 py-1 rounded-full border border-primary-500/10">
+              {user?.role === 'TELEMARKETER' ? 'Telemarketer Portal' : user?.role}
+            </span>
           </div>
         </header>
 

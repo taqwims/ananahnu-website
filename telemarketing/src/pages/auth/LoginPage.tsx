@@ -59,18 +59,18 @@ export default function LoginPage() {
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: 'spring' }}
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 mb-4 shadow-xl shadow-primary-600/30"
+            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 mb-4 shadow-xl shadow-primary-600/20"
           >
             <Headphones className="w-8 h-8 text-white" />
           </motion.div>
-          <h1 className="text-2xl font-bold text-white">HalalCore</h1>
-          <p className="text-dark-400 text-sm mt-1">Telemarketing Portal</p>
+          <h1 className="text-2xl font-bold text-primary-900">HalalCore</h1>
+          <p className="text-primary-700 text-sm mt-1">Telemarketing Portal</p>
         </div>
 
         {/* Form Card */}
         <div className="glass-card p-8">
-          <h2 className="text-xl font-semibold text-white mb-1">Selamat Datang</h2>
-          <p className="text-dark-400 text-sm mb-6">Masuk ke akun telemarketer Anda</p>
+          <h2 className="text-xl font-bold text-primary-900 mb-1">Selamat Datang</h2>
+          <p className="text-dark-500 text-sm mb-6">Masuk ke akun telemarketer Anda</p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
@@ -103,7 +103,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-dark-400 hover:text-white transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-dark-400 hover:text-primary-600 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
