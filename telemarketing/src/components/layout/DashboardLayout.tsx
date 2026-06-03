@@ -26,7 +26,7 @@ export default function DashboardLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-gradient-main text-dark-800 overflow-hidden">
+    <div className="flex h-screen bg-gradient-to-br from-brand-50 to-brand-100 text-dark-800 overflow-hidden">
       {/* Mobile Overlay */}
       <AnimatePresence>
         {mobileOpen && (
@@ -52,7 +52,7 @@ export default function DashboardLayout() {
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 h-16 border-b border-dark-100">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center flex-shrink-0 shadow-md shadow-primary-600/10">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center flex-shrink-0 shadow-md shadow-brand-600/10">
             <Headphones className="w-5 h-5 text-white" />
           </div>
           {sidebarOpen && (
@@ -61,7 +61,7 @@ export default function DashboardLayout() {
               animate={{ opacity: 1, x: 0 }}
               className="overflow-hidden"
             >
-              <h1 className="text-base font-extrabold bg-gradient-to-r from-primary-700 to-primary-900 bg-clip-text text-transparent">
+              <h1 className="text-base font-extrabold bg-gradient-to-r from-brand-700 to-brand-900 bg-clip-text text-transparent">
                 HalalCore
               </h1>
               <p className="text-[10px] text-gold-600 font-bold uppercase tracking-wider -mt-0.5">Telemarketing</p>
@@ -80,8 +80,8 @@ export default function DashboardLayout() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
                   isActive
-                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/15 font-semibold'
-                    : 'text-dark-500 hover:text-primary-700 hover:bg-primary-50/50'
+                    ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/15 font-semibold'
+                    : 'text-dark-500 hover:text-brand-700 hover:bg-brand-50/50'
                 }`
               }
             >
@@ -131,7 +131,7 @@ export default function DashboardLayout() {
         {/* Toggle Button (desktop) */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="hidden lg:flex absolute -right-3 top-20 w-6 h-6 rounded-full bg-white border border-dark-200 items-center justify-center text-dark-500 hover:text-primary-600 shadow-sm cursor-pointer hover:bg-dark-50 transition-colors"
+          className="hidden lg:flex absolute -right-3 top-20 w-6 h-6 rounded-full bg-white border border-dark-200 items-center justify-center text-dark-500 hover:text-brand-600 shadow-sm cursor-pointer hover:bg-dark-50 transition-colors"
         >
           <ChevronRight className={`w-3 h-3 transition-transform ${sidebarOpen ? 'rotate-180' : ''}`} />
         </button>
@@ -143,20 +143,20 @@ export default function DashboardLayout() {
         <header className="h-16 flex items-center justify-between px-6 border-b border-dark-100 bg-white/75 backdrop-blur-sm shadow-sm shadow-dark-900/[0.01]">
           <button
             onClick={() => setMobileOpen(true)}
-            className="lg:hidden p-2 rounded-lg text-dark-500 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+            className="lg:hidden p-2 rounded-lg text-dark-500 hover:text-brand-600 hover:bg-brand-50 transition-colors"
           >
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
           <div className="flex-1" />
           <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold text-primary-700 bg-primary-50 px-3 py-1 rounded-full border border-primary-500/10">
+            <span className="text-sm font-semibold text-brand-700 bg-brand-50 px-3 py-1 rounded-full border border-brand-500/10">
               {user?.role === 'TELEMARKETER' ? 'Telemarketer Portal' : user?.role}
             </span>
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           <Outlet />
         </main>
       </div>

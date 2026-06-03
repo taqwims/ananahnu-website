@@ -3,16 +3,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @theme {
-  --color-primary-50: #f0f7f4;
-  --color-primary-100: #dcf0e8;
-  --color-primary-200: #b9e1d1;
-  --color-primary-300: #8cd0b4;
-  --color-primary-400: #5eb994;
-  --color-primary-500: #3b9b7a;
-  --color-primary-600: #004033; /* Halal Core Primary Green */
-  --color-primary-700: #003329;
-  --color-primary-800: #00261f;
-  --color-primary-900: #001a15;
+  --color-brand-50: #f0f7f4;
+  --color-brand-100: #dcf0e8;
+  --color-brand-200: #b9e1d1;
+  --color-brand-300: #8cd0b4;
+  --color-brand-400: #5eb994;
+  --color-brand-500: #3b9b7a;
+  --color-brand-600: #004033; /* Halal Core Primary Green */
+  --color-brand-700: #003329;
+  --color-brand-800: #00261f;
+  --color-brand-900: #001a15;
 
   --color-gold-50: #fdf8eb;
   --color-gold-100: #f9ebca;
@@ -24,6 +24,12 @@
   --color-gold-700: #806337;
   --color-gold-800: #614a2a;
   --color-gold-900: #4a3a22;
+
+  --color-glass-100: rgba(255, 255, 255, 0.8);
+  --color-glass-200: rgba(255, 255, 255, 0.9);
+  --color-glass-300: rgba(255, 255, 255, 1);
+  --color-glass-border: rgba(228, 228, 231, 0.6);
+  --color-glass-text: rgba(24, 24, 27, 0.9);
 
   --color-emerald-50: #ecfdf5;
   --color-emerald-400: #34d399;
@@ -54,91 +60,68 @@
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* ─── Base ────────────────────────────────────────────────────────── */
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@layer base {
+  body {
+    @apply bg-brand-50 min-h-screen text-gray-800 antialiased font-sans;
+  }
 }
 
-html {
-  scroll-behavior: smooth;
-}
+@layer components {
+  .glass-panel {
+    @apply bg-white border border-gray-200 rounded-xl shadow-sm;
+  }
 
-body {
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  color: var(--color-dark-800);
-}
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
 
-/* ─── Glassmorphism Utilities ─────────────────────────────────────── */
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
 
-.glass {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 64, 51, 0.1);
-}
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-200 rounded-full hover:bg-gray-300 transition-colors;
+  }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(0, 64, 51, 0.08);
-  border-radius: 16px;
-  box-shadow: 0 10px 30px -10px rgba(0, 64, 51, 0.05), 0 1px 3px rgba(0, 64, 51, 0.02);
-}
+  .glass-button {
+    @apply px-4 py-2 rounded-lg bg-gray-900 text-white font-medium shadow-sm hover:bg-gray-800 transition-all active:scale-95;
+  }
 
-.glass-light {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 64, 51, 0.12);
-}
+  .glass-input {
+    @apply w-full px-4 py-2 rounded-lg bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all;
+  }
 
-/* ─── Gradient Backgrounds ────────────────────────────────────────── */
+  .btn-primary {
+    @apply px-4 py-2 rounded-xl bg-brand-600 text-white font-semibold shadow-md hover:bg-brand-700 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
+  }
 
-.bg-gradient-main {
-  background: linear-gradient(135deg, #f0f7f4 0%, #ffffff 50%, #fdf8eb 100%);
-  background-attachment: fixed;
-}
+  .btn-secondary {
+    @apply px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 font-semibold shadow-sm hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50 cursor-pointer;
+  }
 
-.bg-gradient-card {
-  background: linear-gradient(135deg, rgba(0, 64, 51, 0.03) 0%, rgba(192, 160, 96, 0.05) 100%);
-}
+  .form-input {
+    @apply w-full px-4 py-3 rounded-xl bg-white border border-dark-200 text-dark-900
+           placeholder-dark-400 transition-all duration-200
+           focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20;
+  }
 
-.bg-gradient-emerald {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(52, 211, 153, 0.03) 100%);
-}
+  .form-label {
+    @apply block text-sm font-medium text-dark-700 mb-2;
+  }
 
-.bg-gradient-amber {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(251, 191, 36, 0.03) 100%);
-}
+  .form-select {
+    @apply w-full px-4 py-3 rounded-xl bg-white border border-dark-200 text-dark-900
+           transition-all duration-200 appearance-none cursor-pointer
+           focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20;
+  }
 
-.bg-gradient-rose {
-  background: linear-gradient(135deg, rgba(244, 63, 94, 0.1) 0%, rgba(251, 113, 133, 0.03) 100%);
-}
-
-/* ─── Custom Scrollbar ────────────────────────────────────────────── */
-
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 64, 51, 0.15);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 64, 51, 0.3);
+  .form-checkbox {
+    @apply w-5 h-5 rounded-md bg-white border-2 border-dark-300 text-brand-600
+           cursor-pointer transition-all duration-200
+           focus:ring-2 focus:ring-brand-500/30 focus:ring-offset-0
+           checked:bg-brand-600 checked:border-brand-600;
+  }
 }
 
 /* ─── Animations ──────────────────────────────────────────────────── */
@@ -186,78 +169,20 @@ body {
   animation: pulse-glow 2s infinite;
 }
 
-/* ─── Form Styles ─────────────────────────────────────────────────── */
-
-.form-input {
-  @apply w-full px-4 py-3 rounded-xl bg-white border border-dark-200 text-dark-900
-         placeholder-dark-400 transition-all duration-200
-         focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20;
-}
-
-.form-label {
-  @apply block text-sm font-medium text-dark-700 mb-2;
-}
-
-.form-select {
-  @apply w-full px-4 py-3 rounded-xl bg-white border border-dark-200 text-dark-900
-         transition-all duration-200 appearance-none cursor-pointer
-         focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20;
-}
-
-.form-checkbox {
-  @apply w-5 h-5 rounded-md bg-white border-2 border-dark-300 text-primary-600
-         cursor-pointer transition-all duration-200
-         focus:ring-2 focus:ring-primary-500/30 focus:ring-offset-0
-         checked:bg-primary-600 checked:border-primary-600;
-}
-
-/* ─── Button Styles ───────────────────────────────────────────────── */
-
-.btn-primary {
-  @apply px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-xl
-         transition-all duration-200 shadow-lg shadow-primary-600/15
-         hover:-translate-y-0.5 active:translate-y-0 cursor-pointer;
-}
-
-.btn-secondary {
-  @apply px-6 py-3 bg-white hover:bg-dark-50 text-dark-700 font-semibold rounded-xl
-         border border-dark-200 transition-all duration-200
-         hover:-translate-y-0.5 active:translate-y-0 cursor-pointer;
-}
-
-.btn-success {
-  @apply px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl
-         transition-all duration-200 shadow-lg shadow-emerald-600/15
-         hover:-translate-y-0.5 cursor-pointer;
-}
-
-.btn-danger {
-  @apply px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl
-         transition-all duration-200 shadow-lg shadow-rose-600/15 cursor-pointer;
-}
-
 /* ─── Card Styles ─────────────────────────────────────────────────── */
 
 .stat-card {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(0, 64, 51, 0.08);
-  border-radius: 16px;
-  padding: 1.5rem;
-  transition: all 0.3s;
+  @apply bg-white border border-gray-200 rounded-xl p-6 transition-all duration-300;
 }
 
 .stat-card:hover {
-  border-color: rgba(0, 64, 51, 0.15);
-  box-shadow: 0 10px 25px -5px rgba(0, 64, 51, 0.05);
+  @apply border-brand-200 shadow-md;
 }
 
 .table-row {
-  border-bottom: 1px solid rgba(0, 64, 51, 0.04);
-  transition: background-color 0.2s;
+  @apply border-b border-gray-50 transition-colors;
 }
 
 .table-row:hover {
-  background-color: rgba(0, 64, 51, 0.02);
+  @apply bg-brand-50/50;
 }

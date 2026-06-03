@@ -25,7 +25,7 @@ export default function AnalyticsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-3 border-primary-500/30 border-t-primary-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-3 border-brand-500/30 border-t-brand-500 rounded-full animate-spin" />
       </div>
     );
   }
@@ -39,17 +39,17 @@ export default function AnalyticsPage() {
   }
 
   const summaryCards = [
-    { label: 'Total Form', value: analytics.total_forms, icon: FileText, color: 'text-primary-700', bg: 'bg-gradient-card' },
+    { label: 'Total Form', value: analytics.total_forms, icon: FileText, color: 'text-brand-700', bg: 'bg-gradient-card' },
     { label: 'Akun Dibuat', value: analytics.total_account_created, icon: UserCheck, color: 'text-emerald-600', bg: 'bg-gradient-emerald' },
     { label: 'Dibayar', value: analytics.total_paid, icon: CreditCard, color: 'text-amber-600', bg: 'bg-gradient-amber' },
-    { label: 'Conversion', value: `${analytics.conversion_rate.toFixed(1)}%`, icon: Percent, color: 'text-primary-700', bg: 'bg-gradient-card' },
+    { label: 'Conversion', value: `${analytics.conversion_rate.toFixed(1)}%`, icon: Percent, color: 'text-brand-700', bg: 'bg-gradient-card' },
   ];
 
   // Custom tooltip component
   const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) => {
     if (!active || !payload) return null;
     return (
-      <div className="glass p-3 !rounded-lg text-xs border border-primary-500/10 shadow-md">
+      <div className="glass p-3 !rounded-lg text-xs border border-brand-500/10 shadow-md">
         <p className="text-dark-700 font-bold mb-1">{label}</p>
         {payload.map((entry, i) => (
           <p key={i} style={{ color: entry.color }} className="font-semibold">
@@ -63,8 +63,8 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-primary-900 flex items-center gap-2">
-          <BarChart3 className="w-6 h-6 text-primary-600" /> Analytics
+        <h1 className="text-2xl font-bold text-brand-900 flex items-center gap-2">
+          <BarChart3 className="w-6 h-6 text-brand-600" /> Analytics
         </h1>
         <p className="text-dark-500 text-sm mt-1">Data konversi dan performa telemarketing</p>
       </div>
@@ -84,7 +84,7 @@ export default function AnalyticsPage() {
                 <p className="text-dark-500 text-xs font-semibold uppercase tracking-wider">{card.label}</p>
                 <p className={`text-3xl font-extrabold mt-2 ${card.color}`}>{card.value}</p>
               </div>
-              <div className={`p-2.5 rounded-xl ${card.bg} border border-primary-500/10`}>
+              <div className={`p-2.5 rounded-xl ${card.bg} border border-brand-500/10`}>
                 <card.icon className={`w-5 h-5 ${card.color}`} />
               </div>
             </div>
@@ -100,8 +100,8 @@ export default function AnalyticsPage() {
           transition={{ delay: 0.4 }}
           className="glass-card p-6"
         >
-          <h3 className="text-base font-bold text-primary-900 mb-4 flex items-center gap-2">
-            <ArrowDown className="w-4 h-4 text-primary-600" /> Conversion Funnel
+          <h3 className="text-base font-bold text-brand-900 mb-4 flex items-center gap-2">
+            <ArrowDown className="w-4 h-4 text-brand-600" /> Conversion Funnel
           </h3>
 
           <div className="space-y-3">
@@ -115,7 +115,7 @@ export default function AnalyticsPage() {
                 <div key={step.step} className="group">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <Icon className="w-3.5 h-3.5 text-dark-500 group-hover:text-primary-600 transition-colors" />
+                      <Icon className="w-3.5 h-3.5 text-dark-500 group-hover:text-brand-600 transition-colors" />
                       <span className="text-sm text-dark-700 font-medium">{step.step}</span>
                     </div>
                     <span className="text-sm font-bold text-dark-900">{step.count}</span>
@@ -125,7 +125,7 @@ export default function AnalyticsPage() {
                       initial={{ width: 0 }}
                       animate={{ width: `${percentage}%` }}
                       transition={{ delay: 0.5 + i * 0.1, duration: 0.6 }}
-                      className="h-full rounded-full bg-gradient-to-r from-primary-600 to-primary-400"
+                      className="h-full rounded-full bg-gradient-to-r from-brand-600 to-brand-400"
                     />
                   </div>
                   {i > 0 && maxCount > 0 && (
@@ -146,16 +146,16 @@ export default function AnalyticsPage() {
           transition={{ delay: 0.5 }}
           className="glass-card p-6"
         >
-          <h3 className="text-base font-bold text-primary-900 mb-4 flex items-center gap-2">
+          <h3 className="text-base font-bold text-brand-900 mb-4 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-emerald-600" /> Distribusi Routing
           </h3>
 
           <div className="flex items-center gap-8 justify-center py-8">
             {/* Teleconference */}
             <div className="text-center">
-              <div className="w-28 h-28 rounded-full border-[6px] border-primary-100 flex items-center justify-center mx-auto relative">
+              <div className="w-28 h-28 rounded-full border-[6px] border-brand-100 flex items-center justify-center mx-auto relative">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-primary-700">{analytics.total_teleconference}</p>
+                  <p className="text-2xl font-bold text-brand-700">{analytics.total_teleconference}</p>
                   <p className="text-[10px] text-dark-500 font-bold uppercase">form</p>
                 </div>
                 <svg className="absolute inset-0" viewBox="0 0 36 36">
@@ -206,7 +206,7 @@ export default function AnalyticsPage() {
           transition={{ delay: 0.6 }}
           className="glass-card p-6"
         >
-          <h3 className="text-base font-bold text-primary-900 mb-4">Tren Bulanan</h3>
+          <h3 className="text-base font-bold text-brand-900 mb-4">Tren Bulanan</h3>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={analytics.monthly_trend}>
@@ -254,7 +254,7 @@ export default function AnalyticsPage() {
           </div>
           <div className="flex items-center justify-center gap-6 mt-4">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-primary-600" />
+              <div className="w-3 h-3 rounded-full bg-brand-600" />
               <span className="text-xs text-dark-500 font-semibold">Form Masuk</span>
             </div>
             <div className="flex items-center gap-2">

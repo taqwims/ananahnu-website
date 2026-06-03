@@ -126,6 +126,9 @@ export const getMyMeetings = (params?: Record<string, string | number>) =>
 export const updateMeeting = (id: string, data: Record<string, unknown>) =>
   api.put(`/tele/meetings/${id}`, data);
 
+export const deleteMeeting = (id: string) =>
+  api.delete(`/tele/meetings/${id}`);
+
 // Account
 export const generateClientAccount = (formId: string) =>
   api.post<{ email: string; password: string; user_id: string }>(`/tele/generate-account/${formId}`);

@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: 'bg-dark-100 text-dark-600 border border-dark-200',
-  TELECONFERENCE_QUEUED: 'bg-primary-50 text-primary-700 border border-primary-100',
+  TELECONFERENCE_QUEUED: 'bg-brand-50 text-brand-700 border border-brand-100',
   MEETING_SCHEDULED: 'bg-blue-50 text-blue-700 border border-blue-100',
   MEETING_COMPLETED: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
   ACCOUNT_CREATED: 'bg-purple-50 text-purple-700 border border-purple-100',
@@ -95,8 +95,8 @@ export default function ClientManagement() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-primary-900 flex items-center gap-2">
-          <Users className="w-6 h-6 text-primary-600" /> Client Management
+        <h1 className="text-2xl font-bold text-brand-900 flex items-center gap-2">
+          <Users className="w-6 h-6 text-brand-600" /> Client Management
         </h1>
         <p className="text-dark-500 text-sm mt-1">Kelola data client yang masuk via form</p>
       </div>
@@ -134,21 +134,21 @@ export default function ClientManagement() {
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-dark-200 bg-primary-50/50">
-                <th className="py-3.5 px-4 text-xs font-bold text-primary-900 uppercase">Client</th>
-                <th className="py-3.5 px-4 text-xs font-bold text-primary-900 uppercase">Kontak</th>
-                <th className="py-3.5 px-4 text-xs font-bold text-primary-900 uppercase">Usaha</th>
-                <th className="py-3.5 px-4 text-xs font-bold text-primary-900 uppercase">Route</th>
-                <th className="py-3.5 px-4 text-xs font-bold text-primary-900 uppercase">Status</th>
-                <th className="py-3.5 px-4 text-xs font-bold text-primary-900 uppercase">Tanggal</th>
-                <th className="py-3.5 px-4 text-xs font-bold text-primary-900 uppercase text-right">Aksi</th>
+              <tr className="border-b border-dark-200 bg-brand-50/50">
+                <th className="py-3.5 px-4 text-xs font-bold text-brand-900 uppercase">Client</th>
+                <th className="py-3.5 px-4 text-xs font-bold text-brand-900 uppercase">Kontak</th>
+                <th className="py-3.5 px-4 text-xs font-bold text-brand-900 uppercase">Usaha</th>
+                <th className="py-3.5 px-4 text-xs font-bold text-brand-900 uppercase">Route</th>
+                <th className="py-3.5 px-4 text-xs font-bold text-brand-900 uppercase">Status</th>
+                <th className="py-3.5 px-4 text-xs font-bold text-brand-900 uppercase">Tanggal</th>
+                <th className="py-3.5 px-4 text-xs font-bold text-brand-900 uppercase text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-dark-100">
               {loading ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-dark-500">
-                    <div className="w-6 h-6 border-2 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mx-auto" />
+                    <div className="w-6 h-6 border-2 border-brand-500/30 border-t-brand-500 rounded-full animate-spin mx-auto" />
                   </td>
                 </tr>
               ) : forms.length === 0 ? (
@@ -189,7 +189,7 @@ export default function ClientManagement() {
                     <td className="py-3.5 px-4">
                       <span className={`text-[10px] px-2 py-1 rounded-full font-bold border ${
                         form.route_type === 'TELECONFERENCE'
-                          ? 'bg-primary-50 text-primary-700 border-primary-100'
+                          ? 'bg-brand-50 text-brand-700 border-brand-100'
                           : 'bg-amber-50 text-amber-700 border-amber-100'
                       }`}>
                         {form.route_type === 'TELECONFERENCE' ? 'Telekonferensi' : 'Self Declare'}
@@ -209,7 +209,7 @@ export default function ClientManagement() {
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => setSelectedForm(form)}
-                          className="p-1.5 rounded-lg text-dark-500 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                          className="p-1.5 rounded-lg text-dark-500 hover:text-brand-600 hover:bg-brand-50 transition-colors"
                           title="Detail"
                         >
                           <Eye className="w-4 h-4" />
@@ -226,7 +226,7 @@ export default function ClientManagement() {
                         {form.status === 'TELECONFERENCE_QUEUED' && (
                           <button
                             onClick={() => handleUpdateStatus(form.id, 'MEETING_COMPLETED')}
-                            className="p-1.5 rounded-lg text-primary-600 hover:bg-primary-50 border border-transparent hover:border-primary-100 transition-colors"
+                            className="p-1.5 rounded-lg text-brand-600 hover:bg-brand-50 border border-transparent hover:border-brand-100 transition-colors"
                             title="Meeting Selesai"
                           >
                             <CheckCircle2 className="w-4 h-4" />
@@ -243,7 +243,7 @@ export default function ClientManagement() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-dark-100 bg-primary-50/20">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-dark-100 bg-brand-50/20">
             <span className="text-xs text-dark-500 font-medium">{total} total data</span>
             <div className="flex gap-1">
               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => (
@@ -252,8 +252,8 @@ export default function ClientManagement() {
                   onClick={() => setPage(i + 1)}
                   className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${
                     page === i + 1
-                      ? 'bg-primary-600 text-white shadow-md shadow-primary-600/10'
-                      : 'text-dark-500 hover:bg-primary-50 hover:text-primary-600'
+                      ? 'bg-brand-600 text-white shadow-md shadow-brand-600/10'
+                      : 'text-dark-500 hover:bg-brand-50 hover:text-brand-600'
                   }`}
                 >
                   {i + 1}
@@ -273,7 +273,7 @@ export default function ClientManagement() {
             className="glass-card p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-bold text-primary-900 mb-4">Detail Client</h3>
+            <h3 className="text-lg font-bold text-brand-900 mb-4">Detail Client</h3>
             <div className="space-y-3">
               {[
                 ['Nama', selectedForm.name],
