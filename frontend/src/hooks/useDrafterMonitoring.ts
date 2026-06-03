@@ -59,9 +59,9 @@ export const useDrafterMonitoring = () => {
                                 s.client?.client_name?.toLowerCase().includes(searchLower) ||
                                 (s as any).assigned_drafter?.full_name.toLowerCase().includes(searchLower);
 
-            const isVerifikatorRestricted = user?.role === 'VERIFIKATOR' && !isReguler;
+            const isAuditManagerRestricted = user?.role === 'AUDIT_MANAGER' && !isReguler;
 
-            return matchesTab && matchesService && matchesSearch && !isVerifikatorRestricted;
+            return matchesTab && matchesService && matchesSearch && !isAuditManagerRestricted;
         });
     }, [submissions, activeTab, serviceFilter, search]);
 

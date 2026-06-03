@@ -37,7 +37,7 @@ func (uc *submissionWorkflowUsecase) HandlePaymentSuccess(id uuid.UUID, amount f
 		// Notify QC
 		users, _, _ := uc.UserRepo.FindAll(map[string]interface{}{}, 1, 100)
 		for _, u := range users {
-			if u.Role.Name == "QC_OFFICER" || (u.Role.Name == "VERIFIKATOR" && sub.ServiceType == "REGULER") {
+			if u.Role.Name == "QC_OFFICER" || (u.Role.Name == "AUDIT_MANAGER" && sub.ServiceType == "REGULER") {
 				_ = uc.NotifUC.SendWorkflowNotification("payment_confirmed_internal", map[string]string{
 					"business_name": sub.Client.BusinessName,
 				}, u.Phone, &u.ID, id, "Pembayaran Diterima", "Pembayaran untuk *"+sub.Client.BusinessName+"* telah diverifikasi. Silakan distribusikan ke Drafter.")

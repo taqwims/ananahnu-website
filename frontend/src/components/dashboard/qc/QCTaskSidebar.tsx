@@ -1,4 +1,5 @@
-import { Search, ShieldCheck, Maximize2, Minimize2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Search, ShieldCheck, Maximize2, Minimize2, Calendar, Clock } from 'lucide-react';
 import type { Submission } from '../../../types';
 import { formatServiceType } from '../../../utils/format';
 
@@ -10,6 +11,8 @@ interface QCTaskSidebarProps {
     setSearch: (s: string) => void;
     isFocusMode: boolean;
     setIsFocusMode: (v: boolean) => void;
+    title?: string;
+    showAuditTabs?: boolean;
 }
 
 export const QCTaskSidebar = ({
@@ -19,14 +22,34 @@ export const QCTaskSidebar = ({
     search,
     setSearch,
     isFocusMode,
-    setIsFocusMode
+    setIsFocusMode,
+    title = 'Tugas QC',
+    showAuditTabs = false
 }: QCTaskSidebarProps) => {
+    const [auditTab, setAuditTab] = useState<'pending' | 'scheduled'>('pending');
+
+    const pendingCount = useMemo(() => {
+        return submissions.filter(s => !s.audit_date).length;
+    }, [submissions]);
+
+    const scheduledCount = useMemo(() => {
+        return submissions.filter(s => !!s.audit_date).length;
+    }, [submissions]);
+
+    const filteredList = useMemo(() => {
+        if (!showAuditTabs) return submissions;
+        return submissions.filter(s => {
+            const hasDate = !!s.audit_date;
+            return auditTab === 'scheduled' ? hasDate : !hasDate;
+        });
+    }, [submissions, showAuditTabs, auditTab]);
+
     return (
         <div className={`w-80 flex flex-col glass-panel p-0 overflow-hidden border-white/60 shadow-xl transition-all ${activeSubId ? 'hidden xl:flex' : 'flex w-full sm:w-80'}`}>
             <div className="p-4 border-b border-gray-100 space-y-4 bg-white/40">
                 <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
                     <ShieldCheck className="w-5 h-5 text-brand-600" />
-                    Tugas QC
+                    {title}
                 </h2>
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -38,6 +61,32 @@ export const QCTaskSidebar = ({
                         onChange={e => setSearch(e.target.value)}
                     />
                 </div>
+                {showAuditTabs && (
+                    <div className="flex bg-gray-100/80 p-0.5 rounded-xl border border-gray-250/60 text-[10px] font-black uppercase tracking-wider">
+                        <button
+                            onClick={() => setAuditTab('pending')}
+                            className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1 transition-all ${
+                                auditTab === 'pending'
+                                    ? 'bg-white text-gray-800 shadow-sm font-black'
+                                    : 'text-gray-400 hover:text-gray-800'
+                            }`}
+                        >
+                            <Clock className="w-3 h-3 text-amber-500" />
+                            Belum Audit ({pendingCount})
+                        </button>
+                        <button
+                            onClick={() => setAuditTab('scheduled')}
+                            className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1 transition-all ${
+                                auditTab === 'scheduled'
+                                    ? 'bg-white text-gray-800 shadow-sm font-black'
+                                    : 'text-gray-400 hover:text-gray-800'
+                            }`}
+                        >
+                            <Calendar className="w-3 h-3 text-emerald-500" />
+                            Terjadwal ({scheduledCount})
+                        </button>
+                    </div>
+                )}
                 <button
                     onClick={() => setIsFocusMode(!isFocusMode)}
                     className={`w-full mt-4 flex items-center justify-center gap-2 py-2 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest ${isFocusMode ? 'bg-brand-600 text-white shadow-lg' : 'bg-white/60 text-gray-500 hover:bg-white hover:text-brand-600 shadow-sm border border-white/80'}`}
@@ -48,12 +97,12 @@ export const QCTaskSidebar = ({
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2">
-                {submissions.length === 0 ? (
-                    <div className="p-8 text-center text-gray-400 italic text-sm">
-                        Tidak ada antrian QC
+                {filteredList.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400 italic text-sm font-medium">
+                        {showAuditTabs ? 'Tidak ada antrian audit' : 'Tidak ada antrian QC'}
                     </div>
                 ) : (
-                    submissions.map(sub => (
+                    filteredList.map(sub => (
                         <button
                             key={sub.id}
                             onClick={() => setActiveSubId(sub.id)}
@@ -84,6 +133,12 @@ export const QCTaskSidebar = ({
                             <p className={`text-[10px] truncate ${activeSubId === sub.id ? 'text-brand-100' : 'text-gray-500'}`}>
                                 {sub.client?.client_name}
                             </p>
+                            {sub.audit_date && (
+                                <p className={`text-[9px] font-bold mt-1 flex items-center gap-1 ${activeSubId === sub.id ? 'text-brand-100' : 'text-emerald-600'}`}>
+                                    <Calendar className="w-3 h-3" />
+                                    Jadwal: {new Date(sub.audit_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </p>
+                            )}
                         </button>
                     ))
                 )}

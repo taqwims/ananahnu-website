@@ -75,6 +75,8 @@ export interface Submission {
     sales_scheme_id?: number;
     consultant_id?: string;
     consultant?: User;
+    assigned_drafter_id?: string;
+    assigned_drafter?: User;
     data_source?: string;
     regency_id?: number;
     district_id?: number;

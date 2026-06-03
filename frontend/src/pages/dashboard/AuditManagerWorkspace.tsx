@@ -1,15 +1,17 @@
 import { useEffect } from 'react';
-import { Loader2, ShieldCheck } from 'lucide-react';
-import { useVerifikatorWorkspace } from '../../hooks/useVerifikatorWorkspace';
+import { Loader2, ArrowLeft } from 'lucide-react';
+import { useAuditManagerWorkspace } from '../../hooks/useAuditManagerWorkspace';
 import { QCTaskSidebar } from '../../components/dashboard/qc/QCTaskSidebar';
 import { QCWorkspaceHeader } from '../../components/dashboard/qc/QCWorkspaceHeader';
 import { QCReferencePanel } from '../../components/dashboard/qc/QCReferencePanel';
 import { QCReviewPanel } from '../../components/dashboard/qc/QCReviewPanel';
 import { RejectModal } from '../../components/dashboard/qc/RejectModal';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AuditCalendar } from '../../components/dashboard/audit/AuditCalendar';
 
-export default function VerifikatorWorkspace() {
+export default function AuditManagerWorkspace() {
     const {
+        submissions,
         filteredSubmissions,
         activeSubId,
         setActiveSubId,
@@ -48,7 +50,7 @@ export default function VerifikatorWorkspace() {
         handleUpdateAudit,
         handleIssueSH,
         updateFieldValue
-    } = useVerifikatorWorkspace(new URLSearchParams(window.location.search).get('id'));
+    } = useAuditManagerWorkspace(new URLSearchParams(window.location.search).get('id'));
 
     // Handle Escape key to exit focus mode
     useEffect(() => {
@@ -66,7 +68,7 @@ export default function VerifikatorWorkspace() {
         return (
             <div className="flex flex-col items-center justify-center h-[80vh] gap-4">
                 <Loader2 className="w-12 h-12 animate-spin text-brand-600" />
-                <p className="text-gray-500 font-medium">Menyiapkan Ruang Kerja Verifikator...</p>
+                <p className="text-gray-500 font-medium">Menyiapkan Ruang Kerja Audit Manager...</p>
             </div>
         );
     }
@@ -81,6 +83,8 @@ export default function VerifikatorWorkspace() {
                 setSearch={setSearch}
                 isFocusMode={isFocusMode}
                 setIsFocusMode={setIsFocusMode}
+                title="Tugas Audit"
+                showAuditTabs={true}
             />
 
             <div className="flex-1 flex flex-col min-w-0">
@@ -90,15 +94,12 @@ export default function VerifikatorWorkspace() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            className="flex-1 glass-panel flex flex-col items-center justify-center text-center p-12 border-white/40 shadow-2xl"
+                            className="flex-1 flex flex-col overflow-hidden min-h-0"
                         >
-                            <div className="w-24 h-24 bg-brand-50 rounded-[2.5rem] flex items-center justify-center mb-6 text-brand-600 animate-pulse">
-                                <ShieldCheck className="w-12 h-12" />
-                            </div>
-                            <h2 className="text-2xl font-black text-gray-800 mb-2">Antrian Verifikator Reguler</h2>
-                            <p className="text-gray-500 max-w-sm font-medium">
-                                Pilih pengajuan reguler dari daftar di sebelah kiri untuk melakukan verifikasi dokumen dan audit.
-                            </p>
+                            <AuditCalendar 
+                                submissions={submissions} 
+                                onSelectSubmission={setActiveSubId} 
+                            />
                         </motion.div>
                     ) : (
                         <motion.div
@@ -107,6 +108,16 @@ export default function VerifikatorWorkspace() {
                             animate={{ opacity: 1, x: 0 }}
                             className="flex-1 flex flex-col overflow-hidden gap-6"
                         >
+                            <div className="flex">
+                                <button
+                                    onClick={() => setActiveSubId(null)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-white/60 hover:bg-white text-gray-750 hover:text-brand-600 rounded-xl border border-white/80 shadow-sm transition-all text-xs font-black uppercase tracking-wider"
+                                >
+                                    <ArrowLeft className="w-4 h-4 text-brand-600" />
+                                    Kembali ke Kalender Audit
+                                </button>
+                            </div>
+
                             <QCWorkspaceHeader
                                 submission={activeSubmission}
                                 setActiveSubId={setActiveSubId}
@@ -143,6 +154,7 @@ export default function VerifikatorWorkspace() {
                                     onUpdateAudit={handleUpdateAudit}
                                     onIssueSH={handleIssueSH}
                                     processing={processing}
+                                    canEditAuditDate={true}
                                 />
                             </div>
                         </motion.div>

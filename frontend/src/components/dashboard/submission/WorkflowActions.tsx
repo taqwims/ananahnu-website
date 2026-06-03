@@ -47,11 +47,11 @@ export const WorkflowActions = ({
     });
 
     useEffect(() => {
-        if (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'VERIFIKATOR')) {
+        if (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'AUDIT_MANAGER')) {
             submissionService.getDrafters().then(setDrafters).catch(() => {});
         }
         if (submission.data_source === 'MARKETING' && 
-            (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR')) {
+            (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER' || user?.role === 'AUDIT_MANAGER')) {
             submissionService.getConsultants().then(setConsultants).catch(() => {});
         }
     }, [submission.status, submission.data_source, user?.role]);
@@ -114,13 +114,13 @@ export const WorkflowActions = ({
 
     const showApprove = ((submission.status === 'VERVAL_PENDAMPING' && (user?.role === 'HALAL_ADVISOR' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'WAITING_PAYMENT' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
-                        (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER'))) ||
+                        (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'AUDIT_MANAGER' && submission.service_type === 'REGULER'))) ||
                         (submission.status === 'DRAFTER' && (user?.role === 'DRAFTER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
-                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER'))));
+                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'AUDIT_MANAGER' && submission.service_type === 'REGULER'))));
 
-    const showReject = ((submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER'))) ||
+    const showReject = ((submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'AUDIT_MANAGER' && submission.service_type === 'REGULER'))) ||
                         (submission.status === 'DRAFTER' && user?.role === 'DRAFTER') ||
-                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER'))) ||
+                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'AUDIT_MANAGER' && submission.service_type === 'REGULER'))) ||
                         (submission.status === 'SIDANG_FATWA' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR')));
 
     const handleDownload = async (format: 'docx' | 'pdf') => {
@@ -180,27 +180,32 @@ export const WorkflowActions = ({
                     )}
 
                     {(submission.status === 'DRAFTER' || submission.status === 'QC_REVIEW') && 
-                        submission.service_type === 'REGULER' && 
-                        (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'DRAFTER' || user?.role === 'HALAL_ADVISOR' || user?.role === 'VERIFIKATOR') && (
+                        submission.service_type === 'REGULER' && (
                         <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 space-y-3">
-                                <label className="flex items-center gap-2 text-sm font-black text-amber-800 tracking-tight">
-                                    📅 Input Tanggal Audit
-                                </label>
-                                <input 
-                                    type="date"
-                                    className="w-full px-4 py-2 rounded-xl border-none focus:ring-2 focus:ring-amber-500/20 text-sm font-medium"
-                                    value={auditDate}
-                                    onChange={(e) => setAuditDate(e.target.value)}
-                                />
-                                <button 
-                                    onClick={() => onSaveAuditInfo(auditDate)}
-                                    disabled={processing || !auditDate}
-                                    className="w-full py-2 bg-amber-600 text-white rounded-xl font-bold text-xs hover:bg-amber-700 transition-all disabled:opacity-50"
-                                >
-                                    Simpan Tanggal Audit
-                                </button>
+                                {/* Only show date inputs to AUDIT_MANAGER / ADMIN / DIRECTOR */}
+                                {(user?.role === 'AUDIT_MANAGER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
+                                    <>
+                                        <label className="flex items-center gap-2 text-sm font-black text-amber-800 tracking-tight">
+                                            📅 Input Tanggal Audit
+                                        </label>
+                                        <input 
+                                            type="date"
+                                            className="w-full px-4 py-2 rounded-xl border-none focus:ring-2 focus:ring-amber-500/20 text-sm font-medium"
+                                            value={auditDate}
+                                            onChange={(e) => setAuditDate(e.target.value)}
+                                        />
+                                        <button 
+                                            onClick={() => onSaveAuditInfo(auditDate)}
+                                            disabled={processing || !auditDate}
+                                            className="w-full py-2 bg-amber-600 text-white rounded-xl font-bold text-xs hover:bg-amber-700 transition-all disabled:opacity-50"
+                                        >
+                                            Simpan Tanggal Audit
+                                        </button>
+                                    </>
+                                )}
 
-                                {(submission.audit_date || auditDate) && (
+                                {/* If audit date is set, show file uploads for DRAFTER, ADMIN, etc. */}
+                                {submission.audit_date ? (
                                     <div className="mt-4 pt-4 border-t border-amber-200 space-y-4">
                                         <div className="space-y-2">
                                             <label className="block text-[10px] font-black text-amber-700 uppercase tracking-widest">File Hasil Audit 1 (Utama)</label>
@@ -219,11 +224,15 @@ export const WorkflowActions = ({
                                             />
                                         </div>
                                     </div>
+                                ) : (
+                                    <div className="mt-2 text-center text-xs font-bold text-amber-700 bg-amber-100/50 p-3 rounded-lg">
+                                        Jadwal audit belum ditetapkan oleh Audit Manager.
+                                    </div>
                                 )}
                         </div>
                     )}
 
-                    {submission.status === 'QC_OFFICER' && !submission.consultant_id && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER')) && (
+                    {submission.status === 'QC_OFFICER' && !submission.consultant_id && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER' || (user?.role === 'AUDIT_MANAGER' && submission.service_type === 'REGULER')) && (
                         <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 space-y-3">
                             <label className="flex items-center gap-2 text-sm font-black text-purple-800 tracking-tight">
                                 <UserCheck className="w-4 h-4" /> Penunjukan Advisor
@@ -248,7 +257,7 @@ export const WorkflowActions = ({
                         </div>
                     )}
 
-                    {submission.status === 'QC_OFFICER' && submission.consultant_id && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'VERIFIKATOR' && submission.service_type === 'REGULER')) && (
+                    {submission.status === 'QC_OFFICER' && submission.consultant_id && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'AUDIT_MANAGER' && submission.service_type === 'REGULER')) && (
                         <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-2">
                             <label className="flex items-center gap-2 text-sm font-semibold text-blue-800">
                                 <UserCheck className="w-4 h-4" /> Pilih Drafter

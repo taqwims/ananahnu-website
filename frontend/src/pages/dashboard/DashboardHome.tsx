@@ -12,6 +12,8 @@ interface DashboardStats {
     sh_terbit: number;
     sidang_fatwa: number;
     pending: number;
+    audited?: number;
+    not_audited?: number;
 }
 
 const COLORS = ['#22c55e', '#eab308', '#3b82f6', '#f43f5e'];
@@ -125,32 +127,59 @@ export default function DashboardHome() {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatsCard
-                    title="Total Clients"
-                    value={formatNumber(stats?.total_clients || 0)}
-                    icon={Users}
-                    trend="+12%"
-                    trendUp={true}
-                />
-                <StatsCard
-                    title="SH Terbit"
-                    value={formatNumber(stats?.sh_terbit || 0)}
-                    icon={CheckCircle}
-                    trend="+5%"
-                    trendUp={true}
-                />
-                <StatsCard
-                    title="Proses Fatwa"
-                    value={formatNumber(stats?.sidang_fatwa || 0)}
-                    icon={FileText}
-                />
-                <StatsCard
-                    title="Pending Actions"
-                    value={formatNumber(stats?.pending || 0)}
-                    icon={Clock}
-                    trend="-2%"
-                    trendUp={false}
-                />
+                {user?.role === 'AUDIT_MANAGER' ? (
+                    <>
+                        <StatsCard
+                            title="Total Pengajuan Reguler"
+                            value={formatNumber((stats?.audited || 0) + (stats?.not_audited || 0))}
+                            icon={FileText}
+                        />
+                        <StatsCard
+                            title="Sudah Diaudit"
+                            value={formatNumber(stats?.audited || 0)}
+                            icon={CheckCircle}
+                        />
+                        <StatsCard
+                            title="Belum Diaudit"
+                            value={formatNumber(stats?.not_audited || 0)}
+                            icon={Clock}
+                        />
+                        <StatsCard
+                            title="Sertifikat Halal Terbit"
+                            value={formatNumber(stats?.sh_terbit || 0)}
+                            icon={ShieldCheck}
+                        />
+                    </>
+                ) : (
+                    <>
+                        <StatsCard
+                            title="Total Clients"
+                            value={formatNumber(stats?.total_clients || 0)}
+                            icon={Users}
+                            trend="+12%"
+                            trendUp={true}
+                        />
+                        <StatsCard
+                            title="SH Terbit"
+                            value={formatNumber(stats?.sh_terbit || 0)}
+                            icon={CheckCircle}
+                            trend="+5%"
+                            trendUp={true}
+                        />
+                        <StatsCard
+                            title="Proses Fatwa"
+                            value={formatNumber(stats?.sidang_fatwa || 0)}
+                            icon={FileText}
+                        />
+                        <StatsCard
+                            title="Pending Actions"
+                            value={formatNumber(stats?.pending || 0)}
+                            icon={Clock}
+                            trend="-2%"
+                            trendUp={false}
+                        />
+                    </>
+                )}
             </div>
 
             {/* Charts Section */}

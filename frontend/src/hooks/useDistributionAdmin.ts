@@ -69,7 +69,7 @@ export const useDistributionAdmin = () => {
 
     const groupedData = useMemo(() => {
         const filtered = submissions.filter(s => {
-            if (user?.role === 'VERIFIKATOR' && s.service_type !== 'REGULER') return false;
+            if (user?.role === 'AUDIT_MANAGER' && s.service_type !== 'REGULER') return false;
             return s.client?.business_name.toLowerCase().includes(search.toLowerCase()) ||
                 s.client?.client_name?.toLowerCase().includes(search.toLowerCase()) ||
                 s.client?.facilitator?.full_name.toLowerCase().includes(search.toLowerCase()) ||

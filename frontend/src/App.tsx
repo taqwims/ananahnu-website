@@ -60,7 +60,8 @@ import AdminReferralDashboard from './pages/dashboard/AdminReferralDashboard';
 import ReferralFeeAdmin from './pages/dashboard/ReferralFeeAdmin';
 import DrafterWorkspace from './pages/dashboard/DrafterWorkspace';
 import QCWorkspace from './pages/dashboard/QCWorkspace';
-import VerifikatorWorkspace from './pages/dashboard/VerifikatorWorkspace';
+import AuditManagerWorkspace from './pages/dashboard/AuditManagerWorkspace';
+import DraftManagerDashboard from './pages/dashboard/DraftManagerDashboard';
 import NotificationSettings from './pages/dashboard/NotificationSettings';
 import ProfilePage from './pages/dashboard/Profile';
 import KarirDashboard from './pages/dashboard/KarirDashboard';
@@ -129,8 +130,11 @@ function App() {
           <Route path="qc-workspace" element={
             <RoleRoute path="qc-workspace"><QCWorkspace /></RoleRoute>
           } />
-          <Route path="verifikator-workspace" element={
-            <RoleRoute path="verifikator-workspace"><VerifikatorWorkspace /></RoleRoute>
+          <Route path="audit-manager-workspace" element={
+            <RoleRoute path="audit-manager-workspace"><AuditManagerWorkspace /></RoleRoute>
+          } />
+          <Route path="draft-monitoring" element={
+            <RoleRoute path="draft-monitoring"><DraftManagerDashboard /></RoleRoute>
           } />
 
           {/* Profil Advisor & Karir */}

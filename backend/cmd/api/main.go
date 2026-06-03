@@ -105,10 +105,10 @@ func main() {
 	log.Println("Seeding Roles...")
 	roles := []string{
 		"DIRECTOR", "MANAGER", "QC_OFFICER", "DRAFTER",
-		"HALAL_ADVISOR", "MARKETING", "VERIFIKATOR",
+		"HALAL_ADVISOR", "MARKETING", "AUDIT_MANAGER",
 		"CLIENT", "FINANCE",
 		"HALAL_MANAGER", "HALAL_DIRECTOR", "ADMIN_PELATIHAN", "ADMIN_KEUANGAN",
-		"BUSINESS_DEVELOPMENT",
+		"BUSINESS_DEVELOPMENT", "DRAFT_MANAGER",
 	}
 	for _, roleName := range roles {
 		var r domain.Role

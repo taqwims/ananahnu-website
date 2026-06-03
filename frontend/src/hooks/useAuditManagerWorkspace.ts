@@ -3,8 +3,7 @@ import { submissionService } from '../services/submissionService';
 import type { Submission, FormFieldValue, User } from '../types';
 import toast from 'react-hot-toast';
 
-
-export const useVerifikatorWorkspace = (initialSubId: string | null) => {
+export const useAuditManagerWorkspace = (initialSubId: string | null) => {
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeSubId, setActiveSubId] = useState<string | null>(initialSubId);
@@ -43,20 +42,20 @@ export const useVerifikatorWorkspace = (initialSubId: string | null) => {
     const loadSubmissions = useCallback(async () => {
         setLoading(true);
         try {
-            // Verifikator only handles REGULER service type
+            // Audit Manager only handles REGULER service type
             const [qcOff, qcRev, fatwa, drfts, conslts] = await Promise.all([
                 submissionService.getAll({ status: 'QC_OFFICER', service_type: 'REGULER' }),
                 submissionService.getAll({ status: 'QC_REVIEW', service_type: 'REGULER' }),
                 submissionService.getAll({ status: 'SIDANG_FATWA', service_type: 'REGULER' }),
                 submissionService.getDrafters(),
-                submissionService['api'].get('/admin/users?role=HALAL_ADVISOR')
+                submissionService.getConsultants()
             ]);
             
             setSubmissions([...qcOff, ...qcRev, ...fatwa]);
             setDrafters(drfts);
-            setConsultants(conslts.data?.users || []);
+            setConsultants(conslts || []);
         } catch (err: any) {
-            toast.error(err.message || "Gagal memuat daftar tugas Verifikator");
+            toast.error(err.message || "Gagal memuat daftar tugas Audit Manager");
         } finally {
             setLoading(false);
         }

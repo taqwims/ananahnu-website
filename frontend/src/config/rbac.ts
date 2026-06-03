@@ -8,8 +8,9 @@
  *
  * Role yang ada di sistem:
  *  DIRECTOR, MANAGER, QC_OFFICER, DRAFTER, HALAL_ADVISOR,
- *  MARKETING, VERIFIKATOR, CLIENT, FINANCE,
- *  HALAL_MANAGER, HALAL_DIRECTOR, ADMIN_PELATIHAN, ADMIN_KEUANGAN
+ *  MARKETING, AUDIT_MANAGER, CLIENT, FINANCE,
+ *  HALAL_MANAGER, HALAL_DIRECTOR, ADMIN_PELATIHAN, ADMIN_KEUANGAN,
+ *  BUSINESS_DEVELOPMENT, DRAFT_MANAGER
  */
 
 export type AppRole =
@@ -19,21 +20,22 @@ export type AppRole =
   | 'DRAFTER'
   | 'HALAL_ADVISOR'
   | 'MARKETING'
-  | 'VERIFIKATOR'
+  | 'AUDIT_MANAGER'
   | 'CLIENT'
   | 'FINANCE'
   | 'HALAL_MANAGER'
   | 'HALAL_DIRECTOR'
   | 'ADMIN_PELATIHAN'
   | 'ADMIN_KEUANGAN'
-  | 'BUSINESS_DEVELOPMENT';
+  | 'BUSINESS_DEVELOPMENT'
+  | 'DRAFT_MANAGER';
 
 /** Semua role yang ada — dipakai untuk "semua role bisa akses" */
 export const ALL_ROLES: AppRole[] = [
   'DIRECTOR', 'MANAGER', 'QC_OFFICER', 'DRAFTER', 'HALAL_ADVISOR',
-  'MARKETING', 'VERIFIKATOR', 'CLIENT', 'FINANCE',
+  'MARKETING', 'AUDIT_MANAGER', 'CLIENT', 'FINANCE',
   'HALAL_MANAGER', 'HALAL_DIRECTOR', 'ADMIN_PELATIHAN', 'ADMIN_KEUANGAN',
-  'BUSINESS_DEVELOPMENT',
+  'BUSINESS_DEVELOPMENT', 'DRAFT_MANAGER',
 ];
 
 /**
@@ -53,7 +55,7 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   // ── Klien & Pengajuan ─────────────────────────────────────────────
   'clients': [
     'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR',
-    'DRAFTER', 'QC_OFFICER', 'MARKETING', 'VERIFIKATOR',
+    'DRAFTER', 'QC_OFFICER', 'MARKETING', 'AUDIT_MANAGER',
   ],
   'clients/new': [
     'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'MARKETING',
@@ -61,7 +63,7 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   // clients/:id  → sama dengan clients/new (edit)
   'submissions': [
     'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR',
-    'QC_OFFICER', 'DRAFTER', 'MARKETING', 'VERIFIKATOR',
+    'QC_OFFICER', 'DRAFTER', 'MARKETING', 'AUDIT_MANAGER',
   ],
   'submissions/new': [
     'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'MARKETING',
@@ -76,14 +78,15 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
 
   // ── Workflow ──────────────────────────────────────────────────────
   'distribution': [
-    'QC_OFFICER', 'DIRECTOR', 'MANAGER', 'VERIFIKATOR',
+    'QC_OFFICER', 'DIRECTOR', 'MANAGER', 'AUDIT_MANAGER',
   ],
   'monitoring': [
-    'QC_OFFICER', 'DIRECTOR', 'MANAGER', 'VERIFIKATOR',
+    'QC_OFFICER', 'DIRECTOR', 'MANAGER', 'AUDIT_MANAGER',
   ],
   'drafter-workspace': ['DRAFTER'],
   'qc-workspace':      ['QC_OFFICER', 'DIRECTOR'],
-  'verifikator-workspace': ['VERIFIKATOR', 'DIRECTOR'],
+  'audit-manager-workspace': ['AUDIT_MANAGER', 'DIRECTOR'],
+  'draft-monitoring':  ['DRAFT_MANAGER', 'DIRECTOR'],
 
   // ── Profil Advisor & Karir ────────────────────────────────────────
   'consultant-profile': ['HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR'],

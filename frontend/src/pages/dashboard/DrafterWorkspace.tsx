@@ -27,8 +27,6 @@ export default function DrafterWorkspace() {
         setIsEditingDocs,
         clientForm,
         setClientForm,
-        auditDate,
-        setAuditDate,
         handleAction,
         handleUpdateClient,
         handleUpdateDocs,
@@ -132,8 +130,6 @@ export default function DrafterWorkspace() {
                                     />
                                     <WorkflowPanel
                                         submission={activeSubmission}
-                                        auditDate={auditDate}
-                                        setAuditDate={setAuditDate}
                                         onAction={handleAction}
                                         onSaveAuditResult={handleUpdateAuditResult}
                                         processing={processing}

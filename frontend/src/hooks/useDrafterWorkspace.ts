@@ -26,7 +26,6 @@ export const useDrafterWorkspace = (initialSubId: string | null) => {
     // Details for active submission
     const [activeSubmission, setActiveSubmission] = useState<Submission | null>(null);
     const [fieldValues, setFieldValues] = useState<FormFieldValue[]>([]);
-    const [auditDate, setAuditDate] = useState('');
 
     const loadSubmissions = useCallback(async () => {
         setLoading(true);
@@ -64,9 +63,7 @@ export const useDrafterWorkspace = (initialSubId: string | null) => {
             }
             
             if (sub.audit_date) {
-                setAuditDate(new Date(sub.audit_date).toISOString().split('T')[0]);
-            } else {
-                setAuditDate('');
+                // Done loading audit date
             }
         } catch (err: any) {
             toast.error(err.message || "Gagal memuat detail pengajuan");
@@ -93,14 +90,11 @@ export const useDrafterWorkspace = (initialSubId: string | null) => {
         );
     }, [submissions, search]);
 
-    const handleAction = async (action: 'audit-info' | 'approve') => {
+    const handleAction = async (action: 'approve') => {
         if (!activeSubmission) return;
         setProcessing(true);
         try {
-            if (action === 'audit-info') {
-                await submissionService.saveAuditInfo(activeSubmission.id, auditDate);
-                toast.success("Informasi audit diperbarui");
-            } else if (action === 'approve') {
+            if (action === 'approve') {
                 await submissionService.approve(activeSubmission.id);
                 toast.success("Pengajuan diteruskan ke QC Review");
                 setActiveSubId(null);
@@ -189,8 +183,6 @@ export const useDrafterWorkspace = (initialSubId: string | null) => {
         setIsEditingDocs,
         clientForm,
         setClientForm,
-        auditDate,
-        setAuditDate,
         handleAction,
         handleUpdateClient,
         handleUpdateDocs,

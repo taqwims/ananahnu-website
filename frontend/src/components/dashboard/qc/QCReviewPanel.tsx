@@ -12,6 +12,7 @@ interface QCReviewPanelProps {
     onUpdateAudit: () => Promise<void>;
     onIssueSH: (shUrl: string) => Promise<void>;
     processing: boolean;
+    canEditAuditDate?: boolean;
 }
 
 export const QCReviewPanel = ({
@@ -22,7 +23,8 @@ export const QCReviewPanel = ({
     setIsEditingAudit,
     onUpdateAudit,
     onIssueSH,
-    processing
+    processing,
+    canEditAuditDate = false
 }: QCReviewPanelProps) => {
     const [shUrl, setShUrl] = useState('');
 
@@ -39,12 +41,14 @@ export const QCReviewPanel = ({
                             <div className="w-1 h-5 bg-brand-600 rounded-full" />
                             <h3 className="font-black text-brand-900 uppercase text-[10px] tracking-widest">Hasil Audit Drafter</h3>
                         </div>
-                        <button 
-                            onClick={() => setIsEditingAudit(!isEditingAudit)}
-                            className={`p-2 rounded-lg transition-all ${isEditingAudit ? 'bg-amber-100 text-amber-600' : 'hover:bg-gray-100 text-gray-400'}`}
-                        >
-                            {isEditingAudit ? <X className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
-                        </button>
+                        {canEditAuditDate && (
+                            <button 
+                                onClick={() => setIsEditingAudit(!isEditingAudit)}
+                                className={`p-2 rounded-lg transition-all ${isEditingAudit ? 'bg-amber-100 text-amber-600' : 'hover:bg-gray-100 text-gray-400'}`}
+                            >
+                                {isEditingAudit ? <X className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
+                            </button>
+                        )}
                     </div>
                     <div className="space-y-4">
                         <div className="p-4 bg-white/60 rounded-2xl border border-brand-100">

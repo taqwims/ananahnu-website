@@ -21,6 +21,7 @@ func NewDashboardHandler(r *gin.Engine, uc usecase.DashboardUsecase) {
 	{
 		g.GET("/stats", handler.GetStats)
 		g.GET("/activities", handler.GetActivities)
+		g.GET("/draft-manager/analytics", middleware.RoleMiddleware("DRAFT_MANAGER", "DIRECTOR", "MANAGER"), handler.GetDraftManagerAnalytics)
 	}
 }
 
@@ -46,4 +47,13 @@ func (h *DashboardHandler) GetActivities(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, activities)
+}
+
+func (h *DashboardHandler) GetDraftManagerAnalytics(c *gin.Context) {
+	analytics, err := h.dashboardUC.GetDraftManagerAnalytics()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, analytics)
 }
