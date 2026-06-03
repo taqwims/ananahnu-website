@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -95,6 +97,10 @@ func main() {
 		&domain.SPH{},
 		&domain.CompanyTarget{},
 		&domain.Expense{},
+		// Telemarketing
+		&domain.TeleForm{},
+		&domain.TeleMeeting{},
+		&domain.TeleAgreement{},
 	)
 	if err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
@@ -109,6 +115,7 @@ func main() {
 		"CLIENT", "FINANCE",
 		"HALAL_MANAGER", "HALAL_DIRECTOR", "ADMIN_PELATIHAN", "ADMIN_KEUANGAN",
 		"BUSINESS_DEVELOPMENT", "DRAFT_MANAGER",
+		"TELEMARKETER",
 	}
 	for _, roleName := range roles {
 		var r domain.Role
@@ -169,6 +176,9 @@ func main() {
 	sphRepo := repository.NewSPHRepository(db)
 	companyTargetRepo := repository.NewCompanyTargetRepository(db)
 	expenseRepo := repository.NewExpenseRepository(db)
+	teleFormRepo := repository.NewTeleFormRepository(db)
+	teleMeetingRepo := repository.NewTeleMeetingRepository(db)
+	teleAgreementRepo := repository.NewTeleAgreementRepository(db)
 
 	// Services
 	emailSender := email.NewGmailSender()
@@ -324,6 +334,16 @@ func main() {
 		RoleRepo:       roleRepo,
 	})
 
+	teleUC := usecase.NewTelemarketingUsecase(usecase.TelemarketingUsecaseDeps{
+		FormRepo:      teleFormRepo,
+		MeetingRepo:   teleMeetingRepo,
+		AgreementRepo: teleAgreementRepo,
+		UserRepo:      userRepo,
+		RoleRepo:      roleRepo,
+		NotifUC:       notificationUC,
+		WASender:      waSender,
+	})
+
 	bizDevUC := usecase.NewBizDevUsecase(usecase.BizDevUsecaseDeps{
 		SubmissionRepo: submissionRepo,
 		ClientRepo:     clientRepo,
@@ -335,15 +355,20 @@ func main() {
 	// 7. Setup Router & Handlers
 	r := gin.Default()
 
-	// CORS Middleware
+	// CORS Middleware — supports multiple frontend origins
 	// Access-Control-Allow-Origin cannot be wildcard when credentials are used.
-	// Use the FRONTEND_URL env var for production, fallback to localhost for dev.
+	allowedOrigins := []string{"http://localhost:5173", "http://localhost:5174"}
+	if envOrigins := os.Getenv("FRONTEND_URL"); envOrigins != "" {
+		allowedOrigins = strings.Split(envOrigins, ",")
+	}
 	r.Use(func(c *gin.Context) {
-		allowedOrigin := os.Getenv("FRONTEND_URL")
-		if allowedOrigin == "" {
-			allowedOrigin = "http://localhost:5173"
+		origin := c.GetHeader("Origin")
+		for _, ao := range allowedOrigins {
+			if strings.TrimSpace(ao) == origin {
+				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+				break
+			}
 		}
-		c.Writer.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
@@ -380,6 +405,7 @@ func main() {
 	httpDelivery.NewSPHHandler(r, sphUC)
 	httpDelivery.NewFinanceHandler(r, financeUC)
 	httpDelivery.NewBizDevHandler(r, bizDevUC)
+	httpDelivery.NewTelemarketingHandler(r, teleUC)
 
 	// Static files
 	r.Static("/uploads", "./uploads")
@@ -416,6 +442,17 @@ func main() {
 		})
 	}
 
-	// 8. Run
+	// 8. Background: cleanup expired telemarketing accounts every 24 hours
+	go func() {
+		for {
+			time.Sleep(24 * time.Hour)
+			log.Println("Running telemarketing expired account cleanup...")
+			if err := teleUC.CleanupExpiredAccounts(); err != nil {
+				log.Printf("Cleanup error: %v", err)
+			}
+		}
+	}()
+
+	// 9. Run
 	r.Run(":8080")
 }
