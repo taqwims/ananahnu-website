@@ -63,7 +63,7 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   // clients/:id  → sama dengan clients/new (edit)
   'submissions': [
     'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR',
-    'QC_OFFICER', 'DRAFTER', 'MARKETING', 'AUDIT_MANAGER',
+    'QC_OFFICER', 'DRAFTER', 'MARKETING', 'AUDIT_MANAGER', 'CLIENT',
   ],
   'submissions/new': [
     'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'MARKETING',

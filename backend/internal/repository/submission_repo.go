@@ -61,6 +61,11 @@ func (r *submissionRepository) FindAll(filter map[string]interface{}) ([]domain.
 	if drafterID, ok := filter["assigned_drafter_id"]; ok {
 		db = db.Where("submissions.assigned_drafter_id = ?", drafterID)
 	}
+
+	// Filter by Client User ID (Client role visibility)
+	if clientUserID, ok := filter["client_user_id"]; ok {
+		db = db.Where("submissions.client_id IN (SELECT id FROM clients WHERE created_by = ?) OR submissions.id IN (SELECT submission_id FROM tele_forms WHERE client_user_id = ?)", clientUserID, clientUserID)
+	}
 	
 	if err := db.Find(&submissions).Error; err != nil {
 		return nil, err

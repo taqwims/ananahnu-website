@@ -63,6 +63,9 @@ export const useSubmissionList = () => {
 
     useEffect(() => {
         fetchSubmissions();
+        if (user?.role === 'CLIENT') {
+            setIsGrouped(false);
+        }
         const checkVerification = async () => {
             if (user?.role === 'HALAL_ADVISOR') {
                 try {

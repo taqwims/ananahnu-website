@@ -35,6 +35,8 @@ func (uc *submissionWorkflowUsecase) GetSubmissions(userID uuid.UUID, role strin
 		filter["facilitator_ids"] = ids
 	case "DRAFTER":
 		filter["assigned_drafter_id"] = userID
+	case "CLIENT":
+		filter["client_user_id"] = userID
 	}
 
 	return uc.SubmissionRepo.FindAll(filter)
@@ -165,24 +167,49 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 		return nil, err
 	}
 
+	var consultantIDPtr *uuid.UUID
+	if userRole != "CLIENT" {
+		consultantIDPtr = &userID
+	}
+
+	dataSource := "ORGANIK"
+	if userRole == "MARKETING" {
+		dataSource = "MARKETING"
+	}
+
+	if userRole == "CLIENT" {
+		forms, _, err := uc.TeleFormRepo.FindAll(map[string]interface{}{"client_user_id": userID}, 1, 1)
+		if err == nil && len(forms) > 0 {
+			dataSource = "TELEMARKETING"
+		}
+	}
+
 	// 2. Create Submission
 	sub := &domain.Submission{
-		ID:           uuid.New(),
-		ClientID:     client.ID,
-		Status:       domain.StatusDraft,
+		ID:             uuid.New(),
+		ClientID:       client.ID,
+		Status:         domain.StatusDraft,
 		ServiceType:    input.ClientData.ServiceType,
-		ConsultantID:   &userID,
+		DataSource:     dataSource,
+		ConsultantID:   consultantIDPtr,
 		BusinessTypeID: input.ClientData.BusinessTypeID,
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
 	}
 
-	if userRole == "MARKETING" {
-		sub.DataSource = "MARKETING"
-	}
-
 	if err := uc.SubmissionRepo.Create(sub); err != nil {
 		return nil, fmt.Errorf("failed to create submission: %w", err)
+	}
+
+	if userRole == "CLIENT" {
+		forms, _, err := uc.TeleFormRepo.FindAll(map[string]interface{}{"client_user_id": userID}, 1, 1)
+		if err == nil && len(forms) > 0 {
+			form := &forms[0]
+			form.SubmissionID = &sub.ID
+			form.Status = domain.TeleFormStatusDataInput
+			form.UpdatedAt = time.Now()
+			_ = uc.TeleFormRepo.Update(form)
+		}
 	}
 
 	// 3. Save Field Values

@@ -30,7 +30,7 @@ func (r *userRepository) FindByEmail(email string) (*domain.User, error) {
 
 func (r *userRepository) FindByID(id uuid.UUID) (*domain.User, error) {
 	var user domain.User
-	if err := r.db.Preload("Role.Permissions").First(&user, "id = ?", id).Error; err != nil {
+	if err := r.db.Preload("Role.Permissions").Preload("Leader").First(&user, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil

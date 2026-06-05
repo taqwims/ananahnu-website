@@ -493,7 +493,7 @@ export default function MeetingSchedule() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center justify-end gap-1.5 border-t border-dark-100/50 pt-2.5">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5 border-t border-dark-100/50 pt-2.5">
                           {meeting.meeting_link && (
                             <a
                               href={meeting.meeting_link}
@@ -507,40 +507,40 @@ export default function MeetingSchedule() {
                           )}
                           <button
                             onClick={() => handleEditOpen(meeting)}
-                            className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 border border-transparent hover:border-amber-100 transition-colors cursor-pointer"
+                            className="px-2.5 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
                             title="Edit Jadwal"
                           >
-                            <Edit className="w-4 h-4" />
+                            <Edit className="w-3.5 h-3.5" /> Edit
                           </button>
                           <button
                             onClick={() => handleDelete(meeting.id)}
-                            className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-colors cursor-pointer"
+                            className="px-2.5 py-1.5 rounded-lg text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
                             title="Hapus Jadwal"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" /> Hapus
                           </button>
                           {meeting.status === 'SCHEDULED' && (
                             <>
                               <button
                                 onClick={() => handleStatusUpdate(meeting.id, 'COMPLETED')}
-                                className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 border border-transparent hover:border-emerald-100 transition-colors cursor-pointer"
+                                className="px-2.5 py-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
                                 title="Selesai"
                               >
-                                <CheckCircle2 className="w-4 h-4" />
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Selesai
                               </button>
                               <button
                                 onClick={() => handleStatusUpdate(meeting.id, 'NO_SHOW')}
-                                className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-colors cursor-pointer"
+                                className="px-2.5 py-1.5 rounded-lg text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
                                 title="No Show"
                               >
-                                <AlertCircle className="w-4 h-4" />
+                                <AlertCircle className="w-3.5 h-3.5" /> No Show
                               </button>
                               <button
                                 onClick={() => handleStatusUpdate(meeting.id, 'CANCELLED')}
-                                className="p-1.5 rounded-lg text-dark-500 hover:bg-dark-50 border border-transparent hover:border-dark-100 transition-colors cursor-pointer"
+                                className="px-2.5 py-1.5 rounded-lg text-dark-600 bg-dark-50 hover:bg-dark-100 border border-dark-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
                                 title="Batal"
                               >
-                                <XCircle className="w-4 h-4" />
+                                <XCircle className="w-3.5 h-3.5" /> Batal
                               </button>
                             </>
                           )}
@@ -604,54 +604,54 @@ export default function MeetingSchedule() {
                         </span>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           {meeting.meeting_link && (
                             <a
                               href={meeting.meeting_link}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-100 transition-colors cursor-pointer"
+                              className="px-2.5 py-1.5 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors"
                               title="Join Meeting"
                             >
-                              <ArrowUpRight className="w-4 h-4" />
+                              <ArrowUpRight className="w-3.5 h-3.5" /> Join
                             </a>
                           )}
                           <button
                             onClick={() => handleEditOpen(meeting)}
-                            className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 border border-transparent hover:border-amber-100 transition-colors cursor-pointer"
+                            className="px-2.5 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
                             title="Edit Jadwal"
                           >
-                            <Edit className="w-4 h-4" />
+                            <Edit className="w-3.5 h-3.5" /> Edit
                           </button>
                           <button
                             onClick={() => handleDelete(meeting.id)}
-                            className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-colors cursor-pointer"
+                            className="px-2.5 py-1.5 rounded-lg text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
                             title="Hapus Jadwal"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" /> Hapus
                           </button>
                           {meeting.status === 'SCHEDULED' && (
                             <>
                               <button
                                 onClick={() => handleStatusUpdate(meeting.id, 'COMPLETED')}
-                                className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 border border-transparent hover:border-emerald-100 transition-colors cursor-pointer"
+                                className="px-2.5 py-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
                                 title="Selesai"
                               >
-                                <CheckCircle2 className="w-4 h-4" />
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Selesai
                               </button>
                               <button
                                 onClick={() => handleStatusUpdate(meeting.id, 'NO_SHOW')}
-                                className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-colors cursor-pointer"
+                                className="px-2.5 py-1.5 rounded-lg text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
                                 title="No Show"
                               >
-                                <AlertCircle className="w-4 h-4" />
+                                <AlertCircle className="w-3.5 h-3.5" /> No Show
                               </button>
                               <button
                                 onClick={() => handleStatusUpdate(meeting.id, 'CANCELLED')}
-                                className="p-1.5 rounded-lg text-dark-500 hover:bg-dark-50 border border-transparent hover:border-dark-100 transition-colors cursor-pointer"
+                                className="px-2.5 py-1.5 rounded-lg text-dark-600 bg-dark-50 hover:bg-dark-100 border border-dark-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
                                 title="Batal"
                               >
-                                <XCircle className="w-4 h-4" />
+                                <XCircle className="w-3.5 h-3.5" /> Batal
                               </button>
                             </>
                           )}
@@ -674,7 +674,7 @@ export default function MeetingSchedule() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="glass-card p-6 max-w-md w-full"
+              className="bg-white border border-brand-100 p-6 max-w-md w-full rounded-2xl shadow-2xl"
             >
               <div className="flex items-center justify-between mb-5">
                 <h3 className="text-lg font-bold text-brand-900">

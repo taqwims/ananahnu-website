@@ -30,7 +30,7 @@ export default function SubmissionList() {
                     <p className="text-gray-500 mt-1 font-medium">Kelola dan pantau status sertifikasi halal Anda</p>
                 </div>
 
-                {user?.role !== 'DRAFTER' && user?.role !== 'QC_OFFICER' && user?.role !== 'AUDIT_MANAGER' && (
+                {user?.role !== 'DRAFTER' && user?.role !== 'QC_OFFICER' && user?.role !== 'AUDIT_MANAGER' && user?.role !== 'CLIENT' && (
                     <div className="relative group">
                         <button
                             onClick={() => isVerified !== false && setShowCreateModal(true)}

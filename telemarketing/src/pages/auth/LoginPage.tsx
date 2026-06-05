@@ -21,6 +21,17 @@ export default function LoginPage() {
       const res = await login(email, password);
       const { access_token, refresh_token, user } = res.data;
 
+      if (user.role === 'CLIENT') {
+        const mainAppUrl = window.location.hostname === 'localhost'
+          ? 'http://localhost:5173'
+          : 'https://halalcore.id';
+        toast.success('Login berhasil! Mengalihkan ke HalalCore...');
+        setTimeout(() => {
+          window.location.href = `${mainAppUrl}/login?token=${access_token}&refresh=${refresh_token}`;
+        }, 1000);
+        return;
+      }
+
       if (user.role !== 'TELEMARKETER' && user.role !== 'DIRECTOR') {
         toast.error('Akses hanya untuk Telemarketer');
         return;

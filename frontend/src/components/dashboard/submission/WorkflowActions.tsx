@@ -171,7 +171,7 @@ export const WorkflowActions = ({
                                 'Apakah Anda yakin ingin mengirimkan pengajuan ini untuk diverifikasi?',
                                 () => onAction('submit')
                             )}
-                            disabled={processing || (user?.role !== 'MARKETING' && submission.data_source !== 'MARKETING' && !submission.consultant_id)}
+                            disabled={processing || (user?.role !== 'MARKETING' && user?.role !== 'CLIENT' && submission.data_source !== 'MARKETING' && !submission.consultant_id)}
                             className="w-full py-4 bg-brand-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-brand-100 hover:bg-brand-700 hover:scale-[1.02] active:scale-95 transition-all flex justify-center items-center gap-3 disabled:opacity-50"
                         >
                             {processing ? <Loader2 className="animate-spin w-5 h-5" /> : <Send className="w-5 h-5" />}

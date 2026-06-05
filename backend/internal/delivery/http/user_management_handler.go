@@ -164,7 +164,22 @@ func (h *UserManagementHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, user)
+	c.JSON(http.StatusOK, gin.H{
+		"id":            user.ID,
+		"username":      user.Username,
+		"email":         user.Email,
+		"full_name":     user.FullName,
+		"role":          user.Role.Name,
+		"leader":        user.Leader,
+		"referral_code": user.ReferralCode,
+		"phone":         user.Phone,
+		"address":       user.Address,
+		"province_id":   user.ProvinceID,
+		"regency_id":    user.RegencyID,
+		"avatar_url":    user.AvatarURL,
+		"created_at":    user.CreatedAt,
+		"updated_at":    user.UpdatedAt,
+	})
 }
 
 func (h *UserManagementHandler) UpdateProfile(c *gin.Context) {

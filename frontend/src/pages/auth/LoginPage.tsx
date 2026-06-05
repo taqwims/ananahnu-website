@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,6 +24,35 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+
+    // Intercept SSO tokens
+    useEffect(() => {
+        const queryParams = new URLSearchParams(window.location.search);
+        const urlToken = queryParams.get('token');
+        const urlRefresh = queryParams.get('refresh');
+
+        if (urlToken) {
+            setIsLoading(true);
+            setError('');
+
+            api.get('/profile', {
+                headers: {
+                    Authorization: `Bearer ${urlToken}`
+                }
+            })
+            .then((response) => {
+                const user = response.data;
+                setAuth(user, urlToken, urlRefresh ?? '');
+                navigate('/dashboard');
+            })
+            .catch((err) => {
+                setError(err.response?.data?.error || 'SSO authentication failed.');
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
+        }
+    }, [navigate, setAuth]);
 
     const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
         resolver: zodResolver(loginSchema),

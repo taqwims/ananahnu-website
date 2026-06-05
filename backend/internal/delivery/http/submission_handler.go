@@ -302,6 +302,16 @@ func (h *SubmissionHandler) GetDetail(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "submission not found"})
 		return
 	}
+
+	role := middleware.GetUserRole(c)
+	userID := middleware.GetUserID(c)
+	if role == "CLIENT" {
+		if sub.Client.CreatedBy != userID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "unauthorized access to submission"})
+			return
+		}
+	}
+
 	c.JSON(http.StatusOK, sub)
 }
 

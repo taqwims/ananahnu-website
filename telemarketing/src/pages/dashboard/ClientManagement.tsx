@@ -43,6 +43,7 @@ export default function ClientManagement() {
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedForm, setSelectedForm] = useState<TeleForm | null>(null);
+  const [generatedAccount, setGeneratedAccount] = useState<{ email: string; password?: string } | null>(null);
 
   const fetchForms = async () => {
     setLoading(true);
@@ -72,7 +73,11 @@ export default function ClientManagement() {
   const handleGenerateAccount = async (formId: string) => {
     try {
       const res = await generateClientAccount(formId);
-      toast.success(`Akun dibuat: ${res.data.email}`);
+      toast.success('Akun berhasil dibuat!');
+      setGeneratedAccount({
+        email: res.data.email,
+        password: res.data.password,
+      });
       fetchForms();
     } catch (err: unknown) {
       const message = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Gagal';
@@ -206,30 +211,30 @@ export default function ClientManagement() {
                       </span>
                     </td>
                     <td className="py-3.5 px-4">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => setSelectedForm(form)}
-                          className="p-1.5 rounded-lg text-dark-500 hover:text-brand-600 hover:bg-brand-50 transition-colors"
-                          title="Detail"
+                          className="px-2.5 py-1.5 rounded-lg text-dark-700 bg-dark-50 hover:bg-dark-100 border border-dark-250/60 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                          title="Detail Client"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" /> Detail
                         </button>
                         {(form.status === 'MEETING_COMPLETED' || form.status === 'PENDING') && !form.client_user_id && (
                           <button
                             onClick={() => handleGenerateAccount(form.id)}
-                            className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 border border-transparent hover:border-emerald-100 transition-colors"
+                            className="px-2.5 py-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-250/60 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
                             title="Generate Akun"
                           >
-                            <UserPlus className="w-4 h-4" />
+                            <UserPlus className="w-3.5 h-3.5" /> Buat Akun
                           </button>
                         )}
                         {form.status === 'TELECONFERENCE_QUEUED' && (
                           <button
                             onClick={() => handleUpdateStatus(form.id, 'MEETING_COMPLETED')}
-                            className="p-1.5 rounded-lg text-brand-600 hover:bg-brand-50 border border-transparent hover:border-brand-100 transition-colors"
+                            className="px-2.5 py-1.5 rounded-lg text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-250/60 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
                             title="Meeting Selesai"
                           >
-                            <CheckCircle2 className="w-4 h-4" />
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Selesai
                           </button>
                         )}
                       </div>
@@ -270,7 +275,7 @@ export default function ClientManagement() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="glass-card p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto"
+            className="bg-white border border-brand-100 p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto rounded-2xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-bold text-brand-900 mb-4">Detail Client</h3>
@@ -290,17 +295,88 @@ export default function ClientManagement() {
                 ['Tanggal', new Date(selectedForm.created_at).toLocaleString('id-ID')],
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between py-2 border-b border-dark-100">
-                  <span className="text-sm text-dark-500 font-medium">{label}</span>
-                  <span className="text-sm text-dark-800 font-semibold">{value}</span>
+                  <span className="text-sm text-dark-700 font-semibold">{label}</span>
+                  <span className="text-sm text-dark-900 font-bold">{value}</span>
                 </div>
               ))}
             </div>
             <button
               onClick={() => setSelectedForm(null)}
-              className="btn-secondary w-full mt-5 flex items-center justify-center gap-1.5"
+              className="btn-secondary w-full mt-5 flex items-center justify-center gap-1.5 font-bold text-dark-900"
             >
-              <XCircle className="w-4 h-4" /> Tutup
+              <XCircle className="w-4 h-4 text-dark-600" /> Tutup
             </button>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Generated Account Modal */}
+      {generatedAccount && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white p-6 max-w-md w-full rounded-2xl shadow-2xl border border-brand-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-brand-900">Akun Client Berhasil Dibuat!</h3>
+            </div>
+            
+            <p className="text-xs text-dark-700 font-semibold mb-4 leading-relaxed">
+              Silakan salin informasi akun di bawah ini dan berikan kepada client untuk masuk ke sistem HalalCore.
+            </p>
+
+            <div className="bg-dark-50 p-4 rounded-xl border border-dark-200 space-y-3 font-mono text-xs text-dark-900">
+              <div className="flex justify-between items-center py-1">
+                <span>Email: <strong className="select-all font-bold text-brand-900">{generatedAccount.email}</strong></span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedAccount.email);
+                    toast.success('Email disalin!');
+                  }}
+                  className="px-2.5 py-1 bg-white hover:bg-dark-100 border border-dark-300 rounded-lg text-[10px] font-bold text-dark-800 transition-colors cursor-pointer"
+                >
+                  Salin
+                </button>
+              </div>
+              {generatedAccount.password && generatedAccount.password !== "(existing account)" && (
+                <div className="flex justify-between items-center py-1 border-t border-dark-200/50 pt-2">
+                  <span>Password: <strong className="select-all font-bold text-brand-900">{generatedAccount.password}</strong></span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedAccount.password || '');
+                      toast.success('Password disalin!');
+                    }}
+                    className="px-2.5 py-1 bg-white hover:bg-dark-100 border border-dark-300 rounded-lg text-[10px] font-bold text-dark-800 transition-colors cursor-pointer"
+                  >
+                    Salin
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  const text = `Halo, akun HalalCore Anda sudah dibuat.\nEmail: ${generatedAccount.email}\nPassword: ${generatedAccount.password}\n\nSilakan login di ${window.location.origin}/login`;
+                  navigator.clipboard.writeText(text);
+                  toast.success('Kredensial disalin!');
+                }}
+                className="btn-secondary flex-1 text-xs py-2 flex items-center justify-center gap-1.5 cursor-pointer text-dark-900 font-bold"
+              >
+                Salin Semua
+              </button>
+              <button
+                onClick={() => setGeneratedAccount(null)}
+                className="btn-primary flex-1 text-xs py-2 cursor-pointer font-bold"
+              >
+                Tutup
+              </button>
+            </div>
           </motion.div>
         </div>
       )}

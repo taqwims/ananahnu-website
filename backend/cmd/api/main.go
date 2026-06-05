@@ -274,6 +274,7 @@ func main() {
 		ConsultantRepo:    consultantRepo,
 		ParticipantRepo:   participantRepo,
 		SettingRepo:       settingRepo,
+		TeleFormRepo:      teleFormRepo,
 	})
 
 	paymentUC := usecase.NewPaymentUsecase(usecase.PaymentUsecaseDeps{
@@ -342,6 +343,8 @@ func main() {
 		RoleRepo:      roleRepo,
 		NotifUC:       notificationUC,
 		WASender:      waSender,
+		ClientRepo:     clientRepo,
+		SubmissionRepo: submissionRepo,
 	})
 
 	bizDevUC := usecase.NewBizDevUsecase(usecase.BizDevUsecaseDeps{
@@ -357,8 +360,12 @@ func main() {
 
 	// CORS Middleware — supports multiple frontend origins
 	// Access-Control-Allow-Origin cannot be wildcard when credentials are used.
-	allowedOrigins := []string{"http://localhost:5173", "http://localhost:5174"}
-	if envOrigins := os.Getenv("FRONTEND_URL"); envOrigins != "" {
+	var allowedOrigins []string
+	if envOrigins := os.Getenv("ALLOWED_ORIGINS"); envOrigins != "" {
+		allowedOrigins = strings.Split(envOrigins, ",")
+	} else if envOrigins := os.Getenv("FRONTEND_URL"); envOrigins != "" {
+		allowedOrigins = strings.Split(envOrigins, ",")
+	} else if envOrigins := os.Getenv("APP_FRONTEND_URL"); envOrigins != "" {
 		allowedOrigins = strings.Split(envOrigins, ",")
 	}
 	r.Use(func(c *gin.Context) {

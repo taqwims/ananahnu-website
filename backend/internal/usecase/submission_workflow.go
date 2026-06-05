@@ -60,6 +60,7 @@ type SubmissionWorkflowDeps struct {
 	ConsultantRepo    domain.ConsultantProfileRepository
 	ParticipantRepo   domain.TrainingParticipantRepository
 	SettingRepo       domain.SystemSettingRepository
+	TeleFormRepo      domain.TeleFormRepository
 }
 
 type submissionWorkflowUsecase struct {

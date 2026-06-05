@@ -2,6 +2,10 @@ import { motion } from 'framer-motion';
 import { ArrowRight, CheckCircle2, Headphones, ShieldCheck, Zap, PlayCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+const MAIN_APP_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:5173'
+  : 'https://halalcore.id';
+
 export default function LandingPage() {
   const steps = [
     {
@@ -65,6 +69,14 @@ export default function LandingPage() {
             </div>
 
             <div className="flex items-center gap-4">
+              <a
+                href={`${MAIN_APP_URL}/track`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-semibold text-brand-800 hover:text-brand-600 transition-colors cursor-pointer"
+              >
+                Lacak Progress
+              </a>
               <Link
                 to="/login"
                 className="text-sm font-semibold text-brand-800 hover:text-brand-600 transition-colors"
@@ -138,8 +150,16 @@ export default function LandingPage() {
                   Mulai Pengajuan Halal <ArrowRight className="w-5 h-5" />
                 </Link>
                 <a
+                  href={`${MAIN_APP_URL}/track`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-8 py-4 border border-brand-400 bg-brand-800/50 backdrop-blur-sm text-white rounded-full font-bold text-lg hover:bg-brand-800 transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  Lacak Progress
+                </a>
+                <a
                   href="#alur"
-                  className="px-8 py-4 border border-brand-400 bg-brand-800/50 backdrop-blur-sm text-white rounded-full font-bold text-lg hover:bg-brand-800 transition-all flex items-center gap-2"
+                  className="px-6 py-4 text-brand-200 hover:text-white rounded-full font-bold text-lg transition-all flex items-center gap-2"
                 >
                   <PlayCircle className="w-5 h-5" /> Lihat Alur
                 </a>
