@@ -1,10 +1,13 @@
-.PHONY: run docker-up docker-down migrate-up migrate-down seed
+.PHONY: run docker-up docker-down migrate-up migrate-down seed seed-wilayah
 
 run:
 	cd backend && go run cmd/api/main.go
 
 seed:
 	cd backend && go run cmd/seed_features/main.go
+
+seed-wilayah:
+	cd backend && go run cmd/seed_wilayah/main.go
 
 docker-up:
 	docker-compose up -d
@@ -18,3 +21,4 @@ migrate-up:
 
 migrate-down:
 	@echo "Running migrations down..."
+
