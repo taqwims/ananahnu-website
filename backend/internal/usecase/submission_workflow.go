@@ -26,6 +26,7 @@ type SubmissionWorkflowUsecase interface {
 	TrackByNumber(trackingNumber string) (*domain.Submission, error)
 	Delete(id uuid.UUID, userID uuid.UUID, userRole string) error
 	HandlePaymentSuccess(id uuid.UUID, amount float64) error
+	IsAuthorized(userID uuid.UUID, role string, submissionID uuid.UUID) bool
 }
 
 type CreateFullInput struct {

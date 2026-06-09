@@ -35,7 +35,7 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 		nextStatus = domain.StatusVervalPendamping
 	}
 
-	if userRole == "MARKETING" {
+	if userRole == "MARKETING" || (sub.DataSource == "TELEMARKETING" && sub.ServiceType == "SELF_DECLARE") {
 		nextStatus = domain.StatusQCOfficer
 	}
 
@@ -200,8 +200,8 @@ func (uc *submissionWorkflowUsecase) Approve(id uuid.UUID, userID uuid.UUID, use
 		return fmt.Errorf("unauthorized: role %s cannot approve in status %s", userRole, sub.Status)
 	}
 
-	if sub.Status == domain.StatusQCOfficer && sub.DataSource == "MARKETING" && sub.ConsultantID == nil {
-		return errors.New("pengajuan dari Marketing harus ditunjuk advisor terlebih dahulu sebelum didistribusikan")
+	if sub.Status == domain.StatusQCOfficer && (sub.DataSource == "MARKETING" || (sub.DataSource == "TELEMARKETING" && sub.ServiceType == "SELF_DECLARE")) && sub.ConsultantID == nil {
+		return errors.New("pengajuan dari Marketing / Telemarketing (Self Declare) harus ditunjuk advisor terlebih dahulu sebelum didistribusikan")
 	}
 
 	err = uc.SubmissionRepo.UpdateStatus(id, nextStatus, 0)
@@ -248,8 +248,8 @@ func (uc *submissionWorkflowUsecase) ApproveWithDrafter(id uuid.UUID, userID uui
 		return fmt.Errorf("unauthorized: role %s cannot assign drafter", userRole)
 	}
 
-	if sub.DataSource == "MARKETING" && sub.ConsultantID == nil {
-		return errors.New("pengajuan dari Marketing harus ditunjuk advisor terlebih dahulu sebelum didistribusikan")
+	if (sub.DataSource == "MARKETING" || (sub.DataSource == "TELEMARKETING" && sub.ServiceType == "SELF_DECLARE")) && sub.ConsultantID == nil {
+		return errors.New("pengajuan dari Marketing / Telemarketing (Self Declare) harus ditunjuk advisor terlebih dahulu sebelum didistribusikan")
 	}
 
 	if err := uc.SubmissionRepo.UpdateAssignee(id, &drafterID); err != nil {
@@ -309,7 +309,7 @@ func (uc *submissionWorkflowUsecase) AssignConsultant(id uuid.UUID, userID uuid.
 	}
 
 	newStatus := sub.Status
-	if sub.DataSource == "MARKETING" && sub.Status == domain.StatusQCOfficer {
+	if (sub.DataSource == "MARKETING" || (sub.DataSource == "TELEMARKETING" && sub.ServiceType == "SELF_DECLARE")) && sub.Status == domain.StatusQCOfficer {
 		newStatus = domain.StatusVervalPendamping
 		_ = uc.SubmissionRepo.UpdateStatus(id, newStatus, 0)
 	}

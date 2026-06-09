@@ -248,3 +248,26 @@ func (uc *submissionWorkflowUsecase) Delete(id uuid.UUID, userID uuid.UUID, user
 
 	return uc.SubmissionRepo.Delete(id)
 }
+
+func (uc *submissionWorkflowUsecase) IsAuthorized(userID uuid.UUID, role string, submissionID uuid.UUID) bool {
+	if role != "CLIENT" {
+		return true
+	}
+
+	sub, err := uc.SubmissionRepo.FindByID(submissionID)
+	if err != nil {
+		return false
+	}
+	if sub.Client.CreatedBy == userID {
+		return true
+	}
+	// Check if there is a telemarketing form for this client linked to the submission
+	forms, _, err := uc.TeleFormRepo.FindAll(map[string]interface{}{
+		"client_user_id": userID,
+		"submission_id":  submissionID,
+	}, 1, 1)
+	if err == nil && len(forms) > 0 {
+		return true
+	}
+	return false
+}

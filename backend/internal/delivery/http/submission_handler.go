@@ -306,7 +306,7 @@ func (h *SubmissionHandler) GetDetail(c *gin.Context) {
 	role := middleware.GetUserRole(c)
 	userID := middleware.GetUserID(c)
 	if role == "CLIENT" {
-		if sub.Client.CreatedBy != userID {
+		if !h.workflowUC.IsAuthorized(userID, role, sub.ID) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "unauthorized access to submission"})
 			return
 		}
