@@ -13,10 +13,14 @@ import (
 
 type FormConfigHandler struct {
 	formConfigUC usecase.FormConfigUsecase
+	workflowUC   usecase.SubmissionWorkflowUsecase
 }
 
-func NewFormConfigHandler(r *gin.Engine, uc usecase.FormConfigUsecase) {
-	handler := &FormConfigHandler{formConfigUC: uc}
+func NewFormConfigHandler(r *gin.Engine, uc usecase.FormConfigUsecase, workflowUC usecase.SubmissionWorkflowUsecase) {
+	handler := &FormConfigHandler{
+		formConfigUC: uc,
+		workflowUC:   workflowUC,
+	}
 
 	// Form config — GET boleh semua (dipakai di form submission), write hanya admin
 	g := r.Group("/form-config")
@@ -129,9 +133,28 @@ func (h *FormConfigHandler) SubmitFieldValues(c *gin.Context) {
 		return
 	}
 
-	uploaderID := middleware.GetUserID(c)
+	userID := middleware.GetUserID(c)
+	role := middleware.GetUserRole(c)
 
-	if err := h.formConfigUC.SubmitFieldValues(subID, uploaderID, inputs); err != nil {
+	if role == "CLIENT" {
+		if !h.workflowUC.IsAuthorized(userID, role, subID) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "unauthorized access to submission"})
+			return
+		}
+
+		sub, err := h.workflowUC.GetSubmission(subID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "submission not found"})
+			return
+		}
+
+		if sub.Status != domain.StatusDraft && sub.Status != domain.StatusRevision {
+			c.JSON(http.StatusForbidden, gin.H{"error": "cannot edit documents/data in the current status"})
+			return
+		}
+	}
+
+	if err := h.formConfigUC.SubmitFieldValues(subID, userID, inputs); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -145,6 +168,16 @@ func (h *FormConfigHandler) GetFieldValues(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid submission_id"})
 		return
+	}
+
+	userID := middleware.GetUserID(c)
+	role := middleware.GetUserRole(c)
+
+	if role == "CLIENT" {
+		if !h.workflowUC.IsAuthorized(userID, role, subID) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "unauthorized access to submission"})
+			return
+		}
 	}
 
 	values, err := h.formConfigUC.GetFieldValues(subID)

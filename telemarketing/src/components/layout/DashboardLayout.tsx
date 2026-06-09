@@ -44,7 +44,7 @@ export default function DashboardLayout() {
       <aside
         className={`
           fixed lg:relative z-50 h-full flex flex-col
-          bg-white/95 backdrop-blur-xl border-r border-dark-100 shadow-sm
+          bg-white/95 backdrop-blur-xl border-r border-dark-100/80 shadow-sm
           transition-all duration-300 ease-in-out
           ${sidebarOpen ? 'w-64' : 'w-20'}
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -52,16 +52,19 @@ export default function DashboardLayout() {
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 h-16 border-b border-dark-100">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center flex-shrink-0 shadow-md shadow-brand-600/10">
+          <motion.div 
+            whileHover={{ rotate: 15, scale: 1.05 }}
+            className="w-9 h-9 rounded-xl bg-gradient-brand flex items-center justify-center flex-shrink-0 shadow-md shadow-brand-600/10"
+          >
             <Headphones className="w-5 h-5 text-white" />
-          </div>
+          </motion.div>
           {sidebarOpen && (
             <motion.div
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               className="overflow-hidden"
             >
-              <h1 className="text-base font-extrabold bg-gradient-to-r from-brand-700 to-brand-900 bg-clip-text text-transparent">
+              <h1 className="text-base font-extrabold bg-gradient-to-r from-brand-750 to-brand-950 bg-clip-text text-transparent">
                 HalalCore
               </h1>
               <p className="text-[10px] text-gold-600 font-bold uppercase tracking-wider -mt-0.5">Telemarketing</p>
@@ -70,7 +73,7 @@ export default function DashboardLayout() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 py-4 px-3 space-y-1.5 overflow-y-auto custom-scrollbar">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -80,14 +83,14 @@ export default function DashboardLayout() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
                   isActive
-                    ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/15 font-semibold'
-                    : 'text-dark-500 hover:text-brand-700 hover:bg-brand-50/50'
+                    ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20 font-bold'
+                    : 'text-dark-600 hover:text-brand-700 hover:bg-brand-50 font-semibold'
                 }`
               }
             >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
+              <item.icon className="w-5 h-5 flex-shrink-0 group-hover:scale-105 transition-transform" />
               {sidebarOpen && (
-                <span className="text-sm font-medium truncate">{item.label}</span>
+                <span className="text-sm truncate">{item.label}</span>
               )}
               {sidebarOpen && (
                 <ChevronRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -97,21 +100,21 @@ export default function DashboardLayout() {
         </nav>
 
         {/* User Section */}
-        <div className="border-t border-dark-100 p-3 bg-dark-50/50">
+        <div className="border-t border-dark-100 p-3 bg-dark-50/30">
           {sidebarOpen ? (
-            <div className="flex items-center gap-3 p-2">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-700 flex items-center justify-center flex-shrink-0 shadow-sm">
+            <div className="flex items-center gap-3 p-2 rounded-xl bg-white/50 border border-dark-100/50 shadow-sm">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-550/10">
                 <span className="text-sm font-bold text-white font-mono">
                   {user?.full_name?.charAt(0) || 'T'}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-dark-900 truncate">{user?.full_name || 'Telemarketer'}</p>
-                <p className="text-xs text-dark-500 truncate">{user?.email}</p>
+                <p className="text-xs font-bold text-dark-900 truncate">{user?.full_name || 'Telemarketer'}</p>
+                <p className="text-[10px] text-dark-400 font-semibold truncate mt-0.5">{user?.email}</p>
               </div>
               <button
                 onClick={handleLogout}
-                className="p-1.5 rounded-lg text-dark-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                className="p-2 rounded-lg text-dark-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                 title="Logout"
               >
                 <LogOut className="w-4 h-4" />
@@ -120,7 +123,7 @@ export default function DashboardLayout() {
           ) : (
             <button
               onClick={handleLogout}
-              className="w-full p-2.5 rounded-xl text-dark-400 hover:text-rose-600 hover:bg-rose-50 transition-colors flex justify-center"
+              className="w-full p-2.5 rounded-xl text-dark-400 hover:text-rose-600 hover:bg-rose-50 transition-colors flex justify-center cursor-pointer bg-white/50 border border-dark-100/50 shadow-sm"
               title="Logout"
             >
               <LogOut className="w-5 h-5" />

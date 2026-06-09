@@ -16,10 +16,10 @@ const MONTH_NAMES = [
 const WEEKDAYS = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 
 const MEETING_STATUS_COLORS: Record<string, string> = {
-  SCHEDULED: 'bg-blue-50 text-blue-700 border border-blue-100',
-  COMPLETED: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
-  CANCELLED: 'bg-dark-50 text-dark-400 border border-dark-100',
-  NO_SHOW: 'bg-rose-50 text-rose-700 border border-rose-100',
+  SCHEDULED: 'bg-blue-50/70 text-blue-700 border border-blue-200/60 shadow-2xs rounded-full',
+  COMPLETED: 'bg-emerald-50/70 text-emerald-700 border border-emerald-200/60 shadow-2xs rounded-full',
+  CANCELLED: 'bg-dark-100/70 text-dark-500 border border-dark-200/60 shadow-2xs rounded-full',
+  NO_SHOW: 'bg-rose-50/70 text-rose-700 border border-rose-200/60 shadow-2xs rounded-full',
 };
 
 const TYPE_ICONS: Record<string, typeof Video> = {
@@ -323,62 +323,62 @@ export default function MeetingSchedule() {
           {/* Calendar Grid Container */}
           <div className="lg:col-span-8 space-y-4">
             {/* Month Navigation Banner */}
-            <div className="flex items-center justify-between bg-white border border-dark-200 rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center justify-between bg-white/80 backdrop-blur-md border border-white/60 rounded-2xl p-4 shadow-md">
               <div className="flex items-center gap-2">
                 <button
                   onClick={handlePrevMonth}
-                  className="p-2 rounded-xl text-dark-500 hover:bg-dark-100 hover:text-dark-800 transition-colors cursor-pointer"
+                  className="p-2 rounded-xl text-dark-500 hover:bg-dark-100 hover:text-dark-800 transition-all cursor-pointer border border-transparent hover:border-dark-200 active:scale-95"
                   title="Bulan Sebelumnya"
                 >
-                  <ArrowLeft className="w-4 h-4" />
+                  <ArrowLeft className="w-4 h-4 text-brand-600" />
                 </button>
-                <h2 className="text-base font-bold text-brand-900 min-w-[140px] text-center capitalize">
+                <h2 className="text-sm font-extrabold text-brand-950 min-w-[140px] text-center capitalize tracking-wider bg-gradient-to-r from-brand-700 to-brand-900 bg-clip-text text-transparent">
                   {MONTH_NAMES[currentMonthDate.getMonth()]} {currentMonthDate.getFullYear()}
                 </h2>
                 <button
                   onClick={handleNextMonth}
-                  className="p-2 rounded-xl text-dark-500 hover:bg-dark-100 hover:text-dark-800 transition-colors cursor-pointer"
+                  className="p-2 rounded-xl text-dark-500 hover:bg-dark-100 hover:text-dark-800 transition-all cursor-pointer border border-transparent hover:border-dark-200 active:scale-95"
                   title="Bulan Berikutnya"
                 >
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4 text-brand-600" />
                 </button>
               </div>
 
               <button
                 onClick={handleGoToToday}
-                className="px-3.5 py-1.5 rounded-xl border border-dark-200 text-dark-700 text-xs font-bold hover:bg-dark-50 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-xl border border-dark-200 text-dark-750 text-xs font-bold hover:bg-dark-50 hover:text-brand-600 hover:border-brand-300 transition-all cursor-pointer active:scale-95"
               >
                 Hari Ini
               </button>
             </div>
 
             {/* Grid Sheet */}
-            <div className="glass-card p-5 shadow-sm overflow-x-auto">
+            <div className="glass-card p-5 border border-white/60 shadow-lg overflow-x-auto">
               <div className="min-w-[600px]">
-                <div className="grid grid-cols-7 gap-1.5 mb-2">
+                <div className="grid grid-cols-7 gap-2 mb-3">
                   {WEEKDAYS.map((day) => (
-                    <div key={day} className="text-center py-2 text-xs font-extrabold text-brand-900 uppercase tracking-wider">
+                    <div key={day} className="text-center py-2 text-xs font-extrabold text-brand-800 uppercase tracking-widest">
                       {day}
                     </div>
                   ))}
                 </div>
 
-                <div className="grid grid-cols-7 gap-1.5">
+                <div className="grid grid-cols-7 gap-2">
                   {getDaysInMonthGrid(currentMonthDate).map(({ day, isCurrentMonth, date: cellDate }, idx) => {
                     const dayMeetings = getMeetingsForDate(cellDate);
                     const isSelected = isSameDay(cellDate, selectedDate);
                     const isToday = isSameDay(cellDate, new Date());
 
                     // Build cell classes
-                    let cellClass = "min-h-[85px] p-2 flex flex-col justify-between border transition-all duration-200 relative select-none cursor-pointer rounded-xl ";
+                    let cellClass = "min-h-[90px] p-3 flex flex-col justify-between border transition-all duration-300 relative select-none cursor-pointer rounded-xl ";
                     if (isSelected) {
-                      cellClass += "bg-brand-600 border-brand-600 text-white shadow-md shadow-brand-600/20 z-10 scale-[1.01]";
+                      cellClass += "bg-gradient-brand border-brand-700 text-white shadow-lg shadow-brand-600/10 z-10 scale-[1.02]";
                     } else if (isToday) {
-                      cellClass += "bg-gold-50 border-gold-300 text-dark-900 hover:bg-gold-100 hover:border-gold-400";
+                      cellClass += "bg-gold-50/60 border-gold-300 text-dark-900 hover:bg-gold-100 hover:border-gold-400";
                     } else if (isCurrentMonth) {
-                      cellClass += "bg-white border-dark-100 text-dark-900 hover:border-brand-500/20 hover:bg-brand-50/10";
+                      cellClass += "bg-white/80 border-dark-150 text-dark-900 hover:border-brand-500/30 hover:bg-brand-50/20 hover:scale-[1.01]";
                     } else {
-                      cellClass += "bg-dark-50/30 border-dark-100/50 text-dark-400 opacity-40 hover:opacity-75";
+                      cellClass += "bg-dark-50/5 border-dark-100/10 text-dark-400 opacity-25 hover:opacity-50";
                     }
 
                     return (
@@ -392,8 +392,8 @@ export default function MeetingSchedule() {
                             {day}
                           </span>
                           {dayMeetings.length > 0 && (
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                              isSelected ? 'bg-white text-brand-800' : 'bg-brand-100 text-brand-800'
+                            <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                              isSelected ? 'bg-white text-brand-800' : 'bg-brand-100/80 text-brand-800 border border-brand-200/50'
                             }`}>
                               {dayMeetings.length}
                             </span>
@@ -401,18 +401,18 @@ export default function MeetingSchedule() {
                         </div>
 
                         {/* Status dots */}
-                        <div className="flex flex-wrap gap-0.5 mt-1.5">
+                        <div className="flex flex-wrap gap-1 mt-2">
                           {dayMeetings.slice(0, 3).map((meeting) => (
                             <div
                               key={meeting.id}
-                              className={`w-1.5 h-1.5 rounded-full ${
+                              className={`w-2 h-2 rounded-full border border-white/40 ${
                                 meeting.status === 'COMPLETED'
-                                  ? 'bg-emerald-500'
+                                  ? 'bg-emerald-500 shadow-xs'
                                   : meeting.status === 'CANCELLED'
                                   ? 'bg-dark-400'
                                   : meeting.status === 'NO_SHOW'
-                                  ? 'bg-rose-500'
-                                  : 'bg-blue-500'
+                                  ? 'bg-rose-500 shadow-xs'
+                                  : 'bg-blue-500 shadow-xs'
                               }`}
                               title={`${meeting.tele_form?.name || 'Client'} - ${meeting.status}`}
                             />
@@ -433,122 +433,136 @@ export default function MeetingSchedule() {
 
           {/* Details Sidebar Pane */}
           <div className="lg:col-span-4 space-y-4">
-            <div className="glass-card p-5 flex flex-col min-h-[460px] h-full shadow-sm bg-white">
-              <div className="border-b border-dark-100 pb-3.5 mb-4">
-                <h3 className="text-sm font-extrabold text-brand-900 uppercase tracking-wider">
-                  Detail Meeting
-                </h3>
-                <p className="text-xs text-dark-500 font-semibold mt-1">
-                  {selectedDate.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                </p>
+            <div className="glass-card p-5 flex flex-col min-h-[460px] h-full shadow-md">
+              <div className="border-b border-dark-100 pb-3.5 mb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-extrabold text-brand-900 uppercase tracking-widest bg-gradient-to-r from-brand-700 to-brand-900 bg-clip-text text-transparent">
+                    Detail Meeting
+                  </h3>
+                  <p className="text-[11px] text-dark-500 font-semibold mt-1">
+                    {selectedDate.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                </div>
+                <div className="w-2.5 h-2.5 rounded-full bg-brand-500 animate-pulse" />
               </div>
 
               <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-1 max-h-[450px]">
-                {getMeetingsForDate(selectedDate).length === 0 ? (
-                  <div className="text-center py-16 flex flex-col items-center justify-center h-full">
-                    <div className="w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center mb-3">
-                      <CalendarIcon className="w-6 h-6 text-brand-500" />
-                    </div>
-                    <p className="text-xs text-dark-500 font-bold">Tidak ada meeting terjadwal</p>
-                    <button
-                      onClick={() => openScheduleModalForDate(selectedDate)}
-                      className="mt-4 px-4 py-2 bg-brand-50 border border-brand-200 text-brand-700 hover:bg-brand-100 hover:text-brand-800 transition-colors rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                <AnimatePresence mode="popLayout">
+                  {getMeetingsForDate(selectedDate).length === 0 ? (
+                    <motion.div
+                      key="empty-state"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="text-center py-16 flex flex-col items-center justify-center h-full"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Jadwalkan Baru
-                    </button>
-                  </div>
-                ) : (
-                  getMeetingsForDate(selectedDate).map((meeting) => {
-                    const Icon = TYPE_ICONS[meeting.meeting_type] || MessageCircle;
-                    return (
-                      <div
-                        key={meeting.id}
-                        className="p-3.5 rounded-xl border border-dark-100 bg-white hover:border-brand-500/20 hover:shadow-sm transition-all space-y-3"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
-                              <Icon className="w-4 h-4 text-brand-700" />
-                            </div>
-                            <div>
-                              <p className="text-xs font-extrabold text-dark-900">
-                                {new Date(meeting.scheduled_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                              </p>
-                              <p className="text-[9px] text-dark-500 font-bold uppercase">{meeting.duration} Menit · {meeting.meeting_type}</p>
-                            </div>
-                          </div>
-                          <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold border ${MEETING_STATUS_COLORS[meeting.status]}`}>
-                            {meeting.status}
-                          </span>
-                        </div>
-
-                        <div className="text-left">
-                          <p className="text-xs font-extrabold text-dark-900">{meeting.tele_form?.name || 'Client'}</p>
-                          <p className="text-[10px] text-dark-500 font-medium">{meeting.tele_form?.phone}</p>
-                          {meeting.notes && (
-                            <p className="text-[10px] text-dark-600 bg-dark-50 p-2 rounded-lg mt-2 border border-dark-100 italic">
-                              "{meeting.notes}"
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex flex-wrap items-center justify-end gap-1.5 border-t border-dark-100/50 pt-2.5">
-                          {meeting.meeting_link && (
-                            <a
-                              href={meeting.meeting_link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-2.5 py-1.5 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors"
-                              title="Join Meeting"
-                            >
-                              <ArrowUpRight className="w-3.5 h-3.5" /> Join
-                            </a>
-                          )}
-                          <button
-                            onClick={() => handleEditOpen(meeting)}
-                            className="px-2.5 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                            title="Edit Jadwal"
-                          >
-                            <Edit className="w-3.5 h-3.5" /> Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(meeting.id)}
-                            className="px-2.5 py-1.5 rounded-lg text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                            title="Hapus Jadwal"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" /> Hapus
-                          </button>
-                          {meeting.status === 'SCHEDULED' && (
-                            <>
-                              <button
-                                onClick={() => handleStatusUpdate(meeting.id, 'COMPLETED')}
-                                className="px-2.5 py-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                                title="Selesai"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5" /> Selesai
-                              </button>
-                              <button
-                                onClick={() => handleStatusUpdate(meeting.id, 'NO_SHOW')}
-                                className="px-2.5 py-1.5 rounded-lg text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                                title="No Show"
-                              >
-                                <AlertCircle className="w-3.5 h-3.5" /> No Show
-                              </button>
-                              <button
-                                onClick={() => handleStatusUpdate(meeting.id, 'CANCELLED')}
-                                className="px-2.5 py-1.5 rounded-lg text-dark-600 bg-dark-50 hover:bg-dark-100 border border-dark-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                                title="Batal"
-                              >
-                                <XCircle className="w-3.5 h-3.5" /> Batal
-                              </button>
-                            </>
-                          )}
-                        </div>
+                      <div className="w-12 h-12 rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center mb-3">
+                        <CalendarIcon className="w-6 h-6 text-brand-500" />
                       </div>
-                    );
-                  })
-                )}
+                      <p className="text-xs text-dark-500 font-bold">Tidak ada meeting terjadwal</p>
+                      <button
+                        onClick={() => openScheduleModalForDate(selectedDate)}
+                        className="mt-4 px-4 py-2 bg-brand-50 border border-brand-200 text-brand-700 hover:bg-brand-100 hover:text-brand-800 transition-all rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-2xs"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Jadwalkan Baru
+                      </button>
+                    </motion.div>
+                  ) : (
+                    getMeetingsForDate(selectedDate).map((meeting) => {
+                      const Icon = TYPE_ICONS[meeting.meeting_type] || MessageCircle;
+                      return (
+                        <motion.div
+                          key={meeting.id}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -12 }}
+                          className="p-4 rounded-xl border border-dark-150 bg-gradient-card hover:border-brand-500/30 hover:shadow-md hover:shadow-brand-900/[0.02] transition-all space-y-3 relative overflow-hidden"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center flex-shrink-0">
+                                <Icon className="w-4 h-4 text-brand-700" />
+                              </div>
+                              <div>
+                                <p className="text-xs font-extrabold text-dark-900">
+                                  {new Date(meeting.scheduled_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                                <p className="text-[9px] text-dark-500 font-bold uppercase">{meeting.duration} Menit · {meeting.meeting_type}</p>
+                              </div>
+                            </div>
+                            <span className={`text-[9px] px-2.5 py-1 rounded-full font-bold border ${MEETING_STATUS_COLORS[meeting.status]}`}>
+                              {meeting.status}
+                            </span>
+                          </div>
+
+                          <div className="text-left space-y-1">
+                            <p className="text-xs font-extrabold text-dark-900">{meeting.tele_form?.name || 'Client'}</p>
+                            <p className="text-[10px] text-dark-500 font-medium">{meeting.tele_form?.phone}</p>
+                            {meeting.notes && (
+                              <p className="text-[10px] text-dark-600 bg-white/70 backdrop-blur-xs p-2 rounded-lg mt-2 border border-dark-100 italic">
+                                "{meeting.notes}"
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex flex-wrap items-center justify-end gap-1.5 border-t border-dark-100/50 pt-2.5">
+                            {meeting.meeting_link && (
+                              <a
+                                href={meeting.meeting_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3 py-1.5 rounded-lg text-emerald-650 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100/50 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-[0.97]"
+                                title="Join Meeting"
+                              >
+                                <ArrowUpRight className="w-3.5 h-3.5" /> Join
+                              </a>
+                            )}
+                            <button
+                              onClick={() => handleEditOpen(meeting)}
+                              className="px-3 py-1.5 rounded-lg text-amber-600 bg-amber-50 hover:bg-amber-100 hover:text-amber-700 border border-amber-100/50 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-[0.97] cursor-pointer"
+                              title="Edit Jadwal"
+                            >
+                              <Edit className="w-3.5 h-3.5" /> Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(meeting.id)}
+                              className="px-3 py-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 border border-rose-100/50 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-[0.97] cursor-pointer"
+                              title="Hapus Jadwal"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Hapus
+                            </button>
+                            {meeting.status === 'SCHEDULED' && (
+                              <>
+                                <button
+                                  onClick={() => handleStatusUpdate(meeting.id, 'COMPLETED')}
+                                  className="px-3 py-1.5 rounded-lg text-emerald-750 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-800 border border-emerald-100/50 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-[0.97] cursor-pointer"
+                                  title="Selesai"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Selesai
+                                </button>
+                                <button
+                                  onClick={() => handleStatusUpdate(meeting.id, 'NO_SHOW')}
+                                  className="px-3 py-1.5 rounded-lg text-rose-750 bg-rose-50 hover:bg-rose-100 hover:text-rose-800 border border-rose-100/50 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-[0.97] cursor-pointer"
+                                  title="No Show"
+                                >
+                                  <AlertCircle className="w-3.5 h-3.5" /> No Show
+                                </button>
+                                <button
+                                  onClick={() => handleStatusUpdate(meeting.id, 'CANCELLED')}
+                                  className="px-3 py-1.5 rounded-lg text-dark-500 bg-dark-100 hover:bg-dark-200 border border-dark-200/50 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-[0.97] cursor-pointer"
+                                  title="Batal"
+                                >
+                                  <XCircle className="w-3.5 h-3.5" /> Batal
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </motion.div>
+                      );
+                    })
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </div>
@@ -556,105 +570,114 @@ export default function MeetingSchedule() {
       ) : (
         /* List Mode Layout */
         Object.keys(groupedMeetings).length === 0 ? (
-          <div className="glass-card p-12 text-center">
+          <div className="glass-card p-12 text-center border border-white/60">
             <CalendarIcon className="w-12 h-12 text-dark-400 mx-auto mb-3" />
             <p className="text-dark-500 font-medium">Belum ada meeting terjadwal</p>
           </div>
         ) : (
           <div className="space-y-6">
             {Object.entries(groupedMeetings).map(([date, dateMeetings]) => (
-              <div key={date}>
-                <h3 className="text-sm font-bold text-brand-800 mb-3 uppercase tracking-wider">{date}</h3>
+              <div key={date} className="space-y-3">
+                <h3 className="text-xs font-extrabold text-brand-800 uppercase tracking-widest pl-1">{date}</h3>
                 <div className="space-y-3">
                   {dateMeetings.map((meeting, i) => {
                     const Icon = TYPE_ICONS[meeting.meeting_type] || MessageCircle;
                     return (
                       <motion.div
                         key={meeting.id}
-                        initial={{ opacity: 0, x: -10 }}
+                        initial={{ opacity: 0, x: -15 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                        className="glass-card p-4 flex items-center gap-4"
+                        transition={{ delay: i * 0.04 }}
+                        className="glass-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 border border-white/60 shadow-md bg-white/70 hover:scale-[1.005] transition-all"
                       >
-                        {/* Time */}
-                        <div className="text-center min-w-[60px]">
-                          <p className="text-lg font-extrabold text-dark-900">
-                            {new Date(meeting.scheduled_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                          <p className="text-[10px] text-dark-500 font-bold uppercase tracking-wider">{meeting.duration} min</p>
+                        <div className="flex items-center gap-4 flex-1">
+                          {/* Time */}
+                          <div className="text-center min-w-[70px] bg-brand-50/50 border border-brand-100 rounded-xl p-2">
+                            <p className="text-lg font-black text-brand-900 leading-none">
+                              {new Date(meeting.scheduled_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                            <p className="text-[9px] text-dark-500 font-extrabold uppercase tracking-wider mt-1">{meeting.duration} min</p>
+                          </div>
+
+                          <div className="w-[2px] self-stretch bg-gradient-to-b from-brand-200 to-transparent" />
+
+                          {/* Icon */}
+                          <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-100 flex items-center justify-center flex-shrink-0">
+                            <Icon className="w-5 h-5 text-brand-700" />
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0 text-left">
+                            <p className="text-sm font-extrabold text-dark-900">{meeting.tele_form?.name || 'Client'}</p>
+                            <p className="text-xs text-dark-500 font-semibold">{meeting.meeting_type} · {meeting.tele_form?.phone}</p>
+                            {meeting.notes && (
+                              <p className="text-xs text-dark-600 mt-1.5 italic font-medium bg-dark-50 p-2 rounded-lg border border-dark-100 max-w-xl">
+                                "{meeting.notes}"
+                              </p>
+                            )}
+                          </div>
                         </div>
 
-                        <div className="w-px h-12 bg-dark-100" />
+                        {/* Status & Actions container */}
+                        <div className="flex items-center gap-3 self-end md:self-auto">
+                          <span className={`text-[9px] px-2.5 py-1 rounded-full font-bold border ${MEETING_STATUS_COLORS[meeting.status]}`}>
+                            {meeting.status}
+                          </span>
 
-                        {/* Icon */}
-                        <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">
-                          <Icon className="w-5 h-5 text-brand-700" />
-                        </div>
+                          <div className="h-6 w-[1px] bg-dark-200 hidden md:block" />
 
-                        {/* Info */}
-                        <div className="flex-1 min-w-0 text-left">
-                          <p className="text-sm font-bold text-dark-900">{meeting.tele_form?.name || 'Client'}</p>
-                          <p className="text-xs text-dark-500 font-medium">{meeting.meeting_type} · {meeting.tele_form?.phone}</p>
-                          {meeting.notes && <p className="text-xs text-dark-600 mt-1 italic font-medium">{meeting.notes}</p>}
-                        </div>
-
-                        {/* Status */}
-                        <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold border ${MEETING_STATUS_COLORS[meeting.status]}`}>
-                          {meeting.status}
-                        </span>
-
-                        {/* Actions */}
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {meeting.meeting_link && (
-                            <a
-                              href={meeting.meeting_link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-2.5 py-1.5 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors"
-                              title="Join Meeting"
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {meeting.meeting_link && (
+                              <a
+                                href={meeting.meeting_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3 py-1.5 rounded-lg text-emerald-650 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100/50 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-[0.97]"
+                                title="Join Meeting"
+                              >
+                                <ArrowUpRight className="w-3.5 h-3.5" /> Join
+                              </a>
+                            )}
+                            <button
+                              onClick={() => handleEditOpen(meeting)}
+                              className="px-3 py-1.5 rounded-lg text-amber-600 bg-amber-50 hover:bg-amber-100 hover:text-amber-700 border border-amber-100/50 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-[0.97] cursor-pointer"
+                              title="Edit Jadwal"
                             >
-                              <ArrowUpRight className="w-3.5 h-3.5" /> Join
-                            </a>
-                          )}
-                          <button
-                            onClick={() => handleEditOpen(meeting)}
-                            className="px-2.5 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                            title="Edit Jadwal"
-                          >
-                            <Edit className="w-3.5 h-3.5" /> Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(meeting.id)}
-                            className="px-2.5 py-1.5 rounded-lg text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                            title="Hapus Jadwal"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" /> Hapus
-                          </button>
-                          {meeting.status === 'SCHEDULED' && (
-                            <>
-                              <button
-                                onClick={() => handleStatusUpdate(meeting.id, 'COMPLETED')}
-                                className="px-2.5 py-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                                title="Selesai"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5" /> Selesai
-                              </button>
-                              <button
-                                onClick={() => handleStatusUpdate(meeting.id, 'NO_SHOW')}
-                                className="px-2.5 py-1.5 rounded-lg text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                                title="No Show"
-                              >
-                                <AlertCircle className="w-3.5 h-3.5" /> No Show
-                              </button>
-                              <button
-                                onClick={() => handleStatusUpdate(meeting.id, 'CANCELLED')}
-                                className="px-2.5 py-1.5 rounded-lg text-dark-600 bg-dark-50 hover:bg-dark-100 border border-dark-100/50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                                title="Batal"
-                              >
-                                <XCircle className="w-3.5 h-3.5" /> Batal
-                              </button>
-                            </>
-                          )}
+                              <Edit className="w-3.5 h-3.5" /> Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(meeting.id)}
+                              className="px-3 py-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 border border-rose-100/50 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-[0.97] cursor-pointer"
+                              title="Hapus Jadwal"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Hapus
+                            </button>
+                            {meeting.status === 'SCHEDULED' && (
+                              <>
+                                <button
+                                  onClick={() => handleStatusUpdate(meeting.id, 'COMPLETED')}
+                                  className="px-3 py-1.5 rounded-lg text-emerald-750 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-800 border border-emerald-100/50 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-[0.97] cursor-pointer"
+                                  title="Selesai"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Selesai
+                                </button>
+                                <button
+                                  onClick={() => handleStatusUpdate(meeting.id, 'NO_SHOW')}
+                                  className="px-3 py-1.5 rounded-lg text-rose-750 bg-rose-50 hover:bg-rose-100 hover:text-rose-800 border border-rose-100/50 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-[0.97] cursor-pointer"
+                                  title="No Show"
+                                >
+                                  <AlertCircle className="w-3.5 h-3.5" /> No Show
+                                </button>
+                                <button
+                                  onClick={() => handleStatusUpdate(meeting.id, 'CANCELLED')}
+                                  className="px-3 py-1.5 rounded-lg text-dark-500 bg-dark-100 hover:bg-dark-200 border border-dark-200/50 text-[10px] font-bold flex items-center gap-1 transition-all active:scale-[0.97] cursor-pointer"
+                                  title="Batal"
+                                >
+                                  <XCircle className="w-3.5 h-3.5" /> Batal
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </motion.div>
                     );
@@ -669,33 +692,37 @@ export default function MeetingSchedule() {
       {/* Schedule Modal */}
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-dark-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white border border-brand-100 p-6 max-w-md w-full rounded-2xl shadow-2xl"
+              initial={{ opacity: 0, scale: 0.96, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 15 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              className="bg-white/95 backdrop-blur-xl border border-brand-500/10 p-6 max-w-md w-full rounded-2xl shadow-2xl relative overflow-hidden"
             >
+              {/* Modal header accent bar */}
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-600 via-gold-500 to-brand-700" />
+
               <div className="flex items-center justify-between mb-5">
-                <h3 className="text-lg font-bold text-brand-900">
+                <h3 className="text-lg font-extrabold bg-gradient-to-r from-brand-900 to-brand-950 bg-clip-text text-transparent">
                   {isEditMode ? 'Edit Jadwal Meeting' : 'Jadwalkan Meeting'}
                 </h3>
-                <button onClick={handleCloseModal} className="text-dark-400 hover:text-brand-600 cursor-pointer">
+                <button onClick={handleCloseModal} className="p-1 rounded-lg hover:bg-dark-100 text-dark-400 hover:text-brand-600 transition-colors cursor-pointer">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               {!isEditMode && (
-                <div className="flex border-b border-dark-100 mb-4">
+                <div className="flex border-b border-dark-100 mb-5 p-0.5 bg-dark-50/50 rounded-xl">
                   <button
                     onClick={() => {
                       setModalTab('initial');
                       setNewMeeting((prev) => ({ ...prev, tele_form_id: '' }));
                     }}
-                    className={`flex-1 pb-2 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+                    className={`flex-1 py-2 text-xs font-bold transition-all rounded-lg cursor-pointer ${
                       modalTab === 'initial'
-                        ? 'border-brand-600 text-brand-600'
-                        : 'border-transparent text-dark-500 hover:text-dark-800'
+                        ? 'bg-white text-brand-600 shadow-sm'
+                        : 'text-dark-500 hover:text-dark-800'
                     }`}
                   >
                     Jadwal Awal
@@ -705,10 +732,10 @@ export default function MeetingSchedule() {
                       setModalTab('followup');
                       setNewMeeting((prev) => ({ ...prev, tele_form_id: '' }));
                     }}
-                    className={`flex-1 pb-2 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+                    className={`flex-1 py-2 text-xs font-bold transition-all rounded-lg cursor-pointer ${
                       modalTab === 'followup'
-                        ? 'border-brand-600 text-brand-600'
-                        : 'border-transparent text-dark-500 hover:text-dark-800'
+                        ? 'bg-white text-brand-600 shadow-sm'
+                        : 'text-dark-500 hover:text-dark-800'
                     }`}
                   >
                     Meeting Lanjutan
@@ -718,24 +745,32 @@ export default function MeetingSchedule() {
 
               <div className="space-y-4">
                 {!isEditMode && modalTab === 'followup' && (
-                  <div className="p-3 bg-brand-50 border border-brand-100 rounded-xl text-[11px] text-brand-850 font-semibold mb-3">
+                  <div className="p-3 bg-brand-50/70 border border-brand-100/50 rounded-xl text-[11px] text-brand-850 font-semibold mb-3">
                     Meeting lanjutan untuk client sudah mendapatkan jadwal
                   </div>
                 )}
 
                 <div>
                   <label className="form-label">Client</label>
-                  <select
-                    className="form-select"
-                    value={newMeeting.tele_form_id}
-                    onChange={(e) => setNewMeeting({ ...newMeeting, tele_form_id: e.target.value })}
-                    disabled={isEditMode}
-                  >
-                    <option value="">Pilih client</option>
-                    {getFilteredFormsForModal().map((f) => (
-                      <option key={f.id} value={f.id}>{f.name} - {f.phone}</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      className="form-select pr-10"
+                      value={newMeeting.tele_form_id}
+                      onChange={(e) => setNewMeeting({ ...newMeeting, tele_form_id: e.target.value })}
+                      disabled={isEditMode}
+                    >
+                      <option value="">Pilih client</option>
+                      {getFilteredFormsForModal().map((f) => (
+                        <option key={f.id} value={f.id}>{f.name} - {f.phone}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-dark-400">
+                      {/* Arrow indicator for custom select */}
+                      <svg className="w-4 h-4 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
+                        <path d="m6 9 6 6 6-6"/>
+                      </svg>
+                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -751,15 +786,22 @@ export default function MeetingSchedule() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="form-label">Tipe</label>
-                    <select
-                      className="form-select"
-                      value={newMeeting.meeting_type}
-                      onChange={(e) => setNewMeeting({ ...newMeeting, meeting_type: e.target.value })}
-                    >
-                      <option value="ZOOM">Zoom</option>
-                      <option value="GMEET">Google Meet</option>
-                      <option value="WHATSAPP">WhatsApp</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        className="form-select pr-10"
+                        value={newMeeting.meeting_type}
+                        onChange={(e) => setNewMeeting({ ...newMeeting, meeting_type: e.target.value })}
+                      >
+                        <option value="ZOOM">Zoom</option>
+                        <option value="GMEET">Google Meet</option>
+                        <option value="WHATSAPP">WhatsApp</option>
+                      </select>
+                      <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-dark-400">
+                        <svg className="w-4 h-4 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
+                          <path d="m6 9 6 6 6-6"/>
+                        </svg>
+                      </div>
+                    </div>
                   </div>
                   <div>
                     <label className="form-label">Durasi (menit)</label>
@@ -793,11 +835,11 @@ export default function MeetingSchedule() {
                   />
                 </div>
 
-                <div className="flex gap-3 pt-2">
+                <div className="flex gap-3 pt-3">
                   <button onClick={handleCloseModal} className="btn-secondary flex-1 cursor-pointer">
                     Batal
                   </button>
-                  <button onClick={handleSchedule} className="btn-primary flex-1 flex items-center justify-center gap-2 cursor-pointer">
+                  <button onClick={handleSchedule} className="btn-primary flex-1 cursor-pointer">
                     <Clock className="w-4 h-4" /> {isEditMode ? 'Simpan' : 'Jadwalkan'}
                   </button>
                 </div>

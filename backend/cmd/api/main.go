@@ -398,7 +398,7 @@ func main() {
 	httpDelivery.NewDashboardHandler(r, dashboardUC)
 
 	// New handlers
-	httpDelivery.NewFormConfigHandler(r, formConfigUC)
+	httpDelivery.NewFormConfigHandler(r, formConfigUC, submissionUC)
 	httpDelivery.NewGeographyHandler(r, geographyUC)
 	httpDelivery.NewTrainingHandler(r, trainingUC)
 	httpDelivery.NewConsultantHandler(r, consultantUC)

@@ -50,7 +50,7 @@ export const WorkflowActions = ({
         if (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'AUDIT_MANAGER')) {
             submissionService.getDrafters().then(setDrafters).catch(() => {});
         }
-        if (submission.data_source === 'MARKETING' && 
+        if ((submission.data_source === 'MARKETING' || submission.data_source === 'TELEMARKETING' || !submission.consultant_id) && 
             (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER' || user?.role === 'AUDIT_MANAGER')) {
             submissionService.getConsultants().then(setConsultants).catch(() => {});
         }

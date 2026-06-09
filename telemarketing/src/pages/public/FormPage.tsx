@@ -95,8 +95,7 @@ export default function PublicFormPage() {
 
   const getAgreementDetails = () => {
     const hasSpecialFlag = form.uses_meat || form.is_catering || form.is_amdk;
-    const isLargeScale = form.business_scale === 'menengah' || form.business_scale === 'besar';
-    const isTeleconference = hasSpecialFlag && isLargeScale;
+    const isTeleconference = form.business_scale !== 'mikro_kecil' || hasSpecialFlag;
 
     const today = new Date();
     const formattedDate = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' }).format(today);
@@ -114,6 +113,10 @@ export default function PublicFormPage() {
         nilaiJasa = '3.000.000';
         dp = '50';
         pelunasan = '50';
+      } else if (form.business_scale === 'mikro_kecil') {
+        nilaiJasa = '0 (Subsidi Pemerintah - Reguler)';
+        dp = '0';
+        pelunasan = '0';
       }
     }
 
@@ -262,29 +265,38 @@ export default function PublicFormPage() {
           </motion.div>
           <h1 className="text-2xl font-bold text-brand-900">Pengajuan Sertifikasi Halal</h1>
           <p className="text-dark-500 text-sm mt-1">Isi formulir di bawah untuk memulai proses pendampingan</p>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="flex items-center gap-2 mb-8 px-4">
-          {[1, 2].map((s) => (
-            <div key={s} className="flex-1 flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
-                step >= s ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/20' : 'bg-dark-200 text-dark-500'
-              }`}>
-                {s}
-              </div>
-              {s < 2 && (
-                <div className="flex-1 h-1 rounded-full bg-dark-200 overflow-hidden">
-                  <motion.div
-                    className="h-full bg-brand-500 rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: step > s ? '100%' : '0%' }}
-                    transition={{ duration: 0.5 }}
-                  />
-                </div>
-              )}
+        </div>        {/* Progress Bar */}
+        <div className="flex items-center justify-between mb-8 px-6 py-4 bg-white/70 backdrop-blur-md rounded-2xl border border-white/50 shadow-sm shadow-brand-900/[0.01]">
+          <div className="flex items-center gap-3">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+              step >= 1 ? 'bg-gradient-brand text-white shadow-md shadow-brand-600/10' : 'bg-dark-200 text-dark-500'
+            }`}>
+              1
             </div>
-          ))}
+            <div>
+              <p className="text-xs font-bold text-dark-900 leading-none">Data Usaha</p>
+              <p className="text-[10px] text-dark-400 font-semibold mt-0.5">Profil usaha & alamat</p>
+            </div>
+          </div>
+          <div className="flex-1 h-0.5 mx-4 bg-dark-200 rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-brand-600 rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: step > 1 ? '100%' : '0%' }}
+              transition={{ duration: 0.5 }}
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+              step >= 2 ? 'bg-gradient-brand text-white shadow-md shadow-brand-600/10' : 'bg-dark-200 text-dark-500'
+            }`}>
+              2
+            </div>
+            <div>
+              <p className="text-xs font-bold text-dark-900 leading-none">Persetujuan</p>
+              <p className="text-[10px] text-dark-400 font-semibold mt-0.5">Kontrak & ttd digital</p>
+            </div>
+          </div>
         </div>
 
         {/* Form Card */}
@@ -309,12 +321,12 @@ export default function PublicFormPage() {
                   {/* Nama */}
                   <div>
                     <label className="form-label flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 text-dark-500" /> Nama Lengkap
+                      <User className="w-3.5 h-3.5 text-dark-500" /> Nama Lengkap Pemesan
                     </label>
                     <input
                       type="text"
-                      className="form-input"
-                      placeholder="Masukkan nama"
+                      className="form-input animate-transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/5"
+                      placeholder="Masukkan nama lengkap Anda"
                       value={form.name}
                       onChange={(e) => updateForm('name', e.target.value)}
                     />
@@ -323,12 +335,12 @@ export default function PublicFormPage() {
                   {/* Phone */}
                   <div>
                     <label className="form-label flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-dark-500" /> No. Telepon
+                      <Phone className="w-3.5 h-3.5 text-dark-500" /> No. Telepon / WhatsApp
                     </label>
                     <input
                       type="tel"
-                      className="form-input"
-                      placeholder="08xxxxxxxxxx"
+                      className="form-input animate-transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/5"
+                      placeholder="Contoh: 08123456789"
                       value={form.phone}
                       onChange={(e) => updateForm('phone', e.target.value)}
                     />
@@ -337,11 +349,11 @@ export default function PublicFormPage() {
                   {/* Email */}
                   <div>
                     <label className="form-label flex items-center gap-1.5">
-                      <Mail className="w-3.5 h-3.5 text-dark-500" /> Email
+                      <Mail className="w-3.5 h-3.5 text-dark-500" /> Email Aktif
                     </label>
                     <input
                       type="email"
-                      className="form-input"
+                      className="form-input animate-transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/5"
                       placeholder="email@contoh.com"
                       value={form.email}
                       onChange={(e) => updateForm('email', e.target.value)}
@@ -351,11 +363,11 @@ export default function PublicFormPage() {
                   {/* Jenis Usaha */}
                   <div>
                     <label className="form-label flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5 text-dark-500" /> Nama Usaha / Merek
+                      <Building2 className="w-3.5 h-3.5 text-dark-500" /> Nama Usaha / Merek Dagang
                     </label>
                     <input
                       type="text"
-                      className="form-input"
+                      className="form-input animate-transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/5"
                       placeholder="Contoh: Bakso Eco, Katering Melati"
                       value={form.business_type}
                       onChange={(e) => updateForm('business_type', e.target.value)}
@@ -369,7 +381,7 @@ export default function PublicFormPage() {
                     </label>
                     <div className="relative">
                       <select
-                        className="form-select"
+                        className="form-select animate-transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/5"
                         value={form.business_scale}
                         onChange={(e) => updateForm('business_scale', e.target.value)}
                       >
@@ -388,7 +400,7 @@ export default function PublicFormPage() {
                     </label>
                     <div className="relative">
                       <select
-                        className="form-select"
+                        className="form-select animate-transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/5"
                         value={form.province_id}
                         onChange={(e) => updateForm('province_id', Number(e.target.value))}
                       >
@@ -407,8 +419,8 @@ export default function PublicFormPage() {
                     </label>
                     <textarea
                       rows={2}
-                      className="form-input resize-none"
-                      placeholder="Masukkan alamat lengkap lokasi usaha Anda"
+                      className="form-input resize-none animate-transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/5"
+                      placeholder="Masukkan alamat lengkap lokasi produksi atau usaha Anda"
                       value={form.address}
                       onChange={(e) => updateForm('address', e.target.value)}
                     />
@@ -417,50 +429,73 @@ export default function PublicFormPage() {
 
                 {/* Checkbox Fields */}
                 <div className="space-y-3 pt-2">
-                  <p className="text-sm font-semibold text-dark-600">Informasi Tambahan</p>
+                  <p className="text-xs font-bold text-dark-500 uppercase tracking-wider">Informasi Tambahan</p>
 
-                  <label className="flex items-center gap-3 p-3 rounded-xl bg-white border border-dark-200 cursor-pointer hover:border-brand-500/30 transition-colors">
+                  <label className={`flex items-center gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${
+                    form.uses_meat ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
+                  }`}>
                     <input
                       type="checkbox"
                       className="form-checkbox"
                       checked={form.uses_meat}
                       onChange={(e) => updateForm('uses_meat', e.target.checked)}
                     />
-                    <Beef className="w-4 h-4 text-rose-500" />
-                    <span className="text-sm text-dark-700">Menggunakan bahan daging</span>
+                    <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center flex-shrink-0">
+                      <Beef className="w-4 h-4 text-rose-600" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-dark-900 block leading-tight">Menggunakan Bahan Daging</span>
+                      <span className="text-[10px] text-dark-500 font-semibold mt-0.5 block">Centang jika produk Anda menggunakan bahan baku daging sapi/ayam/dsb</span>
+                    </div>
                   </label>
 
-                  <label className="flex items-center gap-3 p-3 rounded-xl bg-white border border-dark-200 cursor-pointer hover:border-brand-500/30 transition-colors">
+                  <label className={`flex items-center gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${
+                    form.is_catering ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
+                  }`}>
                     <input
                       type="checkbox"
                       className="form-checkbox"
                       checked={form.is_catering}
                       onChange={(e) => updateForm('is_catering', e.target.checked)}
                     />
-                    <UtensilsCrossed className="w-4 h-4 text-amber-500" />
-                    <span className="text-sm text-dark-700">Catering / Restoran / SPPG</span>
+                    <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+                      <UtensilsCrossed className="w-4 h-4 text-amber-600" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-dark-900 block leading-tight">Catering / Restoran / SPPG</span>
+                      <span className="text-[10px] text-dark-500 font-semibold mt-0.5 block">Penyedia jasa makanan siap saji, warung makan, atau katering</span>
+                    </div>
                   </label>
 
-                  <label className="flex items-center gap-3 p-3 rounded-xl bg-white border border-dark-200 cursor-pointer hover:border-brand-500/30 transition-colors">
+                  <label className={`flex items-center gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${
+                    form.is_amdk ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
+                  }`}>
                     <input
                       type="checkbox"
                       className="form-checkbox"
                       checked={form.is_amdk}
                       onChange={(e) => updateForm('is_amdk', e.target.checked)}
                     />
-                    <Droplets className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm text-dark-700">Depot Air Minum / AMDK</span>
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                      <Droplets className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-dark-900 block leading-tight">Depot Air Minum / AMDK</span>
+                      <span className="text-[10px] text-dark-500 font-semibold mt-0.5 block">Depot pengisian ulang air minum atau pabrik air kemasan</span>
+                    </div>
                   </label>
                 </div>
 
                 <div className="flex justify-end pt-2">
-                  <button
+                  <motion.button
                     onClick={() => setStep(2)}
                     disabled={!isStep1Valid()}
                     className="btn-primary flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                    whileHover={isStep1Valid() ? { scale: 1.02 } : {}}
+                    whileTap={isStep1Valid() ? { scale: 0.98 } : {}}
                   >
                     Lanjut <ArrowRight className="w-4 h-4" />
-                  </button>
+                  </motion.button>
                 </div>
               </motion.div>
             )}
@@ -480,21 +515,29 @@ export default function PublicFormPage() {
                   </h2>
 
                   {!hasRead ? (
-                    <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold leading-relaxed animate-pulse-glow">
-                      <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <motion.div 
+                      initial={{ scale: 0.98 }}
+                      animate={{ scale: 1 }}
+                      className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold leading-relaxed"
+                    >
+                      <AlertCircle className="w-4 h-4 text-amber-550 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="font-bold">Perjanjian Belum Selesai Dibaca</p>
                         <p className="text-amber-700 mt-0.5">Silakan baca dokumen perjanjian di bawah dengan men-scroll hingga ke bagian paling bawah untuk membuka kunci opsi persetujuan.</p>
                       </div>
-                    </div>
+                    </motion.div>
                   ) : (
-                    <div className="flex items-start gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold leading-relaxed">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <motion.div 
+                      initial={{ scale: 0.98 }}
+                      animate={{ scale: 1 }}
+                      className="flex items-start gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-250 text-emerald-950 text-xs font-semibold leading-relaxed"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-emerald-650 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="font-bold">Perjanjian Telah Dibaca</p>
-                        <p className="text-emerald-700 mt-0.5">Dokumen telah selesai dibaca. Silakan centang ketiga persetujuan elektronik di bawah untuk melanjutkan pengajuan.</p>
+                        <p className="text-emerald-755 mt-0.5">Dokumen telah selesai dibaca. Silakan centang ketiga persetujuan elektronik di bawah untuk melanjutkan pengajuan.</p>
                       </div>
-                    </div>
+                    </motion.div>
                   )}
 
                   {/* Scrollable Service Agreement Document */}
@@ -571,7 +614,7 @@ export default function PublicFormPage() {
                       <div>
                         <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 4: NILAI JASA DAN PEMBAYARAN</h4>
                         <div className="mt-1 space-y-1">
-                          <p>Nilai jasa pendampingan: <span className="font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">{details.nilaiJasa === '0 (Subsidi Pemerintah - Self Declare)' ? 'Rp 0 (Subsidi Pemerintah - Self-Declare)' : `Rp ${details.nilaiJasa}`}</span></p>
+                          <p>Nilai jasa pendampingan: <span className="font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">{details.nilaiJasa.startsWith('0') ? `Rp ${details.nilaiJasa}` : `Rp ${details.nilaiJasa}`}</span></p>
                           <p>Skema pembayaran:</p>
                           <ul className="list-disc pl-4 space-y-0.5 text-dark-600">
                             <li>Tahap I : <span className="font-bold text-dark-800">{details.dp}%</span></li>
@@ -730,8 +773,10 @@ export default function PublicFormPage() {
                   <div className="space-y-3">
                     <label className={
                       hasRead 
-                        ? "flex items-start gap-3 p-4 rounded-xl bg-white border border-dark-200 cursor-pointer hover:border-brand-500/30 transition-all shadow-sm"
-                        : "flex items-start gap-3 p-4 rounded-xl bg-dark-50 border border-dark-200 cursor-not-allowed opacity-50 transition-all"
+                        ? `flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${
+                            form.term_data_accuracy ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
+                          }`
+                        : "flex items-start gap-3.5 p-4 rounded-xl bg-dark-50 border border-dark-200 cursor-not-allowed opacity-50 transition-all"
                     }>
                       <input
                         type="checkbox"
@@ -740,15 +785,17 @@ export default function PublicFormPage() {
                         disabled={!hasRead}
                         onChange={(e) => updateForm('term_data_accuracy', e.target.checked)}
                       />
-                      <span className="text-sm text-dark-700">
+                      <span className="text-sm font-bold text-dark-750">
                         Saya menyatakan data yang saya berikan benar.
                       </span>
                     </label>
 
                     <label className={
                       hasRead 
-                        ? "flex items-start gap-3 p-4 rounded-xl bg-white border border-dark-200 cursor-pointer hover:border-brand-500/30 transition-all shadow-sm"
-                        : "flex items-start gap-3 p-4 rounded-xl bg-dark-50 border border-dark-200 cursor-not-allowed opacity-50 transition-all"
+                        ? `flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${
+                            form.term_agreement ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
+                          }`
+                        : "flex items-start gap-3.5 p-4 rounded-xl bg-dark-50 border border-dark-200 cursor-not-allowed opacity-50 transition-all"
                     }>
                       <input
                         type="checkbox"
@@ -757,15 +804,17 @@ export default function PublicFormPage() {
                         disabled={!hasRead}
                         onChange={(e) => updateForm('term_agreement', e.target.checked)}
                       />
-                      <span className="text-sm text-dark-700">
+                      <span className="text-sm font-bold text-dark-750">
                         Saya telah membaca dan menyetujui Perjanjian Layanan HalalCore.
                       </span>
                     </label>
 
                     <label className={
                       hasRead 
-                        ? "flex items-start gap-3 p-4 rounded-xl bg-white border border-dark-200 cursor-pointer hover:border-brand-500/30 transition-all shadow-sm"
-                        : "flex items-start gap-3 p-4 rounded-xl bg-dark-50 border border-dark-200 cursor-not-allowed opacity-50 transition-all"
+                        ? `flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${
+                            form.term_regulator ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
+                          }`
+                        : "flex items-start gap-3.5 p-4 rounded-xl bg-dark-50 border border-dark-200 cursor-not-allowed opacity-50 transition-all"
                     }>
                       <input
                         type="checkbox"
@@ -774,7 +823,7 @@ export default function PublicFormPage() {
                         disabled={!hasRead}
                         onChange={(e) => updateForm('term_regulator', e.target.checked)}
                       />
-                      <span className="text-sm text-dark-700">
+                      <span className="text-sm font-bold text-dark-750">
                         Saya memahami bahwa keputusan sertifikasi halal merupakan kewenangan regulator dan bukan kewenangan HalalCore.
                       </span>
                     </label>

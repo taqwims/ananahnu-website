@@ -48,12 +48,12 @@ export const useQCWorkspace = (initialSubId: string | null) => {
                 submissionService.getAll({ status: 'QC_REVIEW' }),
                 submissionService.getAll({ status: 'SIDANG_FATWA' }),
                 submissionService.getDrafters(),
-                submissionService['api'].get('/admin/users?role=HALAL_ADVISOR') // Need to add to service later
+                submissionService.getConsultants()
             ]);
             
             setSubmissions([...qcOff, ...qcRev, ...fatwa]);
             setDrafters(drfts);
-            setConsultants(conslts.data?.users || []);
+            setConsultants(conslts || []);
         } catch (err: any) {
             toast.error(err.message || "Gagal memuat daftar tugas QC");
         } finally {

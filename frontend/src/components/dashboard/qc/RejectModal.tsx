@@ -28,7 +28,7 @@ export const RejectModal = ({
 }: RejectModalProps) => {
     if (!submission) return null;
 
-    const isMarketing = submission.data_source === 'MARKETING';
+    const isMarketingOrTele = submission.data_source === 'MARKETING' || submission.data_source === 'TELEMARKETING' || !submission.consultant_id;
 
     return (
         <Modal 
@@ -53,9 +53,9 @@ export const RejectModal = ({
                         />
                     </div>
 
-                    {isMarketing && (
+                    {isMarketingOrTele && (
                         <div className="space-y-3">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Tunjuk Advisor (Data Marketing)</label>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Tunjuk Advisor</label>
                             <select 
                                 className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-xs focus:ring-4 focus:ring-brand-500/10 outline-none transition-all font-bold"
                                 value={selectedConsultant}
@@ -81,7 +81,7 @@ export const RejectModal = ({
                         </button>
                         <button 
                             onClick={() => onReject('reject_consultant')}
-                            disabled={processing || !rejectNote.trim() || (isMarketing && !selectedConsultant)}
+                            disabled={processing || !rejectNote.trim() || (isMarketingOrTele && !selectedConsultant)}
                             className="flex-1 py-4 bg-brand-50 text-brand-700 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-brand-100 transition-all border border-brand-100 disabled:opacity-50"
                         >
                             Balik ke Advisor

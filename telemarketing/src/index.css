@@ -9,10 +9,15 @@
   --color-brand-300: #8cd0b4;
   --color-brand-400: #5eb994;
   --color-brand-500: #3b9b7a;
+  --color-brand-550: #1a6b56;
   --color-brand-600: #004033; /* Halal Core Primary Green */
+  --color-brand-650: #00382c;
   --color-brand-700: #003329;
+  --color-brand-750: #002c23;
   --color-brand-800: #00261f;
+  --color-brand-850: #00201a;
   --color-brand-900: #001a15;
+  --color-brand-950: #000d0a;
 
   --color-gold-50: #fdf8eb;
   --color-gold-100: #f9ebca;
@@ -32,26 +37,36 @@
   --color-glass-text: rgba(24, 24, 27, 0.9);
 
   --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
   --color-emerald-400: #34d399;
   --color-emerald-500: #10b981;
+  --color-emerald-550: #0ca678;
   --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
 
   --color-amber-50: #fffbeb;
+  --color-amber-100: #fef3c7;
   --color-amber-400: #fbbf24;
   --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
 
   --color-rose-50: #fff1f2;
+  --color-rose-100: #ffe4e6;
   --color-rose-400: #fb7185;
   --color-rose-500: #f43f5e;
+  --color-rose-600: #e11d48;
 
   --color-dark-50: #f8fafc;
   --color-dark-100: #f1f5f9;
+  --color-dark-150: #eaf0f6;
   --color-dark-200: #e2e8f0;
+  --color-dark-250: #d6e0ea;
   --color-dark-300: #cbd5e1;
   --color-dark-400: #94a3b8;
   --color-dark-500: #64748b;
   --color-dark-600: #475569;
   --color-dark-700: #334155;
+  --color-dark-750: #293548;
   --color-dark-800: #1e293b;
   --color-dark-850: #172033;
   --color-dark-900: #0f172a;
@@ -66,9 +81,37 @@
   }
 }
 
+@utility bg-gradient-main {
+  background: linear-gradient(135deg, #f0f7f4 0%, #dcf0e8 100%);
+}
+
+@utility bg-gradient-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f0f7f4 100%);
+}
+
+@utility bg-gradient-amber {
+  background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);
+}
+
+@utility bg-gradient-emerald {
+  background: linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%);
+}
+
+@utility bg-gradient-brand {
+  background: linear-gradient(135deg, #004033 0%, #00261f 100%);
+}
+
+@utility bg-gradient-gold {
+  background: linear-gradient(135deg, #c0a060 0%, #a07f45 100%);
+}
+
 @layer components {
   .glass-panel {
-    @apply bg-white border border-gray-200 rounded-xl shadow-sm;
+    @apply bg-white/95 backdrop-blur-xl border border-dark-100/80 rounded-2xl shadow-sm;
+  }
+
+  .glass-card {
+    @apply bg-white/90 backdrop-blur-md border border-white/60 rounded-2xl shadow-lg shadow-brand-900/[0.02] hover:shadow-xl hover:shadow-brand-900/[0.04] transition-all duration-300;
   }
 
   .custom-scrollbar::-webkit-scrollbar {
@@ -81,7 +124,7 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-gray-200 rounded-full hover:bg-gray-300 transition-colors;
+    @apply bg-brand-200/50 rounded-full hover:bg-brand-300/60 transition-colors;
   }
 
   .glass-button {
@@ -93,27 +136,31 @@
   }
 
   .btn-primary {
-    @apply px-4 py-2 rounded-xl bg-brand-600 text-white font-semibold shadow-md hover:bg-brand-700 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
+    @apply px-5 py-3 rounded-xl bg-gradient-to-r from-brand-600 to-brand-700 text-white font-bold shadow-md hover:shadow-brand-600/20 hover:from-brand-500 hover:to-brand-600 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2;
   }
 
   .btn-secondary {
-    @apply px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 font-semibold shadow-sm hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50 cursor-pointer;
+    @apply px-5 py-3 rounded-xl bg-white border border-dark-200 text-dark-750 font-bold shadow-sm hover:bg-dark-50 transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2;
+  }
+
+  .btn-success {
+    @apply px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-bold shadow-md hover:shadow-emerald-600/20 hover:from-emerald-500 hover:to-emerald-600 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2;
   }
 
   .form-input {
     @apply w-full px-4 py-3 rounded-xl bg-white border border-dark-200 text-dark-900
            placeholder-dark-400 transition-all duration-200
-           focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20;
+           focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10;
   }
 
   .form-label {
-    @apply block text-sm font-medium text-dark-700 mb-2;
+    @apply block text-sm font-semibold text-dark-750 mb-2;
   }
 
   .form-select {
     @apply w-full px-4 py-3 rounded-xl bg-white border border-dark-200 text-dark-900
            transition-all duration-200 appearance-none cursor-pointer
-           focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20;
+           focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10;
   }
 
   .form-checkbox {
@@ -172,11 +219,11 @@
 /* ─── Card Styles ─────────────────────────────────────────────────── */
 
 .stat-card {
-  @apply bg-white border border-gray-200 rounded-xl p-6 transition-all duration-300;
+  @apply border border-dark-150 rounded-2xl p-6 transition-all duration-300 shadow-sm;
 }
 
 .stat-card:hover {
-  @apply border-brand-200 shadow-md;
+  @apply border-brand-300 shadow-md shadow-brand-900/[0.02] -translate-y-0.5;
 }
 
 .table-row {
