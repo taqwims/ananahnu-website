@@ -119,13 +119,22 @@ export default function PublicFormPage() {
     const today = new Date();
     const formattedDate = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' }).format(today);
 
+    const isSD = !form.uses_meat && !form.is_catering && !form.is_amdk && form.branch_count === 1;
+
     // Ambil harga jasa pendampingan dari BillingComponent (category: PENDAMPINGAN)
     const priceFromMaster = pricingMap[form.business_scale];
-    const nilaiJasa = priceFromMaster
-      ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(priceFromMaster)
-      : 'Ditentukan setelah konsultasi';
-    const dp = '70%';
-    const pelunasan = '30%';
+    
+    let nilaiJasa = 'Ditentukan setelah konsultasi';
+    let dp = '70%';
+    let pelunasan = '30%';
+
+    if (isSD) {
+      nilaiJasa = 'Rp 0 (Gratis)';
+      dp = '0%';
+      pelunasan = '0%';
+    } else if (priceFromMaster) {
+      nilaiJasa = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(priceFromMaster);
+    }
 
     const provinceName = provinces.find((p) => p.id === form.province_id)?.name || '-';
 
