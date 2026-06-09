@@ -160,3 +160,13 @@ export const login = (email: string, password: string) =>
 // Geography (reuse from existing backend)
 export const getProvinces = () =>
   api.get<Province[]>('/geography/provinces');
+
+// Public pricing (no auth needed)
+export interface PendampinganPrice {
+  scale_name: string;
+  scale_value: string; // mikro_kecil, menengah, besar
+  amount: number;
+}
+
+export const getPendampinganPricing = () =>
+  api.get<PendampinganPrice[]>('/tele/pricing');

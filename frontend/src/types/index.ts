@@ -36,6 +36,7 @@ export interface Client {
     address: string;
     product_name: string;
     service_type: string;
+    self_declare_type?: string;
     facilitator_id: string;
     facilitator?: User;
     contact_person?: string;
@@ -71,6 +72,7 @@ export interface Submission {
     client?: Client;
     status: SubmissionStatus;
     service_type: string;
+    self_declare_type?: string;
     current_assignee_role: number;
     sales_scheme_id?: number;
     consultant_id?: string;

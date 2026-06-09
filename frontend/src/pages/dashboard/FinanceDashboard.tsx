@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
 import { financeService } from '../../services/financeService';
 import { paymentService } from '../../services/paymentService';
+import KalkulatorReguler from '../../components/dashboard/KalkulatorReguler';
 import {
     DollarSign, TrendingUp, TrendingDown, Users, FileText, Briefcase,
-    CreditCard, Download, Send, ChevronDown, Plus, Trash2, Wallet, Search
+    CreditCard, Download, Send, ChevronDown, Plus, Trash2, Wallet, Search, Calculator, Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../../store/authStore';
+import { useSubmission } from '../../hooks/useSubmission';
+import { ClientInfoSection } from '../../components/dashboard/submission/ClientInfoSection';
+import { DocumentList } from '../../components/dashboard/submission/DocumentList';
+import api from '../../services/api';
 
 interface DashboardData {
     total_income: number;
@@ -65,7 +71,7 @@ const COMMISSION_LABELS: Record<string, string> = {
     REFERRAL: 'Referral',
 };
 
-type TabKey = 'overview' | 'incomes' | 'expenses' | 'commissions' | 'agents' | 'clients' | 'submissions' | 'managers' | 'bpjph';
+type TabKey = 'overview' | 'incomes' | 'expenses' | 'commissions' | 'agents' | 'clients' | 'submissions' | 'managers' | 'bpjph' | 'pricing';
 
 export default function FinanceDashboard() {
     const [tab, setTab] = useState<TabKey>('overview');
@@ -261,6 +267,7 @@ export default function FinanceDashboard() {
         { key: 'agents', label: 'Agen', icon: Users },
         { key: 'clients', label: 'Klien', icon: Briefcase },
         { key: 'submissions', label: 'Ajuan', icon: FileText },
+        { key: 'pricing', label: 'Harga Reguler', icon: Calculator },
         { key: 'managers', label: 'Manager', icon: Users },
     ];
 
@@ -993,6 +1000,10 @@ export default function FinanceDashboard() {
                 </div>
             )}
 
+            {tab === 'pricing' && (
+                <PricingTab submissions={submissions} formatIDR={formatIDR} />
+            )}
+
             {/* Expense Modal */}
             {showExpenseModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
@@ -1188,6 +1199,176 @@ function Pagination({ totalItems, currentPage, pageSize, onPageChange, onPageSiz
                     className="px-3 py-1 text-xs font-bold rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors">
                     Berikutnya
                 </button>
+            </div>
+        </div>
+    );
+}
+
+// ── Pricing Tab Component ──────────────────────────────────────────────
+
+function PricingTab({ submissions, formatIDR }: { submissions: any[]; formatIDR: (n: number) => string }) {
+    const [search, setSearch] = useState('');
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+
+    // Filter only REGULER submissions
+    const regulerSubmissions = submissions.filter(s => s.service_type === 'REGULER');
+
+    const filtered = regulerSubmissions.filter(s => {
+        const q = search.toLowerCase();
+        return (
+            (s.business_name || '').toLowerCase().includes(q) ||
+            (s.owner_name || '').toLowerCase().includes(q) ||
+            (s.status || '').toLowerCase().includes(q)
+        );
+    });
+
+    const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+    return (
+        <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h3 className="text-lg font-black text-gray-800">Penentuan Harga Reguler</h3>
+                    <p className="text-sm text-gray-500 mt-0.5">Klik pengajuan untuk menentukan/melihat rincian harga pendampingan</p>
+                </div>
+                <div className="relative w-full sm:max-w-xs">
+                    <input type="text" value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+                        placeholder="Cari ajuan reguler..."
+                        className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                    <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-gray-400" />
+                </div>
+            </div>
+
+            <div className="glass-panel rounded-xl overflow-hidden">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="bg-gray-50/80 border-b border-gray-100">
+                            <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Klien (Usaha)</th>
+                            <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Status</th>
+                            <th className="text-right px-4 py-3 font-bold text-gray-500 text-xs uppercase">Harga Total</th>
+                            <th className="text-center px-4 py-3 font-bold text-gray-500 text-xs uppercase">Tanggal</th>
+                            <th className="text-center px-4 py-3 font-bold text-gray-500 text-xs uppercase">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {paginated.map(sub => {
+                            const hasPrice = sub.cost_detail && sub.cost_detail.total_amount > 0;
+                            const isExpanded = expandedId === sub.id;
+                            return (
+                                <tr key={sub.id} className="border-b border-gray-50">
+                                    <td className="px-4 py-3">
+                                        <div>
+                                            <p className="font-bold text-gray-800">{sub.business_name || '-'}</p>
+                                            <p className="text-xs text-gray-400">{sub.owner_name || '-'}</p>
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {hasPrice ? (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-100">
+                                                ✅ Harga Ditentukan
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-xs font-bold border border-amber-100">
+                                                ⏳ Belum Ditentukan
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-bold text-brand-700">
+                                        {hasPrice ? formatIDR(sub.cost_detail.total_amount) : '-'}
+                                    </td>
+                                    <td className="px-4 py-3 text-center text-gray-600 text-xs">
+                                        {new Date(sub.created_at).toLocaleDateString('id')}
+                                    </td>
+                                    <td className="px-4 py-3 text-center">
+                                        <button
+                                            onClick={() => setExpandedId(isExpanded ? null : sub.id)}
+                                            className={`px-3 py-1.5 font-bold rounded-lg text-xs transition-colors ${
+                                                isExpanded
+                                                    ? 'bg-gray-800 text-white hover:bg-gray-900'
+                                                    : 'bg-brand-50 text-brand-600 border border-brand-100 hover:bg-brand-100'
+                                            }`}
+                                        >
+                                            {isExpanded ? 'Tutup' : hasPrice ? 'Lihat Harga' : 'Set Harga'}
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                        {paginated.length === 0 && (
+                            <tr><td colSpan={5} className="text-center py-8 text-gray-400">Tidak ada ajuan reguler</td></tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Expanded Submission Detail with Kalkulator */}
+            {expandedId && (
+                <div className="border border-brand-100 rounded-2xl bg-brand-50/30 p-4 mt-2">
+                    <ExpandedSubmissionDetail 
+                        submissionId={expandedId} 
+                        onClose={() => {
+                            toast.success('Harga berhasil disimpan!');
+                            const id = expandedId;
+                            setExpandedId(null);
+                            setTimeout(() => setExpandedId(id), 100);
+                        }} 
+                    />
+                </div>
+            )}
+
+            <Pagination totalItems={filtered.length} currentPage={currentPage} pageSize={pageSize} onPageChange={setCurrentPage} onPageSizeChange={setPageSize} />
+        </div>
+    );
+}
+
+// ── Expanded Submission Detail for Pricing ───────────────────────────
+
+function ExpandedSubmissionDetail({ submissionId, onClose }: { submissionId: string; onClose: () => void }) {
+    const { submission, fieldValues, loading, refresh, updateClient, updateBusinessType } = useSubmission(submissionId);
+    const user = useAuthStore(state => state.user);
+    const [businessTypes, setBusinessTypes] = useState<any[]>([]);
+    const [editingData, setEditingData] = useState(false);
+
+    useEffect(() => {
+        api.get('/billing-config/business-types').then(res => setBusinessTypes(res.data || []));
+    }, []);
+
+    if (loading) {
+        return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-brand-600 w-6 h-6" /></div>;
+    }
+    if (!submission) return <div className="p-4 text-center text-gray-500">Data tidak ditemukan</div>;
+
+    return (
+        <div className="space-y-6 animate-fade-in pb-4">
+            <h4 className="text-lg font-black text-brand-900 px-2">Data & Rincian Harga Pengajuan</h4>
+
+            <ClientInfoSection 
+                submission={submission} 
+                user={user} 
+                onUpdateClient={updateClient} 
+                onUpdateBusinessType={updateBusinessType}
+                businessTypes={businessTypes}
+                processing={false} 
+            />
+
+            <DocumentList 
+                submission={submission}
+                user={user}
+                fieldValues={fieldValues}
+                editingData={editingData}
+                setEditingData={setEditingData}
+                onRefresh={refresh}
+            />
+
+            <div className="border-t border-brand-200/50 pt-6 mt-6">
+                <KalkulatorReguler
+                    submissionId={submissionId}
+                    onSaved={onClose}
+                    salesSchemeId={submission.sales_scheme_id || undefined}
+                    dataSource={submission.data_source}
+                />
             </div>
         </div>
     );

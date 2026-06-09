@@ -130,6 +130,9 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateBu
                     {submission.consultant_id && (
                         <InfoItem label="Advisor Penanggung Jawab" value={submission.consultant?.full_name} highlight />
                     )}
+                    {submission.service_type === 'SELF_DECLARE' && submission.self_declare_type && (
+                        <InfoItem label="Jenis Self Declare" value={submission.self_declare_type === 'MANDIRI' ? 'Mandiri (Berbayar)' : 'Gratis (Subsidi)'} highlight />
+                    )}
                     <div className="sm:col-span-2 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
                         <dt className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Alamat Lengkap</dt>
                         <dd className="text-sm text-gray-700 font-medium leading-relaxed">{submission.client?.address || '-'}</dd>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { submitPublicForm, getProvinces, type Province } from '../../services/teleService';
+import { submitPublicForm, getProvinces, getPendampinganPricing, type Province, type PendampinganPrice } from '../../services/teleService';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   User, Phone, Mail, Building2, Scale, Beef, MapPin,
@@ -30,6 +30,7 @@ export default function PublicFormPage() {
   const [submitted, setSubmitted] = useState(false);
   const [result, setResult] = useState<{ form_id: string; route_type: string; status: string } | null>(null);
   const [provinces, setProvinces] = useState<Province[]>([]);
+  const [pricingMap, setPricingMap] = useState<Record<string, number>>({});
 
   // Form data
   const [form, setForm] = useState({
@@ -69,6 +70,17 @@ export default function PublicFormPage() {
   useEffect(() => {
     getProvinces().then((res) => setProvinces(res.data)).catch(() => { });
 
+    // Fetch pendampingan pricing from billing components
+    getPendampinganPricing()
+      .then((res) => {
+        const map: Record<string, number> = {};
+        (res.data as PendampinganPrice[]).forEach((p) => {
+          map[p.scale_value] = p.amount;
+        });
+        setPricingMap(map);
+      })
+      .catch(() => { /* pricing fallback handled in getAgreementDetails */ });
+
     // Try to fetch public IP for the electronic signature, fail-safe fallback
     fetch('https://api.ipify.org?format=json')
       .then((res) => res.json())
@@ -107,10 +119,13 @@ export default function PublicFormPage() {
     const today = new Date();
     const formattedDate = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' }).format(today);
 
-    // Harga ditentukan oleh finance setelah konsultasi
-    const nilaiJasa = 'Ditentukan setelah konsultasi';
-    const dp = '-';
-    const pelunasan = '-';
+    // Ambil harga jasa pendampingan dari BillingComponent (category: PENDAMPINGAN)
+    const priceFromMaster = pricingMap[form.business_scale];
+    const nilaiJasa = priceFromMaster
+      ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(priceFromMaster)
+      : 'Ditentukan setelah konsultasi';
+    const dp = '70%';
+    const pelunasan = '30%';
 
     const provinceName = provinces.find((p) => p.id === form.province_id)?.name || '-';
 
@@ -222,6 +237,8 @@ export default function PublicFormPage() {
       </div>
     );
   }
+
+  const details = getAgreementDetails();
 
   return (
     <div className="min-h-screen bg-gradient-main flex items-center justify-center p-4">
@@ -432,9 +449,8 @@ export default function PublicFormPage() {
                         return (
                           <label
                             key={opt.value}
-                            className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${
-                              form.consultation_method === opt.value ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
-                            }`}
+                            className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${form.consultation_method === opt.value ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
+                              }`}
                           >
                             <input
                               type="radio"
@@ -524,359 +540,353 @@ export default function PublicFormPage() {
               </motion.div>
             )}
 
-            {step === 2 && (() => {
-              const details = getAgreementDetails();
-              return (
-                <motion.div
-                  key="step2"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="space-y-5"
-                >
-                  <h2 className="text-lg font-bold text-brand-900 flex items-center gap-2">
-                    <CheckSquare className="w-5 h-5 text-brand-500" /> Dokumen Perjanjian & Persetujuan
-                  </h2>
+            {step === 2 && (
+              <motion.div
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-5"
+              >
+                <h2 className="text-lg font-bold text-brand-900 flex items-center gap-2">
+                  <CheckSquare className="w-5 h-5 text-brand-500" /> Dokumen Perjanjian & Persetujuan
+                </h2>
 
-                  {!hasRead ? (
-                    <motion.div
-                      initial={{ scale: 0.98 }}
-                      animate={{ scale: 1 }}
-                      className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold leading-relaxed"
-                    >
-                      <AlertCircle className="w-4 h-4 text-amber-550 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-bold">Perjanjian Belum Selesai Dibaca</p>
-                        <p className="text-amber-700 mt-0.5">Silakan baca dokumen perjanjian di bawah dengan men-scroll hingga ke bagian paling bawah untuk membuka kunci opsi persetujuan.</p>
-                      </div>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      initial={{ scale: 0.98 }}
-                      animate={{ scale: 1 }}
-                      className="flex items-start gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-250 text-emerald-950 text-xs font-semibold leading-relaxed"
-                    >
-                      <CheckCircle2 className="w-4 h-4 text-emerald-650 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-bold">Perjanjian Telah Dibaca</p>
-                        <p className="text-emerald-755 mt-0.5">Dokumen telah selesai dibaca. Silakan centang ketiga persetujuan elektronik di bawah untuk melanjutkan pengajuan.</p>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* Scrollable Service Agreement Document */}
-                  <div
-                    id="agreement-container"
-                    onScroll={handleScroll}
-                    className="h-80 overflow-y-auto border border-dark-200 bg-white rounded-xl p-5 custom-scrollbar text-[11px] text-dark-700 space-y-5 leading-relaxed shadow-inner"
+                {!hasRead ? (
+                  <motion.div
+                    initial={{ scale: 0.98 }}
+                    animate={{ scale: 1 }}
+                    className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold leading-relaxed"
                   >
-                    <div className="text-center border-b border-dark-100 pb-4 mb-4">
-                      <h3 className="text-xs font-extrabold text-brand-600 uppercase tracking-wide">PERJANJIAN LAYANAN PENDAMPINGAN SERTIFIKASI HALAL</h3>
-                      <h4 className="text-[10px] font-bold text-gold-600 tracking-widest mt-1">HALALCORE</h4>
-                      <p className="text-[10px] text-dark-500 mt-2">Nomor Perjanjian: <span className="font-mono font-bold text-dark-800">{agreementNum}</span></p>
-                      <p className="text-[10px] text-dark-500">Tanggal: <span className="font-bold text-dark-800">{details.formattedDate}</span></p>
+                    <AlertCircle className="w-4 h-4 text-amber-550 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Perjanjian Belum Selesai Dibaca</p>
+                      <p className="text-amber-700 mt-0.5">Silakan baca dokumen perjanjian di bawah dengan men-scroll hingga ke bagian paling bawah untuk membuka kunci opsi persetujuan.</p>
                     </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    initial={{ scale: 0.98 }}
+                    animate={{ scale: 1 }}
+                    className="flex items-start gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-250 text-emerald-950 text-xs font-semibold leading-relaxed"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-emerald-650 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Perjanjian Telah Dibaca</p>
+                      <p className="text-emerald-755 mt-0.5">Dokumen telah selesai dibaca. Silakan centang ketiga persetujuan elektronik di bawah untuk melanjutkan pengajuan.</p>
+                    </div>
+                  </motion.div>
+                )}
 
-                    <div className="space-y-4">
-                      {/* Pasal 1 */}
-                      <div>
-                        <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 1: PARA PIHAK</h4>
-                        <p className="mt-1">Perjanjian ini dibuat secara elektronik antara:</p>
-                        <div className="mt-2 pl-3 border-l-2 border-brand-500/20 space-y-3">
-                          <div>
-                            <p className="font-bold text-dark-800 text-[11px]">PIHAK PERTAMA</p>
-                            <p className="font-bold text-brand-700 text-[11px]">HALALCORE (PT Ana Nahnu Indonesia)</p>
-                            <p className="text-dark-600 mt-0.5">
-                              Building Halal Business Excellence. Unit layanan halal advisory yang dikelola oleh PT Ana Nahnu Indonesia.<br />
-                              Alamat: Banjarsari – Ciamis – Jawa Barat<br />
-                              WhatsApp: 0815-6485-6280 | Instagram: @halalcore.id
-                            </p>
+                {/* Scrollable Service Agreement Document */}
+                <div
+                  id="agreement-container"
+                  onScroll={handleScroll}
+                  className="h-80 overflow-y-auto border border-dark-200 bg-white rounded-xl p-5 custom-scrollbar text-[11px] text-dark-700 space-y-5 leading-relaxed shadow-inner"
+                >
+                  <div className="text-center border-b border-dark-100 pb-4 mb-4">
+                    <h3 className="text-xs font-extrabold text-brand-600 uppercase tracking-wide">PERJANJIAN LAYANAN PENDAMPINGAN SERTIFIKASI HALAL</h3>
+                    <h4 className="text-[10px] font-bold text-gold-600 tracking-widest mt-1">HALALCORE</h4>
+                    <p className="text-[10px] text-dark-500 mt-2">Nomor Perjanjian: <span className="font-mono font-bold text-dark-800">{agreementNum}</span></p>
+                    <p className="text-[10px] text-dark-500">Tanggal: <span className="font-bold text-dark-800">{details.formattedDate}</span></p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Pasal 1 */}
+                    <div>
+                      <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 1: PARA PIHAK</h4>
+                      <p className="mt-1">Perjanjian ini dibuat secara elektronik antara:</p>
+                      <div className="mt-2 pl-3 border-l-2 border-brand-500/20 space-y-3">
+                        <div>
+                          <p className="font-bold text-dark-800 text-[11px]">PIHAK PERTAMA</p>
+                          <p className="font-bold text-brand-700 text-[11px]">HALALCORE (PT Ana Nahnu Indonesia)</p>
+                          <p className="text-dark-600 mt-0.5">
+                            Building Halal Business Excellence. Unit layanan halal advisory yang dikelola oleh PT Ana Nahnu Indonesia.<br />
+                            Alamat: Banjarsari – Ciamis – Jawa Barat<br />
+                            WhatsApp: 0815-6485-6280 | Instagram: @halalcore.id
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-bold text-dark-800 text-[11px]">PIHAK KEDUA</p>
+                          <div className="grid grid-cols-3 gap-x-2 gap-y-0.5 text-dark-600 mt-1 max-w-md">
+                            <span className="font-medium text-dark-500">Nama Usaha:</span>
+                            <span className="col-span-2 font-bold text-dark-800">{form.business_type}</span>
+                            <span className="font-medium text-dark-500">Penanggung Jawab:</span>
+                            <span className="col-span-2 font-bold text-dark-800">{form.name}</span>
+                            <span className="font-medium text-dark-500">Alamat:</span>
+                            <span className="col-span-2 text-dark-800">{form.address || details.provinceName}</span>
+                            <span className="font-medium text-dark-500">Email:</span>
+                            <span className="col-span-2 text-dark-800">{form.email}</span>
+                            <span className="font-medium text-dark-500">Nomor HP:</span>
+                            <span className="col-span-2 text-dark-800">{form.phone}</span>
                           </div>
-                          <div>
-                            <p className="font-bold text-dark-800 text-[11px]">PIHAK KEDUA</p>
-                            <div className="grid grid-cols-3 gap-x-2 gap-y-0.5 text-dark-600 mt-1 max-w-md">
-                              <span className="font-medium text-dark-500">Nama Usaha:</span>
-                              <span className="col-span-2 font-bold text-dark-800">{form.business_type}</span>
-                              <span className="font-medium text-dark-500">Penanggung Jawab:</span>
-                              <span className="col-span-2 font-bold text-dark-800">{form.name}</span>
-                              <span className="font-medium text-dark-500">Alamat:</span>
-                              <span className="col-span-2 text-dark-800">{form.address || details.provinceName}</span>
-                              <span className="font-medium text-dark-500">Email:</span>
-                              <span className="col-span-2 text-dark-800">{form.email}</span>
-                              <span className="font-medium text-dark-500">Nomor HP:</span>
-                              <span className="col-span-2 text-dark-800">{form.phone}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Pasal 2 */}
-                      <div>
-                        <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 2: MAKSUD DAN TUJUAN</h4>
-                        <p className="mt-1">
-                          PIHAK KEDUA memesan layanan profesional pendampingan sertifikasi halal kepada PIHAK PERTAMA untuk membantu proses pemenuhan persyaratan sertifikasi halal sesuai regulasi yang berlaku.
-                        </p>
-                      </div>
-
-                      {/* Pasal 3 */}
-                      <div>
-                        <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 3: RUANG LINGKUP LAYANAN</h4>
-                        <p className="mt-1">Layanan yang diberikan PIHAK PERTAMA meliputi:</p>
-                        <ol className="list-decimal pl-4 mt-1 space-y-0.5 text-dark-600">
-                          <li>Assessment awal kebutuhan sertifikasi halal.</li>
-                          <li>Pendampingan registrasi sertifikasi halal.</li>
-                          <li>Pendampingan pengumpulan data teknis.</li>
-                          <li>Penyusunan dokumen Sistem Jaminan Produk Halal (SJPH).</li>
-                          <li>Sosialisasi kebijakan halal dan implementasi SJPH.</li>
-                          <li>Pendampingan audit eksternal oleh LPH.</li>
-                          <li>Monitoring proses sidang fatwa halal.</li>
-                          <li>Monitoring penerbitan sertifikat halal.</li>
-                        </ol>
-                      </div>
-
-                      {/* Pasal 4 */}
-                      <div>
-                        <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 4: NILAI JASA DAN PEMBAYARAN</h4>
-                        <div className="mt-1 space-y-1">
-                          <p>Nilai Jasa Pendampingan adalah harga yang dibayarkan oleh pihak kedua terhadap pihak pertama untuk semua layanan pendampingan proses sertifikasi halal yang termasuk dalam ruang lingkup Pasal 3. Nilai tersebut tidak termasuk biaya registrasi BPJPH, Ketetapan halal MUI, dan persyaratan lain yang diperlukan yang berdampak pada penambahan biaya.
-                          </p>
-                          <p>Biaya yang ditagihkan oleh pihak pertama setelah kontrak disetujui adalah biaya pendampingan beserta biaya registrasi BPJPH, ketetapan halal MUI, audit LPH dan biaya lain dari persyaratan yang berdampak pada penambahan biaya.
-                          </p>
-                          <p>Keseluruhan biaya dapat diketahui setelah konsultasi berlangsung dan akan ditentukan oleh pihak pertama berdasarkan skala usaha, jumlah cabang, dan kompleksitas proses sertifikasi.
-                          </p>
-                          <p>Nilai jasa pendampingan: <span className="font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">{details.nilaiJasa}</span></p>
-                          <p>Skema pembayaran: <span className="font-bold text-dark-800">{details.dp === '-' ? 'Akan ditentukan setelah konsultasi' : `Tahap I: ${details.dp}% | Tahap II: ${details.pelunasan}%`}</span></p>
-                          <p className="text-[10px] text-dark-500 italic">Pembayaran dilakukan melalui rekening resmi atau payment gateway yang ditetapkan HalalCore.</p>
-                        </div>
-                      </div>
-
-                      {/* Pasal 5 */}
-                      <div>
-                        <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 5: TAHAPAN PELAKSANAAN</h4>
-                        <p className="mt-1">Alur layanan:</p>
-                        <div className="mt-2 flex flex-col pl-3 border-l border-dark-200 space-y-1 text-[10px] font-semibold text-brand-800">
-                          <span>Kontrak & Registrasi</span>
-                          <span className="text-dark-400">↓</span>
-                          <span>Pengumpulan Data Teknis</span>
-                          <span className="text-dark-400">↓</span>
-                          <span>Penyusunan Dokumen SJPH</span>
-                          <span className="text-dark-400">↓</span>
-                          <span>Implementasi SJPH</span>
-                          <span className="text-dark-400">↓</span>
-                          <span>Audit Eksternal LPH</span>
-                          <span className="text-dark-400">↓</span>
-                          <span>Sidang Fatwa Halal</span>
-                          <span className="text-dark-400">↓</span>
-                          <span>Penerbitan Sertifikat Halal</span>
-                        </div>
-                      </div>
-
-                      {/* Pasal 6 */}
-                      <div>
-                        <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 6: KEWAJIBAN PIHAK KEDUA</h4>
-                        <ol className="list-decimal pl-4 mt-1 space-y-0.5 text-dark-600">
-                          <li>Menyampaikan data usaha yang benar dan lengkap.</li>
-                          <li>Menyerahkan dokumen yang diperlukan sesuai permintaan.</li>
-                          <li>Menunjuk PIC yang dapat berkoordinasi selama proses pendampingan.</li>
-                          <li>Melakukan pembayaran sesuai jadwal yang disepakati.</li>
-                          <li>Mendukung implementasi SJPH di lingkungan usaha.</li>
-                        </ol>
-                      </div>
-
-                      {/* Pasal 7 */}
-                      <div>
-                        <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 7: KEWAJIBAN PIHAK PERTAMA</h4>
-                        <ol className="list-decimal pl-4 mt-1 space-y-0.5 text-dark-600">
-                          <li>Memberikan layanan pendampingan secara profesional.</li>
-                          <li>Menjaga kerahasiaan data usaha PIHAK KEDUA.</li>
-                          <li>Memberikan konsultasi sesuai ruang lingkup layanan.</li>
-                          <li>Menginformasikan perkembangan proses sertifikasi halal.</li>
-                        </ol>
-                      </div>
-
-                      {/* Pasal 8 */}
-                      <div>
-                        <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 8: KERAHASIAAN DATA</h4>
-                        <p className="mt-1">
-                          PIHAK PERTAMA wajib menjaga kerahasiaan seluruh data usaha, formula, dokumen, dan informasi bisnis PIHAK KEDUA kecuali diwajibkan oleh regulator atau ketentuan hukum yang berlaku.
-                        </p>
-                      </div>
-
-                      {/* Pasal 9 */}
-                      <div>
-                        <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 9: KETENTUAN TIMELINE</h4>
-                        <ol className="list-decimal pl-4 mt-1 space-y-0.5 text-dark-600">
-                          <li>Timeline proses sertifikasi halal bersifat estimatif.</li>
-                          <li>Jadwal audit LPH, sidang fatwa, dan penerbitan sertifikat merupakan kewenangan regulator.</li>
-                          <li>Keterlambatan akibat regulator tidak menjadi tanggung jawab PIHAK PERTAMA.</li>
-                          <li>Keterlambatan akibat kelalaian atau ketidaksiapan data dari PIHAK KEDUA tidak menjadi tanggung jawab PIHAK PERTAMA.</li>
-                        </ol>
-                      </div>
-
-                      {/* Pasal 10 */}
-                      <div>
-                        <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 10: PEMBATALAN DAN PENGEMBALIAN DANA</h4>
-                        <ol className="list-decimal pl-4 mt-1 space-y-0.5 text-dark-600">
-                          <li>Pembayaran yang telah dilakukan tidak dapat diminta kembali (non-refundable).</li>
-                          <li>Pengecualian hanya berlaku apabila terjadi kesalahan material yang disebabkan PIHAK PERTAMA.</li>
-                          <li>Apabila PIHAK KEDUA menghentikan proses secara sepihak, seluruh pembayaran yang telah diterima dianggap hangus sebagai biaya jasa yang telah berjalan.</li>
-                        </ol>
-                      </div>
-
-                      {/* Pasal 11 */}
-                      <div>
-                        <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 11: BATASAN TANGGUNG JAWAB</h4>
-                        <p className="mt-1">PIHAK PERTAMA tidak menjamin:</p>
-                        <ul className="list-disc pl-4 mt-1 space-y-0.5 text-dark-600">
-                          <li>Sertifikat halal pasti terbit.</li>
-                          <li>Jadwal audit tertentu.</li>
-                          <li>Jadwal sidang fatwa tertentu.</li>
-                          <li>Keputusan regulator tertentu.</li>
-                        </ul>
-                        <p className="mt-1 text-dark-600">Keputusan sertifikasi halal sepenuhnya menjadi kewenangan regulator yang berwenang.</p>
-                      </div>
-
-                      {/* Pasal 12 */}
-                      <div>
-                        <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 12: FORCE MAJEURE</h4>
-                        <p className="mt-1">Keadaan kahar meliputi:</p>
-                        <ul className="list-disc pl-4 mt-1 space-y-0.5 text-dark-600">
-                          <li>Bencana alam</li>
-                          <li>Gangguan sistem nasional</li>
-                          <li>Perubahan regulasi</li>
-                          <li>Kebijakan pemerintah</li>
-                          <li>Keadaan lain di luar kendali para pihak</li>
-                        </ul>
-                        <p className="mt-1">yang menyebabkan sebagian atau seluruh kewajiban tidak dapat dilaksanakan.</p>
-                      </div>
-
-                      {/* Pasal 13 */}
-                      <div>
-                        <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 13: PERSETUJUAN ELEKTRONIK</h4>
-                        <p className="mt-1">Dengan mencentang kotak:</p>
-                        <p className="mt-1 font-semibold text-brand-700 bg-brand-50 p-2 rounded border border-brand-100">
-                          ☑ Saya telah membaca, memahami, dan menyetujui Perjanjian Layanan HalalCore.
-                        </p>
-                        <p className="mt-1.5">
-                          PIHAK KEDUA dianggap telah memberikan persetujuan yang sah secara elektronik terhadap seluruh isi perjanjian ini. Persetujuan elektronik tersebut memiliki kekuatan hukum yang sama dengan tanda tangan basah sesuai ketentuan peraturan perundang-undangan yang berlaku.
-                        </p>
-                      </div>
-
-                      {/* Pasal 14 */}
-                      <div>
-                        <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 14: PENUTUP</h4>
-                        <p className="mt-1">
-                          Perjanjian ini mulai berlaku sejak PIHAK KEDUA menyelesaikan proses pemesanan dan pembayaran melalui sistem HalalCore.
-                        </p>
-                      </div>
-
-                      {/* Data Persetujuan */}
-                      <div className="border-t border-dark-200 pt-4 mt-6">
-                        <h4 className="font-bold text-brand-900 text-xs uppercase text-center mb-3 tracking-wider">DATA PERSETUJUAN ELEKTRONIK</h4>
-                        <div className="grid grid-cols-3 gap-x-2 gap-y-1 text-[10px] text-dark-600 max-w-md mx-auto">
-                          <span className="font-medium text-dark-500">Nama Pemesan:</span>
-                          <span className="col-span-2 font-bold text-dark-800">{form.name}</span>
-                          <span className="font-medium text-dark-500">Email:</span>
-                          <span className="col-span-2 text-dark-800">{form.email}</span>
-                          <span className="font-medium text-dark-500">Nomor HP:</span>
-                          <span className="col-span-2 text-dark-800">{form.phone}</span>
-                          <span className="font-medium text-dark-500">Waktu Persetujuan:</span>
-                          <span className="col-span-2 text-dark-800">{details.timestamp}</span>
-                          <span className="font-medium text-dark-500">IP Address:</span>
-                          <span className="col-span-2 font-mono text-dark-800">{ipAddress}</span>
-                          <span className="font-medium text-dark-500">Kode Transaksi:</span>
-                          <span className="col-span-2 font-mono text-dark-800">{orderId}</span>
-                          <span className="font-medium text-dark-500">Status:</span>
-                          <span className="col-span-2 font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 inline-block text-[9px] w-fit">
-                            DISETUJUI SECARA ELEKTRONIK
-                          </span>
                         </div>
                       </div>
                     </div>
+
+                    {/* Pasal 2 */}
+                    <div>
+                      <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 2: MAKSUD DAN TUJUAN</h4>
+                      <p className="mt-1">
+                        PIHAK KEDUA memesan layanan profesional pendampingan sertifikasi halal kepada PIHAK PERTAMA untuk membantu proses pemenuhan persyaratan sertifikasi halal sesuai regulasi yang berlaku.
+                      </p>
+                    </div>
+
+                    {/* Pasal 3 */}
+                    <div>
+                      <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 3: RUANG LINGKUP LAYANAN</h4>
+                      <p className="mt-1">Layanan yang diberikan PIHAK PERTAMA meliputi:</p>
+                      <ol className="list-decimal pl-4 mt-1 space-y-0.5 text-dark-600">
+                        <li>Assessment awal kebutuhan sertifikasi halal.</li>
+                        <li>Pendampingan registrasi sertifikasi halal.</li>
+                        <li>Pendampingan pengumpulan data teknis.</li>
+                        <li>Penyusunan dokumen Sistem Jaminan Produk Halal (SJPH).</li>
+                        <li>Sosialisasi kebijakan halal dan implementasi SJPH.</li>
+                        <li>Pendampingan audit eksternal oleh LPH.</li>
+                        <li>Monitoring proses sidang fatwa halal.</li>
+                        <li>Monitoring penerbitan sertifikat halal.</li>
+                      </ol>
+                    </div>
+
+                    {/* Pasal 4 */}
+                    <div>
+                      <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 4: NILAI JASA DAN PEMBAYARAN</h4>
+                      <div className="mt-1 space-y-1">
+                        <p>Nilai Jasa Pendampingan adalah harga yang dibayarkan oleh pihak kedua terhadap pihak pertama untuk semua layanan pendampingan proses sertifikasi halal yang termasuk dalam ruang lingkup Pasal 3. Nilai tersebut tidak termasuk biaya registrasi BPJPH, Ketetapan halal MUI, dan persyaratan lain yang diperlukan yang berdampak pada penambahan biaya.
+                        </p>
+                        <p>Biaya yang ditagihkan oleh pihak pertama setelah kontrak disetujui adalah biaya pendampingan beserta biaya registrasi BPJPH, ketetapan halal MUI, audit LPH dan biaya lain dari persyaratan yang berdampak pada penambahan biaya.
+                        </p>
+                        <p>Keseluruhan biaya dapat diketahui setelah konsultasi berlangsung dan akan ditentukan oleh pihak pertama berdasarkan skala usaha, jumlah cabang, dan kompleksitas proses sertifikasi.
+                        </p>
+                        <p>Nilai jasa pendampingan: <span className="font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">{details.nilaiJasa}</span></p>
+                        <p>Skema pembayaran: <span className="font-bold text-dark-800">{details.dp === '-' ? 'Akan ditentukan setelah konsultasi' : `Tahap I: ${details.dp}% | Tahap II: ${details.pelunasan}%`}</span></p>
+                        <p className="text-[10px] text-dark-500 italic">Pembayaran dilakukan melalui rekening resmi atau payment gateway yang ditetapkan HalalCore.</p>
+                      </div>
+                    </div>
+
+                    {/* Pasal 5 */}
+                    <div>
+                      <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 5: TAHAPAN PELAKSANAAN</h4>
+                      <p className="mt-1">Alur layanan:</p>
+                      <div className="mt-2 flex flex-col pl-3 border-l border-dark-200 space-y-1 text-[10px] font-semibold text-brand-800">
+                        <span>Kontrak & Registrasi</span>
+                        <span className="text-dark-400">↓</span>
+                        <span>Pengumpulan Data Teknis</span>
+                        <span className="text-dark-400">↓</span>
+                        <span>Penyusunan Dokumen SJPH</span>
+                        <span className="text-dark-400">↓</span>
+                        <span>Implementasi SJPH</span>
+                        <span className="text-dark-400">↓</span>
+                        <span>Audit Eksternal LPH</span>
+                        <span className="text-dark-400">↓</span>
+                        <span>Sidang Fatwa Halal</span>
+                        <span className="text-dark-400">↓</span>
+                        <span>Penerbitan Sertifikat Halal</span>
+                      </div>
+                    </div>
+
+                    {/* Pasal 6 */}
+                    <div>
+                      <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 6: KEWAJIBAN PIHAK KEDUA</h4>
+                      <ol className="list-decimal pl-4 mt-1 space-y-0.5 text-dark-600">
+                        <li>Menyampaikan data usaha yang benar dan lengkap.</li>
+                        <li>Menyerahkan dokumen yang diperlukan sesuai permintaan.</li>
+                        <li>Menunjuk PIC yang dapat berkoordinasi selama proses pendampingan.</li>
+                        <li>Melakukan pembayaran sesuai jadwal yang disepakati.</li>
+                        <li>Mendukung implementasi SJPH di lingkungan usaha.</li>
+                      </ol>
+                    </div>
+
+                    {/* Pasal 7 */}
+                    <div>
+                      <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 7: KEWAJIBAN PIHAK PERTAMA</h4>
+                      <ol className="list-decimal pl-4 mt-1 space-y-0.5 text-dark-600">
+                        <li>Memberikan layanan pendampingan secara profesional.</li>
+                        <li>Menjaga kerahasiaan data usaha PIHAK KEDUA.</li>
+                        <li>Memberikan konsultasi sesuai ruang lingkup layanan.</li>
+                        <li>Menginformasikan perkembangan proses sertifikasi halal.</li>
+                      </ol>
+                    </div>
+
+                    {/* Pasal 8 */}
+                    <div>
+                      <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 8: KERAHASIAAN DATA</h4>
+                      <p className="mt-1">
+                        PIHAK PERTAMA wajib menjaga kerahasiaan seluruh data usaha, formula, dokumen, dan informasi bisnis PIHAK KEDUA kecuali diwajibkan oleh regulator atau ketentuan hukum yang berlaku.
+                      </p>
+                    </div>
+
+                    {/* Pasal 9 */}
+                    <div>
+                      <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 9: KETENTUAN TIMELINE</h4>
+                      <ol className="list-decimal pl-4 mt-1 space-y-0.5 text-dark-600">
+                        <li>Timeline proses sertifikasi halal bersifat estimatif.</li>
+                        <li>Jadwal audit LPH, sidang fatwa, dan penerbitan sertifikat merupakan kewenangan regulator.</li>
+                        <li>Keterlambatan akibat regulator tidak menjadi tanggung jawab PIHAK PERTAMA.</li>
+                        <li>Keterlambatan akibat kelalaian atau ketidaksiapan data dari PIHAK KEDUA tidak menjadi tanggung jawab PIHAK PERTAMA.</li>
+                      </ol>
+                    </div>
+
+                    {/* Pasal 10 */}
+                    <div>
+                      <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 10: PEMBATALAN DAN PENGEMBALIAN DANA</h4>
+                      <ol className="list-decimal pl-4 mt-1 space-y-0.5 text-dark-600">
+                        <li>Pembayaran yang telah dilakukan tidak dapat diminta kembali (non-refundable).</li>
+                        <li>Pengecualian hanya berlaku apabila terjadi kesalahan material yang disebabkan PIHAK PERTAMA.</li>
+                        <li>Apabila PIHAK KEDUA menghentikan proses secara sepihak, seluruh pembayaran yang telah diterima dianggap hangus sebagai biaya jasa yang telah berjalan.</li>
+                      </ol>
+                    </div>
+
+                    {/* Pasal 11 */}
+                    <div>
+                      <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 11: BATASAN TANGGUNG JAWAB</h4>
+                      <p className="mt-1">PIHAK PERTAMA tidak menjamin:</p>
+                      <ul className="list-disc pl-4 mt-1 space-y-0.5 text-dark-600">
+                        <li>Sertifikat halal pasti terbit.</li>
+                        <li>Jadwal audit tertentu.</li>
+                        <li>Jadwal sidang fatwa tertentu.</li>
+                        <li>Keputusan regulator tertentu.</li>
+                      </ul>
+                      <p className="mt-1 text-dark-600">Keputusan sertifikasi halal sepenuhnya menjadi kewenangan regulator yang berwenang.</p>
+                    </div>
+
+                    {/* Pasal 12 */}
+                    <div>
+                      <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 12: FORCE MAJEURE</h4>
+                      <p className="mt-1">Keadaan kahar meliputi:</p>
+                      <ul className="list-disc pl-4 mt-1 space-y-0.5 text-dark-600">
+                        <li>Bencana alam</li>
+                        <li>Gangguan sistem nasional</li>
+                        <li>Perubahan regulasi</li>
+                        <li>Kebijakan pemerintah</li>
+                        <li>Keadaan lain di luar kendali para pihak</li>
+                      </ul>
+                      <p className="mt-1">yang menyebabkan sebagian atau seluruh kewajiban tidak dapat dilaksanakan.</p>
+                    </div>
+
+                    {/* Pasal 13 */}
+                    <div>
+                      <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 13: PERSETUJUAN ELEKTRONIK</h4>
+                      <p className="mt-1">Dengan mencentang kotak:</p>
+                      <p className="mt-1 font-semibold text-brand-700 bg-brand-50 p-2 rounded border border-brand-100">
+                        ☑ Saya telah membaca, memahami, dan menyetujui Perjanjian Layanan HalalCore.
+                      </p>
+                      <p className="mt-1.5">
+                        PIHAK KEDUA dianggap telah memberikan persetujuan yang sah secara elektronik terhadap seluruh isi perjanjian ini. Persetujuan elektronik tersebut memiliki kekuatan hukum yang sama dengan tanda tangan basah sesuai ketentuan peraturan perundang-undangan yang berlaku.
+                      </p>
+                    </div>
+
+                    {/* Pasal 14 */}
+                    <div>
+                      <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 14: PENUTUP</h4>
+                      <p className="mt-1">
+                        Perjanjian ini mulai berlaku sejak PIHAK KEDUA menyelesaikan proses pemesanan dan pembayaran melalui sistem HalalCore.
+                      </p>
+                    </div>
+
+                    {/* Data Persetujuan */}
+                    <div className="border-t border-dark-200 pt-4 mt-6">
+                      <h4 className="font-bold text-brand-900 text-xs uppercase text-center mb-3 tracking-wider">DATA PERSETUJUAN ELEKTRONIK</h4>
+                      <div className="grid grid-cols-3 gap-x-2 gap-y-1 text-[10px] text-dark-600 max-w-md mx-auto">
+                        <span className="font-medium text-dark-500">Nama Pemesan:</span>
+                        <span className="col-span-2 font-bold text-dark-800">{form.name}</span>
+                        <span className="font-medium text-dark-500">Email:</span>
+                        <span className="col-span-2 text-dark-800">{form.email}</span>
+                        <span className="font-medium text-dark-500">Nomor HP:</span>
+                        <span className="col-span-2 text-dark-800">{form.phone}</span>
+                        <span className="font-medium text-dark-500">Waktu Persetujuan:</span>
+                        <span className="col-span-2 text-dark-800">{details.timestamp}</span>
+                        <span className="font-medium text-dark-500">IP Address:</span>
+                        <span className="col-span-2 font-mono text-dark-800">{ipAddress}</span>
+                        <span className="font-medium text-dark-500">Kode Transaksi:</span>
+                        <span className="col-span-2 font-mono text-dark-800">{orderId}</span>
+                        <span className="font-medium text-dark-500">Status:</span>
+                        <span className="col-span-2 font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 inline-block text-[9px] w-fit">
+                          DISETUJUI SECARA ELEKTRONIK
+                        </span>
+                      </div>
+                    </div>
                   </div>
+                </div>
 
-                  {/* Consents list, gated by hasRead scroll state */}
-                  <div className="space-y-3">
-                    <label className={
-                      hasRead
-                        ? `flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${form.term_data_accuracy ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
-                        }`
-                        : "flex items-start gap-3.5 p-4 rounded-xl bg-dark-50 border border-dark-200 cursor-not-allowed opacity-50 transition-all"
-                    }>
-                      <input
-                        type="checkbox"
-                        className="form-checkbox mt-0.5"
-                        checked={form.term_data_accuracy}
-                        disabled={!hasRead}
-                        onChange={(e) => updateForm('term_data_accuracy', e.target.checked)}
-                      />
-                      <span className="text-sm font-bold text-dark-750">
-                        Saya menyatakan data yang saya berikan benar.
-                      </span>
-                    </label>
+                {/* Consents list, gated by hasRead scroll state */}
+                <div className="space-y-3">
+                  <label className={
+                    hasRead
+                      ? `flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${form.term_data_accuracy ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'}`
+                      : "flex items-start gap-3.5 p-4 rounded-xl bg-dark-50 border border-dark-200 cursor-not-allowed opacity-50 transition-all"
+                  }>
+                    <input
+                      type="checkbox"
+                      className="form-checkbox mt-0.5"
+                      checked={form.term_data_accuracy}
+                      disabled={!hasRead}
+                      onChange={(e) => updateForm('term_data_accuracy', e.target.checked)}
+                    />
+                    <span className="text-sm font-bold text-dark-750">
+                      Saya menyatakan data yang saya berikan benar.
+                    </span>
+                  </label>
 
-                    <label className={
-                      hasRead
-                        ? `flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${form.term_agreement ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
-                        }`
-                        : "flex items-start gap-3.5 p-4 rounded-xl bg-dark-50 border border-dark-200 cursor-not-allowed opacity-50 transition-all"
-                    }>
-                      <input
-                        type="checkbox"
-                        className="form-checkbox mt-0.5"
-                        checked={form.term_agreement}
-                        disabled={!hasRead}
-                        onChange={(e) => updateForm('term_agreement', e.target.checked)}
-                      />
-                      <span className="text-sm font-bold text-dark-750">
-                        Saya telah membaca dan menyetujui Perjanjian Layanan HalalCore.
-                      </span>
-                    </label>
+                  <label className={
+                    hasRead
+                      ? `flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${form.term_agreement ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'}`
+                      : "flex items-start gap-3.5 p-4 rounded-xl bg-dark-50 border border-dark-200 cursor-not-allowed opacity-50 transition-all"
+                  }>
+                    <input
+                      type="checkbox"
+                      className="form-checkbox mt-0.5"
+                      checked={form.term_agreement}
+                      disabled={!hasRead}
+                      onChange={(e) => updateForm('term_agreement', e.target.checked)}
+                    />
+                    <span className="text-sm font-bold text-dark-750">
+                      Saya telah membaca dan menyetujui Perjanjian Layanan HalalCore.
+                    </span>
+                  </label>
 
-                    <label className={
-                      hasRead
-                        ? `flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${form.term_regulator ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
-                        }`
-                        : "flex items-start gap-3.5 p-4 rounded-xl bg-dark-50 border border-dark-200 cursor-not-allowed opacity-50 transition-all"
-                    }>
-                      <input
-                        type="checkbox"
-                        className="form-checkbox mt-0.5"
-                        checked={form.term_regulator}
-                        disabled={!hasRead}
-                        onChange={(e) => updateForm('term_regulator', e.target.checked)}
-                      />
-                      <span className="text-sm font-bold text-dark-750">
-                        Saya memahami bahwa keputusan sertifikasi halal merupakan kewenangan regulator dan bukan kewenangan HalalCore.
-                      </span>
-                    </label>
-                  </div>
+                  <label className={
+                    hasRead
+                      ? `flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${form.term_regulator ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'}`
+                      : "flex items-start gap-3.5 p-4 rounded-xl bg-dark-50 border border-dark-200 cursor-not-allowed opacity-50 transition-all"
+                  }>
+                    <input
+                      type="checkbox"
+                      className="form-checkbox mt-0.5"
+                      checked={form.term_regulator}
+                      disabled={!hasRead}
+                      onChange={(e) => updateForm('term_regulator', e.target.checked)}
+                    />
+                    <span className="text-sm font-bold text-dark-750">
+                      Saya memahami bahwa keputusan sertifikasi halal merupakan kewenangan regulator dan bukan kewenangan HalalCore.
+                    </span>
+                  </label>
+                </div>
 
-                  <div className="flex justify-between pt-2">
-                    <button
-                      onClick={() => setStep(1)}
-                      className="btn-secondary flex items-center gap-2"
-                    >
-                      <ArrowLeft className="w-4 h-4" /> Kembali
-                    </button>
+                <div className="flex justify-between pt-2">
+                  <button
+                    onClick={() => setStep(1)}
+                    className="btn-secondary flex items-center gap-2"
+                  >
+                    <ArrowLeft className="w-4 h-4" /> Kembali
+                  </button>
 
-                    <button
-                      onClick={handleSubmit}
-                      disabled={loading || !isStep2Valid()}
-                      className="btn-success flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      {loading ? (
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <Send className="w-4 h-4" /> Kirim Pengajuan
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </motion.div>
-              );
-            })()}
+                  <button
+                    onClick={handleSubmit}
+                    disabled={loading || !isStep2Valid()}
+                    className="btn-success flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" /> Kirim Pengajuan
+                      </>
+                    )}
+                  </button>
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
         </motion.div>
       </div>

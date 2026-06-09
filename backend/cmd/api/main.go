@@ -336,15 +336,16 @@ func main() {
 	})
 
 	teleUC := usecase.NewTelemarketingUsecase(usecase.TelemarketingUsecaseDeps{
-		FormRepo:      teleFormRepo,
-		MeetingRepo:   teleMeetingRepo,
-		AgreementRepo: teleAgreementRepo,
-		UserRepo:      userRepo,
-		RoleRepo:      roleRepo,
-		NotifUC:       notificationUC,
-		WASender:      waSender,
-		ClientRepo:     clientRepo,
-		SubmissionRepo: submissionRepo,
+		FormRepo:          teleFormRepo,
+		MeetingRepo:       teleMeetingRepo,
+		AgreementRepo:     teleAgreementRepo,
+		UserRepo:          userRepo,
+		RoleRepo:          roleRepo,
+		NotifUC:           notificationUC,
+		WASender:          waSender,
+		ClientRepo:        clientRepo,
+		SubmissionRepo:    submissionRepo,
+		BillingConfigRepo: billingConfigRepo,
 	})
 
 	bizDevUC := usecase.NewBizDevUsecase(usecase.BizDevUsecaseDeps{

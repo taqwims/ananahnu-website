@@ -85,10 +85,14 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             if (provinceId) params.province_id = provinceId;
             if (regencyId) params.regency_id = regencyId;
             if (districtId) params.district_id = districtId;
-            if (dataSource) params.data_source = dataSource;
+            if (dataSource) {
+                // Map TELEMARKETING to ORGANIK so it can fetch the master biaya components
+                params.data_source = dataSource === 'TELEMARKETING' ? 'ORGANIK' : dataSource;
+            }
             
             // Target scheme: either the one passed via props, or if marketing, try to find partnership
-            const targetSchemeId = salesSchemeId || (dataSource === 'MARKETING' ? schemes.find(s => s.name.toUpperCase() === 'PARTNERSHIP' || s.name.toUpperCase() === 'PARTNER')?.id : null);
+            const isMarketing = dataSource === 'MARKETING';
+            const targetSchemeId = salesSchemeId || (isMarketing ? schemes.find(s => s.name.toUpperCase() === 'PARTNERSHIP' || s.name.toUpperCase() === 'PARTNER')?.id : null);
             if (targetSchemeId) params.sales_scheme_id = targetSchemeId.toString();
             
             params.resolve_geography = 'true';
@@ -318,9 +322,10 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 {dataSource && (
                     <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
                         dataSource === 'MARKETING' ? 'bg-amber-100 text-amber-700' : 
+                        dataSource === 'TELEMARKETING' ? 'bg-purple-100 text-purple-700' :
                         dataSource === 'BOTH' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
                     }`}>
-                        Sumber: {dataSource === 'MARKETING' ? 'Marketing (Partner)' : dataSource === 'BOTH' ? 'Semua (Internal & Partner)' : 'Organik (Advisor)'}
+                        Sumber: {dataSource === 'MARKETING' ? 'Marketing (Partner)' : dataSource === 'TELEMARKETING' ? 'Telemarketing' : dataSource === 'BOTH' ? 'Semua (Internal & Partner)' : 'Organik (Advisor)'}
                     </div>
                 )}
 

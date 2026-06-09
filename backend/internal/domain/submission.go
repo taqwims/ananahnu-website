@@ -27,6 +27,7 @@ type Submission struct {
 	Client              Client           `gorm:"foreignKey:ClientID" json:"client"`
 	Status              SubmissionStatus `json:"status"`
 	ServiceType         string           `json:"service_type"` // REGULER, SELF_DECLARE
+	SelfDeclareType     string           `json:"self_declare_type,omitempty"` // MANDIRI, GRATIS
 	DataSource          string           `json:"data_source"`  // ORGANIK, MARKETING
 	CurrentAssigneeRole int              `json:"current_assignee_role"` // Role ID
 	AssignedDrafterID   *uuid.UUID       `gorm:"type:uuid" json:"assigned_drafter_id,omitempty"`
