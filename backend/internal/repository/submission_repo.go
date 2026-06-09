@@ -148,3 +148,19 @@ func (r *submissionRepository) Delete(id uuid.UUID) error {
 		return nil
 	})
 }
+
+func (r *submissionRepository) UpdateBPJPHPayment(id uuid.UUID, status string, amount float64, paidAt *time.Time) error {
+	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"bpjph_payment_status": status,
+		"bpjph_amount":         amount,
+		"bpjph_paid_at":        paidAt,
+	}).Error
+}
+
+func (r *submissionRepository) UpdateBPJPHPaymentBulk(ids []uuid.UUID, status string, amount float64, paidAt *time.Time) error {
+	return r.db.Model(&domain.Submission{}).Where("id IN ?", ids).Updates(map[string]interface{}{
+		"bpjph_payment_status": status,
+		"bpjph_amount":         amount,
+		"bpjph_paid_at":        paidAt,
+	}).Error
+}

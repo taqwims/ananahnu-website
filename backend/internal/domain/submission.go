@@ -49,6 +49,9 @@ type Submission struct {
 	Expenses            []Expense             `gorm:"foreignKey:SubmissionID" json:"expenses"`
 	CostDetail          *SubmissionCostDetail `gorm:"foreignKey:SubmissionID" json:"cost_detail,omitempty"`
 	FieldValues         []FormFieldValue      `gorm:"foreignKey:SubmissionID" json:"field_values,omitempty"`
+	BPJPHPaymentStatus  string           `gorm:"default:'UNPAID'" json:"bpjph_payment_status"` // UNPAID, PAID
+	BPJPHAmount         float64          `gorm:"default:0" json:"bpjph_amount"`
+	BPJPHPaidAt         *time.Time       `json:"bpjph_paid_at,omitempty"`
 	CreatedAt           time.Time        `json:"created_at"`
 	UpdatedAt           time.Time        `json:"updated_at"`
 }
@@ -77,4 +80,6 @@ type SubmissionRepository interface {
 	UpdateBusinessType(id uuid.UUID, businessTypeID int64) error
 	FindByTrackingNumber(trackingNumber string) (*Submission, error)
 	Delete(id uuid.UUID) error
+	UpdateBPJPHPayment(id uuid.UUID, status string, amount float64, paidAt *time.Time) error
+	UpdateBPJPHPaymentBulk(ids []uuid.UUID, status string, amount float64, paidAt *time.Time) error
 }

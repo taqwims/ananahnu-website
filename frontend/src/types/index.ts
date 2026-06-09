@@ -92,6 +92,9 @@ export interface Submission {
     reject_note?: string;
     business_type_id?: number;
     business_type?: BusinessType;
+    bpjph_payment_status?: 'UNPAID' | 'PAID';
+    bpjph_amount?: number;
+    bpjph_paid_at?: string;
     created_at: string;
     updated_at: string;
 }

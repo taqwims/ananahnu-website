@@ -71,6 +71,14 @@ class FinanceService extends BaseService {
         return await this.api.delete(`/finance/expenses/${id}`);
     }
 
+    async updateBPJPHPayment(id: string, status: 'UNPAID' | 'PAID', amount: number) {
+        return (await this.api.post(`/finance/submissions/${id}/bpjph-payment`, { status, amount })).data;
+    }
+
+    async updateBPJPHPaymentBulk(ids: string[], status: 'UNPAID' | 'PAID', amount: number) {
+        return (await this.api.post('/finance/submissions/bpjph-payment/bulk', { ids, status, amount })).data;
+    }
+
     // SPH
     async generateSPH(submissionId: string) {
         return (await this.api.post(`/sph/generate/${submissionId}`)).data;

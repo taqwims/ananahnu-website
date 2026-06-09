@@ -250,7 +250,9 @@ export default function BizDevDashboard() {
                     <div className="relative">
                         <select value={year} onChange={(e) => setYear(Number(e.target.value))}
                             className="appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2 pr-8 text-sm font-medium focus:ring-2 focus:ring-brand-500">
-                            {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                            {Array.from({ length: new Date().getFullYear() + 5 - 2024 + 1 }, (_, i) => 2024 + i).map(y => (
+                                <option key={y} value={y}>{y}</option>
+                            ))}
                         </select>
                         <ChevronDown className="absolute right-2 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
                     </div>
@@ -579,7 +581,9 @@ export default function BizDevDashboard() {
                                             <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tahun</label>
                                             <select value={targetYear} onChange={(e) => setTargetYear(Number(e.target.value))}
                                                 className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-500">
-                                                {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                                                {Array.from({ length: new Date().getFullYear() + 5 - 2024 + 1 }, (_, i) => 2024 + i).map(y => (
+                                                    <option key={y} value={y}>{y}</option>
+                                                ))}
                                             </select>
                                         </div>
                                     </div>
