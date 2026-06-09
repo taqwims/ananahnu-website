@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { getMyForms, updateFormStatus, generateClientAccount, type TeleForm } from '../../services/teleService';
+import { getMyForms, updateFormStatus, generateClientAccount, setSelfDeclareType, type TeleForm } from '../../services/teleService';
 import { motion } from 'framer-motion';
 import {
   Users, Search, UserPlus, Eye, CheckCircle2,
-  XCircle, Phone, Mail, Building2, Filter
+  XCircle, Phone, Mail, Building2, Filter, Tag
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -95,6 +95,17 @@ export default function ClientManagement() {
     }
   };
 
+  const handleSetSelfDeclareType = async (formId: string, type: string) => {
+    try {
+      await setSelfDeclareType(formId, type);
+      toast.success(`Tipe self declare diubah ke ${type}`);
+      fetchForms();
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Gagal';
+      toast.error(message);
+    }
+  };
+
   const totalPages = Math.ceil(total / 15);
 
   return (
@@ -144,6 +155,7 @@ export default function ClientManagement() {
                 <th className="py-4 px-5 text-[10px] font-bold text-brand-950 uppercase tracking-wider">Kontak</th>
                 <th className="py-4 px-5 text-[10px] font-bold text-brand-950 uppercase tracking-wider">Usaha</th>
                 <th className="py-4 px-5 text-[10px] font-bold text-brand-950 uppercase tracking-wider">Route</th>
+                <th className="py-4 px-5 text-[10px] font-bold text-brand-950 uppercase tracking-wider">Konsultasi</th>
                 <th className="py-4 px-5 text-[10px] font-bold text-brand-950 uppercase tracking-wider">Status</th>
                 <th className="py-4 px-5 text-[10px] font-bold text-brand-950 uppercase tracking-wider">Tanggal</th>
                 <th className="py-4 px-5 text-[10px] font-bold text-brand-950 uppercase tracking-wider text-right">Aksi</th>
@@ -152,13 +164,13 @@ export default function ClientManagement() {
             <tbody className="divide-y divide-dark-100/60 bg-white/50">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-16 text-dark-500">
+                  <td colSpan={8} className="text-center py-16 text-dark-500">
                     <div className="w-8 h-8 border-3 border-brand-500/30 border-t-brand-500 rounded-full animate-spin mx-auto" />
                   </td>
                 </tr>
               ) : forms.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-16 text-dark-500 text-sm font-semibold">
+                  <td colSpan={8} className="text-center py-16 text-dark-500 text-sm font-semibold">
                     Tidak ada data client
                   </td>
                 </tr>
@@ -199,6 +211,25 @@ export default function ClientManagement() {
                       }`}>
                         {form.route_type === 'TELECONFERENCE' ? 'Telekonferensi' : 'Self Declare'}
                       </span>
+                      {form.route_type === 'SELF_DECLARE' && form.self_declare_type && (
+                        <span className={`ml-1 text-[9px] px-2 py-0.5 rounded-full font-bold ${
+                          form.self_declare_type === 'GRATIS' 
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
+                            : 'bg-blue-50 text-blue-700 border border-blue-100'
+                        }`}>
+                          {form.self_declare_type === 'GRATIS' ? 'Gratis' : 'Mandiri'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-4 px-5">
+                      <span className="text-[9px] px-2.5 py-1 rounded-full font-bold border bg-dark-50 text-dark-600 border-dark-100">
+                        {form.consultation_method === 'ONLINE_MEET' ? '📹 Online Meet' : form.consultation_method === 'CHAT' ? '💬 Chat' : '-'}
+                      </span>
+                      {form.branch_count > 1 && (
+                        <span className="ml-1 text-[9px] px-2 py-0.5 rounded-full font-bold bg-purple-50 text-purple-700 border border-purple-100">
+                          {form.branch_count} cabang
+                        </span>
+                      )}
                     </td>
                     <td className="py-4 px-5">
                       <span className={`text-[9px] px-2.5 py-1 rounded-full font-bold border ${STATUS_COLORS[form.status] || 'bg-dark-50 text-dark-500 border-dark-100'}`}>
@@ -211,7 +242,7 @@ export default function ClientManagement() {
                       </span>
                     </td>
                     <td className="py-4 px-5">
-                      <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-2 flex-wrap">
                         <button
                           onClick={() => setSelectedForm(form)}
                           className="px-2.5 py-1.5 rounded-lg text-dark-750 bg-white border border-dark-200 hover:bg-dark-50 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
@@ -236,6 +267,24 @@ export default function ClientManagement() {
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" /> Selesai
                           </button>
+                        )}
+                        {form.route_type === 'SELF_DECLARE' && !form.self_declare_type && (
+                          <>
+                            <button
+                              onClick={() => handleSetSelfDeclareType(form.id, 'MANDIRI')}
+                              className="px-2.5 py-1.5 rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                              title="Set Mandiri (Bayar)"
+                            >
+                              <Tag className="w-3.5 h-3.5" /> Mandiri
+                            </button>
+                            <button
+                              onClick={() => handleSetSelfDeclareType(form.id, 'GRATIS')}
+                              className="px-2.5 py-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                              title="Set Gratis (Subsidi)"
+                            >
+                              <Tag className="w-3.5 h-3.5" /> Gratis
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -291,8 +340,11 @@ export default function ClientManagement() {
                 ['WhatsApp/HP', selectedForm.phone],
                 ['Merek/Usaha', selectedForm.business_type],
                 ['Skala Usaha', selectedForm.business_scale.replace('_', ' ').toUpperCase()],
+                ['Jumlah Cabang', String(selectedForm.branch_count || 1)],
+                ['Metode Konsultasi', selectedForm.consultation_method === 'ONLINE_MEET' ? '📹 Online Meet (Video Call)' : selectedForm.consultation_method === 'CHAT' ? '💬 Chat (WhatsApp)' : '-'],
                 ['Provinsi', selectedForm.province?.name || '-'],
                 ['Rute Sertifikat', selectedForm.route_type === 'TELECONFERENCE' ? '📞 Teleconference (Reguler)' : '📝 Self Declare (Mandiri)'],
+                ['Tipe Self Declare', selectedForm.route_type === 'SELF_DECLARE' ? (selectedForm.self_declare_type || 'Belum ditentukan') : '-'],
                 ['Status Terkini', STATUS_LABELS[selectedForm.status] || selectedForm.status],
                 ['Menggunakan Daging', selectedForm.uses_meat ? 'Ya (Daging Sapi/Ayam/dsb)' : 'Tidak'],
                 ['Jasa Katering/Resto', selectedForm.is_catering ? 'Ya (Catering/Makan Minum)' : 'Tidak'],

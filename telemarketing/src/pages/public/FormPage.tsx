@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   User, Phone, Mail, Building2, Scale, Beef, MapPin,
   UtensilsCrossed, Droplets, CheckSquare, ArrowRight,
-  ArrowLeft, Send, CheckCircle2, Headphones, AlertCircle
+  ArrowLeft, Send, CheckCircle2, Headphones, AlertCircle,
+  GitBranch, MessageCircle
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -13,6 +14,11 @@ const SCALE_OPTIONS = [
   { value: 'mikro_kecil', label: 'Mikro / Kecil' },
   { value: 'menengah', label: 'Menengah' },
   { value: 'besar', label: 'Besar' },
+];
+
+const CONSULTATION_OPTIONS = [
+  { value: 'ONLINE_MEET', label: 'Online Meet (Video Call)', icon: Headphones },
+  { value: 'CHAT', label: 'Chat (WhatsApp)', icon: MessageCircle },
 ];
 
 export default function PublicFormPage() {
@@ -36,6 +42,8 @@ export default function PublicFormPage() {
     province_id: 0,
     is_catering: false,
     is_amdk: false,
+    branch_count: 1,
+    consultation_method: 'ONLINE_MEET',
     agreed_terms: false,
     term_data_accuracy: false,
     term_agreement: false,
@@ -59,7 +67,7 @@ export default function PublicFormPage() {
   });
 
   useEffect(() => {
-    getProvinces().then((res) => setProvinces(res.data)).catch(() => {});
+    getProvinces().then((res) => setProvinces(res.data)).catch(() => { });
 
     // Try to fetch public IP for the electronic signature, fail-safe fallback
     fetch('https://api.ipify.org?format=json')
@@ -79,7 +87,9 @@ export default function PublicFormPage() {
     form.business_type &&
     form.business_scale &&
     form.province_id > 0 &&
-    form.address.trim().length > 5;
+    form.address.trim().length > 5 &&
+    form.consultation_method &&
+    form.branch_count >= 1;
 
   const isStep2Valid = () =>
     hasRead && form.term_data_accuracy && form.term_agreement && form.term_regulator;
@@ -94,31 +104,13 @@ export default function PublicFormPage() {
   };
 
   const getAgreementDetails = () => {
-    const hasSpecialFlag = form.uses_meat || form.is_catering || form.is_amdk;
-    const isTeleconference = form.business_scale !== 'mikro_kecil' || hasSpecialFlag;
-
     const today = new Date();
     const formattedDate = new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' }).format(today);
 
-    let nilaiJasa = '0 (Subsidi Pemerintah - Self Declare)';
-    let dp = '0';
-    let pelunasan = '0';
-
-    if (isTeleconference) {
-      if (form.business_scale === 'menengah') {
-        nilaiJasa = '1.500.000';
-        dp = '50';
-        pelunasan = '50';
-      } else if (form.business_scale === 'besar') {
-        nilaiJasa = '3.000.000';
-        dp = '50';
-        pelunasan = '50';
-      } else if (form.business_scale === 'mikro_kecil') {
-        nilaiJasa = '0 (Subsidi Pemerintah - Reguler)';
-        dp = '0';
-        pelunasan = '0';
-      }
-    }
+    // Harga ditentukan oleh finance setelah konsultasi
+    const nilaiJasa = 'Ditentukan setelah konsultasi';
+    const dp = '-';
+    const pelunasan = '-';
 
     const provinceName = provinces.find((p) => p.id === form.province_id)?.name || '-';
 
@@ -165,6 +157,8 @@ export default function PublicFormPage() {
         province_id: form.province_id,
         is_catering: form.is_catering,
         is_amdk: form.is_amdk,
+        branch_count: form.branch_count,
+        consultation_method: form.consultation_method,
         agreed_terms: true,
         shared_by_id: sharedBy,
       };
@@ -213,31 +207,17 @@ export default function PublicFormPage() {
             </div>
           </div>
 
-          {result.route_type === 'TELECONFERENCE' ? (
-            <div className="p-4 rounded-xl bg-brand-50 border border-brand-100 text-left">
-              <div className="flex gap-3">
-                <Headphones className="w-5 h-5 text-brand-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm text-brand-900 font-bold">Tim telemarketing kami akan menghubungi Anda</p>
-                  <p className="text-xs text-dark-600 mt-1">
-                    Jadwal konsultasi via video call (Zoom/WA/GMeet) akan dikirimkan ke nomor WhatsApp Anda.
-                  </p>
-                </div>
+          <div className="p-4 rounded-xl bg-brand-50 border border-brand-100 text-left">
+            <div className="flex gap-3">
+              <Headphones className="w-5 h-5 text-brand-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm text-brand-900 font-bold">Tim telemarketing kami akan menghubungi Anda</p>
+                <p className="text-xs text-dark-600 mt-1">
+                  Tim kami akan segera menghubungi Anda melalui WhatsApp untuk menjadwalkan konsultasi dan memproses pengajuan Anda.
+                </p>
               </div>
             </div>
-          ) : (
-            <div className="p-4 rounded-xl bg-amber-50 border border-amber-100 text-left">
-              <div className="flex gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm text-amber-800 font-bold">Pengajuan Anda masuk kategori Self Declare</p>
-                  <p className="text-xs text-dark-600 mt-1">
-                    Anda akan menerima akun untuk melengkapi data secara mandiri via email & WhatsApp.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </motion.div>
       </div>
     );
@@ -268,9 +248,8 @@ export default function PublicFormPage() {
         </div>        {/* Progress Bar */}
         <div className="flex items-center justify-between mb-8 px-6 py-4 bg-white/70 backdrop-blur-md rounded-2xl border border-white/50 shadow-sm shadow-brand-900/[0.01]">
           <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-              step >= 1 ? 'bg-gradient-brand text-white shadow-md shadow-brand-600/10' : 'bg-dark-200 text-dark-500'
-            }`}>
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${step >= 1 ? 'bg-gradient-brand text-white shadow-md shadow-brand-600/10' : 'bg-dark-200 text-dark-500'
+              }`}>
               1
             </div>
             <div>
@@ -287,9 +266,8 @@ export default function PublicFormPage() {
             />
           </div>
           <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-              step >= 2 ? 'bg-gradient-brand text-white shadow-md shadow-brand-600/10' : 'bg-dark-200 text-dark-500'
-            }`}>
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${step >= 2 ? 'bg-gradient-brand text-white shadow-md shadow-brand-600/10' : 'bg-dark-200 text-dark-500'
+              }`}>
               2
             </div>
             <div>
@@ -427,13 +405,61 @@ export default function PublicFormPage() {
                   </div>
                 </div>
 
+                {/* Jumlah Cabang & Metode Konsultasi */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+                  <div>
+                    <label className="form-label flex items-center gap-1.5">
+                      <GitBranch className="w-3.5 h-3.5 text-dark-500" /> Jumlah Cabang / Outlet
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      className="form-input animate-transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/5"
+                      placeholder="1"
+                      value={form.branch_count}
+                      onChange={(e) => updateForm('branch_count', Math.max(1, parseInt(e.target.value) || 1))}
+                    />
+                    <p className="text-[10px] text-dark-400 font-semibold mt-1">Jumlah cabang mempengaruhi penentuan harga</p>
+                  </div>
+
+                  <div>
+                    <label className="form-label flex items-center gap-1.5">
+                      <MessageCircle className="w-3.5 h-3.5 text-dark-500" /> Metode Konsultasi
+                    </label>
+                    <div className="space-y-2">
+                      {CONSULTATION_OPTIONS.map((opt) => {
+                        const Icon = opt.icon;
+                        return (
+                          <label
+                            key={opt.value}
+                            className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${
+                              form.consultation_method === opt.value ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="consultation_method"
+                              className="form-checkbox"
+                              checked={form.consultation_method === opt.value}
+                              onChange={() => updateForm('consultation_method', opt.value)}
+                            />
+                            <div className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
+                              <Icon className="w-3.5 h-3.5 text-brand-600" />
+                            </div>
+                            <span className="text-xs font-bold text-dark-900">{opt.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Checkbox Fields */}
                 <div className="space-y-3 pt-2">
                   <p className="text-xs font-bold text-dark-500 uppercase tracking-wider">Informasi Tambahan</p>
 
-                  <label className={`flex items-center gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${
-                    form.uses_meat ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
-                  }`}>
+                  <label className={`flex items-center gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${form.uses_meat ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
+                    }`}>
                     <input
                       type="checkbox"
                       className="form-checkbox"
@@ -449,9 +475,8 @@ export default function PublicFormPage() {
                     </div>
                   </label>
 
-                  <label className={`flex items-center gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${
-                    form.is_catering ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
-                  }`}>
+                  <label className={`flex items-center gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${form.is_catering ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
+                    }`}>
                     <input
                       type="checkbox"
                       className="form-checkbox"
@@ -467,9 +492,8 @@ export default function PublicFormPage() {
                     </div>
                   </label>
 
-                  <label className={`flex items-center gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${
-                    form.is_amdk ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
-                  }`}>
+                  <label className={`flex items-center gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${form.is_amdk ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
+                    }`}>
                     <input
                       type="checkbox"
                       className="form-checkbox"
@@ -515,7 +539,7 @@ export default function PublicFormPage() {
                   </h2>
 
                   {!hasRead ? (
-                    <motion.div 
+                    <motion.div
                       initial={{ scale: 0.98 }}
                       animate={{ scale: 1 }}
                       className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold leading-relaxed"
@@ -527,7 +551,7 @@ export default function PublicFormPage() {
                       </div>
                     </motion.div>
                   ) : (
-                    <motion.div 
+                    <motion.div
                       initial={{ scale: 0.98 }}
                       animate={{ scale: 1 }}
                       className="flex items-start gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-250 text-emerald-950 text-xs font-semibold leading-relaxed"
@@ -614,12 +638,14 @@ export default function PublicFormPage() {
                       <div>
                         <h4 className="font-bold text-brand-900 text-xs uppercase">PASAL 4: NILAI JASA DAN PEMBAYARAN</h4>
                         <div className="mt-1 space-y-1">
-                          <p>Nilai jasa pendampingan: <span className="font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">{details.nilaiJasa.startsWith('0') ? `Rp ${details.nilaiJasa}` : `Rp ${details.nilaiJasa}`}</span></p>
-                          <p>Skema pembayaran:</p>
-                          <ul className="list-disc pl-4 space-y-0.5 text-dark-600">
-                            <li>Tahap I : <span className="font-bold text-dark-800">{details.dp}%</span></li>
-                            <li>Tahap II : <span className="font-bold text-dark-800">{details.pelunasan}%</span></li>
-                          </ul>
+                          <p>Nilai Jasa Pendampingan adalah harga yang dibayarkan oleh pihak kedua terhadap pihak pertama untuk semua layanan pendampingan proses sertifikasi halal yang termasuk dalam ruang lingkup Pasal 3. Nilai tersebut tidak termasuk biaya registrasi BPJPH, Ketetapan halal MUI, dan persyaratan lain yang diperlukan yang berdampak pada penambahan biaya.
+                          </p>
+                          <p>Biaya yang ditagihkan oleh pihak pertama setelah kontrak disetujui adalah biaya pendampingan beserta biaya registrasi BPJPH, ketetapan halal MUI, audit LPH dan biaya lain dari persyaratan yang berdampak pada penambahan biaya.
+                          </p>
+                          <p>Keseluruhan biaya dapat diketahui setelah konsultasi berlangsung dan akan ditentukan oleh pihak pertama berdasarkan skala usaha, jumlah cabang, dan kompleksitas proses sertifikasi.
+                          </p>
+                          <p>Nilai jasa pendampingan: <span className="font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">{details.nilaiJasa}</span></p>
+                          <p>Skema pembayaran: <span className="font-bold text-dark-800">{details.dp === '-' ? 'Akan ditentukan setelah konsultasi' : `Tahap I: ${details.dp}% | Tahap II: ${details.pelunasan}%`}</span></p>
                           <p className="text-[10px] text-dark-500 italic">Pembayaran dilakukan melalui rekening resmi atau payment gateway yang ditetapkan HalalCore.</p>
                         </div>
                       </div>
@@ -772,10 +798,9 @@ export default function PublicFormPage() {
                   {/* Consents list, gated by hasRead scroll state */}
                   <div className="space-y-3">
                     <label className={
-                      hasRead 
-                        ? `flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${
-                            form.term_data_accuracy ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
-                          }`
+                      hasRead
+                        ? `flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${form.term_data_accuracy ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
+                        }`
                         : "flex items-start gap-3.5 p-4 rounded-xl bg-dark-50 border border-dark-200 cursor-not-allowed opacity-50 transition-all"
                     }>
                       <input
@@ -791,10 +816,9 @@ export default function PublicFormPage() {
                     </label>
 
                     <label className={
-                      hasRead 
-                        ? `flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${
-                            form.term_agreement ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
-                          }`
+                      hasRead
+                        ? `flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${form.term_agreement ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
+                        }`
                         : "flex items-start gap-3.5 p-4 rounded-xl bg-dark-50 border border-dark-200 cursor-not-allowed opacity-50 transition-all"
                     }>
                       <input
@@ -810,10 +834,9 @@ export default function PublicFormPage() {
                     </label>
 
                     <label className={
-                      hasRead 
-                        ? `flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${
-                            form.term_regulator ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
-                          }`
+                      hasRead
+                        ? `flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${form.term_regulator ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
+                        }`
                         : "flex items-start gap-3.5 p-4 rounded-xl bg-dark-50 border border-dark-200 cursor-not-allowed opacity-50 transition-all"
                     }>
                       <input

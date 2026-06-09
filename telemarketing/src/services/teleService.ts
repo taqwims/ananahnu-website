@@ -14,8 +14,11 @@ export interface TeleForm {
   province?: { id: number; name: string };
   is_catering: boolean;
   is_amdk: boolean;
+  branch_count: number;
+  consultation_method: string;
   agreed_terms: boolean;
   route_type: string;
+  self_declare_type: string;
   status: string;
   telemarketer_id?: string;
   telemarketer?: { id: string; full_name: string };
@@ -112,6 +115,9 @@ export const getMyForms = (params?: Record<string, string | number>) =>
 
 export const updateFormStatus = (id: string, status: string) =>
   api.put(`/tele/forms/${id}/status`, { status });
+
+export const setSelfDeclareType = (id: string, selfDeclareType: string) =>
+  api.put(`/tele/forms/${id}/self-declare-type`, { self_declare_type: selfDeclareType });
 
 // Meetings
 export const scheduleMeeting = (data: Record<string, unknown>) =>
