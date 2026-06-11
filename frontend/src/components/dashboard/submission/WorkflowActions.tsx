@@ -11,7 +11,7 @@ interface WorkflowActionsProps {
     submission: Submission;
     user: User | null;
     processing: boolean;
-    onAction: (action: 'submit' | 'approve' | 'reject' | 'assign_consultant', payload?: any) => Promise<void>;
+    onAction: (action: 'submit' | 'approve' | 'reject' | 'assign_consultant', payload?: Record<string, string>) => Promise<void>;
     onSaveAuditInfo: (date: string) => Promise<void>;
     onSaveAuditResult: (url1: string, url2: string) => Promise<void>;
     onIssueSH: (shUrl: string) => Promise<void>;
@@ -48,13 +48,13 @@ export const WorkflowActions = ({
 
     useEffect(() => {
         if (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'AUDIT_MANAGER')) {
-            submissionService.getDrafters().then(setDrafters).catch(() => {});
+            submissionService.getDrafters().then(setDrafters).catch(() => toast.error('Gagal memuat data drafter'));
         }
         if ((submission.data_source === 'MARKETING' || submission.data_source === 'TELEMARKETING' || !submission.consultant_id) && 
             (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER' || user?.role === 'AUDIT_MANAGER')) {
-            submissionService.getConsultants().then(setConsultants).catch(() => {});
+            submissionService.getConsultants().then(setConsultants).catch(() => toast.error('Gagal memuat data konsultan'));
         }
-    }, [submission.status, submission.data_source, user?.role]);
+    }, [submission.status, submission.data_source, submission.consultant_id, user?.role]);
 
     const handleIssueSH = async () => {
         if (!shFile) return;
@@ -68,8 +68,8 @@ export const WorkflowActions = ({
                 await onIssueSH(uploadedUrl);
                 setShFile(null);
             }
-        } catch (err: any) {
-            toast.error(err.message || "Gagal mengupload sertifikat");
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : "Gagal mengupload sertifikat");
         }
     };
 
@@ -84,8 +84,8 @@ export const WorkflowActions = ({
             isOpen: true,
             title,
             message,
-            onConfirm: async () => {
-                await onConfirm();
+            onConfirm: () => {
+                onConfirm();
                 setConfirmState(prev => ({ ...prev, isOpen: false }));
             }
         });
@@ -127,8 +127,8 @@ export const WorkflowActions = ({
         try {
             await submissionService.downloadContract(submission.id, format);
             toast.success(`Kontrak berhasil diunduh dalam format ${format.toUpperCase()}`);
-        } catch (err: any) {
-            toast.error(err.message || "Gagal mengunduh kontrak");
+        } catch (err: unknown) {
+            toast.error(err instanceof Error ? err.message : "Gagal mengunduh kontrak");
         }
     };
 

@@ -36,28 +36,36 @@ export const useGeographyAdmin = () => {
         try {
             const data = await geographyService.getProvinces();
             setProvinces(data || []);
-        } catch (err) {}
+        } catch {
+            toast.error('Gagal memuat data provinsi');
+        }
     }, []);
 
     const loadRegencies = useCallback(async (provId: number) => {
         try {
             const data = await geographyService.getRegencies(provId);
             setRegencies(data || []);
-        } catch (err) {}
+        } catch {
+            toast.error('Gagal memuat data kabupaten');
+        }
     }, []);
 
     const loadDistricts = useCallback(async (regId: number) => {
         try {
             const data = await geographyService.getDistricts(regId);
             setDistricts(data || []);
-        } catch (err) {}
+        } catch {
+            toast.error('Gagal memuat data kecamatan');
+        }
     }, []);
 
     const loadRates = useCallback(async () => {
         try {
             const data = await geographyService.getRates();
             setRates(data || []);
-        } catch (err) {}
+        } catch {
+            toast.error('Gagal memuat data tarif');
+        }
     }, []);
 
     useEffect(() => {

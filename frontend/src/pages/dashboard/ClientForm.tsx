@@ -46,18 +46,15 @@ export default function ClientForm() {
                     // 1. Check Profile Verification
                     const profileRes = await api.get(`/consultant/profile/${user.id}`);
                     const profileVerified = profileRes.data?.is_verified ?? false;
-                    console.log("[DEBUG] Profile Verification:", profileVerified);
 
                     // 2. Check Training Graduation
                     const trainingRes = await api.get(`/user-trainings/${user.id}`);
                     const trainings = trainingRes.data || [];
                     const isGraduated = trainings.some((t: any) => t.status === 'LULUS');
-                    console.log("[DEBUG] Training Graduation:", isGraduated);
 
                     setVerStatus({ profile: profileVerified, training: isGraduated });
                     setIsVerified(profileVerified && isGraduated);
                 } catch (err) {
-                    console.error("[DEBUG] Verification check failed:", err);
                     setIsVerified(false);
                 }
             } else {
