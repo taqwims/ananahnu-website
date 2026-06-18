@@ -21,7 +21,7 @@ info() { echo -e "${BLUE}[i]${NC} $1"; }
 error() { echo -e "${RED}[✗]${NC} $1"; exit 1; }
 
 # Ensure Go is in PATH
-export PATH=$PATH:/usr/local/go/bin
+export PATH=/usr/local/go/bin:$PATH
 
 APP_DIR="/opt/halalcore"
 BACKEND_DIR="$APP_DIR/backend"
@@ -51,6 +51,9 @@ if [ ! -f "telemarketing/.env.production" ]; then
 fi
 
 command -v go &>/dev/null || error "Go is not installed. Run setup-server.sh first."
+info "Go path: $(which go)"
+info "Go version: $(go version)"
+info "Go modules status: $(go env GO111MODULE)"
 command -v node &>/dev/null || error "Node.js is not installed. Run setup-server.sh first."
 command -v nginx &>/dev/null || error "Nginx is not installed. Run setup-server.sh first."
 
@@ -72,8 +75,17 @@ fi
 # ============================================
 info "Building backend..."
 cd backend
+info "Current directory: $(pwd)"
+info "Directory contents:"
+ls -la
+info "First lines of go.mod:"
+head -n 5 go.mod || echo "go.mod not found or failed to read"
+info "Contents of internal/seeder:"
+ls -la internal/seeder || echo "internal/seeder folder not found"
+head -n 5 internal/seeder/seeder.go || echo "seeder.go not found or failed to read"
+export GO111MODULE=on
 go mod download
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o "$BACKEND_DIR/server" ./cmd/api/main.go
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o "$BACKEND_DIR/server" ./cmd/api
 log "Backend binary built → $BACKEND_DIR/server"
 
 # Copy production env
