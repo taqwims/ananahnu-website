@@ -1,0 +1,37 @@
+[Unit]
+Description=HalalCore Backend API
+Documentation=https://halalcore.id
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=halalcore
+Group=halalcore
+WorkingDirectory=/opt/halalcore/backend
+ExecStart=/opt/halalcore/backend/server
+Restart=always
+RestartSec=5
+
+# Environment
+EnvironmentFile=/opt/halalcore/backend/.env
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=halalcore-backend
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/halalcore/backend/uploads
+ReadWritePaths=/opt/halalcore/backend/paymentproof
+ReadWritePaths=/opt/halalcore/backend/consultant
+ReadWritePaths=/opt/halalcore/backend/temp_docx
+
+# Resource limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

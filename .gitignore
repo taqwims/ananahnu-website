@@ -1,1 +1,29 @@
 *.go/
+
+# Production environment files (contain secrets!)
+*.env.production
+!deploy/.env.production.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Node
+node_modules/
+
+# Build output
+frontend/dist/
+telemarketing/dist/
+
+# Go compiled binaries
+backend/ananahnu
+backend/api
+backend/main
+backend/server
+
+# SQLite (dev only)
+*.sqlite
