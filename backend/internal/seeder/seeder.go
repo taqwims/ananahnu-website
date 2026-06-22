@@ -1,19 +1,31 @@
 package seeder
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"os"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"ananahnu/internal/domain"
 )
 
 // PerformResetAndSeed wipes the schema, migrates, and seeds all default/sample data.
 func PerformResetAndSeed(db *gorm.DB) error {
+	// Safety Check: block if running in production
+	if os.Getenv("APP_ENV") == "production" {
+		return fmt.Errorf("dangerous operation: resetting database is not allowed in production environment")
+	}
+
 	log.Println("=== Starting Database Wiping & Resetting ===")
 
 	// 1. Drop public schema
@@ -78,12 +90,17 @@ func PerformResetAndSeed(db *gorm.DB) error {
 		"TELEMARKETER", "VERIFIKATOR",
 	}
 	for _, name := range roles {
-		db.Create(&domain.Role{Name: name})
+		var role domain.Role
+		db.Where("name = ?", name).FirstOrCreate(&role)
 	}
 	log.Println("✓ Roles seeded.")
 
 	// 4. Seed Admin User
-	hashed, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+	adminPass := os.Getenv("ADMIN_INITIAL_PASSWORD")
+	if adminPass == "" {
+		adminPass = "password123"
+	}
+	hashed, _ := bcrypt.GenerateFromPassword([]byte(adminPass), bcrypt.DefaultCost)
 	var directorRole domain.Role
 	db.Where("name = ?", "DIRECTOR").First(&directorRole)
 
@@ -95,7 +112,7 @@ func PerformResetAndSeed(db *gorm.DB) error {
 		RoleID:       directorRole.ID,
 		ReferralCode: removeVowels("admin_ref"), // Ensure unique non-empty referral code to prevent Postgres constraints
 	}
-	if err := db.Create(&admin).Error; err != nil {
+	if err := db.Where("email = ?", admin.Email).FirstOrCreate(&admin).Error; err != nil {
 		log.Printf("Failed to create admin: %v", err)
 	}
 
@@ -104,12 +121,6 @@ func PerformResetAndSeed(db *gorm.DB) error {
 
 	// 6. Seed Geography
 	seedGeography(db)
-
-	// 7. Seed Users and Consultant Profiles
-	seedUsers(db)
-
-	// 8. Seed Trainings
-	seedTraining(db)
 
 	// 9. Seed Payment Configs
 	seedPaymentConfig(db)
@@ -171,192 +182,146 @@ func SeedFormConfigs(db *gorm.DB) {
 	log.Println("Form config seeding completed.")
 }
 
+const baseURL = "https://emsifa.github.io/api-wilayah-indonesia/api"
+
+// Structs for parsing JSON
+type apiProvince struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type apiRegency struct {
+	ID         string `json:"id"`
+	ProvinceID string `json:"province_id"`
+	Name       string `json:"name"`
+}
+
+type apiDistrict struct {
+	ID        string `json:"id"`
+	RegencyID string `json:"regency_id"`
+	Name      string `json:"name"`
+}
+
+func fetchJSON(url string, target interface{}) error {
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("HTTP error: %d", resp.StatusCode)
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(bodyBytes, target)
+}
+
+func parseInt(s string) int64 {
+	val, _ := strconv.ParseInt(s, 10, 64)
+	return val
+}
+
 func seedGeography(db *gorm.DB) {
-	provinces := []string{
-		"DKI Jakarta", "Jawa Barat", "Jawa Tengah", "Jawa Timur",
-		"Banten", "DI Yogyakarta",
+	log.Println("Mengunduh data wilayah dari API publik...")
+
+	// 1. Fetch Provinces
+	var apiProvinces []apiProvince
+	if err := fetchJSON(fmt.Sprintf("%s/provinces.json", baseURL), &apiProvinces); err != nil {
+		log.Printf("⚠️ Gagal mengunduh provinsi: %v", err)
+		return
 	}
 
-	regencyMap := map[string][]string{
-		"DKI Jakarta": {"Jakarta Pusat", "Jakarta Selatan", "Jakarta Barat", "Jakarta Timur", "Jakarta Utara"},
-		"Jawa Barat":  {"Kota Bandung", "Kota Bogor", "Kota Bekasi", "Kota Depok", "Kabupaten Bandung"},
-		"Jawa Tengah": {"Kota Semarang", "Kota Solo", "Kabupaten Kudus", "Kabupaten Pekalongan"},
-		"Jawa Timur":  {"Kota Surabaya", "Kota Malang", "Kabupaten Sidoarjo", "Kabupaten Gresik"},
-		"Banten":      {"Kota Tangerang", "Kota Tangerang Selatan", "Kota Serang", "Kabupaten Tangerang"},
-		"DI Yogyakarta": {"Kota Yogyakarta", "Kabupaten Sleman", "Kabupaten Bantul", "Kabupaten Gunung Kidul"},
+	for _, p := range apiProvinces {
+		prov := domain.Province{
+			ID:   parseInt(p.ID),
+			Name: p.Name,
+		}
+		db.Clauses(clause.OnConflict{DoNothing: true}).Create(&prov)
 	}
+	log.Printf("✓ %d Provinsi berhasil disimpan.", len(apiProvinces))
 
-	districtMap := map[string][]string{
-		"Jakarta Pusat":   {"Menteng", "Gambir", "Tanah Abang", "Senen"},
-		"Jakarta Selatan": {"Kebayoran Baru", "Tebet", "Pancoran", "Mampang Prapatan"},
-		"Kota Bandung":    {"Coblong", "Bandung Wetan", "Cicendo", "Sumur Bandung"},
-		"Kota Surabaya":   {"Gubeng", "Tambaksari", "Wonokromo", "Rungkut"},
-	}
+	// 2. Fetch Regencies & Districts Concurrently
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 15) // Limit concurrency to avoid hitting rate limits
 
-	for _, pName := range provinces {
-		var prov domain.Province
-		db.FirstOrCreate(&prov, domain.Province{Name: pName})
+	for _, prov := range apiProvinces {
+		wg.Add(1)
+		go func(p apiProvince) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
 
-		if regs, ok := regencyMap[pName]; ok {
-			for _, rName := range regs {
-				var reg domain.Regency
-				db.FirstOrCreate(&reg, domain.Regency{ProvinceID: prov.ID, Name: rName})
+			var regencies []apiRegency
+			if err := fetchJSON(fmt.Sprintf("%s/regencies/%s.json", baseURL, p.ID), &regencies); err != nil {
+				log.Printf("⚠️ Gagal mengunduh kabupaten untuk provinsi %s: %v", p.Name, err)
+				return
+			}
 
-				// Seed billing rates for each regency
+			var dbRegs []domain.Regency
+			for _, r := range regencies {
+				dbRegs = append(dbRegs, domain.Regency{
+					ID:         parseInt(r.ID),
+					ProvinceID: parseInt(r.ProvinceID),
+					Name:       r.Name,
+				})
+			}
+			if len(dbRegs) > 0 {
+				db.Clauses(clause.OnConflict{DoNothing: true}).Create(&dbRegs)
+			}
+
+			// Seed billing rates and districts for each regency
+			for _, r := range regencies {
+				regID := parseInt(r.ID)
+
+				// Seed billing rates
 				for _, svc := range []string{"REGULER", "SELF_DECLARE"} {
 					amount := 3500000.0
 					if svc == "SELF_DECLARE" {
 						amount = 1500000.0
 					}
-					db.Create(&domain.BillingRate{
+					rate := domain.BillingRate{
 						ServiceType: svc,
-						RegencyID:   reg.ID,
+						RegencyID:   regID,
 						Amount:      amount,
-						Description: "Tarif " + svc + " - " + rName,
-					})
+						Description: "Tarif " + svc + " - " + r.Name,
+					}
+					db.Clauses(clause.OnConflict{DoNothing: true}).Create(&rate)
 				}
 
-				// Seed districts
-				if dists, ok2 := districtMap[rName]; ok2 {
-					for _, dName := range dists {
-						var dist domain.District
-						db.FirstOrCreate(&dist, domain.District{RegencyID: reg.ID, Name: dName})
+				// Fetch Districts
+				var districts []apiDistrict
+				if err := fetchJSON(fmt.Sprintf("%s/districts/%s.json", baseURL, r.ID), &districts); err == nil {
+					var dbDistricts []domain.District
+					for _, d := range districts {
+						dbDistricts = append(dbDistricts, domain.District{
+							ID:        parseInt(d.ID),
+							RegencyID: parseInt(d.RegencyID),
+							Name:      d.Name,
+						})
+					}
+					if len(dbDistricts) > 0 {
+						db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(&dbDistricts, 500)
 					}
 				}
 			}
-		}
+		}(prov)
 	}
 
+	wg.Wait()
 	log.Println("✓ Geography & billing rates seeded.")
 }
 
-func seedUsers(db *gorm.DB) {
-	hashed, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
-
-	type userSeed struct {
-		Email    string
-		Username string
-		FullName string
-		RoleName string
-	}
-
-	users := []userSeed{
-		{"halal_manager@ananahnu.id", "halal_manager", "Ahmad Halal Manager", "HALAL_MANAGER"},
-		{"pelatihan@ananahnu.id", "adm_pelatihan", "Siti Admin Pelatihan", "ADMIN_PELATIHAN"},
-		{"keuangan@ananahnu.id", "adm_keuangan", "Budi Admin Keuangan", "ADMIN_KEUANGAN"},
-		{"advisor1@ananahnu.id", "advisor1", "Dewi Advisor", "HALAL_ADVISOR"},
-		{"advisor2@ananahnu.id", "advisor2", "Eko Advisor", "HALAL_ADVISOR"},
-		{"qc@ananahnu.id", "qcofficer", "Rina QC Officer", "QC_OFFICER"},
-		{"drafter@ananahnu.id", "drafter", "Hadi Drafter", "DRAFTER"},
-		{"telemarketer@ananahnu.id", "telemarketer", "telemarketer", "TELEMARKETER"},
-		{"telemarketer2@ananahnu.id", "telemarketer2", "telemarketer2", "TELEMARKETER"},
-	}
-
-	var halalManagerID uuid.UUID
-
-	for _, u := range users {
-		var role domain.Role
-		db.Where("name = ?", u.RoleName).First(&role)
-
-		newUser := domain.User{
-			Email:        u.Email,
-			Username:     u.Username,
-			FullName:     u.FullName,
-			PasswordHash: string(hashed),
-			RoleID:       role.ID,
-			ReferralCode: removeVowels(u.Username), // Ensure unique vowel-free referral code
-		}
-		db.Create(&newUser)
-
-		if u.RoleName == "HALAL_MANAGER" {
-			halalManagerID = newUser.ID
-		}
-	}
-
-	// Link advisors to halal_manager
-	if halalManagerID != uuid.Nil {
-		var advisors []domain.User
-		db.Where("email IN ?", []string{"advisor1@ananahnu.id", "advisor2@ananahnu.id"}).Find(&advisors)
-		for _, k := range advisors {
-			db.Model(&k).Update("leader_id", halalManagerID)
-		}
-	}
-
-	// Seed consultant profiles
-	seedConsultantProfiles(db)
-}
-
-func seedConsultantProfiles(db *gorm.DB) {
-	var advisor1 domain.User
-	if err := db.Where("email = ?", "advisor1@ananahnu.id").First(&advisor1).Error; err == nil {
-		db.Create(&domain.ConsultantProfile{
-			UserID:         advisor1.ID,
-			KTPURL:         "https://example.com/ktp-dewi.pdf",
-			Photo3x4URL:    "https://example.com/foto-dewi.jpg",
-			IjazahSTAURL:   "https://example.com/ijazah-dewi.pdf",
-			BankAccountURL: "https://example.com/rekening-dewi.pdf",
-			NPWPURL:        "https://example.com/npwp-dewi.pdf",
-			IsVerified:     true,
-		})
-	}
-
-	var advisor2 domain.User
-	if err := db.Where("email = ?", "advisor2@ananahnu.id").First(&advisor2).Error; err == nil {
-		db.Create(&domain.ConsultantProfile{
-			UserID:         advisor2.ID,
-			KTPURL:         "https://example.com/ktp-eko.pdf",
-			Photo3x4URL:    "https://example.com/foto-eko.jpg",
-			IjazahSTAURL:   "",
-			BankAccountURL: "",
-			IsVerified:     false,
-		})
-	}
-}
-
-func seedTraining(db *gorm.DB) {
-	training := domain.Training{
-		Title:       "Pelatihan Penyelia Halal Batch 1",
-		Description: "Pelatihan dasar untuk calon penyelia halal yang akan bertugas di lapangan.",
-		StartDate:   time.Now().AddDate(0, 0, 7),
-		EndDate:     time.Now().AddDate(0, 0, 10),
-		Location:    "Jakarta Convention Center",
-	}
-	db.Create(&training)
-
-	training2 := domain.Training{
-		Title:       "Workshop Audit Internal Halal",
-		Description: "Workshop lanjutan tentang prosedur audit internal sertifikasi halal.",
-		StartDate:   time.Now().AddDate(0, 1, 0),
-		EndDate:     time.Now().AddDate(0, 1, 3),
-		Location:    "Hotel Grand Mercure, Bandung",
-	}
-	db.Create(&training2)
-
-	// Add participants
-	var advisor1, advisor2 domain.User
-	db.Where("email = ?", "advisor1@ananahnu.id").First(&advisor1)
-	db.Where("email = ?", "advisor2@ananahnu.id").First(&advisor2)
-
-	if advisor1.ID != uuid.Nil {
-		db.Create(&domain.TrainingParticipant{
-			TrainingID: training.ID,
-			UserID:     advisor1.ID,
-			Status:     "LULUS",
-		})
-		db.Create(&domain.TrainingParticipant{
-			TrainingID: training2.ID,
-			UserID:     advisor1.ID,
-			Status:     "PESERTA",
-		})
-	}
-	if advisor2.ID != uuid.Nil {
-		db.Create(&domain.TrainingParticipant{
-			TrainingID: training.ID,
-			UserID:     advisor2.ID,
-			Status:     "PESERTA",
-		})
-	}
-}
 
 func seedPaymentConfig(db *gorm.DB) {
 	configs := []domain.PaymentConfig{
@@ -368,7 +333,11 @@ func seedPaymentConfig(db *gorm.DB) {
 	}
 
 	for _, cfg := range configs {
-		db.Create(&cfg)
+		var existing domain.PaymentConfig
+		err := db.Where("service_type = ? AND item_name = ?", cfg.ServiceType, cfg.ItemName).First(&existing).Error
+		if err != nil {
+			db.Create(&cfg)
+		}
 	}
 }
 
@@ -381,7 +350,7 @@ func seedKalkulatorData(db *gorm.DB) {
 		{Name: "Besar"},
 	}
 	for i := range scales {
-		db.Create(&scales[i])
+		db.Where("name = ?", scales[i].Name).FirstOrCreate(&scales[i])
 	}
 
 	// 2. Seed Business Types
@@ -391,7 +360,7 @@ func seedKalkulatorData(db *gorm.DB) {
 		{Name: "Obat-obatan"},
 	}
 	for i := range bTypes {
-		db.Create(&bTypes[i])
+		db.Where("name = ?", bTypes[i].Name).FirstOrCreate(&bTypes[i])
 	}
 
 	// 3. Seed Product Categories
@@ -401,7 +370,13 @@ func seedKalkulatorData(db *gorm.DB) {
 		{Name: "Skincare", BusinessTypeID: &bTypes[1].ID},
 	}
 	for i := range pCats {
-		db.Create(&pCats[i])
+		var existing domain.ProductCategory
+		err := db.Where("name = ?", pCats[i].Name).First(&existing).Error
+		if err != nil {
+			db.Create(&pCats[i])
+		} else {
+			pCats[i] = existing
+		}
 	}
 
 	// 4. Seed Sales Schemes
@@ -410,7 +385,7 @@ func seedKalkulatorData(db *gorm.DB) {
 		{Name: "Partnership", Description: "Kerjasama pihak ketiga"},
 	}
 	for i := range schemes {
-		db.Create(&schemes[i])
+		db.Where("name = ?", schemes[i].Name).FirstOrCreate(&schemes[i])
 	}
 
 	// Get DKI Jakarta ID if exists
@@ -436,7 +411,11 @@ func seedKalkulatorData(db *gorm.DB) {
 		{Name: "Jasa Pendampingan (Besar)", Category: "PENDAMPINGAN", Type: "FIXED", BaseAmount: 10000000, IsMandatory: true, BusinessScaleID: &scales[3].ID},
 	}
 	for i := range components {
-		db.Create(&components[i])
+		var existing domain.BillingComponent
+		err := db.Where("name = ?", components[i].Name).First(&existing).Error
+		if err != nil {
+			db.Create(&components[i])
+		}
 	}
 
 	// 6. Seed Sales Scheme Prices
@@ -447,7 +426,22 @@ func seedKalkulatorData(db *gorm.DB) {
 		{SalesSchemeID: schemes[1].ID, BasePrice: 4000000, DataSource: "MARKETING", Description: "Harga Dasar Partnership", IsActive: true},
 	}
 	for i := range prices {
-		db.Create(&prices[i])
+		var existing domain.SalesSchemePrice
+		tx := db.Where("sales_scheme_id = ? AND data_source = ?", prices[i].SalesSchemeID, prices[i].DataSource)
+		if prices[i].BusinessTypeID != nil {
+			tx = tx.Where("business_type_id = ?", prices[i].BusinessTypeID)
+		} else {
+			tx = tx.Where("business_type_id IS NULL")
+		}
+		if prices[i].BusinessScaleID != nil {
+			tx = tx.Where("business_scale_id = ?", prices[i].BusinessScaleID)
+		} else {
+			tx = tx.Where("business_scale_id IS NULL")
+		}
+		err := tx.First(&existing).Error
+		if err != nil {
+			db.Create(&prices[i])
+		}
 	}
 }
 

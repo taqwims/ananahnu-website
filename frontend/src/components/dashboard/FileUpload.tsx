@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, Loader2, XCircle } from 'lucide-react';
 import api from '../../services/api';
+import { compressImage } from '../../utils/compressor';
 
 interface FileUploadProps {
     onUploadSuccess: (url: string) => void;
@@ -21,17 +22,27 @@ export default function FileUpload({
     const [error, setError] = useState<string | null>(null);
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
+        let file = e.target.files?.[0];
         if (!file) return;
-
-        // Max 2MB
-        if (file.size > 2 * 1024 * 1024) {
-            setError('Ukuran file maksimal 2MB');
-            return;
-        }
 
         setUploading(true);
         setError(null);
+
+        // Kompres jika file adalah gambar
+        if (file.type.startsWith('image/')) {
+            try {
+                file = await compressImage(file);
+            } catch (err) {
+                console.error('Image compression failed:', err);
+            }
+        }
+
+        // Max 2MB setelah kompresi
+        if (file.size > 2 * 1024 * 1024) {
+            setError('Ukuran file maksimal 2MB');
+            setUploading(false);
+            return;
+        }
 
         const formData = new FormData();
         formData.append('file', file);
@@ -48,6 +59,7 @@ export default function FileUpload({
             setUploading(false);
         }
     };
+
 
     const uploadId = React.useId();
 

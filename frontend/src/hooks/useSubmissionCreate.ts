@@ -4,6 +4,7 @@ import api from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import type { FormFieldConfig } from '../types';
 import toast from 'react-hot-toast';
+import { compressImage } from '../utils/compressor';
 
 export const useSubmissionCreate = () => {
     const [searchParams] = useSearchParams();
@@ -97,15 +98,27 @@ export const useSubmissionCreate = () => {
     }, [checkVerification, loadConfigs]);
 
     const handleFileUpload = async (fieldId: number, file: File) => {
-        if (file.size > 2 * 1024 * 1024) {
+        setUploading(prev => ({ ...prev, [fieldId]: true }));
+        let finalFile = file;
+
+        // Kompres jika file adalah gambar
+        if (finalFile.type.startsWith('image/')) {
+            try {
+                finalFile = await compressImage(finalFile);
+            } catch (err) {
+                console.error('Image compression failed:', err);
+            }
+        }
+
+        if (finalFile.size > 2 * 1024 * 1024) {
             toast.error("Ukuran file tidak boleh lebih dari 2MB");
+            setUploading(prev => ({ ...prev, [fieldId]: false }));
             return;
         }
 
-        setUploading(prev => ({ ...prev, [fieldId]: true }));
         try {
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', finalFile);
             
             const res = await api.post(`/media/upload?subfolder=submission_${submissionId}`, formData);
             

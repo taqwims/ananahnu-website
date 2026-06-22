@@ -9,6 +9,12 @@ import {
   GitBranch, MessageCircle
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+import Logo from '../../components/ui/Logo';
+import loginImg from '../../assets/login.png';
+
+const MAIN_APP_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:5173'
+  : 'https://halalcore.id';
 
 const SCALE_OPTIONS = [
   { value: 'mikro_kecil', label: 'Mikro / Kecil' },
@@ -250,7 +256,7 @@ export default function PublicFormPage() {
   const details = getAgreementDetails();
 
   return (
-    <div className="min-h-screen bg-gradient-main flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-main flex items-center justify-center p-4 py-8 lg:py-16">
       <Toaster position="top-right" />
 
       {/* Decorative */}
@@ -259,55 +265,116 @@ export default function PublicFormPage() {
         <div className="absolute bottom-20 left-20 w-60 h-60 bg-gold-200/20 rounded-full blur-3xl" />
       </div>
 
-      <div className="w-full max-w-2xl relative">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 mb-4 shadow-xl shadow-brand-600/10"
-          >
-            <Headphones className="w-7 h-7 text-white" />
-          </motion.div>
-          <h1 className="text-2xl font-bold text-brand-900">Pengajuan Sertifikasi Halal</h1>
-          <p className="text-dark-500 text-sm mt-1">Isi formulir di bawah untuk memulai proses pendampingan</p>
-        </div>        {/* Progress Bar */}
-        <div className="flex items-center justify-between mb-8 px-6 py-4 bg-white/70 backdrop-blur-md rounded-2xl border border-white/50 shadow-sm shadow-brand-900/[0.01]">
-          <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${step >= 1 ? 'bg-gradient-brand text-white shadow-md shadow-brand-600/10' : 'bg-dark-200 text-dark-500'
-              }`}>
-              1
+      <div className="w-full max-w-5xl relative grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Side: Illustrative Panel & Guide (Desktop Only) */}
+        <div className="hidden lg:flex lg:col-span-5 flex-col gap-6 sticky top-8">
+          <div className="glass-card p-6 border border-brand-100 flex flex-col gap-5 overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-brand-500/5 rounded-full blur-2xl pointer-events-none" />
+            <Logo size="lg" className="mb-2" clickable={true} />
+            
+            <div className="relative rounded-2xl overflow-hidden h-48 bg-brand-900/5 border border-brand-100/50">
+              <img 
+                src={loginImg} 
+                alt="Advisory visual" 
+                className="w-full h-full object-cover opacity-90"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-brand-950 via-brand-950/20 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4">
+                <span className="px-2.5 py-1 bg-gold-400 text-[#00261f] text-[10px] font-black uppercase rounded-full tracking-wider">
+                  Panduan Sertifikasi
+                </span>
+                <h3 className="text-white text-sm font-bold mt-1.5 leading-snug">
+                  Proses 100% Online & Terbimbing
+                </h3>
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-bold text-dark-900 leading-none">Data Usaha</p>
-              <p className="text-[10px] text-dark-400 font-semibold mt-0.5">Profil usaha & alamat</p>
+
+            <div className="space-y-4">
+              <h4 className="text-xs font-bold text-brand-900 uppercase tracking-widest">Langkah Pengajuan:</h4>
+              
+              <div className="flex gap-3">
+                <div className={`w-6.5 h-6.5 rounded-xl flex items-center justify-center text-xs font-bold transition-colors ${step >= 1 ? 'bg-brand-600 text-white shadow-md shadow-brand-600/10' : 'bg-dark-100 text-dark-500'}`}>
+                  1
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-bold text-dark-900">Data Usaha</p>
+                  <p className="text-[10px] text-dark-500 font-semibold mt-0.5">Isi profil dasar, alamat, skala usaha, dan detail produk Anda.</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <div className={`w-6.5 h-6.5 rounded-xl flex items-center justify-center text-xs font-bold transition-colors ${step >= 2 ? 'bg-brand-600 text-white shadow-md shadow-brand-600/10' : 'bg-dark-100 text-dark-500'}`}>
+                  2
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-bold text-dark-900">Persetujuan & Tanda Tangan</p>
+                  <p className="text-[10px] text-dark-500 font-semibold mt-0.5">Baca kontrak perjanjian layanan secara elektronik dan setujui untuk mengirim pengajuan.</p>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="flex-1 h-0.5 mx-4 bg-dark-200 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-brand-600 rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: step > 1 ? '100%' : '0%' }}
-              transition={{ duration: 0.5 }}
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${step >= 2 ? 'bg-gradient-brand text-white shadow-md shadow-brand-600/10' : 'bg-dark-200 text-dark-500'
-              }`}>
-              2
+
+            <div className="pt-4 border-t border-dark-100 bg-brand-50/30 p-3.5 rounded-xl border border-brand-550/5">
+              <p className="text-[10px] text-brand-850 font-bold uppercase tracking-wider">Butuh Bantuan?</p>
+              <p className="text-[10px] text-dark-500 font-medium mt-1">
+                Tim support kami siap membantu Anda via WhatsApp di <span className="font-bold text-brand-700">0815-6485-6280</span>.
+              </p>
             </div>
-            <div>
-              <p className="text-xs font-bold text-dark-900 leading-none">Persetujuan</p>
-              <p className="text-[10px] text-dark-400 font-semibold mt-0.5">Kontrak & ttd digital</p>
+
+            <div className="bg-amber-50/40 p-3.5 rounded-xl border border-amber-500/10">
+              <p className="text-[10px] text-amber-850 font-bold uppercase tracking-wider">Ingin Bergabung Sebagai Advisor?</p>
+              <p className="text-[10px] text-dark-500 font-medium mt-1">
+                Mari berkontribusi dalam ekosistem Halal. <a href={`${MAIN_APP_URL}/register`} target="_blank" rel="noopener noreferrer" className="font-bold text-brand-700 hover:underline">Daftar Halal Advisor di sini →</a>
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Form Card */}
-        <motion.div
-          className="glass-card p-8"
-          layout
-        >
+        {/* Right Side: Form Wizard Container */}
+        <div className="w-full lg:col-span-7 flex flex-col gap-6">
+          {/* Mobile Header (Hidden on lg) */}
+          <div className="lg:hidden text-center mb-4 flex flex-col items-center">
+            <Logo size="md" clickable={true} />
+            <h1 className="text-2xl font-extrabold text-brand-900 mt-3">Pengajuan Sertifikasi Halal</h1>
+            <p className="text-dark-500 text-xs font-medium mt-1">Isi formulir di bawah untuk memulai proses pendampingan</p>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="flex items-center justify-between px-6 py-4 bg-white/70 backdrop-blur-md rounded-2xl border border-white/50 shadow-sm shadow-brand-900/[0.01]">
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${step >= 1 ? 'bg-gradient-brand text-white shadow-md shadow-brand-600/10' : 'bg-dark-200 text-dark-500'
+                }`}>
+                1
+              </div>
+              <div>
+                <p className="text-xs font-bold text-dark-900 leading-none">Data Usaha</p>
+                <p className="text-[10px] text-dark-400 font-semibold mt-0.5">Profil usaha & alamat</p>
+              </div>
+            </div>
+            <div className="flex-1 h-0.5 mx-4 bg-dark-200 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-brand-600 rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: step > 1 ? '100%' : '0%' }}
+                transition={{ duration: 0.5 }}
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 ${step >= 2 ? 'bg-gradient-brand text-white shadow-md shadow-brand-600/10' : 'bg-dark-200 text-dark-500'
+                }`}>
+                2
+              </div>
+              <div>
+                <p className="text-xs font-bold text-dark-900 leading-none">Persetujuan</p>
+                <p className="text-[10px] text-dark-400 font-semibold mt-0.5">Kontrak & ttd digital</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Form Card */}
+          <motion.div
+            className="glass-card p-8 border border-brand-100"
+            layout
+          >
           <AnimatePresence mode="wait">
             {step === 1 && (
               <motion.div
@@ -900,5 +967,6 @@ export default function PublicFormPage() {
         </motion.div>
       </div>
     </div>
+  </div>
   );
 }

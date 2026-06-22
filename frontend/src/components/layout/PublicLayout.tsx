@@ -3,6 +3,10 @@ import { Menu, X, Phone, MapPin, Mail } from 'lucide-react';
 import { useState } from 'react';
 import Logo from '../ui/Logo';
 
+const TELEMARKETING_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:5174'
+    : 'https://telemarketing.halalcore.id';
+
 export default function PublicLayout() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -24,6 +28,7 @@ export default function PublicLayout() {
                             <a href="/#services" className="text-gray-600 hover:text-brand-600 font-medium transition-colors">Services</a>
                             <a href="/#news" className="text-gray-600 hover:text-brand-600 font-medium transition-colors">News</a>
                             <a href="/#contact" className="text-gray-600 hover:text-brand-600 font-medium transition-colors">Contact</a>
+                            <a href={`${TELEMARKETING_URL}/form`} className="text-amber-600 hover:text-amber-700 font-bold transition-colors">Sertifikasi Halal</a>
                             <Link to="/login" className="px-6 py-2 rounded-full bg-brand-600 text-white hover:bg-brand-700 font-bold shadow-lg shadow-brand-200 transition-all hover:scale-105 active:scale-95">
                                 Login
                             </Link>
@@ -50,6 +55,7 @@ export default function PublicLayout() {
                             <a href="/#services" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-600 hover:bg-brand-50">Services</a>
                             <a href="/#news" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-600 hover:bg-brand-50">News</a>
                             <a href="/#contact" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-600 hover:bg-brand-50">Contact</a>
+                            <a href={`${TELEMARKETING_URL}/form`} className="block px-3 py-2 rounded-md text-base font-bold text-amber-600 hover:text-amber-700 hover:bg-brand-50">Sertifikasi Halal</a>
                             <Link to="/login" className="block w-full mt-4 px-5 py-3 text-center rounded-lg bg-brand-600 text-white font-bold">Login</Link>
                         </div>
                     </div>
@@ -77,6 +83,7 @@ export default function PublicLayout() {
                         <div>
                             <h4 className="font-bold text-lg mb-6 text-gold-400">Quick Links</h4>
                             <ul className="space-y-3 text-brand-100/60">
+                                <li><a href={`${TELEMARKETING_URL}/form`} className="text-gold-400 font-bold hover:text-gold-300 transition-colors">Daftar Sertifikasi Halal</a></li>
                                 <li><a href="#" className="hover:text-gold-400 transition-colors">Privacy Policy</a></li>
                                 <li><a href="#" className="hover:text-gold-400 transition-colors">Terms of Service</a></li>
                                 <li><a href="#" className="hover:text-gold-400 transition-colors">Verify Certificate</a></li>

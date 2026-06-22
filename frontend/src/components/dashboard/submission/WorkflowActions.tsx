@@ -6,6 +6,7 @@ import FileUpload from '../FileUpload';
 import toast from 'react-hot-toast';
 import Modal from '../../ui/Modal';
 import ConfirmModal from '../../ui/ConfirmModal';
+import { compressImage } from '../../../utils/compressor';
 
 interface WorkflowActionsProps {
     submission: Submission;
@@ -58,12 +59,23 @@ export const WorkflowActions = ({
 
     const handleIssueSH = async () => {
         if (!shFile) return;
-        if (shFile.size > 2 * 1024 * 1024) {
+        
+        let finalFile = shFile;
+        // Kompres jika file adalah gambar
+        if (finalFile.type.startsWith('image/')) {
+            try {
+                finalFile = await compressImage(finalFile);
+            } catch (err) {
+                console.error('Image compression failed:', err);
+            }
+        }
+
+        if (finalFile.size > 2 * 1024 * 1024) {
             toast.error("Ukuran file sertifikat tidak boleh lebih dari 2MB");
             return;
         }
         try {
-            const uploadedUrl = await submissionService.uploadMedia(shFile);
+            const uploadedUrl = await submissionService.uploadMedia(finalFile);
             if (uploadedUrl) {
                 await onIssueSH(uploadedUrl);
                 setShFile(null);

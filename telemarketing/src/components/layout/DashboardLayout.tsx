@@ -3,9 +3,10 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import {
   LayoutDashboard, Users, Calendar, BarChart3, LogOut,
-  Menu, X, ChevronRight, Headphones
+  Menu, X, ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Logo from '../ui/Logo';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', end: true },
@@ -53,10 +54,10 @@ export default function DashboardLayout() {
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 h-16 border-b border-dark-100">
           <motion.div 
-            whileHover={{ rotate: 15, scale: 1.05 }}
-            className="w-9 h-9 rounded-xl bg-gradient-brand flex items-center justify-center flex-shrink-0 shadow-md shadow-brand-600/10"
+            whileHover={{ rotate: 10, scale: 1.05 }}
+            className="flex-shrink-0"
           >
-            <Headphones className="w-5 h-5 text-white" />
+            <Logo iconOnly={true} size="sm" />
           </motion.div>
           {sidebarOpen && (
             <motion.div
@@ -71,6 +72,7 @@ export default function DashboardLayout() {
             </motion.div>
           )}
         </div>
+
 
         {/* Nav */}
         <nav className="flex-1 py-4 px-3 space-y-1.5 overflow-y-auto custom-scrollbar">

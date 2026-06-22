@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, CheckCircle2, Headphones, ShieldCheck, Zap, PlayCircle, Menu, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Headphones, ShieldCheck, Zap, PlayCircle, Menu, X, MapPin, Phone, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import Logo from '../../components/ui/Logo';
 
 const MAIN_APP_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:5173'
@@ -61,9 +62,9 @@ export default function LandingPage() {
             <Link to="/" className="flex items-center gap-2.5">
               <motion.div 
                 whileHover={{ rotate: 10, scale: 1.05 }}
-                className="w-9 h-9 rounded-xl bg-gradient-brand flex items-center justify-center shadow-md shadow-brand-600/15"
+                className="flex-shrink-0"
               >
-                <Headphones className="w-4.5 h-4.5 text-white" />
+                <Logo iconOnly={true} size="sm" clickable={false} />
               </motion.div>
               <div>
                 <span className="font-extrabold text-base text-brand-800 tracking-tight block leading-tight">
@@ -75,6 +76,7 @@ export default function LandingPage() {
               </div>
             </Link>
 
+
             {/* Desktop Nav Links */}
             <div className="hidden md:flex items-center gap-2">
               <a
@@ -84,6 +86,14 @@ export default function LandingPage() {
                 className="px-3.5 py-2 text-sm font-semibold text-dark-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-all cursor-pointer"
               >
                 Lacak Progress
+              </a>
+              <a
+                href={`${MAIN_APP_URL}/register`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-2 text-sm font-semibold text-brand-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-all cursor-pointer"
+              >
+                Gabung Advisor
               </a>
               <Link
                 to="/login"
@@ -127,6 +137,14 @@ export default function LandingPage() {
                   className="block px-4 py-3 text-sm font-semibold text-dark-700 hover:text-brand-700 hover:bg-brand-50 rounded-xl transition-all cursor-pointer"
                 >
                   Lacak Progress
+                </a>
+                <a
+                  href={`${MAIN_APP_URL}/register`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block px-4 py-3 text-sm font-semibold text-brand-650 hover:text-brand-700 hover:bg-brand-50 rounded-xl transition-all cursor-pointer"
+                >
+                  Gabung Advisor
                 </a>
                 <Link
                   to="/login"
@@ -405,10 +423,52 @@ export default function LandingPage() {
       </section>
 
       {/* ─── Footer ─── */}
-      <footer className="py-10 sm:py-12 bg-brand-800 text-center border-t border-brand-700/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-2">
-          <p className="font-extrabold text-white text-lg tracking-wide">HalalCore</p>
-          <p className="text-xs text-brand-300 font-medium">© 2026 PT Ana Nahnu Indonesia. Semua Hak Dilindungi Undang-Undang.</p>
+      <footer className="bg-[#00261f] text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-left">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+            <div className="col-span-1 md:col-span-2 space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Logo size="md" variant="white" className="!items-start" clickable={true} />
+              </div>
+              <p className="text-brand-100/70 max-w-sm leading-relaxed text-sm font-medium">
+                Building Halal Business Excellence through professional advisory, training, and certification systems.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-lg mb-6 text-gold-400">Quick Links</h4>
+              <ul className="space-y-3 text-brand-100/60 text-sm font-medium">
+                <li><a href={`${MAIN_APP_URL}/register`} target="_blank" rel="noopener noreferrer" className="text-gold-400 font-bold hover:text-gold-300 transition-colors">Daftar Halal Advisor</a></li>
+                <li><a href="#" className="hover:text-gold-400 transition-colors">Privacy Policy</a></li>
+                <li><a href="#" className="hover:text-gold-400 transition-colors">Terms of Service</a></li>
+                <li><a href="#" className="hover:text-gold-400 transition-colors">Verify Certificate</a></li>
+                <li><a href="#" className="hover:text-gold-400 transition-colors">Halal Standards</a></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-lg mb-6 text-gold-400">Contact Us</h4>
+              <ul className="space-y-4 text-brand-100/60 text-sm font-medium">
+                <li className="flex items-start gap-3">
+                  <MapPin className="w-5 h-5 flex-shrink-0 mt-0.5 text-gold-500" />
+                  <span>Halal Core Center, Jakarta, Indonesia</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <Phone className="w-5 h-5 text-gold-500" />
+                  <span>+62 21 5555 1234</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <Mail className="w-5 h-5 text-gold-500" />
+                  <span>info@halalcore.id</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="border-t border-brand-800 mt-16 pt-8 flex flex-col md:flex-row justify-between items-center text-brand-100/40 text-sm">
+            <p>&copy; {new Date().getFullYear()} PT Ana Nahnu Indonesia. All rights reserved.</p>
+            <p>Empowering the Global Halal Ecosystem</p>
+          </div>
         </div>
       </footer>
     </div>
