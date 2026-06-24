@@ -463,10 +463,13 @@ func (h *TelemarketingHandler) DownloadAgreementQR(c *gin.Context) {
 
 	frontendURL := os.Getenv("FRONTEND_URL")
 	if frontendURL == "" {
+		frontendURL = os.Getenv("APP_FRONTEND_URL")
+	}
+	if frontendURL == "" {
 		frontendURL = "https://halalcore.id"
 	}
 
-	verifyURL := fmt.Sprintf("%s/verify/%s/%s", frontendURL, agreement.ID.String(), agreement.VerificationToken)
+	verifyURL := fmt.Sprintf("%s/verify/agreement/%s/%s", frontendURL, agreement.ID.String(), agreement.VerificationToken)
 	logoPath := "templates/logo_halalcore.png"
 
 	pngData, err := qrcode.GenerateWithLogo(verifyURL, logoPath)

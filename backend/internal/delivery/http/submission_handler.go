@@ -40,6 +40,7 @@ func NewSubmissionHandler(r *gin.Engine, uc usecase.SubmissionWorkflowUsecase) {
 	}
 
 	r.GET("/public/track/:tracking_number", handler.TrackSubmission)
+	r.GET("/public/verify-invoice/:id", handler.VerifyInvoice)
 }
 
 func (h *SubmissionHandler) CreateDraft(c *gin.Context) {
@@ -511,5 +512,33 @@ func (h *SubmissionHandler) UpdateClientInfoAndPricing(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "client info and pricing updated"})
+}
+
+func (h *SubmissionHandler) VerifyInvoice(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	sub, err := h.workflowUC.GetSubmission(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "submission not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":             sub.ID,
+		"tracking_no":    sub.TrackingNumber,
+		"status":         sub.Status,
+		"client_name":    sub.Client.ClientName,
+		"business_name":  sub.Client.BusinessName,
+		"product_name":   sub.Client.ProductName,
+		"invoice":        sub.Invoice,
+		"invoices":       sub.Invoices,
+		"updated_at":     sub.UpdatedAt,
+		"created_at":     sub.CreatedAt,
+	})
 }
 

@@ -499,8 +499,14 @@ func (uc *documentUsecase) GenerateTeleAgreementPDF(agreementID uuid.UUID) ([]by
 	for _, s := range settings {
 		settingMap[s.Key] = s.Value
 	}
-	frontendURL := uc.getSetting(settingMap, "FRONTEND_URL", "https://halalcore.id")
-	verifyURL := fmt.Sprintf("%s/verify/%s/%s", frontendURL, agreement.ID.String(), agreement.VerificationToken)
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = os.Getenv("APP_FRONTEND_URL")
+	}
+	if frontendURL == "" {
+		frontendURL = uc.getSetting(settingMap, "FRONTEND_URL", "https://halalcore.id")
+	}
+	verifyURL := fmt.Sprintf("%s/verify/agreement/%s/%s", frontendURL, agreement.ID.String(), agreement.VerificationToken)
 	
 	// Embed QR using fpdf RegisterImageOptions
 	// Since go-qrcode outputs PNG, we can use RegisterImageOptionsReader
@@ -749,7 +755,13 @@ func (uc *documentUsecase) GenerateInvoicePDF(submissionID uuid.UUID) ([]byte, s
 	for _, s := range settings {
 		settingMap[s.Key] = s.Value
 	}
-	frontendURL := uc.getSetting(settingMap, "FRONTEND_URL", "https://halalcore.id")
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = os.Getenv("APP_FRONTEND_URL")
+	}
+	if frontendURL == "" {
+		frontendURL = uc.getSetting(settingMap, "FRONTEND_URL", "https://halalcore.id")
+	}
 	verifyURL := fmt.Sprintf("%s/verify-invoice/%s", frontendURL, submissionID.String())
 	
 	qrPNG, err := uc.generateQRImageWithLogo(verifyURL, "templates/logo_halalcore.png")

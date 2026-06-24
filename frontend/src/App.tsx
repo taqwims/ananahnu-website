@@ -55,6 +55,8 @@ import CoordinatorDashboard from './pages/dashboard/CoordinatorDashboard';
 import UserManagement from './pages/dashboard/UserManagement';
 import ConsultantVerification from './pages/dashboard/ConsultantVerification';
 import TrackSubmission from './pages/tracking/TrackSubmission';
+import VerifyInvoice from './pages/tracking/VerifyInvoice';
+import VerifyAgreement from './pages/tracking/VerifyAgreement';
 import ReferralDashboard from './pages/dashboard/ReferralDashboard';
 import AdminReferralDashboard from './pages/dashboard/AdminReferralDashboard';
 import ReferralFeeAdmin from './pages/dashboard/ReferralFeeAdmin';
@@ -235,6 +237,8 @@ function App() {
         <Route element={<PublicLayout />}>
           <Route path="/" element={<LandingPage />} />
           <Route path="/track" element={<TrackSubmission />} />
+          <Route path="/verify-invoice/:id" element={<VerifyInvoice />} />
+          <Route path="/verify/agreement/:id/:token" element={<VerifyAgreement />} />
         </Route>
       </Routes>
     </BrowserRouter>
