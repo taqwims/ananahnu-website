@@ -1,14 +1,19 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Loader2, Download, Plus, Trash, BookOpen, Calculator } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Loader2, Download, Plus, Trash, BookOpen } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'react-hot-toast';
+import type { BillingComponent } from '../../types';
+
+type Props = {
+    onSaveClick?: (data: any) => void;
+};
 
 type OptionalCost = {
     name: string;
     amount: number;
 };
 
-export default function EstimasiReguler() {
+export default function KalkulatorStandalone({ onSaveClick }: Props) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -22,7 +27,7 @@ export default function EstimasiReguler() {
     const [schemes, setSchemes] = useState<any[]>([]);
 
     // Dynamic cost components from master biaya
-    const [masterComponents, setMasterComponents] = useState<any[]>([]);
+    const [masterComponents, setMasterComponents] = useState<BillingComponent[]>([]);
     const [loadingComponents, setLoadingComponents] = useState(false);
     const [salesSchemePrice, setSalesSchemePrice] = useState<any | null>(null);
 
@@ -47,7 +52,6 @@ export default function EstimasiReguler() {
     const [newOptAmount, setNewOptAmount] = useState('');
     const [selectedOptionalComponentIds, setSelectedOptionalComponentIds] = useState<number[]>([]);
 
-    // Helper for formatting Currency
     const formatCurrency = (val: number) => {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val);
     };
@@ -484,8 +488,27 @@ export default function EstimasiReguler() {
     const handleSave = () => {
         setSaving(true);
         try {
-            handleDownloadPDF();
-            toast.success("Estimasi PDF berhasil digenerate!");
+            const data = {
+                data_source: dataSource,
+                sales_scheme_id: parseInt(salesSchemeId) || null,
+                business_type_id: parseInt(businessTypeId) || null,
+                product_category_id: parseInt(productId) || null,
+                business_scale_id: parseInt(businessScaleId) || null,
+                province_id: parseInt(provinceId) || null,
+                regency_id: parseInt(regencyId) || null,
+                district_id: parseInt(districtId) || null,
+                product_count: productCount,
+                branch_count: branchCount,
+                mandays: mandays,
+                total_amount: total,
+                breakdown
+            };
+            if (onSaveClick) {
+                onSaveClick(data);
+            } else {
+                handleDownloadPDF();
+                toast.success("Estimasi PDF berhasil digenerate!");
+            }
         } catch (e) {
             toast.error("Gagal memproses perhitungan");
         } finally {
@@ -493,329 +516,315 @@ export default function EstimasiReguler() {
         }
     };
 
-    if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-brand-600 w-10 h-10" /></div>;
+    if (loading) return <div className="flex justify-center p-4"><Loader2 className="animate-spin text-brand-600 w-8 h-8" /></div>;
 
     return (
-        <div className="p-6 max-w-6xl mx-auto space-y-6">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-                        <div className="p-2 bg-brand-50 rounded-xl">
-                            <Calculator className="w-6 h-6 text-brand-600" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-white p-5 rounded-xl border border-gray-100 shadow-md mt-2 w-full max-w-none">
+            {/* Left Column: Form (7 cols) */}
+            <div className="lg:col-span-7 space-y-4">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                    <h3 className="text-lg font-bold text-brand-700">Form Perhitungan Biaya</h3>
+                </div>
+
+                {/* Sumber Data & Skema Selection */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Sumber Data</label>
+                        <select
+                            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all font-bold text-brand-700"
+                            value={dataSource}
+                            onChange={e => setDataSource(e.target.value)}
+                        >
+                            <option value="ORGANIK">Organik / Telemarketing</option>
+                            <option value="MARKETING">Marketing (Partner)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Skema Penjualan</label>
+                        <select
+                            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all font-bold text-brand-700"
+                            value={salesSchemeId}
+                            onChange={e => setSalesSchemeId(e.target.value)}
+                        >
+                            <option value="">Pilih Skema...</option>
+                            {schemes.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                    </div>
+                </div>
+
+                {/* Guide Section */}
+                <div className="bg-brand-50 border border-brand-100 p-3 rounded-xl flex gap-2 text-brand-850 text-xs">
+                    <BookOpen className="w-4 h-4 text-brand-600 shrink-0 mt-0.5" />
+                    <div>
+                        <h4 className="font-bold mb-0.5">Panduan Penggunaan Kalkulator</h4>
+                        <ul className="list-disc pl-3.5 space-y-0.5 text-[10px] text-brand-700/80">
+                            <li>Harga berubah otomatis saat Provinsi, Bidang, atau Produk dipilih.</li>
+                            <li>Sistem otomatis menyesuaikan jika ada tarif khusus wilayah.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div className="space-y-3.5">
+                    {/* Provinsi */}
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Provinsi Fasilitas Produksi</label>
+                        <select
+                            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
+                            value={provinceId}
+                            onChange={e => setProvinceId(e.target.value)}
+                        >
+                            <option value="">Pilih Provinsi...</option>
+                            {provinces.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                    </div>
+
+                    {/* Kabupaten */}
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Kabupaten / Kota Fasilitas Produksi</label>
+                        <select
+                            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all disabled:opacity-50"
+                            value={regencyId}
+                            onChange={e => setRegencyId(e.target.value)}
+                            disabled={!provinceId}
+                        >
+                            <option value="">Pilih Kabupaten...</option>
+                            {regencies.map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                        </select>
+                    </div>
+
+                    {/* Bidang + Produk */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">Jenis Bidang</label>
+                            <select
+                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
+                                value={businessTypeId}
+                                onChange={e => { setBusinessTypeId(e.target.value); setProductId(''); }}
+                            >
+                                <option value="">Pilih Bidang...</option>
+                                {businessTypes.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            </select>
                         </div>
-                        Perhitungan Biaya
-                    </h1>
-                    <p className="text-sm text-gray-500 mt-1 ml-12">Hitung dan simulasikan rincian biaya sertifikasi halal secara instan</p>
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">Jenis Produk</label>
+                            <select
+                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
+                                value={productId}
+                                onChange={e => setProductId(e.target.value)}
+                            >
+                                <option value="">Pilih Produk...</option>
+                                {products
+                                    .filter((p: any) => !businessTypeId || p.business_type_id === parseInt(businessTypeId))
+                                    .map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Skala Usaha */}
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Skala Usaha</label>
+                        <select
+                            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
+                            value={businessScaleId}
+                            onChange={e => setBusinessScaleId(e.target.value)}
+                        >
+                            <option value="">Pilih Skala...</option>
+                            {scales.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                    </div>
+
+                    {/* Kecamatan (opsional) */}
+                    {provinceId && regencyId && (
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">Kecamatan (Opsional)</label>
+                            <select
+                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all disabled:opacity-50"
+                                value={districtId}
+                                onChange={e => setDistrictId(e.target.value)}
+                                disabled={!regencyId}
+                            >
+                                <option value="">Pilih Kecamatan...</option>
+                                {districts.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            </select>
+                        </div>
+                    )}
+
+                    {/* Quantities */}
+                    <div className="grid grid-cols-3 gap-3 border-t border-gray-100 pt-3.5">
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Jumlah Cabang</label>
+                            <input
+                                type="number"
+                                min="1"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
+                                value={branchCount}
+                                onChange={e => setBranchCount(Math.max(1, parseInt(e.target.value) || 1))}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Jumlah Produk</label>
+                            <input
+                                type="number"
+                                min="1"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
+                                value={productCount}
+                                onChange={e => setProductCount(Math.max(1, parseInt(e.target.value) || 1))}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Jumlah Manday</label>
+                            <input
+                                type="number"
+                                min="1"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
+                                value={mandays}
+                                onChange={e => setMandays(Math.max(1, parseInt(e.target.value) || 1))}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Optional Components */}
+                    {masterComponents.filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN').length > 0 && (
+                        <div className="border-t border-gray-100 pt-3">
+                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">Komponen Pilihan Master Biaya</label>
+                            <div className="space-y-1.5 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                {masterComponents
+                                    .filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN')
+                                    .map(comp => {
+                                        const isChecked = selectedOptionalComponentIds.includes(comp.id);
+                                        return (
+                                            <label key={comp.id} className="flex items-center gap-2 cursor-pointer select-none text-xs">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isChecked}
+                                                    onChange={() => {
+                                                        if (isChecked) {
+                                                            setSelectedOptionalComponentIds(selectedOptionalComponentIds.filter(id => id !== comp.id));
+                                                        } else {
+                                                            setSelectedOptionalComponentIds([...selectedOptionalComponentIds, comp.id]);
+                                                        }
+                                                    }}
+                                                    className="w-3.5 h-3.5 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
+                                                />
+                                                <div className="flex-1 text-gray-700 font-medium text-[11px]">{comp.name}</div>
+                                                <div className="text-[10px] text-gray-500 font-bold">{formatCurrency(comp.base_amount)}</div>
+                                            </label>
+                                        );
+                                    })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Biaya Tambahan (Opsional) */}
+                    <div className="border-t border-gray-100 pt-3">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Biaya Tambahan (Opsional)</label>
+                        {optionalCosts.map((opt, idx) => (
+                            <div key={idx} className="flex gap-2 items-center mb-1.5">
+                                <span className="flex-1 text-xs bg-gray-50 p-2 rounded-lg border border-gray-100">{opt.name}</span>
+                                <span className="w-1/3 text-xs bg-gray-50 p-2 rounded-lg border border-gray-100 text-right font-medium">{formatCurrency(opt.amount)}</span>
+                                <button onClick={() => removeOptionalCost(idx)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                    <Trash className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        ))}
+
+                        <div className="flex gap-2 mt-1.5">
+                            <input
+                                type="text"
+                                placeholder="Nama Biaya..."
+                                className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
+                                value={newOptName}
+                                onChange={e => setNewOptName(e.target.value)}
+                            />
+                            <input
+                                type="number"
+                                placeholder="Nominal..."
+                                className="w-1/3 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
+                                value={newOptAmount}
+                                onChange={e => setNewOptAmount(e.target.value)}
+                            />
+                            <button onClick={addOptionalCost} className="bg-gray-800 text-white p-2 rounded-lg hover:bg-gray-900 transition-colors">
+                                <Plus className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Download Estimasi Button */}
+                    <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="w-full bg-brand-700 text-white font-bold py-3 rounded-lg shadow-md shadow-brand-100 hover:bg-brand-800 transition-all flex items-center justify-center gap-1.5 text-sm"
+                    >
+                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        Simpan & Unduh Estimasi (PDF)
+                    </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-white p-5 rounded-xl border border-gray-100 shadow-md mt-2 w-full max-w-none">
-                {/* Left Column: Form (7 cols) */}
-                <div className="lg:col-span-7 space-y-4">
-                    <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                        <h3 className="text-lg font-bold text-brand-700">Form Perhitungan Biaya</h3>
-                    </div>
+            {/* Right Column: Breakdown (5 cols) */}
+            <div className="lg:col-span-5 bg-gray-50/50 p-5 rounded-xl border border-gray-100 flex flex-col justify-between">
+                <div>
+                    <h3 className="text-lg font-bold text-brand-700 mb-4 border-b border-gray-200 pb-2">Detail Hasil Perhitungan</h3>
 
-                    {/* Sumber Data & Skema Selection */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Sumber Data</label>
-                            <select
-                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all font-bold text-brand-700"
-                                value={dataSource}
-                                onChange={e => setDataSource(e.target.value)}
-                            >
-                                <option value="ORGANIK">Organik / Telemarketing</option>
-                                <option value="MARKETING">Marketing (Partner)</option>
-                            </select>
+                    {/* Loading state */}
+                    {loadingComponents && (
+                        <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                            <Loader2 className="w-6 h-6 animate-spin mb-2" />
+                            <p className="text-xs">Memuat komponen biaya...</p>
                         </div>
-                        <div>
-                            <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Skema Penjualan</label>
-                            <select
-                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all font-bold text-brand-700"
-                                value={salesSchemeId}
-                                onChange={e => setSalesSchemeId(e.target.value)}
-                            >
-                                <option value="">Pilih Skema...</option>
-                                {schemes.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                            </select>
-                        </div>
-                    </div>
+                    )}
 
-                    {/* Guide Section */}
-                    <div className="bg-brand-50 border border-brand-100 p-3 rounded-xl flex gap-2 text-brand-850 text-xs">
-                        <BookOpen className="w-4 h-4 text-brand-600 shrink-0 mt-0.5" />
-                        <div>
-                            <h4 className="font-bold mb-0.5">Panduan Penggunaan Kalkulator</h4>
-                            <ul className="list-disc pl-3.5 space-y-0.5 text-[10px] text-brand-700/80">
-                                <li>Harga berubah otomatis saat Provinsi, Bidang, atau Produk dipilih.</li>
-                                <li>Sistem otomatis menyesuaikan jika ada tarif khusus wilayah.</li>
-                            </ul>
+                    {/* Empty state */}
+                    {!loadingComponents && breakdown.length === 0 && (
+                        <div className="text-center py-12 text-gray-400 italic text-xs">
+                            Pilih Jenis Bidang, Produk, dan Skala Usaha untuk melihat rincian biaya.
                         </div>
-                    </div>
+                    )}
 
-                    <div className="space-y-3.5">
-                        {/* Provinsi */}
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1">Provinsi Fasilitas Produksi</label>
-                            <select
-                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
-                                value={provinceId}
-                                onChange={e => setProvinceId(e.target.value)}
-                            >
-                                <option value="">Pilih Provinsi...</option>
-                                {provinces.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </select>
-                        </div>
-
-                        {/* Kabupaten */}
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1">Kabupaten / Kota Fasilitas Produksi</label>
-                            <select
-                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all disabled:opacity-50"
-                                value={regencyId}
-                                onChange={e => setRegencyId(e.target.value)}
-                                disabled={!provinceId}
-                            >
-                                <option value="">Pilih Kabupaten...</option>
-                                {regencies.map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                            </select>
-                        </div>
-
-                        {/* Bidang + Produk */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-700 mb-1">Jenis Bidang</label>
-                                <select
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
-                                    value={businessTypeId}
-                                    onChange={e => { setBusinessTypeId(e.target.value); setProductId(''); }}
-                                >
-                                    <option value="">Pilih Bidang...</option>
-                                    {businessTypes.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                                </select>
+                    {/* Breakdown List */}
+                    {!loadingComponents && breakdown.length > 0 && (
+                        <div className="space-y-2.5">
+                            {/* Header */}
+                            <div className="grid grid-cols-12 gap-1.5 text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                                <div className="col-span-8">Komponen</div>
+                                <div className="col-span-4 text-right">Harga</div>
                             </div>
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-700 mb-1">Jenis Produk</label>
-                                <select
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
-                                    value={productId}
-                                    onChange={e => setProductId(e.target.value)}
-                                >
-                                    <option value="">Pilih Produk...</option>
-                                    {products
-                                        .filter((p: any) => !businessTypeId || p.business_type_id === parseInt(businessTypeId))
-                                        .map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                </select>
-                            </div>
-                        </div>
 
-                        {/* Skala Usaha */}
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1">Skala Usaha</label>
-                            <select
-                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
-                                value={businessScaleId}
-                                onChange={e => setBusinessScaleId(e.target.value)}
-                            >
-                                <option value="">Pilih Skala...</option>
-                                {scales.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                            </select>
-                        </div>
-
-                        {/* Kecamatan (opsional) */}
-                        {provinceId && regencyId && (
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-700 mb-1">Kecamatan (Opsional)</label>
-                                <select
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all disabled:opacity-50"
-                                    value={districtId}
-                                    onChange={e => setDistrictId(e.target.value)}
-                                    disabled={!regencyId}
-                                >
-                                    <option value="">Pilih Kecamatan...</option>
-                                    {districts.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                                </select>
-                            </div>
-                        )}
-
-                        {/* Quantities */}
-                        <div className="grid grid-cols-3 gap-3 border-t border-gray-100 pt-3.5">
-                            <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Jumlah Cabang</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
-                                    value={branchCount}
-                                    onChange={e => setBranchCount(Math.max(1, parseInt(e.target.value) || 1))}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Jumlah Produk</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
-                                    value={productCount}
-                                    onChange={e => setProductCount(Math.max(1, parseInt(e.target.value) || 1))}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Jumlah Manday</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
-                                    value={mandays}
-                                    onChange={e => setMandays(Math.max(1, parseInt(e.target.value) || 1))}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Optional Components */}
-                        {masterComponents.filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN').length > 0 && (
-                            <div className="border-t border-gray-100 pt-3">
-                                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Komponen Pilihan Master Biaya</label>
-                                <div className="space-y-1.5 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                    {masterComponents
-                                        .filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN')
-                                        .map(comp => {
-                                            const isChecked = selectedOptionalComponentIds.includes(comp.id);
-                                            return (
-                                                <label key={comp.id} className="flex items-center gap-2 cursor-pointer select-none text-xs">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isChecked}
-                                                        onChange={() => {
-                                                            if (isChecked) {
-                                                                setSelectedOptionalComponentIds(selectedOptionalComponentIds.filter(id => id !== comp.id));
-                                                            } else {
-                                                                setSelectedOptionalComponentIds([...selectedOptionalComponentIds, comp.id]);
-                                                            }
-                                                        }}
-                                                        className="w-3.5 h-3.5 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
-                                                    />
-                                                    <div className="flex-1 text-gray-700 font-medium text-[11px]">{comp.name}</div>
-                                                    <div className="text-[10px] text-gray-500 font-bold">{formatCurrency(comp.base_amount)}</div>
-                                                </label>
-                                            );
-                                        })}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Biaya Tambahan (Opsional) */}
-                        <div className="border-t border-gray-100 pt-3">
-                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">Biaya Tambahan (Opsional)</label>
-                            {optionalCosts.map((opt, idx) => (
-                                <div key={idx} className="flex gap-2 items-center mb-1.5">
-                                    <span className="flex-1 text-xs bg-gray-50 p-2 rounded-lg border border-gray-100">{opt.name}</span>
-                                    <span className="w-1/3 text-xs bg-gray-50 p-2 rounded-lg border border-gray-100 text-right font-medium">{formatCurrency(opt.amount)}</span>
-                                    <button onClick={() => removeOptionalCost(idx)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                                        <Trash className="w-3.5 h-3.5" />
-                                    </button>
+                            {breakdown.map((item, idx) => (
+                                <div key={idx} className="grid grid-cols-12 gap-1.5 items-center py-2 px-3 rounded-lg border bg-white border-gray-100 shadow-sm transition-all">
+                                    <div className="col-span-8">
+                                        <p className="font-semibold text-xs text-gray-700 leading-tight">
+                                            {item.name}
+                                        </p>
+                                        <span className="text-[8px] px-1 bg-gray-100 text-gray-600 rounded font-bold uppercase">
+                                            {item.category}
+                                        </span>
+                                    </div>
+                                    <div className="col-span-4 text-right">
+                                        <span className={`font-bold text-xs ${
+                                            item.category === 'DISKON' ? 'text-red-700' : 'text-brand-700'
+                                        }`}>
+                                            {item.total < 0 ? `- ${formatCurrency(Math.abs(item.total))}` : formatCurrency(item.total)}
+                                        </span>
+                                    </div>
                                 </div>
                             ))}
-
-                            <div className="flex gap-2 mt-1.5">
-                                <input
-                                    type="text"
-                                    placeholder="Nama Biaya..."
-                                    className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
-                                    value={newOptName}
-                                    onChange={e => setNewOptName(e.target.value)}
-                                />
-                                <input
-                                    type="number"
-                                    placeholder="Nominal..."
-                                    className="w-1/3 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
-                                    value={newOptAmount}
-                                    onChange={e => setNewOptAmount(e.target.value)}
-                                />
-                                <button onClick={addOptionalCost} className="bg-gray-800 text-white p-2 rounded-lg hover:bg-gray-900 transition-colors">
-                                    <Plus className="w-3.5 h-3.5" />
-                                </button>
-                            </div>
                         </div>
-
-                        {/* Download Estimasi Button */}
-                        <button
-                            onClick={handleSave}
-                            disabled={saving}
-                            className="w-full bg-brand-700 text-white font-bold py-3 rounded-lg shadow-md shadow-brand-100 hover:bg-brand-800 transition-all flex items-center justify-center gap-1.5 text-sm"
-                        >
-                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                            Simpan & Unduh Estimasi (PDF)
-                        </button>
-                    </div>
+                    )}
                 </div>
 
-                {/* Right Column: Breakdown (5 cols) */}
-                <div className="lg:col-span-5 bg-gray-50/50 p-5 rounded-xl border border-gray-100 flex flex-col justify-between">
-                    <div>
-                        <h3 className="text-lg font-bold text-brand-700 mb-4 border-b border-gray-200 pb-2">Detail Hasil Perhitungan</h3>
-
-                        {/* Loading state */}
-                        {loadingComponents && (
-                            <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                                <Loader2 className="w-6 h-6 animate-spin mb-2" />
-                                <p className="text-xs">Memuat komponen biaya...</p>
-                            </div>
-                        )}
-
-                        {/* Empty state */}
-                        {!loadingComponents && breakdown.length === 0 && (
-                            <div className="text-center py-12 text-gray-400 italic text-xs">
-                                Pilih Jenis Bidang, Produk, dan Skala Usaha untuk melihat rincian biaya.
-                            </div>
-                        )}
-
-                        {/* Breakdown List */}
-                        {!loadingComponents && breakdown.length > 0 && (
-                            <div className="space-y-2.5">
-                                {/* Header */}
-                                <div className="grid grid-cols-12 gap-1.5 text-[9px] font-bold text-gray-400 uppercase tracking-wider">
-                                    <div className="col-span-8">Komponen</div>
-                                    <div className="col-span-4 text-right">Harga</div>
-                                </div>
-
-                                {breakdown.map((item, idx) => (
-                                    <div key={idx} className="grid grid-cols-12 gap-1.5 items-center py-2 px-3 rounded-lg border bg-white border-gray-100 shadow-sm transition-all">
-                                        <div className="col-span-8">
-                                            <p className="font-semibold text-xs text-gray-700 leading-tight">
-                                                {item.name}
-                                            </p>
-                                            <span className="text-[8px] px-1 bg-gray-100 text-gray-600 rounded font-bold uppercase">
-                                                {item.category}
-                                            </span>
-                                        </div>
-                                        <div className="col-span-4 text-right">
-                                            <span className={`font-bold text-xs ${
-                                                item.category === 'DISKON' ? 'text-red-700' : 'text-brand-700'
-                                            }`}>
-                                                {item.total < 0 ? `- ${formatCurrency(Math.abs(item.total))}` : formatCurrency(item.total)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                {/* Grand Total */}
+                <div className="mt-6 pt-4 border-t border-gray-200 space-y-3.5">
+                    <div className="flex justify-between items-center">
+                        <span className="font-bold text-gray-600 text-sm">Grand Total</span>
+                        <span className="bg-brand-50 text-brand-700 border border-brand-100 px-4 py-2 rounded-xl text-base font-black">
+                            {formatCurrency(total)}
+                        </span>
                     </div>
-
-                    {/* Grand Total */}
-                    <div className="mt-6 pt-4 border-t border-gray-200 space-y-3.5">
-                        <div className="flex justify-between items-center">
-                            <span className="font-bold text-gray-600 text-sm">Grand Total</span>
-                            <span className="bg-brand-50 text-brand-700 border border-brand-100 px-4 py-2 rounded-xl text-base font-black">
-                                {formatCurrency(total)}
-                            </span>
-                        </div>
-                        
-                        {/* Disclaimer section */}
-                        <div className="bg-amber-50 border border-amber-100 text-amber-900 p-3 rounded-lg text-[10px] leading-relaxed italic">
-                            <b>Catatan Penting:</b> Perhitungan di atas adalah estimasi biaya berdasarkan kriteria simulasi. Biaya sesungguhnya belum tentu persis sebesar ini dan dapat disesuaikan kembali tergantung pada keadaan riil dari usaha/fasilitas produksi Anda.
-                        </div>
+                    
+                    {/* Disclaimer section */}
+                    <div className="bg-amber-50 border border-amber-100 text-amber-900 p-3 rounded-lg text-[10px] leading-relaxed italic">
+                        <b>Catatan Penting:</b> Perhitungan di atas adalah estimasi biaya berdasarkan kriteria simulasi. Biaya sesungguhnya belum tentu persis sebesar ini dan dapat disesuaikan kembali tergantung pada keadaan riil dari usaha/fasilitas produksi Anda.
                     </div>
                 </div>
             </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { billingService } from '../services/billingService';
+import api from '../services/api';
 import toast from 'react-hot-toast';
 
 export type MainTab = 'master_data' | 'components' | 'settings';
@@ -20,6 +21,7 @@ export const useBillingConfig = () => {
     const [schemes, setSchemes] = useState<any[]>([]);
     const [businessTypes, setBusinessTypes] = useState<any[]>([]);
     const [systemSettings, setSystemSettings] = useState<Record<string, string>>({});
+    const [formFields, setFormFields] = useState<any[]>([]);
     
     // Form State
     const [editingId, setEditingId] = useState<number | null>(null);
@@ -37,20 +39,23 @@ export const useBillingConfig = () => {
         businessScaleId: '',
         provinceId: '',
         regencyId: '',
-        districtId: ''
+        districtId: '',
+        formFieldConfigId: ''
     });
 
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const [p, s, c, sc, bt, prov, sys] = await Promise.all([
+            const [p, s, c, sc, bt, prov, sys, regulerFields, sdFields] = await Promise.all([
                 billingService.getProductCategories(),
                 billingService.getBusinessScales(),
                 billingService.getComponents(),
                 billingService.getSalesSchemes(),
                 billingService.getBusinessTypes(),
                 billingService.getProvinces(),
-                billingService.getSystemSettings()
+                billingService.getSystemSettings(),
+                api.get('/form-config/REGULER').then(r => r.data).catch(() => []),
+                api.get('/form-config/SELF_DECLARE').then(r => r.data).catch(() => [])
             ]);
             setProducts(p);
             setScales(s);
@@ -59,6 +64,7 @@ export const useBillingConfig = () => {
             setBusinessTypes(bt);
             setProvinces(prov);
             setSystemSettings(sys);
+            setFormFields([...regulerFields, ...sdFields]);
         } catch (err: any) {
             toast.error("Gagal memuat data billing");
         } finally {
@@ -104,46 +110,77 @@ export const useBillingConfig = () => {
             businessScaleId: '',
             provinceId: '',
             regencyId: '',
-            districtId: ''
+            districtId: '',
+            formFieldConfigId: ''
         });
         setEditingId(null);
     };
 
-    const handleSave = async () => {
-        if (!formData.name) return;
+    const handleSave = async (customPayloads?: any[]) => {
+        if (!customPayloads && !formData.name) return;
         try {
             let endpoint = '';
-            const payload: any = { name: formData.name, description: formData.description };
-
+            
             if (activeTab === 'products') {
                 endpoint = '/billing-config/product-categories';
-                payload.business_type_id = parseInt(formData.businessTypeId);
-            } else if (activeTab === 'scales') {
-                endpoint = '/billing-config/business-scales';
-            } else if (activeTab === 'schemes') {
-                endpoint = '/billing-config/sales-schemes';
-            } else if (activeTab === 'business_types') {
-                endpoint = '/billing-config/business-types';
-            } else if (activeTab === 'components') {
-                endpoint = '/billing-config/components';
-                payload.category = formData.category;
-                payload.type = formData.type;
-                payload.base_amount = parseFloat(formData.amount) || 0;
-                payload.is_mandatory = formData.mandatory;
-                payload.business_type_id = formData.businessTypeId ? parseInt(formData.businessTypeId) : null;
-                payload.product_category_id = formData.productCategoryId ? parseInt(formData.productCategoryId) : null;
-                payload.province_id = formData.provinceId ? parseInt(formData.provinceId) : null;
-                payload.regency_id = formData.regencyId ? parseInt(formData.regencyId) : null;
-                payload.district_id = formData.districtId ? parseInt(formData.districtId) : null;
-                payload.sales_scheme_id = formData.salesSchemeId ? parseInt(formData.salesSchemeId) : null;
-                payload.data_source = formData.dataSource;
-                payload.business_scale_id = formData.businessScaleId ? parseInt(formData.businessScaleId) : null;
-            }
-
-            if (editingId) {
-                await billingService.updateMaster(endpoint, editingId, payload);
+                if (customPayloads && customPayloads.length > 0) {
+                    await Promise.all(
+                        customPayloads.map(p => 
+                            billingService.createMaster(endpoint, {
+                                name: p.name,
+                                description: p.description,
+                                business_type_id: parseInt(formData.businessTypeId)
+                            })
+                        )
+                    );
+                    resetForm();
+                    fetchData();
+                    toast.success('Data berhasil disimpan');
+                    return;
+                }
+                
+                const payload = {
+                    name: formData.name,
+                    description: formData.description,
+                    business_type_id: parseInt(formData.businessTypeId)
+                };
+                if (editingId) {
+                    await billingService.updateMaster(endpoint, editingId, payload);
+                } else {
+                    await billingService.createMaster(endpoint, payload);
+                }
             } else {
-                await billingService.createMaster(endpoint, payload);
+                let endpoint = '';
+                const payload: any = { name: formData.name, description: formData.description };
+
+                if (activeTab === 'scales') {
+                    endpoint = '/billing-config/business-scales';
+                } else if (activeTab === 'schemes') {
+                    endpoint = '/billing-config/sales-schemes';
+                } else if (activeTab === 'business_types') {
+                    endpoint = '/billing-config/business-types';
+                } else if (activeTab === 'components') {
+                    endpoint = '/billing-config/components';
+                    payload.category = formData.category;
+                    payload.type = formData.type;
+                    payload.base_amount = parseFloat(formData.amount) || 0;
+                    payload.is_mandatory = formData.mandatory;
+                    payload.business_type_id = formData.businessTypeId ? parseInt(formData.businessTypeId) : null;
+                    payload.product_category_id = formData.productCategoryId ? parseInt(formData.productCategoryId) : null;
+                    payload.province_id = formData.provinceId ? parseInt(formData.provinceId) : null;
+                    payload.regency_id = formData.regencyId ? parseInt(formData.regencyId) : null;
+                    payload.district_id = formData.districtId ? parseInt(formData.districtId) : null;
+                    payload.sales_scheme_id = formData.salesSchemeId ? parseInt(formData.salesSchemeId) : null;
+                    payload.data_source = formData.dataSource;
+                    payload.business_scale_id = formData.businessScaleId ? parseInt(formData.businessScaleId) : null;
+                    payload.form_field_config_id = formData.formFieldConfigId ? parseInt(formData.formFieldConfigId) : null;
+                }
+
+                if (editingId) {
+                    await billingService.updateMaster(endpoint, editingId, payload);
+                } else {
+                    await billingService.createMaster(endpoint, payload);
+                }
             }
 
             resetForm();
@@ -180,7 +217,8 @@ export const useBillingConfig = () => {
             businessScaleId: item.business_scale_id?.toString() || '',
             provinceId: item.province_id?.toString() || '',
             regencyId: item.regency_id?.toString() || '',
-            districtId: item.district_id?.toString() || ''
+            districtId: item.district_id?.toString() || '',
+            formFieldConfigId: item.form_field_config_id?.toString() || ''
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -217,6 +255,7 @@ export const useBillingConfig = () => {
         handleDelete,
         handleEdit,
         resetForm,
-        handleUpdateSystemSetting
+        handleUpdateSystemSetting,
+        formFields
     };
 };

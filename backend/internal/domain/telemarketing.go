@@ -66,6 +66,7 @@ type TeleForm struct {
 	BranchCount        int            `gorm:"default:1" json:"branch_count"`              // Jumlah cabang
 	ConsultationMethod string         `json:"consultation_method"`        // ONLINE_MEET, CHAT
 	AgreedTerms        bool           `gorm:"default:false" json:"agreed_terms"`
+	Address            string         `json:"address"`
 
 	// Routing result (computed on submit)
 	RouteType       TeleRouteType `json:"route_type"`

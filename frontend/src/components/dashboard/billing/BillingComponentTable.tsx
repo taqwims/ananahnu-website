@@ -65,8 +65,15 @@ export const BillingComponentTable = ({
                                         <Tag className="w-3 h-3" /> WAJIB
                                     </div>
                                 ) : (
-                                    <div className="flex items-center gap-1 text-[11px] font-bold text-gray-500 bg-gray-50 px-2.5 py-1 rounded-md w-fit border border-gray-200">
-                                        OPSIONAL
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-1 text-[11px] font-bold text-gray-500 bg-gray-50 px-2.5 py-1 rounded-md w-fit border border-gray-200">
+                                            OPSIONAL
+                                        </div>
+                                        {c.form_field_config && (
+                                            <span className="text-[9px] text-blue-600 font-extrabold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-md mt-1 block w-fit truncate max-w-[150px]" title={`Dihubungkan dengan form field: ${c.form_field_config.field_label}`}>
+                                                Form: {c.form_field_config.field_label}
+                                            </span>
+                                        )}
                                     </div>
                                 )}
                             </td>

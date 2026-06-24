@@ -192,6 +192,7 @@ export default function PublicFormPage() {
         consultation_method: form.consultation_method,
         agreed_terms: true,
         shared_by_id: sharedBy,
+        address: form.address,
       };
       const res = await submitPublicForm(payload);
       setResult(res.data);

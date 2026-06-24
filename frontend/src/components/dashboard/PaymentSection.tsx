@@ -44,22 +44,30 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
 
     // Sync amount from the resolved invoice + paymentMode
     useEffect(() => {
-        let base = 0;
-        if (resolvedInvoice?.amount) {
-            // resolvedInvoice.amount adalah nominal sesuai type (DP=70%, PELUNASAN=30%)
-            // Untuk mode FULL, hitung total dari DP amount
-            base = resolvedInvoice.amount;
-        } else if (submission.cost_detail?.total_amount) {
-            const total = submission.cost_detail.total_amount;
-            base = invoiceType === 'PELUNASAN' ? total * 0.30 : total * 0.70;
+        let total = submission.cost_detail?.total_amount || 0;
+
+        // If we don't have total_amount from cost_detail, try to infer it from resolvedInvoice
+        if (total === 0 && resolvedInvoice?.amount) {
+            if (resolvedInvoice.type === 'DP') {
+                total = resolvedInvoice.amount / 0.70;
+            } else if (resolvedInvoice.type === 'PELUNASAN') {
+                total = resolvedInvoice.amount / 0.30;
+            } else {
+                total = resolvedInvoice.amount;
+            }
         }
 
-        if (base > 0) {
-            if (invoiceType === 'DP' && paymentMode === 'FULL') {
-                // Full payment: DP / 0.7 = total
-                setAmount(Math.round(base / 0.70));
+        if (total > 0) {
+            if (invoiceType === 'PELUNASAN') {
+                setAmount(Math.round(total * 0.30));
+            } else if (invoiceType === 'DP') {
+                if (paymentMode === 'FULL') {
+                    setAmount(Math.round(total));
+                } else {
+                    setAmount(Math.round(total * 0.70));
+                }
             } else {
-                setAmount(Math.round(base));
+                setAmount(Math.round(total));
             }
             return;
         }
@@ -70,7 +78,25 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                 .then(res => {
                     if (res.data && res.data.amount) {
                         const a = res.data.amount;
-                        setAmount(invoiceType === 'DP' && paymentMode === 'FULL' ? Math.round(a / 0.70) : a);
+                        const invType = res.data.type || 'FULL';
+                        let computedTotal = a;
+                        if (invType === 'DP') {
+                            computedTotal = a / 0.70;
+                        } else if (invType === 'PELUNASAN') {
+                            computedTotal = a / 0.30;
+                        }
+
+                        if (invoiceType === 'PELUNASAN') {
+                            setAmount(Math.round(computedTotal * 0.30));
+                        } else if (invoiceType === 'DP') {
+                            if (paymentMode === 'FULL') {
+                                setAmount(Math.round(computedTotal));
+                            } else {
+                                setAmount(Math.round(computedTotal * 0.70));
+                            }
+                        } else {
+                            setAmount(Math.round(computedTotal));
+                        }
                     }
                 })
                 .catch(err => console.error("Failed to load invoice amount", err))
@@ -143,9 +169,13 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
 
         setLoading(true);
         try {
-            // Jika mode Full Payment, ubah invoice dulu ke FULL type
-            if (invoiceType === 'DP' && paymentMode === 'FULL' && resolvedInvoice?.id) {
-                await api.put(`/invoices/${resolvedInvoice.id}/switch-full`);
+            // Switch invoice type if necessary before paying
+            if (invoiceType === 'DP' && resolvedInvoice?.id) {
+                if (paymentMode === 'FULL' && resolvedInvoice.type === 'DP') {
+                    await api.put(`/invoices/${resolvedInvoice.id}/switch-full`);
+                } else if (paymentMode === 'DP' && resolvedInvoice.type === 'FULL') {
+                    await api.put(`/invoices/${resolvedInvoice.id}/switch-dp`);
+                }
             }
 
             if (method === 'MIDTRANS') {
@@ -233,16 +263,16 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
     };
 
     // Invoice type display label
-    const invoiceLabel = invoiceType === 'PELUNASAN' ? 'Pelunasan (30%)' 
-                       : invoiceType === 'DP' ? 'Down Payment (70%)' 
-                       : 'Pembayaran';
+    const invoiceLabel = invoiceType === 'PELUNASAN' ? 'Pelunasan (30%)'
+        : invoiceType === 'DP' ? 'Down Payment (70%)'
+            : 'Pembayaran';
 
     // Check for existing paid/pending payments or paid invoice
-    const foundPayment = paymentHistory.find(p => p.status === 'PAID') || 
-                        submission.payments?.find(p => p.status === 'PAID');
+    const foundPayment = paymentHistory.find(p => p.status === 'PAID') ||
+        submission.payments?.find(p => p.status === 'PAID');
     const isInvoicePaid = resolvedInvoice?.status === 'PAID';
     const paidPayment = foundPayment || (isInvoicePaid ? { amount: resolvedInvoice?.amount || 0, status: 'PAID' } : null);
-    
+
     const pendingPayment = paymentHistory.find(p => p.status === 'PENDING') || submission.payments?.find(p => p.status === 'PENDING');
 
     // Show "Payment Completed" state
@@ -343,21 +373,20 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                     <h3 className="text-lg font-semibold text-gray-800">
                         {invoiceType === 'PELUNASAN' ? 'Pelunasan Sertifikat Halal' : 'Pembayaran Diperlukan'}
                     </h3>
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                        invoiceType === 'PELUNASAN' 
-                            ? 'bg-purple-100 text-purple-700' 
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${invoiceType === 'PELUNASAN'
+                            ? 'bg-purple-100 text-purple-700'
                             : 'bg-amber-100 text-amber-700'
-                    }`}>{invoiceLabel}</span>
+                        }`}>{invoiceLabel}</span>
                 </div>
                 <p className="text-sm text-gray-500 mt-1">
-                    {invoiceType === 'PELUNASAN' 
+                    {invoiceType === 'PELUNASAN'
                         ? 'Selesaikan pembayaran pelunasan 30% untuk mengunduh Sertifikat Halal Anda.'
                         : 'Silakan selesaikan pembayaran untuk melanjutkan proses verifikasi.'}
                 </p>
             </div>
 
-            {/* Toggle DP vs Full Payment — hanya tampil untuk DP invoice yang belum di-switch ke FULL */}
-            {invoiceType === 'DP' && resolvedInvoice?.type === 'DP' && (
+            {/* Toggle DP vs Full Payment */}
+            {invoiceType === 'DP' && resolvedInvoice && (resolvedInvoice.type === 'DP' || resolvedInvoice.type === 'FULL') && (
                 <div>
                     <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">Mode Pembayaran</p>
                     <div className="grid grid-cols-2 gap-3">
@@ -365,24 +394,20 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                             id="payment-mode-dp"
                             type="button"
                             onClick={() => setPaymentMode('DP')}
-                            className={`relative flex flex-col items-start gap-1 p-4 rounded-xl border-2 text-left transition-all ${
-                                paymentMode === 'DP'
+                            className={`relative flex flex-col items-start gap-1 p-4 rounded-xl border-2 text-left transition-all ${paymentMode === 'DP'
                                     ? 'border-amber-400 bg-amber-50'
                                     : 'border-gray-200 bg-white hover:border-gray-300'
-                            }`}
+                                }`}
                         >
                             <div className="flex items-center gap-2 w-full">
-                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                                    paymentMode === 'DP' ? 'border-amber-500' : 'border-gray-300'
-                                }`}>
+                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${paymentMode === 'DP' ? 'border-amber-500' : 'border-gray-300'
+                                    }`}>
                                     {paymentMode === 'DP' && <div className="w-2 h-2 rounded-full bg-amber-500" />}
                                 </div>
-                                <span className={`text-sm font-bold ${
-                                    paymentMode === 'DP' ? 'text-amber-700' : 'text-gray-600'
-                                }`}>Down Payment</span>
-                                <span className={`ml-auto text-xs font-black px-2 py-0.5 rounded-full ${
-                                    paymentMode === 'DP' ? 'bg-amber-200 text-amber-800' : 'bg-gray-100 text-gray-500'
-                                }`}>70%</span>
+                                <span className={`text-sm font-bold ${paymentMode === 'DP' ? 'text-amber-700' : 'text-gray-600'
+                                    }`}>Down Payment</span>
+                                <span className={`ml-auto text-xs font-black px-2 py-0.5 rounded-full ${paymentMode === 'DP' ? 'bg-amber-200 text-amber-800' : 'bg-gray-100 text-gray-500'
+                                    }`}>70%</span>
                             </div>
                             <p className="text-xs text-gray-400 ml-6">Bayar sebagian, lunasi saat SH terbit</p>
                         </button>
@@ -391,24 +416,20 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                             id="payment-mode-full"
                             type="button"
                             onClick={() => setPaymentMode('FULL')}
-                            className={`relative flex flex-col items-start gap-1 p-4 rounded-xl border-2 text-left transition-all ${
-                                paymentMode === 'FULL'
+                            className={`relative flex flex-col items-start gap-1 p-4 rounded-xl border-2 text-left transition-all ${paymentMode === 'FULL'
                                     ? 'border-emerald-400 bg-emerald-50'
                                     : 'border-gray-200 bg-white hover:border-gray-300'
-                            }`}
+                                }`}
                         >
                             <div className="flex items-center gap-2 w-full">
-                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                                    paymentMode === 'FULL' ? 'border-emerald-500' : 'border-gray-300'
-                                }`}>
+                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${paymentMode === 'FULL' ? 'border-emerald-500' : 'border-gray-300'
+                                    }`}>
                                     {paymentMode === 'FULL' && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
                                 </div>
-                                <span className={`text-sm font-bold ${
-                                    paymentMode === 'FULL' ? 'text-emerald-700' : 'text-gray-600'
-                                }`}>Bayar Penuh</span>
-                                <span className={`ml-auto text-xs font-black px-2 py-0.5 rounded-full ${
-                                    paymentMode === 'FULL' ? 'bg-emerald-200 text-emerald-800' : 'bg-gray-100 text-gray-500'
-                                }`}>100%</span>
+                                <span className={`text-sm font-bold ${paymentMode === 'FULL' ? 'text-emerald-700' : 'text-gray-600'
+                                    }`}>Bayar Penuh</span>
+                                <span className={`ml-auto text-xs font-black px-2 py-0.5 rounded-full ${paymentMode === 'FULL' ? 'bg-emerald-200 text-emerald-800' : 'bg-gray-100 text-gray-500'
+                                    }`}>100%</span>
                             </div>
                             <p className="text-xs text-gray-400 ml-6">Lunas sekarang, unduh SH langsung</p>
                             {paymentMode === 'FULL' && (
@@ -487,8 +508,8 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                 <button
                     onClick={() => setMethod('MIDTRANS')}
                     className={`flex-1 p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${method === 'MIDTRANS'
-                            ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-sm'
-                            : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                        ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-600'
                         }`}
                 >
                     <CreditCard className="w-6 h-6" />
@@ -498,8 +519,8 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                 <button
                     onClick={() => setMethod('MANUAL')}
                     className={`flex-1 p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${method === 'MANUAL'
-                            ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-sm'
-                            : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                        ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-600'
                         }`}
                 >
                     <Upload className="w-6 h-6" />
@@ -527,8 +548,8 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                 <div className="space-y-3">
                     <label className="block text-sm font-medium text-gray-700">Bukti Pembayaran (Transfer)</label>
                     <div className="flex flex-col gap-2">
-                        <FileUpload 
-                            subfolder="paymentproof" 
+                        <FileUpload
+                            subfolder="paymentproof"
                             label="Upload Bukti Transfer"
                             onUploadSuccess={(url) => setProofUrl(url)}
                         />
@@ -540,9 +561,9 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                                 </div>
                                 {proofUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i) && (
                                     <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-brand-100 bg-white">
-                                        <img 
-                                            src={proofUrl.startsWith('http') ? proofUrl : `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}${proofUrl}`} 
-                                            alt="Preview Bukti" 
+                                        <img
+                                            src={proofUrl.startsWith('http') ? proofUrl : `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}${proofUrl}`}
+                                            alt="Preview Bukti"
                                             className="w-full h-full object-contain"
                                         />
                                     </div>
@@ -570,7 +591,7 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
             {submission.service_type === 'REGULER' && !fieldValues.find(fv => fv.form_field.field_key === 'data_kontrak' && fv.file_url) && (
                 <div className="p-3 bg-red-50 text-red-600 text-xs rounded-lg flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>Anda belum mengunggah Dokumen Kontrak. Silakan edit Dokumen & Data di atas terlebih dahulu.</span>
+                    <span>Anda belum Download Dokumen Kontrak. Silakan Download Dokumen Kontrak di atas terlebih dahulu.</span>
                 </div>
             )}
 
@@ -585,8 +606,8 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
             <button
                 onClick={handlePay}
                 disabled={
-                    loading || 
-                    (method === 'MANUAL' && !proofUrl) || 
+                    loading ||
+                    (method === 'MANUAL' && !proofUrl) ||
                     amount <= 0 ||
                     (submission.service_type === 'REGULER' && !fieldValues.find(fv => fv.form_field.field_key === 'data_kontrak' && fv.file_url))
                 }
@@ -622,7 +643,7 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                             <div key={p.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm">
                                 <div className="flex items-center gap-2">
                                     <span className={`w-2 h-2 rounded-full ${p.status === 'PAID' ? 'bg-green-500' :
-                                            p.status === 'PENDING' ? 'bg-yellow-500' : 'bg-red-500'
+                                        p.status === 'PENDING' ? 'bg-yellow-500' : 'bg-red-500'
                                         }`} />
                                     <span className="text-gray-700 capitalize">
                                         {p.method === 'MIDTRANS' ? 'Online' : 'Manual'}
@@ -632,8 +653,8 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                                 <div className="flex items-center gap-3">
                                     <span className="font-medium text-gray-800">Rp {p.amount.toLocaleString('id-ID')}</span>
                                     <span className={`px-2 py-0.5 rounded text-xs font-bold ${p.status === 'PAID' ? 'bg-green-100 text-green-800' :
-                                            p.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                                                'bg-red-100 text-red-800'
+                                        p.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                                            'bg-red-100 text-red-800'
                                         }`}>
                                         {p.status}
                                     </span>

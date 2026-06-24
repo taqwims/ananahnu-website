@@ -1,7 +1,8 @@
 import { Link, Outlet } from 'react-router-dom';
 import { Menu, X, Phone, MapPin, Mail } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Logo from '../ui/Logo';
+import api from '../../services/api';
 
 const TELEMARKETING_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:5174'
@@ -9,6 +10,15 @@ const TELEMARKETING_URL = window.location.hostname === 'localhost'
 
 export default function PublicLayout() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [publicSettings, setPublicSettings] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        api.get('/system-settings/public')
+            .then(res => {
+                setPublicSettings(res.data || {});
+            })
+            .catch(() => {});
+    }, []);
 
     return (
         <div className="min-h-screen flex flex-col font-sans text-gray-800">
@@ -96,15 +106,15 @@ export default function PublicLayout() {
                             <ul className="space-y-4 text-brand-100/60">
                                 <li className="flex items-start gap-3">
                                     <MapPin className="w-5 h-5 flex-shrink-0 mt-0.5 text-gold-500" />
-                                    <span>Halal Core Center, Jakarta, Indonesia</span>
+                                    <span>{publicSettings['COMPANY_ADDRESS'] || 'Halal Core Center, Jakarta, Indonesia'}</span>
                                 </li>
                                 <li className="flex items-center gap-3">
                                     <Phone className="w-5 h-5 text-gold-500" />
-                                    <span>+62 21 5555 1234</span>
+                                    <span>{publicSettings['COMPANY_PHONE'] || '+62 21 5555 1234'}</span>
                                 </li>
                                 <li className="flex items-center gap-3">
                                     <Mail className="w-5 h-5 text-gold-500" />
-                                    <span>info@halalcore.id</span>
+                                    <span>{publicSettings['COMPANY_EMAIL'] || 'info@halalcore.id'}</span>
                                 </li>
                             </ul>
                         </div>

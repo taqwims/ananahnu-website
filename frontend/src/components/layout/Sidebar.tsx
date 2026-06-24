@@ -51,6 +51,7 @@ const GROUPS: SidebarGroup[] = [
             { name: 'Klien',        pathKey: 'clients',     to: '/dashboard/clients',            icon: Users },
             { name: 'Pengajuan',    pathKey: 'submissions', to: '/dashboard/submissions',        icon: FileText },
             { name: 'Tagihan Saya', pathKey: 'my-invoices', to: '/dashboard/my-invoices',        icon: CreditCard },
+            { name: 'Estimasi Biaya', pathKey: 'estimasi',   to: '/dashboard/estimasi',           icon: DollarSign },
         ],
     },
     {

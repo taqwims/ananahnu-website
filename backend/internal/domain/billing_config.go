@@ -67,6 +67,9 @@ type BillingComponent struct {
 	SalesScheme       *SalesScheme `gorm:"foreignKey:SalesSchemeID" json:"sales_scheme,omitempty"`
 	DataSource        string       `gorm:"default:'ORGANIK'" json:"data_source"` // ORGANIK, MARKETING, BOTH
 	
+	FormFieldConfigID *int64            `json:"form_field_config_id,omitempty"`
+	FormFieldConfig   *FormFieldConfig  `gorm:"foreignKey:FormFieldConfigID" json:"form_field_config,omitempty"`
+
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }

@@ -15,6 +15,9 @@ type SystemSettingHandler struct {
 func NewSystemSettingHandler(r *gin.Engine, settingUsecase usecase.SystemSettingUsecase) {
 	handler := &SystemSettingHandler{settingUsecase: settingUsecase}
 
+	// Public endpoint (tanpa AuthMiddleware)
+	r.GET("/system-settings/public", handler.GetPublicSettings)
+
 	// GET (read) boleh diakses semua user yang sudah login
 	settings := r.Group("/system-settings")
 	settings.Use(middleware.AuthMiddleware())
@@ -69,6 +72,30 @@ func (h *SystemSettingHandler) GetAllSettings(c *gin.Context) {
 	settingMap := make(map[string]string)
 	for _, s := range settings {
 		settingMap[s.Key] = s.Value
+	}
+
+	c.JSON(http.StatusOK, settingMap)
+}
+
+func (h *SystemSettingHandler) GetPublicSettings(c *gin.Context) {
+	settings, err := h.settingUsecase.GetAllSettings()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	
+	allowedKeys := map[string]bool{
+		"COMPANY_NAME":    true,
+		"COMPANY_ADDRESS": true,
+		"COMPANY_PHONE":   true,
+		"COMPANY_EMAIL":   true,
+	}
+
+	settingMap := make(map[string]string)
+	for _, s := range settings {
+		if allowedKeys[s.Key] {
+			settingMap[s.Key] = s.Value
+		}
 	}
 
 	c.JSON(http.StatusOK, settingMap)

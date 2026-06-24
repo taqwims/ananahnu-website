@@ -12,7 +12,8 @@ export const useFormConfigAdmin = () => {
     const [businessTypes, setBusinessTypes] = useState<{id: number; name: string}[]>([]);
     const [newField, setNewField] = useState({
         field_key: '', field_label: '', input_type: 'TEXT' as string,
-        is_required: false, sort_order: 0, description: '', business_type_id: '' as string
+        is_required: false, sort_order: 0, description: '', business_type_id: '' as string,
+        step_number: 1, step_name: 'Step 1'
     });
 
     const loadFields = useCallback(async (formType: string) => {
@@ -47,9 +48,10 @@ export const useFormConfigAdmin = () => {
                 form_type: activeTab,
                 sort_order: fields.length + 1,
                 business_type_id: newField.business_type_id ? parseInt(newField.business_type_id) : null,
+                step_number: parseInt(newField.step_number as any) || 1,
             });
             setShowAdd(false);
-            setNewField({ field_key: '', field_label: '', input_type: 'TEXT', is_required: false, sort_order: 0, description: '', business_type_id: '' });
+            setNewField({ field_key: '', field_label: '', input_type: 'TEXT', is_required: false, sort_order: 0, description: '', business_type_id: '', step_number: 1, step_name: 'Step 1' });
             loadFields(activeTab);
             toast.success('Field berhasil ditambahkan');
         } catch (err: any) {

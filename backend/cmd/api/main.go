@@ -42,6 +42,8 @@ func main() {
 	_ = db.Exec("ALTER TABLE submissions ADD COLUMN IF NOT EXISTS audit_result_2_url TEXT")
 	// Add invoice type column for DP/PELUNASAN/FULL split payment support
 	_ = db.Exec("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS type VARCHAR(20) DEFAULT 'FULL'")
+	// Add form_field_config_id column to billing_components table for optional fees connected to form fields
+	_ = db.Exec("ALTER TABLE billing_components ADD COLUMN IF NOT EXISTS form_field_config_id BIGINT")
 
 	err = db.AutoMigrate(
 		// Auth & Users

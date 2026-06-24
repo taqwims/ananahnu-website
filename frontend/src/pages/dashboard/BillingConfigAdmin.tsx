@@ -30,7 +30,8 @@ export default function BillingConfigAdmin() {
         handleDelete,
         handleEdit,
         resetForm,
-        handleUpdateSystemSetting
+        handleUpdateSystemSetting,
+        formFields
     } = useBillingConfig();
 
     if (loading) {
@@ -87,6 +88,7 @@ export default function BillingConfigAdmin() {
                         products={products}
                         schemes={schemes}
                         scales={scales}
+                        formFields={formFields}
                     />
                     <BillingComponentTable
                         components={components}

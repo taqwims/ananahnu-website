@@ -71,6 +71,37 @@ export const GlobalSettingsPanel = ({
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1.5">No. Telepon / WhatsApp Perusahaan</label>
+                            <div className="flex gap-2">
+                                <input 
+                                    className="flex-1 bg-gray-50 border border-gray-200 text-sm rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-semibold"
+                                    value={systemSettings['COMPANY_PHONE'] || ''}
+                                    onChange={e => setSystemSettings((p: any) => ({...p, 'COMPANY_PHONE': e.target.value}))}
+                                    placeholder="Contoh: +62 21 5555 1234"
+                                />
+                                <button onClick={() => handleUpdate('COMPANY_PHONE')} className="p-3 bg-brand-50 text-brand-600 rounded-xl hover:bg-brand-100 transition-all">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1.5">Email Resmi Perusahaan</label>
+                            <div className="flex gap-2">
+                                <input 
+                                    className="flex-1 bg-gray-50 border border-gray-200 text-sm rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-semibold"
+                                    value={systemSettings['COMPANY_EMAIL'] || ''}
+                                    onChange={e => setSystemSettings((p: any) => ({...p, 'COMPANY_EMAIL': e.target.value}))}
+                                    placeholder="Contoh: info@halalcore.id"
+                                />
+                                <button onClick={() => handleUpdate('COMPANY_EMAIL')} className="p-3 bg-brand-50 text-brand-600 rounded-xl hover:bg-brand-100 transition-all">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
                             <label className="block text-xs font-bold text-gray-700 mb-1.5">Nama Penandatangan (Default)</label>
                             <div className="flex gap-2">
                                 <input 

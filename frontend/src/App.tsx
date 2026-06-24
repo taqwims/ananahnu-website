@@ -70,10 +70,23 @@ import FinanceDashboard from './pages/dashboard/FinanceDashboard';
 import FeeConfigAdmin from './pages/dashboard/FeeConfigAdmin';
 import BizDevDashboard from './pages/dashboard/BizDevDashboard';
 import SPHForm from './pages/dashboard/SPHForm';
+import EstimasiBiaya from './pages/dashboard/EstimasiBiaya';
 
 import { Toaster } from 'react-hot-toast';
 
 function App() {
+  React.useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'auth-storage') {
+        window.location.reload();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
   return (
     <BrowserRouter>
       <Toaster position="top-right" reverseOrder={false} />
@@ -143,6 +156,9 @@ function App() {
           } />
           <Route path="karir" element={
             <RoleRoute path="karir"><KarirDashboard /></RoleRoute>
+          } />
+          <Route path="estimasi" element={
+            <RoleRoute path="estimasi"><EstimasiBiaya /></RoleRoute>
           } />
 
           {/* Jaringan & Referral */}

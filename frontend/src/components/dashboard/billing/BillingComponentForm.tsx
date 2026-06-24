@@ -15,6 +15,7 @@ interface BillingComponentFormProps {
     products: any[];
     schemes: any[];
     scales: any[];
+    formFields: any[];
 }
 
 const COMPONENT_CATEGORIES = ['REGISTRASI', 'LPH', 'PENETAPAN', 'PENDAMPINGAN', 'BPJPH', 'MUI', 'OPSIONAL'] as const;
@@ -32,7 +33,8 @@ export const BillingComponentForm = ({
     businessTypes,
     products,
     schemes,
-    scales
+    scales,
+    formFields
 }: BillingComponentFormProps) => {
     return (
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6 animate-in fade-in">
@@ -147,8 +149,32 @@ export const BillingComponentForm = ({
                 </div>
             </div>
 
+            {/* If not mandatory (optional), allow connecting to a Form Field config */}
+            {!formData.mandatory && (
+                <div className="bg-blue-50/20 border border-blue-100/50 p-4 rounded-xl space-y-2">
+                    <label className="block text-xs font-bold text-blue-800 uppercase tracking-wider">
+                        Hubungkan dengan Field Form (Pengecualian Biaya jika Terisi) (Opsional)
+                    </label>
+                    <select 
+                        className="w-full bg-white border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+                        value={formData.formFieldConfigId || ''} 
+                        onChange={e => setFormData({ ...formData, formFieldConfigId: e.target.value })}
+                    >
+                        <option value="">Tidak Terhubung ke Form (Dipilih manual di kalkulator)</option>
+                        {formFields.map(field => (
+                            <option key={field.id} value={field.id}>
+                                [{field.form_type}] {field.step_name ? `Step ${field.step_number}: ${field.step_name}` : `Step ${field.step_number}`} — {field.field_label}
+                            </option>
+                        ))}
+                    </select>
+                    <p className="text-[10px] text-gray-500 italic leading-snug">
+                        *Jika field form yang dipilih diisi oleh klien/konsultan, biaya opsional ini <b>tidak akan masuk</b> ke invoice pembayaran. Jika kosong, biaya ini <b>akan masuk</b>.
+                    </p>
+                </div>
+            )}
+
             <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                <label onClick={() => setFormData({ ...formData, mandatory: !formData.mandatory })} className="flex items-center gap-3 cursor-pointer group bg-gray-50 hover:bg-gray-100 px-4 py-2.5 rounded-xl transition-colors">
+                <label onClick={() => setFormData({ ...formData, mandatory: !formData.mandatory, formFieldConfigId: formData.mandatory ? formData.formFieldConfigId : '' })} className="flex items-center gap-3 cursor-pointer group bg-gray-50 hover:bg-gray-100 px-4 py-2.5 rounded-xl transition-colors">
                     {formData.mandatory ? <ToggleRight className="w-6 h-6 text-brand-600" /> : <ToggleLeft className="w-6 h-6 text-gray-400 group-hover:text-gray-500" />}
                     <div className="flex flex-col">
                         <span className={`text-sm font-bold ${formData.mandatory ? 'text-brand-700' : 'text-gray-600'}`}>Wajib (Mandatory)</span>

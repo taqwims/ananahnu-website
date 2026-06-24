@@ -100,7 +100,7 @@ func (r *billingConfigRepo) DeleteBusinessScale(id int64) error {
 // BillingComponent
 func (r *billingConfigRepo) FindAllBillingComponents(filter map[string]interface{}) ([]domain.BillingComponent, error) {
 	var components []domain.BillingComponent
-	query := r.db.Model(&domain.BillingComponent{})
+	query := r.db.Model(&domain.BillingComponent{}).Preload("FormFieldConfig")
 	
 	if val, ok := filter["type"]; ok && val != "" {
 		query = query.Where("type = ?", val)

@@ -98,6 +98,28 @@ export const AddFieldModal = ({
                             {businessTypes.map(bt => <option key={bt.id} value={bt.id}>{bt.name}</option>)}
                         </select>
                     </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">No. Step (Wizard)</label>
+                            <input 
+                                type="number"
+                                min={1}
+                                className="glass-input w-full" 
+                                value={newField.step_number}
+                                onChange={e => setNewField((p: any) => ({ ...p, step_number: parseInt(e.target.value) || 1 }))} 
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nama Step (Wizard)</label>
+                            <input 
+                                className="glass-input w-full" 
+                                placeholder="Contoh: Dokumen Legalitas"
+                                value={newField.step_name}
+                                onChange={e => setNewField((p: any) => ({ ...p, step_name: e.target.value }))} 
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-6">

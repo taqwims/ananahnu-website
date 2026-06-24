@@ -51,6 +51,7 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   // ── Semua role bisa akses ──────────────────────────────────────────
   '':                       ALL_ROLES,   // /dashboard (home)
   'profile':                ALL_ROLES,
+  'estimasi':               ['DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'MARKETING', 'HALAL_MANAGER', 'HALAL_DIRECTOR'],
 
   // ── Klien & Pengajuan ─────────────────────────────────────────────
   'clients': [

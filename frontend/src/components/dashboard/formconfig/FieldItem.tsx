@@ -22,7 +22,7 @@ export const FieldItem = ({
         <div className="flex items-center gap-4 p-5 bg-white rounded-2xl border border-gray-100 group hover:border-brand-200 hover:shadow-xl hover:shadow-brand-50/50 transition-all">
             <GripVertical className="w-4 h-4 text-gray-300 cursor-grab shrink-0" />
 
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-4 items-center">
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-8 gap-4 items-center">
                 <div className="md:col-span-1 space-y-1">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Label Field</label>
                     <input
@@ -94,6 +94,29 @@ export const FieldItem = ({
                         <option value="">Semua Bidang</option>
                         {businessTypes.map(bt => <option key={bt.id} value={bt.id}>{bt.name}</option>)}
                     </select>
+                </div>
+
+                <div className="md:col-span-1 space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">No. Step</label>
+                    <input
+                        type="number"
+                        min={1}
+                        className="glass-input text-sm w-full font-bold"
+                        value={field.step_number || 1}
+                        onChange={e => onUpdateState(field.id, 'step_number', parseInt(e.target.value) || 1)}
+                        onBlur={() => onHandleUpdate(field)}
+                    />
+                </div>
+
+                <div className="md:col-span-1 space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nama Step</label>
+                    <input
+                        className="glass-input text-sm w-full"
+                        value={field.step_name || ''}
+                        onChange={e => onUpdateState(field.id, 'step_name', e.target.value)}
+                        onBlur={() => onHandleUpdate(field)}
+                        placeholder="Nama Step"
+                    />
                 </div>
 
                 <div className="md:col-span-1 flex justify-end">

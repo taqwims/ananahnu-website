@@ -73,6 +73,7 @@ type TeleFormInput struct {
 	ConsultationMethod string `json:"consultation_method"` // ONLINE_MEET, CHAT
 	AgreedTerms        bool   `json:"agreed_terms" binding:"required"`
 	SharedByID         string `json:"shared_by_id"` // Optional: telemarketer referral
+	Address            string `json:"address"`
 	IPAddress          string `json:"-"`            // Set by handler
 }
 
@@ -256,6 +257,7 @@ func (uc *telemarketingUsecase) SubmitPublicForm(input TeleFormInput) (*domain.T
 		BranchCount:        branchCount,
 		ConsultationMethod: input.ConsultationMethod,
 		AgreedTerms:        input.AgreedTerms,
+		Address:            input.Address,
 		RouteType:          routeType,
 		IPAddress:          input.IPAddress,
 		CreatedAt:          time.Now(),
@@ -557,10 +559,19 @@ func (uc *telemarketingUsecase) GenerateClientAccount(formID uuid.UUID, telemark
 
 	// Inline function to handle Client and Submission creation
 	createClientAndSubmission := func(userID uuid.UUID) (*uuid.UUID, error) {
+		var address string
+		if form.Address != "" {
+			address = form.Address
+		}
 		businessName := form.Name
 		agreement, err := uc.AgreementRepo.FindByTeleFormID(form.ID)
-		if err == nil && agreement != nil && agreement.BusinessName != "" {
-			businessName = agreement.BusinessName
+		if err == nil && agreement != nil {
+			if agreement.BusinessName != "" {
+				businessName = agreement.BusinessName
+			}
+			if address == "" {
+				address = agreement.Address
+			}
 		}
 
 		// Create Client record
@@ -571,6 +582,8 @@ func (uc *telemarketingUsecase) GenerateClientAccount(formID uuid.UUID, telemark
 			BusinessName:    businessName,
 			ClientName:      form.Name,
 			Phone:           form.Phone,
+			Address:         address,
+			ProductName:     form.BusinessType,
 			ServiceType:     serviceType,
 			SelfDeclareType: selfDeclareType,
 			FacilitatorID:   creatorID,
@@ -582,6 +595,17 @@ func (uc *telemarketingUsecase) GenerateClientAccount(formID uuid.UUID, telemark
 			return nil, err
 		}
 
+		var salesSchemeID int64 = 1 // Direct Sale
+		var scaleID int64
+		switch form.BusinessScale {
+		case "mikro_kecil":
+			scaleID = 1
+		case "menengah":
+			scaleID = 3
+		case "besar":
+			scaleID = 4
+		}
+
 		// Create Submission record
 		subID := uuid.New()
 		sub := &domain.Submission{
@@ -590,9 +614,19 @@ func (uc *telemarketingUsecase) GenerateClientAccount(formID uuid.UUID, telemark
 			Status:          domain.StatusDraft,
 			ServiceType:     serviceType,
 			SelfDeclareType: selfDeclareType,
-			DataSource:      "TELEMARKETING",
+			DataSource:      "ORGANIK",
+			ProvinceID:      &form.ProvinceID,
+			BranchCount:     form.BranchCount,
+			ProductCount:    1,
+			Mandays:         1,
 			CreatedAt:       time.Now(),
 			UpdatedAt:       time.Now(),
+		}
+		if scaleID > 0 {
+			sub.BusinessScaleID = &scaleID
+		}
+		if serviceType == "REGULER" {
+			sub.SalesSchemeID = &salesSchemeID
 		}
 		if err := uc.SubmissionRepo.Create(sub); err != nil {
 			return nil, err

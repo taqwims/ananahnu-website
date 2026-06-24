@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -565,7 +566,9 @@ func (uc *documentUsecase) GenerateInvoicePDF(submissionID uuid.UUID) ([]byte, s
 
 	// Logo
 	logoPath := "templates/logo_halalcore.png"
-	pdf.ImageOptions(logoPath, 15, 15, 40, 0, false, fpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
+	if _, err := os.Stat(logoPath); err == nil {
+		pdf.ImageOptions(logoPath, 15, 15, 40, 0, false, fpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
+	}
 
 	// Header
 	pdf.SetFont("Arial", "B", 24)

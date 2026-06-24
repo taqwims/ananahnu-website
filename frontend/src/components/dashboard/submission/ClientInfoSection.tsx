@@ -111,18 +111,25 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateCl
     const handleUpdate = async () => {
         if (!submission.client?.id) return;
 
-        const payload = {
+        const updatedClientForm = {
             ...clientForm,
-            business_type_id: clientForm.business_type_id ? parseInt(clientForm.business_type_id) : null,
-            province_id: clientForm.province_id ? parseInt(clientForm.province_id) : null,
-            regency_id: clientForm.regency_id ? parseInt(clientForm.regency_id) : null,
-            district_id: clientForm.district_id ? parseInt(clientForm.district_id) : null,
-            product_category_id: clientForm.product_category_id ? parseInt(clientForm.product_category_id) : null,
-            business_scale_id: clientForm.business_scale_id ? parseInt(clientForm.business_scale_id) : null,
-            sales_scheme_id: clientForm.sales_scheme_id ? parseInt(clientForm.sales_scheme_id) : null,
-            product_count: clientForm.product_count,
-            branch_count: clientForm.branch_count,
-            mandays: clientForm.mandays,
+            sales_scheme_id: user?.role === 'CLIENT' ? '1' : clientForm.sales_scheme_id,
+            data_source: user?.role === 'CLIENT' ? 'ORGANIK' : clientForm.data_source,
+            mandays: user?.role === 'CLIENT' ? 1 : clientForm.mandays,
+        };
+
+        const payload = {
+            ...updatedClientForm,
+            business_type_id: updatedClientForm.business_type_id ? parseInt(updatedClientForm.business_type_id) : null,
+            province_id: updatedClientForm.province_id ? parseInt(updatedClientForm.province_id) : null,
+            regency_id: updatedClientForm.regency_id ? parseInt(updatedClientForm.regency_id) : null,
+            district_id: updatedClientForm.district_id ? parseInt(updatedClientForm.district_id) : null,
+            product_category_id: updatedClientForm.product_category_id ? parseInt(updatedClientForm.product_category_id) : null,
+            business_scale_id: updatedClientForm.business_scale_id ? parseInt(updatedClientForm.business_scale_id) : null,
+            sales_scheme_id: updatedClientForm.sales_scheme_id ? parseInt(updatedClientForm.sales_scheme_id) : null,
+            product_count: updatedClientForm.product_count,
+            branch_count: updatedClientForm.branch_count,
+            mandays: updatedClientForm.mandays,
             selected_optional_component_ids: selectedOptionalComponentIds
         };
 
@@ -130,8 +137,8 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateCl
             await onUpdateClientInfoAndPricing(payload);
         } else {
             await Promise.all([
-                onUpdateClient(submission.client.id, clientForm),
-                clientForm.business_type_id ? onUpdateBusinessType(parseInt(clientForm.business_type_id)) : Promise.resolve()
+                onUpdateClient(submission.client.id, updatedClientForm),
+                updatedClientForm.business_type_id ? onUpdateBusinessType(parseInt(updatedClientForm.business_type_id)) : Promise.resolve()
             ]);
         }
         setIsEditingClient(false);
@@ -188,7 +195,13 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateCl
                             <select 
                                 className="glass-input w-full" 
                                 value={clientForm.business_type_id} 
-                                onChange={e => setClientForm({...clientForm, business_type_id: e.target.value})}
+                                onChange={e => {
+                                    setClientForm(prev => ({
+                                        ...prev,
+                                        business_type_id: e.target.value,
+                                        product_category_id: '' // reset product category on business type change
+                                    }));
+                                }}
                             >
                                 <option value="">Pilih Bidang Usaha</option>
                                 {businessTypes.map(bt => (
@@ -249,7 +262,9 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateCl
                                         onChange={e => setClientForm({...clientForm, product_category_id: e.target.value})}
                                     >
                                         <option value="">Pilih Kategori Produk</option>
-                                        {productCategories.map(pc => <option key={pc.id} value={pc.id}>{pc.name}</option>)}
+                                        {productCategories
+                                            .filter(pc => !clientForm.business_type_id || pc.business_type_id?.toString() === clientForm.business_type_id.toString())
+                                            .map(pc => <option key={pc.id} value={pc.id}>{pc.name}</option>)}
                                     </select>
                                 </div>
                                 <div>
@@ -263,28 +278,32 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateCl
                                         {scales.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                     </select>
                                 </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Skema Penjualan <span className="text-red-500">*</span></label>
-                                    <select 
-                                        className="glass-input w-full" 
-                                        value={clientForm.sales_scheme_id} 
-                                        onChange={e => setClientForm({...clientForm, sales_scheme_id: e.target.value})}
-                                    >
-                                        <option value="">Pilih Skema</option>
-                                        {schemes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Sumber Data <span className="text-red-500">*</span></label>
-                                    <select 
-                                        className="glass-input w-full" 
-                                        value={clientForm.data_source === 'TELEMARKETING' ? 'ORGANIK' : clientForm.data_source} 
-                                        onChange={e => setClientForm({...clientForm, data_source: e.target.value})}
-                                    >
-                                        <option value="ORGANIK">Organik / Telemarketing</option>
-                                        <option value="MARKETING">Marketing (Partner)</option>
-                                    </select>
-                                </div>
+                                {user?.role !== 'CLIENT' && (
+                                    <div>
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Skema Penjualan <span className="text-red-500">*</span></label>
+                                        <select 
+                                            className="glass-input w-full" 
+                                            value={clientForm.sales_scheme_id} 
+                                            onChange={e => setClientForm({...clientForm, sales_scheme_id: e.target.value})}
+                                        >
+                                            <option value="">Pilih Skema</option>
+                                            {schemes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                                {user?.role !== 'CLIENT' && (
+                                    <div>
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Sumber Data <span className="text-red-500">*</span></label>
+                                        <select 
+                                            className="glass-input w-full" 
+                                            value={clientForm.data_source === 'TELEMARKETING' ? 'ORGANIK' : clientForm.data_source} 
+                                            onChange={e => setClientForm({...clientForm, data_source: e.target.value})}
+                                        >
+                                            <option value="ORGANIK">Organik / Telemarketing</option>
+                                            <option value="MARKETING">Marketing (Partner)</option>
+                                        </select>
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Jumlah Produk</label>
                                     <input 
@@ -305,16 +324,18 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateCl
                                         onChange={e => setClientForm({...clientForm, branch_count: parseInt(e.target.value) || 1})} 
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Jumlah Manday</label>
-                                    <input 
-                                        type="number" 
-                                        min="1" 
-                                        className="glass-input w-full" 
-                                        value={clientForm.mandays} 
-                                        onChange={e => setClientForm({...clientForm, mandays: parseInt(e.target.value) || 1})} 
-                                    />
-                                </div>
+                                {user?.role !== 'CLIENT' && (
+                                    <div>
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Jumlah Manday</label>
+                                        <input 
+                                            type="number" 
+                                            min="1" 
+                                            className="glass-input w-full" 
+                                            value={clientForm.mandays} 
+                                            onChange={e => setClientForm({...clientForm, mandays: parseInt(e.target.value) || 1})} 
+                                        />
+                                    </div>
+                                )}
 
                                 {/* Optional Components */}
                                 {(() => {
@@ -392,14 +413,18 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateCl
                             <InfoItem label="Kecamatan" value={submission.cost_detail?.district?.name || '-'} />
                             <InfoItem label="Kategori Produk" value={submission.cost_detail?.product_category?.name || '-'} />
                             <InfoItem label="Skala Usaha" value={submission.cost_detail?.business_scale?.name || '-'} />
-                            <InfoItem label="Sumber Data" value={
-                                submission.data_source === 'MARKETING' ? 'Marketing (Partner)' :
-                                (submission.data_source === 'ORGANIK' || submission.data_source === 'TELEMARKETING') ? 'Organik / Telemarketing' :
-                                submission.data_source || '-'
-                            } />
+                            {user?.role !== 'CLIENT' && (
+                                <InfoItem label="Sumber Data" value={
+                                    submission.data_source === 'MARKETING' ? 'Marketing (Partner)' :
+                                    (submission.data_source === 'ORGANIK' || submission.data_source === 'TELEMARKETING') ? 'Organik / Telemarketing' :
+                                    submission.data_source || '-'
+                                } />
+                            )}
                             <InfoItem label="Jumlah Produk" value={submission.product_count?.toString() || submission.cost_detail?.product_count?.toString() || '1'} />
                             <InfoItem label="Jumlah Cabang" value={submission.branch_count?.toString() || submission.cost_detail?.branch_count?.toString() || '1'} />
-                            <InfoItem label="Jumlah Manday" value={submission.mandays?.toString() || submission.cost_detail?.mandays?.toString() || '1'} />
+                            {user?.role !== 'CLIENT' && (
+                                <InfoItem label="Jumlah Manday" value={submission.mandays?.toString() || submission.cost_detail?.mandays?.toString() || '1'} />
+                            )}
                         </>
                     )}
                     {submission.consultant_id && (

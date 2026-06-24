@@ -21,6 +21,8 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
     const [saved, setSaved] = useState(false);
     const [uploading, setUploading] = useState<Record<number, boolean>>({});
 
+    const [currentStepIdx, setCurrentStepIdx] = useState(0);
+
     useEffect(() => {
         const load = async () => {
             setLoading(true);
@@ -95,8 +97,49 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
         }
     };
 
-    const handleSubmit = async () => {
-        setSaving(true);
+    // Group configs by step_number
+    const groupedSteps = configs.reduce((acc, cfg) => {
+        const stepNum = cfg.step_number || 1;
+        const stepName = cfg.step_name || `Step ${stepNum}`;
+        if (!acc[stepNum]) {
+            acc[stepNum] = {
+                step_number: stepNum,
+                step_name: stepName,
+                configs: []
+            };
+        }
+        if (cfg.step_name && acc[stepNum].step_name === `Step ${stepNum}`) {
+            acc[stepNum].step_name = cfg.step_name;
+        }
+        acc[stepNum].configs.push(cfg);
+        return acc;
+    }, {} as Record<number, { step_number: number; step_name: string; configs: FormFieldConfig[] }>);
+
+    const steps = Object.values(groupedSteps).sort((a, b) => a.step_number - b.step_number);
+    // Sort configs inside each step
+    steps.forEach(step => {
+        step.configs.sort((a, b) => a.sort_order - b.sort_order);
+    });
+
+    const currentStep = steps[currentStepIdx];
+    const isLastStep = currentStepIdx === steps.length - 1;
+
+    const validateStep = (stepConfigs: FormFieldConfig[]) => {
+        for (const cfg of stepConfigs) {
+            if (cfg.is_required) {
+                const val = values[cfg.id];
+                const isEmpty = cfg.input_type === 'FILE_UPLOAD' ? !val?.file_url
+                    : cfg.input_type === 'LINK' ? !val?.link_value : !val?.text_value;
+                if (isEmpty) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+
+    const handleSave = async (silent = false) => {
+        if (!silent) setSaving(true);
         try {
             const payload = configs.map(cfg => ({
                 form_field_id: cfg.id,
@@ -107,10 +150,39 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
 
             await api.post(`/submission-fields/${submissionId}`, payload);
             setSaved(true);
-            onSaved?.();
+            if (!silent && isLastStep) {
+                onSaved?.();
+            }
         } catch (err: any) {
-            alert(err.response?.data?.error || 'Gagal menyimpan data');
-        } finally { setSaving(false); }
+            if (!silent) {
+                alert(err.response?.data?.error || 'Gagal menyimpan data');
+            }
+        } finally {
+            if (!silent) setSaving(false);
+        }
+    };
+
+    const handleNext = async () => {
+        if (!currentStep) return;
+        
+        // Validate current step before proceeding
+        if (!validateStep(currentStep.configs)) {
+            alert('Mohon isi semua field wajib sebelum melanjutkan.');
+            return;
+        }
+
+        // Save current step data
+        await handleSave();
+        
+        if (!isLastStep) {
+            setCurrentStepIdx(prev => prev + 1);
+        }
+    };
+
+    const handleBack = () => {
+        if (currentStepIdx > 0) {
+            setCurrentStepIdx(prev => prev - 1);
+        }
     };
 
     if (loading) {
@@ -130,27 +202,88 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
     }
 
     return (
-        <div className="glass-panel p-6 space-y-5">
-            <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-800">
-                    Formulir {formatServiceType(formType)}
-                </h3>
+        <div className="glass-panel p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <div>
+                    <h3 className="text-lg font-extrabold text-gray-800 tracking-tight">
+                        Formulir {formatServiceType(formType)}
+                    </h3>
+                    <p className="text-xs text-gray-400 font-medium">
+                        Lengkapi dokumen dan data Anda langkah demi langkah.
+                    </p>
+                </div>
                 {saved && (
-                    <span className="flex items-center gap-1 text-sm text-green-600">
-                        <CheckCircle className="w-4 h-4" /> Tersimpan
+                    <span className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100 font-bold">
+                        <CheckCircle className="w-3.5 h-3.5" /> Tersimpan
                     </span>
                 )}
             </div>
 
-            <div className="space-y-4">
-                {configs.map(cfg => (
+            {/* Step Wizard Progress Bar */}
+            {steps.length > 1 && (
+                <div className="mb-8 px-2">
+                    <div className="flex items-center justify-between relative">
+                        {/* Background line */}
+                        <div className="absolute left-0 right-0 top-4 h-1 bg-gray-100 rounded-full -z-10" />
+                        {/* Active progress line */}
+                        <div 
+                            className="absolute left-0 top-4 h-1 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-500 -z-10" 
+                            style={{ width: `${(currentStepIdx / Math.max(1, steps.length - 1)) * 100}%` }}
+                        />
+                        
+                        {steps.map((step, idx) => {
+                            const isActive = idx === currentStepIdx;
+                            const isCompleted = idx < currentStepIdx;
+                            return (
+                                <button
+                                    key={step.step_number}
+                                    onClick={() => {
+                                        if (idx < currentStepIdx || validateStep(steps[currentStepIdx].configs)) {
+                                            setCurrentStepIdx(idx);
+                                        } else {
+                                            alert('Mohon isi semua field wajib di step saat ini sebelum pindah.');
+                                        }
+                                    }}
+                                    type="button"
+                                    className="flex flex-col items-center focus:outline-none"
+                                >
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${
+                                        isActive 
+                                            ? 'bg-gradient-to-tr from-blue-600 to-indigo-600 text-white ring-4 ring-blue-100 scale-110 shadow-md'
+                                            : isCompleted
+                                            ? 'bg-emerald-500 text-white shadow-sm'
+                                            : 'bg-white text-gray-400 border-2 border-gray-200 hover:border-gray-300'
+                                    }`}>
+                                        {isCompleted ? '✓' : step.step_number}
+                                    </div>
+                                    <span className={`mt-2 text-[10px] font-black uppercase tracking-wider transition-colors duration-300 hidden sm:block ${
+                                        isActive ? 'text-blue-600 font-extrabold' : 'text-gray-400 font-medium'
+                                    }`}>
+                                        {step.step_name}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                    {/* Mobile step name label */}
+                    <div className="text-center mt-4 sm:hidden">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+                            Step {currentStep?.step_number}: {currentStep?.step_name}
+                        </span>
+                    </div>
+                </div>
+            )}
+
+            {/* Current Step Fields */}
+            <div className="space-y-5 bg-white/40 p-4 rounded-2xl border border-white/60 shadow-sm">
+                {currentStep?.configs.map(cfg => (
                     <div key={cfg.id} className="space-y-1">
-                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                             {cfg.input_type === 'FILE_UPLOAD' && <Upload className="w-4 h-4 text-brand-500" />}
                             {cfg.input_type === 'LINK' && <LinkIcon className="w-4 h-4 text-blue-500" />}
                             {cfg.input_type === 'TEXT' && <FileText className="w-4 h-4 text-gray-500" />}
                             {cfg.field_label}
-                            {cfg.is_required && <span className="text-red-500 text-xs">*wajib</span>}
+                            {cfg.is_required && <span className="text-red-500 text-xs font-bold">*wajib</span>}
                         </label>
 
                         {cfg.description && (
@@ -257,8 +390,8 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
                                 const isEmpty = cfg.input_type === 'FILE_UPLOAD' ? !v?.file_url
                                     : cfg.input_type === 'LINK' ? !v?.link_value : !v?.text_value;
                                 return isEmpty ? (
-                                    <p className="flex items-center gap-1 text-xs text-amber-600">
-                                        <AlertCircle className="w-3 h-3" /> Field ini wajib diisi
+                                    <p className="flex items-center gap-1 text-xs text-amber-600 font-medium mt-1">
+                                        <AlertCircle className="w-3.5 h-3.5" /> Field ini wajib diisi
                                     </p>
                                 ) : null;
                             })()
@@ -267,18 +400,45 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
                 ))}
             </div>
 
-            {!readOnly && (
-                <button
-                    onClick={handleSubmit}
-                    disabled={saving}
-                    className="w-full glass-button py-3 flex items-center justify-center gap-2 font-bold"
-                >
-                    {saving ? <Loader2 className="animate-spin w-5 h-5" /> : <CheckCircle className="w-5 h-5" />}
-                    Simpan Data
-                </button>
-            )}
+            {/* Navigation buttons */}
+            <div className="flex items-center gap-3 pt-2">
+                {currentStepIdx > 0 && (
+                    <button
+                        type="button"
+                        onClick={handleBack}
+                        className="flex-1 px-4 py-3 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold rounded-xl border border-gray-200 transition-all text-sm flex items-center justify-center gap-2"
+                    >
+                        Kembali
+                    </button>
+                )}
+                {!readOnly ? (
+                    <button
+                        type="button"
+                        onClick={handleNext}
+                        disabled={saving}
+                        className="flex-[2] py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20 transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                        {saving ? (
+                            <Loader2 className="animate-spin w-4 h-4" />
+                        ) : isLastStep ? (
+                            <CheckCircle className="w-4 h-4" />
+                        ) : null}
+                        {isLastStep ? 'Simpan Data' : 'Lanjut'}
+                    </button>
+                ) : (
+                    !isLastStep && (
+                        <button
+                            type="button"
+                            onClick={() => setCurrentStepIdx(prev => prev + 1)}
+                            className="flex-[2] py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all text-sm flex items-center justify-center"
+                        >
+                            Lanjut
+                        </button>
+                    )
+                )}
+            </div>
 
-            {/* Read-only: show existing values */}
+            {/* Read-only: show info if all empty */}
             {readOnly && existingValues.length === 0 && (
                 <p className="text-sm text-gray-400 text-center">Belum ada data yang diisi.</p>
             )}

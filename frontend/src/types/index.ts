@@ -156,6 +156,8 @@ export interface FormFieldConfig {
     sort_order: number;
     description: string;
     business_type_id?: number;
+    step_number: number;
+    step_name: string;
 }
 
 export interface FormFieldValue {
@@ -330,6 +332,8 @@ export interface BillingComponent {
     product_category_id?: number;
     sales_scheme_id?: number;
     data_source?: string;
+    form_field_config_id?: number;
+    form_field_config?: FormFieldConfig;
 }
 
 // --- CMS ---

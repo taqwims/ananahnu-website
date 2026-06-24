@@ -58,6 +58,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     const [selectedOptionalComponentIds, setSelectedOptionalComponentIds] = useState<number[]>([]);
     const [initialBreakdown, setInitialBreakdown] = useState<any[] | null>(null);
     const [hasInitializedOptionalComponents, setHasInitializedOptionalComponents] = useState(false);
+    const [submissionFieldValues, setSubmissionFieldValues] = useState<any[]>([]);
 
     // Geography cascading
     useEffect(() => {
@@ -152,13 +153,14 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     useEffect(() => {
         const fetchMasterData = async () => {
             try {
-                const [btRes, pRes, bsRes, provRes, scRes, detailRes] = await Promise.all([
+                const [btRes, pRes, bsRes, provRes, scRes, detailRes, formValsRes] = await Promise.all([
                     api.get('/billing-config/business-types').catch(() => ({ data: [] })),
                     api.get('/billing-config/product-categories').catch(() => ({ data: [] })),
                     api.get('/billing-config/business-scales').catch(() => ({ data: [] })),
                     api.get('/geography/provinces').catch(() => ({ data: [] })),
                     api.get('/billing-config/sales-schemes').catch(() => ({ data: [] })),
-                    api.get(`/submissions/${submissionId}/cost-detail`).catch(() => ({ data: null }))
+                    api.get(`/submissions/${submissionId}/cost-detail`).catch(() => ({ data: null })),
+                    api.get(`/submission-fields/${submissionId}`).catch(() => ({ data: [] }))
                 ]);
 
                 setBusinessTypes(btRes.data || []);
@@ -166,6 +168,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 setScales(bsRes.data || []);
                 setProvinces(provRes.data || []);
                 setSchemes(scRes.data || []);
+                setSubmissionFieldValues(formValsRes.data || []);
 
                 if (detailRes.data && detailRes.data.id) {
                     setBusinessTypeId(detailRes.data.business_type_id?.toString() || '');
@@ -242,6 +245,12 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         updated.splice(index, 1);
         setOptionalCosts(updated);
     };
+
+    const isFormFieldFilled = useCallback((fieldId: number) => {
+        const val = submissionFieldValues.find(v => v.form_field_id === fieldId);
+        if (!val) return false;
+        return !!(val.text_value || val.file_url || val.link_value);
+    }, [submissionFieldValues]);
 
     // Reactive calculation
     const { total, breakdown } = useMemo(() => {
@@ -376,11 +385,21 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             }
         }
 
-        // 1b. Optional components from master biaya (if selected)
+        // 1b. Optional components from master biaya (if selected or form connection logic applies)
         masterComponents.forEach(comp => {
             if (!comp || !comp.category || comp.is_mandatory) return;
             if (comp.category.toUpperCase() === 'PENDAMPINGAN') return;
-            if (!selectedOptionalComponentIds.includes(comp.id)) return;
+
+            let shouldInclude = false;
+            if (comp.form_field_config_id) {
+                // If connected to a form field, check if the form field is NOT filled
+                shouldInclude = !isFormFieldFilled(comp.form_field_config_id);
+            } else {
+                // If not connected, check if manually selected in the UI checklist
+                shouldInclude = selectedOptionalComponentIds.includes(comp.id);
+            }
+
+            if (!shouldInclude) return;
 
             let multiplier = 1;
             let multiplierLabel = '';
@@ -429,7 +448,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         });
 
         return { total: currentTotal, breakdown: currentBreakdown };
-    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, mandays, productCount, selectedOptionalComponentIds]);
+    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, mandays, productCount, selectedOptionalComponentIds, isFormFieldFilled]);
 
     const handleSave = async () => {
         setSaving(true);
@@ -629,23 +648,45 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                                 {masterComponents
                                     .filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN')
                                     .map(comp => {
-                                        const isChecked = selectedOptionalComponentIds.includes(comp.id);
+                                        const isConnected = !!comp.form_field_config_id;
+                                        let isChecked = false;
+                                        let statusText = '';
+                                        if (isConnected && comp.form_field_config_id) {
+                                            const isFilled = isFormFieldFilled(comp.form_field_config_id);
+                                            isChecked = !isFilled;
+                                            statusText = isFilled 
+                                                ? ' (Form Terisi - Biaya Dikecualikan)' 
+                                                : ' (Form Kosong - Biaya Dikenakan)';
+                                        } else {
+                                            isChecked = selectedOptionalComponentIds.includes(comp.id);
+                                        }
+
                                         return (
                                             <label key={comp.id} className="flex items-center gap-3 cursor-pointer select-none">
                                                 <input
                                                     type="checkbox"
-                                                    disabled={!isEditable}
+                                                    disabled={!isEditable || isConnected}
                                                     checked={isChecked}
                                                     onChange={() => {
+                                                        if (isConnected) return;
                                                         if (isChecked) {
                                                             setSelectedOptionalComponentIds(selectedOptionalComponentIds.filter(id => id !== comp.id));
                                                         } else {
                                                             setSelectedOptionalComponentIds([...selectedOptionalComponentIds, comp.id]);
                                                         }
                                                     }}
-                                                    className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
+                                                    className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500 disabled:opacity-50"
                                                 />
-                                                <div className="flex-1 text-sm text-gray-700 font-medium">{comp.name}</div>
+                                                <div className="flex-1 text-sm text-gray-700 font-medium">
+                                                    {comp.name}
+                                                    {isConnected && (
+                                                        <span className={`text-[10px] ml-2 px-2 py-0.5 rounded-full font-bold ${
+                                                            !isChecked ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
+                                                        }`}>
+                                                            Form: {comp.form_field_config?.field_label || 'Field'} {statusText}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div className="text-xs text-gray-500 font-bold">{formatRupiah(comp.base_amount)}</div>
                                             </label>
                                         );

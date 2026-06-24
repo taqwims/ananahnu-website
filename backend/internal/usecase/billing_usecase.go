@@ -18,6 +18,8 @@ type BillingUsecase interface {
 	RemindPayment(invoiceID int64, senderID uuid.UUID) error
 	// SwitchToFullPayment mengubah invoice DP menjadi FULL (100%) sehingga pelunasan tidak diperlukan
 	SwitchToFullPayment(invoiceID int64) error
+	// SwitchToDPPayment mengubah invoice FULL menjadi DP (70%)
+	SwitchToDPPayment(invoiceID int64) error
 
 	// Commissions
 	GetReferralCommissions(page, limit int, status string) ([]domain.Commission, int64, error)
@@ -167,6 +169,30 @@ func (uc *billingUsecase) SwitchToFullPayment(invoiceID int64) error {
 	invoice.Amount = totalAmount
 	invoice.Type = domain.InvoiceTypeFull
 	invoice.Notes = "Full Payment (diubah dari DP)"
+
+	return uc.InvoiceRepo.Update(invoice)
+}
+
+// SwitchToDPPayment mengubah invoice FULL menjadi DP (70%) sebelum pembayaran.
+func (uc *billingUsecase) SwitchToDPPayment(invoiceID int64) error {
+	invoices, _, err := uc.InvoiceRepo.FindAll(map[string]interface{}{"id": invoiceID}, 1, 1)
+	if err != nil || len(invoices) == 0 {
+		return fmt.Errorf("invoice not found")
+	}
+
+	invoice := &invoices[0]
+	if invoice.Status == domain.InvoiceStatusPaid {
+		return fmt.Errorf("invoice sudah lunas, tidak bisa diubah")
+	}
+	if invoice.Type != domain.InvoiceTypeFull {
+		return fmt.Errorf("hanya invoice Full yang bisa diubah ke DP")
+	}
+
+	// Hitung DP (total * 0.70)
+	dpAmount := invoice.Amount * 0.70
+	invoice.Amount = dpAmount
+	invoice.Type = domain.InvoiceTypeDP
+	invoice.Notes = "Down Payment 70% (diubah dari Full)"
 
 	return uc.InvoiceRepo.Update(invoice)
 }

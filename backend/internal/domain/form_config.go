@@ -18,6 +18,8 @@ type FormFieldConfig struct {
 	SortOrder      int       `json:"sort_order"`
 	Description    string    `json:"description"`
 	BusinessTypeID *int64    `json:"business_type_id,omitempty"`         // Optional: scoping per jenis bidang
+	StepNumber     int       `gorm:"default:1" json:"step_number"`
+	StepName       string    `gorm:"default:'Step 1'" json:"step_name"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }
