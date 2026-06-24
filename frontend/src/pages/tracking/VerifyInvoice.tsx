@@ -170,7 +170,7 @@ export default function VerifyInvoice() {
                             {invoices.map((inv: any, idx: number) => (
                                 <div key={idx} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 rounded-2xl border border-slate-100 gap-4 bg-slate-50/50">
                                     <div>
-                                        <p className="text-sm font-bold text-slate-800 capitalize">{inv.payment_type.replace(/_/g, ' ').toLowerCase()}</p>
+                                        <p className="text-sm font-bold text-slate-800 capitalize">{(inv.type || '').replace(/_/g, ' ').toLowerCase()}</p>
                                         <p className="text-xs text-slate-400 mt-0.5">ID Invoice: INV-{inv.id}</p>
                                     </div>
                                     <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">

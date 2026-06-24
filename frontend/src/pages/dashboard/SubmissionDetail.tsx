@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Send, FileText, AlertTriangle } from 'lucide-react';
 import PaymentSection from '../../components/dashboard/PaymentSection';
 import CostCalculator from '../../components/dashboard/CostCalculator';
 import KalkulatorReguler from '../../components/dashboard/KalkulatorReguler';
@@ -15,7 +15,9 @@ import { SubmissionInvoice } from '../../components/dashboard/submission/Submiss
 import { SubmissionHistory } from '../../components/dashboard/submission/SubmissionHistory';
 import api from '../../services/api';
 import type { BusinessType } from '../../types';
-import ConfirmModal from '../../components/ui/ConfirmModal';
+import Modal from '../../components/ui/Modal';
+import { submissionService } from '../../services/submissionService';
+import toast from 'react-hot-toast';
 
 export default function SubmissionDetail() {
     const { id } = useParams();
@@ -44,6 +46,7 @@ export default function SubmissionDetail() {
     const user = useAuthStore(state => state.user);
     const [editingData, setEditingData] = useState(false);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [contractConsent, setContractConsent] = useState(false);
 
     if (loading) return (
         <div className="p-8 flex items-center justify-center min-h-[400px]">
@@ -179,16 +182,89 @@ export default function SubmissionDetail() {
                     <SubmissionInvoice invoice={invoice} />
                 )}
 
-                <ConfirmModal 
+                <Modal 
                     isOpen={isConfirmOpen}
-                    onClose={() => setIsConfirmOpen(false)}
-                    title="Kirim Pengajuan"
-                    message="Apakah Anda yakin ingin mengirimkan pengajuan ini untuk diverifikasi?"
-                    onConfirm={async () => {
+                    onClose={() => {
                         setIsConfirmOpen(false);
-                        await handleAction('submit');
+                        setContractConsent(false);
                     }}
-                />
+                    title="Kirim Pengajuan"
+                    maxWidth="md"
+                >
+                    <div className="space-y-5">
+                        <div className="flex items-start gap-4">
+                            <div className="p-3 rounded-2xl text-brand-600 bg-brand-50 shrink-0">
+                                <AlertTriangle size={24} />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className="text-sm font-bold text-gray-800">Apakah Anda yakin ingin mengirimkan pengajuan ini untuk diverifikasi?</h4>
+                                <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                                    Setelah dikirim, data pengajuan tidak dapat diubah kembali kecuali diminta revisi oleh petugas.
+                                </p>
+                            </div>
+                        </div>
+
+                        {submission.service_type === 'REGULER' && (
+                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                                <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                                    <span className="text-xs font-black text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
+                                        <FileText size={16} className="text-brand-600" /> Dokumen Perjanjian Layanan
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            try {
+                                                toast.loading('Mengunduh Kontrak...', { id: 'download-contract' });
+                                                await submissionService.downloadContract(submission.id, 'pdf');
+                                                toast.success('Kontrak berhasil diunduh', { id: 'download-contract' });
+                                            } catch (e: any) {
+                                                toast.error(e.message || 'Gagal mengunduh kontrak', { id: 'download-contract' });
+                                            }
+                                        }}
+                                        className="text-[10px] font-black text-brand-600 underline hover:text-brand-700"
+                                    >
+                                        Unduh Draft Kontrak (.pdf)
+                                    </button>
+                                </div>
+                                
+                                <label className="flex items-start gap-3.5 p-3 rounded-xl border border-slate-200 bg-white cursor-pointer hover:border-brand-300 transition-all select-none">
+                                    <input
+                                        type="checkbox"
+                                        className="form-checkbox mt-0.5"
+                                        checked={contractConsent}
+                                        onChange={(e) => setContractConsent(e.target.checked)}
+                                    />
+                                    <span className="text-xs font-bold text-slate-700 leading-relaxed">
+                                        Saya telah membaca, memahami, dan menyetujui seluruh isi Perjanjian Layanan Pendampingan Sertifikasi Halal secara Elektronik.
+                                    </span>
+                                </label>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
+                            <button
+                                onClick={() => {
+                                    setIsConfirmOpen(false);
+                                    setContractConsent(false);
+                                }}
+                                className="btn-secondary px-4 py-2.5 text-xs font-bold"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    setIsConfirmOpen(false);
+                                    await handleAction('submit');
+                                    setContractConsent(false);
+                                }}
+                                disabled={submission.service_type === 'REGULER' && !contractConsent}
+                                className="px-5 py-2.5 bg-brand-600 text-white font-bold rounded-xl text-xs shadow-md transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-brand-700"
+                            >
+                                Kirim Sekarang
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
             </div>
         );
     }

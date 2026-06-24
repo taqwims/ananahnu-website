@@ -1,0 +1,648 @@
+=== PAGE 1 ===
+  
+PERJANJIAN  LAYANAN  PENDAMPINGAN  SERTIFIKASI  HALAL  SECARA  
+ELEKTRONIK
+ 
+Nomor:
+ 
+no/HC/bulan
+ 
+romawi/thn
+  Perjanjian  ini  merupakan  perjanjian  elektronik  yang  dibuat  dan  disepakati  melalui  Platform  
+HalalCore
+ 
+antara:
+ PT  Ana  Nahnu  Indonesia  selaku  penyedia  layanan  pendampingan  sertifikasi  halal,  
+selanjutnya
+ 
+disebut
+ 
+"HALALCORE";
+ dan  (  nama  pelaku  usaha  )  yang  telah  melakukan  registrasi  akun,  mengisi  data  usaha,  menyetujui  
+syarat
+ 
+dan
+ 
+ketentuan
+ 
+layanan,
+ 
+serta
+ 
+melakukan
+ 
+pembayaran
+ 
+melalui
+ 
+Platform
+ 
+HalalCore,
+ 
+selanjutnya
+ 
+disebut
+ 
+"KLIEN".
+ Kedua  belah  pihak  sepakat  untuk  terikat  pada  seluruh  ketentuan  dalam  Perjanjian  Elektronik  
+ini.
+  
+PASAL  1  
+MAKSUD  DAN  TUJUAN  
+Perjanjian  ini  dibuat  untuk  mengatur  kerja  sama  dalam  layanan  pendampingan  proses  
+sertifikasi
+ 
+halal
+ 
+produk
+ 
+KLIEN
+ 
+sesuai
+ 
+ketentuan
+ 
+peraturan
+ 
+perundang-undangan
+ 
+yang
+ 
+berlaku
+ 
+di
+ 
+Indonesia.
+ 
+PASAL  2  PERSETUJUAN  ELEKTRONIK  
+1.  KLIEN  menyatakan  telah  membaca,  memahami,  dan  menyetujui  seluruh  isi  Perjanjian  
+ini
+ 
+sebelum
+ 
+melakukan
+ 
+pembayaran.
+ 2.  Persetujuan  KLIEN  diberikan  secara  elektronik  melalui:  
+a.
+ 
+pembuatan
+ 
+akun
+ 
+pada
+ 
+Platform
+ 
+HalalCore;
+ 
+b.
+ 
+pengisian
+ 
+data
+ 
+usaha;
+ 
+c.
+ 
+pemberian
+ 
+tanda
+ 
+persetujuan
+ 
+(checkbox)
+ 
+pada
+ 
+syarat
+ 
+dan
+ 
+ketentuan
+ 
+layanan;
+ 
+d.
+ 
+verifikasi
+ 
+akun
+ 
+melalui
+ 
+sarana
+ 
+elektronik
+ 
+yang
+ 
+disediakan
+ 
+sistem;
+ 
+dan
+ 
+e.
+ 
+pembayaran
+ 
+biaya
+ 
+layanan.
+ 3.  Persetujuan  sebagaimana  dimaksud  pada  ayat  (2)  memiliki  kekuatan  hukum  yang  sama  
+dengan
+ 
+tanda
+ 
+tangan
+ 
+konvensional
+ 
+sesuai
+ 
+ketentuan
+ 
+peraturan
+ 
+perundang-undangan
+ 
+yang
+ 
+berlaku.
+ 4.  Catatan  elektronik  yang  tersimpan  dalam  sistem  HalalCore  merupakan  alat  bukti  yang  
+sah
+ 
+dan
+ 
+mengikat
+ 
+para
+ 
+pihak.
+ 
+PASAL  3  
+RUANG  LINGKUP  LAYANAN  
+
+=== PAGE 2 ===
+ HalalCore  memberikan  layanan  meliputi:  
+1.  Analisis  kesiapan  sertifikasi  halal;  
+2.  Penyusunan  dan/atau  review  dokumen  Sistem  Jaminan  Produk  Halal  (SJPH);  
+3.  Pendampingan  pendaftaran  melalui  sistem  SIHALAL;  
+4.  Pendampingan  pemenuhan  dokumen  persyaratan;  
+5.  Simulasi  audit  halal  (pre-audit);  
+6.  Koordinasi  administratif  dengan  lembaga  terkait;  
+7.  Monitoring  proses  hingga  terbit  keputusan  dari  pihak  berwenang.  
+ 
+PASAL  4  
+BATAS  TANGGUNG  JAWAB  
+1.  HalalCore  bertanggung  jawab  pada  proses  pendampingan  administrasi  dan  teknis.  
+2.  Keputusan  penerbitan  sertifikat  halal  sepenuhnya  merupakan  kewenangan:  
+a)  BPJPH;  
+b)  MUI;  
+c)  LPH;  
+3.  HalalCore  tidak  bertanggung  jawab  atas:  
+a.
+ 
+penolakan
+ 
+akibat
+ 
+data
+ 
+tidak
+ 
+benar
+ 
+dari
+ 
+KLIEN;
+ 
+b.
+ 
+ketidaklengkapan
+ 
+dokumen;
+ 
+c.
+ 
+perubahan
+ 
+regulasi;
+ 
+d.
+ 
+keterlambatan
+ 
+pihak
+ 
+ketiga.
+ 
+ 
+ 
+PASAL  5  
+KEWAJIBAN  KLIEN  
+KLIEN  wajib:  
+1.  Menyediakan  data  dan  dokumen  yang  benar  dan  lengkap;  
+2.  Menjamin  kehalalan  bahan  dan  proses  produksi;  
+3.  Menunjuk  PIC  selama  proses  pendampingan;  
+
+=== PAGE 3 ===
+ 4.  Memberikan  akses  yang  diperlukan  untuk  proses  verifikasi;  
+5.  Melakukan  pembayaran  sesuai  ketentuan.  
+ 
+PASAL  6  
+NILAI  KONTRAK  DAN  PEMBAYARAN  
+1.  Nilai  jasa  sebesar:  
+Rp.
+ 
+[Nominal]
+ 
+([Terbilang])
+ 
+Termasuk  biaya  yang  harus  dibayarkan  ke  BPJPH,MUI,LPH  dan  biaya  pelatihan  (jika  
+ada)
+ 
+sesuai
+ 
+rincian
+ 
+invoice
+ 
+yang
+ 
+terlampir.
+ 
+2.  Skema  pembayaran:  
+a.
+ 
+70%
+ 
+dibayarkan
+ 
+di
+ 
+awal
+ 
+sebelum
+ 
+pekerjaan
+ 
+dimulai;
+ 
+b.
+ 
+30%
+ 
+dibayarkan
+ 
+sebelum
+ 
+pengajuan
+ 
+final
+ 
+ke
+ 
+sistem
+ 
+SIHALAL.
+ 
+3.  Pembayaran  dilakukan  ke:  
+Bank:
+ 
+BNI
+ 
+No.
+ 
+Rekening:
+ 
+1825073247
+ 
+Atas
+ 
+Nama:
+ 
+PT
+ 
+Ana
+ 
+Nahnu
+ 
+Indonesia
+ 
+4.  Pembayaran  dianggap  sah  setelah  dana  diterima  pada  rekening  HalalCore.  
+5.  Pembayaran  yang  berhasil  diverifikasi  oleh  sistem  HalalCore  dianggap  sebagai  
+penerimaan
+ 
+dan
+ 
+persetujuan
+ 
+KLIEN
+ 
+terhadap
+ 
+seluruh
+ 
+isi
+ 
+Perjanjian
+ 
+ini.
+ 
+ 
+PASAL  7  
+JANGKA  WAKTU  
+1.  Perjanjian  berlaku  sejak  sistem  HalalCore  mengonfirmasi  pembayaran  KLIEN  dan  
+tetap
+ 
+berlaku
+ 
+sampai
+ 
+seluruh
+ 
+layanan
+ 
+selesai
+ 
+dilaksanakan.
+ 
+2.  Estimasi  penyelesaian  maksimal:  
+60
+ 
+hari
+ 
+kerja
+ 
+sejak
+ 
+dokumen
+ 
+dinyatakan
+ 
+lengkap.
+ 
+3.  Keterlambatan  dari  pihak  KLIEN  memperpanjang  jangka  waktu  secara  otomatis.  
+ 
+PASAL  8  
+KERAHASIAAN  
+
+=== PAGE 4 ===
+ Kedua  pihak  wajib  menjaga  kerahasiaan  seluruh  informasi  yang  diperoleh  selama  
+pelaksanaan
+ 
+Perjanjian
+ 
+ini,
+ 
+termasuk
+ 
+namun
+ 
+tidak
+ 
+terbatas
+ 
+pada
+ 
+data
+ 
+usaha,
+ 
+formula
+ 
+produk,
+ 
+dan
+ 
+dokumen
+ 
+internal.
+ 
+PASAL  9  
+WANPRESTASI  
+KLIEN  dinyatakan  wanprestasi  apabila:  
+1.  Tidak  melakukan  pembayaran  sesuai  ketentuan;  
+2.  Memberikan  data  tidak  benar;  
+3.  Tidak  kooperatif  dalam  proses  pendampingan.  
+Dalam  hal  wanprestasi:  
+●  HalalCore  berhak  menghentikan  layanan;  
+●  Pembayaran  yang  telah  dilakukan  tidak  dapat  diminta  kembali.  
+ 
+PASAL  10  
+PEMBATALAN  
+1.  Pembatalan  oleh  KLIEN  setelah  kontrak  berjalan  dikenakan  biaya  minimal  50%  dari  
+nilai
+ 
+kontrak.
+ 
+2.  Pembayaran  yang  telah  dilakukan  bersifat  non-refundable.  
+ 
+PASAL  11  
+FORCE  MAJEURE  
+Yang  dimaksud  force  majeure  meliputi:  
+●  bencana  alam;  
+●  gangguan  sistem  nasional;  
+●  kebijakan  pemerintah;  
+●  kondisi  di  luar  kendali  para  pihak.  
+Dalam  kondisi  tersebut,  kewajiban  para  pihak  ditangguhkan  sementara.  
+ 
+PASAL  12  
+
+=== PAGE 5 ===
+ PENYELESAIAN  SENGKETA  
+1.  Diselesaikan  secara  musyawarah  terlebih  dahulu;  
+2.  Jika  tidak  tercapai,  diselesaikan  melalui  Pengadilan  Negeri  Ciamis.  
+PASAL  13  
+REKAM
+ 
+JEJAK
+ 
+ELEKTRONIK
+ 1.  HalalCore  menyimpan  seluruh  rekam  jejak  elektronik  yang  berkaitan  dengan  transaksi  
+dan
+ 
+pelaksanaan
+ 
+layanan,
+ 
+termasuk
+ 
+namun
+ 
+tidak
+ 
+terbatas
+ 
+pada:
+ 
+a.
+ 
+identitas
+ 
+akun
+ 
+pengguna;
+ 
+b.
+ 
+waktu
+ 
+registrasi;
+ 
+c.
+ 
+waktu
+ 
+persetujuan
+ 
+perjanjian;
+ 
+d.
+ 
+alamat
+ 
+IP
+ 
+perangkat;
+ 
+e.
+ 
+riwayat
+ 
+komunikasi;
+ 
+f.
+ 
+bukti
+ 
+pembayaran;
+ 
+g.
+ 
+dokumen
+ 
+yang
+ 
+diunggah
+ 
+KLIEN.
+ 2.  Rekam  jejak  elektronik  tersebut  merupakan  bagian  yang  tidak  terpisahkan  dari  Perjanjian  
+ini
+ 
+dan
+ 
+dapat
+ 
+digunakan
+ 
+sebagai
+ 
+alat
+ 
+bukti
+ 
+yang
+ 
+sah
+ 
+apabila
+ 
+terjadi
+ 
+sengketa.
+  
+PASAL  13  
+PENUTUP  
+Perjanjian  Elektronik  ini  dibuat,  disetujui,  dan  disimpan  secara  digital  melalui  Platform  
+HalalCore.
+ 
+Dengan
+ 
+melakukan
+ 
+registrasi,
+ 
+menyetujui
+ 
+syarat
+ 
+dan
+ 
+ketentuan,
+ 
+serta
+ 
+melakukan
+ 
+pembayaran
+ 
+layanan,
+ 
+KLIEN
+ 
+menyatakan
+ 
+setuju
+ 
+dan
+ 
+terikat
+ 
+secara
+ 
+hukum
+ 
+terhadap
+ 
+seluruh
+ 
+ketentuan
+ 
+dalam
+ 
+Perjanjian
+ 
+ini.
+ 
+Perjanjian
+ 
+ini
+ 
+memiliki
+ 
+kekuatan
+ 
+hukum
+ 
+yang
+ 
+sama
+ 
+dengan
+ 
+perjanjian
+ 
+tertulis
+ 
+yang
+ 
+ditandatangani
+ 
+secara
+ 
+manual
+ 
+sesuai
+ 
+peraturan
+ 
+perundang-undangan
+ 
+yang
+ 
+berlaku.
+ 

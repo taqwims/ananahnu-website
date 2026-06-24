@@ -150,7 +150,7 @@ export const downloadAgreementQR = (id: string) =>
   api.get(`/tele/agreement/${id}/qr`, { responseType: 'blob' });
 
 export const downloadAgreementPDF = (id: string) =>
-  api.get(`/document/agreement/${id}/pdf`, { responseType: 'blob' });
+  api.get(`/documents/agreement/${id}/pdf`, { responseType: 'blob' });
 
 // Estimasi & Verifikasi
 export const calculateReguler = (data: Record<string, unknown>) =>

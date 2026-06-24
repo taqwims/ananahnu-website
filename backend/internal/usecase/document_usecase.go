@@ -123,6 +123,17 @@ func (uc *documentUsecase) GenerateContract(submissionID uuid.UUID, format strin
 	vars["[Nominal]"] = uc.formatIDR(amount)
 	vars["[Terbilang]"] = utils.TerbilangRupiah(amount)
 
+	// Verification URL for client agreement
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = os.Getenv("APP_FRONTEND_URL")
+	}
+	if frontendURL == "" {
+		frontendURL = uc.getSetting(settingMap, "FRONTEND_URL", "https://halalcore.id")
+	}
+	// We can use the submission ID as the agreement validation ID for public checks
+	vars["[Verification URL]"] = fmt.Sprintf("%s/verify-agreement/%s", frontendURL, submission.ID.String())
+
 	// 2. Generate File
 	filename := fmt.Sprintf("Kontrak_%s", strings.ReplaceAll(vars["[Nama Klien / Perusahaan]"], " ", "_"))
 
@@ -225,97 +236,274 @@ func (uc *documentUsecase) generateDocx(vars map[string]string) ([]byte, error) 
 
 func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 	pdf := fpdf.New("P", "mm", "A4", "")
-	pdf.SetMargins(20, 20, 20)
+	
+	// Define header with logo on all pages
+	pdf.SetHeaderFunc(func() {
+		logoPath := "templates/logo_halalcore_header.png"
+		if _, err := os.Stat(logoPath); err == nil {
+			// X: 20, Y: 10, W: 50.6, H: 17.6
+			pdf.ImageOptions(logoPath, 20, 10, 50.6, 17.6, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+		}
+	})
+
+	// Set Margins: Left: 20mm, Top: 32mm (to prevent text overlap with header), Right: 20mm
+	pdf.SetMargins(20, 32, 20)
+	
+	// Add Page 1
 	pdf.AddPage()
 
 	// Helper to add centered bold text
-	centerBold := func(text string, size float64) {
-		pdf.SetFont("Arial", "B", size)
-		pdf.CellFormat(0, 7, text, "", 1, "C", false, 0, "")
+	pasalTitle := func(title string) {
+		pdf.SetFont("Times", "B", 12)
+		pdf.CellFormat(0, 6, title, "", 1, "C", false, 0, "")
 	}
 
-	// Header
-	centerBold("PERJANJIAN LAYANAN PENDAMPINGAN SERTIFIKASI HALAL", 14)
-	centerBold("Nomor: "+vars["[Nomor Kontrak]"], 12)
-	pdf.Ln(10)
+	pasalContent := func(content string) {
+		pdf.SetFont("Times", "", 12)
+		pdf.MultiCell(0, 5.5, content, "", "J", false)
+		pdf.Ln(3)
+	}
 
-	// Body
-	pdf.SetFont("Arial", "", 10)
-	intro := fmt.Sprintf("Pada hari ini, %s, tanggal %s, bertempat di %s, telah dibuat dan disepakati Perjanjian Layanan Pendampingan Sertifikasi Halal (“Perjanjian”) oleh dan antara:",
-		vars["[hari]"], vars["[tanggal]"], vars["[kota]"])
-	pdf.MultiCell(0, 5, intro, "", "L", false)
-	pdf.Ln(5)
+	// === PAGE 1 ===
+	pdf.SetFont("Times", "B", 12)
+	pdf.CellFormat(0, 6, "PERJANJIAN LAYANAN PENDAMPINGAN SERTIFIKASI HALAL SECARA", "", 1, "C", false, 0, "")
+	pdf.CellFormat(0, 6, "ELEKTRONIK", "", 1, "C", false, 0, "")
+	pdf.CellFormat(0, 6, "Nomor: "+vars["[Nomor Kontrak]"], "", 1, "C", false, 0, "")
+	pdf.Ln(6)
 
-	// PIHAK PERTAMA
-	pdf.SetFont("Arial", "B", 10)
-	pdf.CellFormat(0, 5, "PIHAK PERTAMA", "0", 1, "L", false, 0, "")
-	pdf.SetFont("Arial", "", 10)
-	pihak1 := vars["[Nama Perusahaan]"] + "\nBeralamat di: " + vars["[Alamat Perusahaan]"] + "\nNIB: " + vars["[Nomor NIB]"]
-	pdf.MultiCell(0, 5, pihak1, "", "L", false)
-	pdf.Ln(1)
-	pdf.MultiCell(0, 5, fmt.Sprintf("Dalam hal ini diwakili oleh: %s, selaku %s, bertindak untuk dan atas nama %s", vars["[Nama Penandatangan]"], vars["[Jabatan]"], vars["[Nama Perusahaan]"]), "", "L", false)
-	pdf.SetFont("Arial", "I", 10)
-	pdf.CellFormat(0, 5, "Selanjutnya disebut: “KONSULTAN”", "0", 1, "L", false, 0, "")
+	// Intro
+	pdf.SetFont("Times", "", 12)
+	pdf.MultiCell(0, 5.5, "Perjanjian ini merupakan perjanjian elektronik yang dibuat dan disepakati melalui Platform HalalCore antara:", "", "J", false)
 	pdf.Ln(4)
 
-	// PIHAK KEDUA
-	pdf.SetFont("Arial", "B", 10)
-	pdf.CellFormat(0, 5, "PIHAK KEDUA", "0", 1, "L", false, 0, "")
-	pdf.SetFont("Arial", "", 10)
-	pdf.CellFormat(40, 5, "Nama", "0", 0, "L", false, 0, "")
-	pdf.CellFormat(0, 5, ": "+vars["[Nama Klien / Perusahaan]"], "0", 1, "L", false, 0, "")
-	pdf.CellFormat(40, 5, "Alamat", "0", 0, "L", false, 0, "")
-	pdf.MultiCell(0, 5, ": "+vars["[Alamat Lengkap]"], "", "L", false)
-	pdf.CellFormat(40, 5, "NIK/NIB", "0", 0, "L", false, 0, "")
-	pdf.CellFormat(0, 5, ": "+vars["[Nomor Identitas]"], "0", 1, "L", false, 0, "")
-	pdf.Ln(2)
-	pdf.MultiCell(0, 5, "Dalam hal ini bertindak untuk dan atas nama: "+vars["[Perusahaan jika ada]"], "", "L", false)
-	pdf.SetFont("Arial", "I", 10)
-	pdf.CellFormat(0, 5, "Selanjutnya disebut: “KLIEN”", "0", 1, "L", false, 0, "")
-	pdf.Ln(10)
+	// Parties
+	p1Text := "PT Ana Nahnu Indonesia selaku penyedia layanan pendampingan sertifikasi halal, selanjutnya disebut \"HALALCORE\"; dan"
+	pdf.MultiCell(0, 5.5, p1Text, "", "J", false)
+	pdf.Ln(4)
 
-	// Articles (Summary for brevity, in real case we would add all)
-	articles := []struct{ Title, Content string }{
-		{"PASAL 1 - MAKSUD DAN TUJUAN", "Perjanjian ini dibuat untuk mengatur kerja sama dalam layanan pendampingan proses sertifikasi halal produk KLIEN sesuai ketentuan peraturan perundang-undangan yang berlaku di Indonesia."},
-		{"PASAL 5 - NILAI KONTRAK DAN PEMBAYARAN", fmt.Sprintf("Nilai jasa sebesar: %s (%s). Termasuk biaya yang harus dibayarkan ke BPJPH, MUI, LPH dan biaya pelatihan (jika ada) sesuai rincian invoice yang terlampir.", vars["[Nominal]"], vars["[Terbilang]"])},
-		{"PASAL 6 - JANGKA WAKTU", fmt.Sprintf("Perjanjian berlaku sejak tanggal ditandatangani. Estimasi penyelesaian maksimal: %s hari kerja sejak dokumen dinyatakan lengkap.", vars["[60]"])},
-	}
+	p2Text := fmt.Sprintf("%s yang telah melakukan registrasi akun, mengisi data usaha, menyetujui syarat dan ketentuan layanan, serta melakukan pembayaran melalui Platform HalalCore, selanjutnya disebut \"KLIEN\".", vars["[Nama Klien / Perusahaan]"])
+	pdf.MultiCell(0, 5.5, p2Text, "", "J", false)
+	pdf.Ln(4)
 
-	for _, art := range articles {
-		pdf.SetFont("Arial", "B", 10)
-		pdf.CellFormat(0, 5, art.Title, "0", 1, "L", false, 0, "")
-		pdf.SetFont("Arial", "", 10)
-		pdf.MultiCell(0, 5, art.Content, "", "J", false)
-		pdf.Ln(5)
-	}
+	p3Text := "Kedua belah pihak sepakat untuk terikat pada seluruh ketentuan dalam Perjanjian Elektronik ini."
+	pdf.MultiCell(0, 5.5, p3Text, "", "J", false)
+	pdf.Ln(6)
 
-	// Signatures
-	pdf.Ln(10)
+	// Pasal 1
+	pasalTitle("PASAL 1")
+	pasalTitle("MAKSUD DAN TUJUAN")
+	pasalContent("Perjanjian ini dibuat untuk mengatur kerja sama dalam layanan pendampingan proses sertifikasi halal produk KLIEN sesuai ketentuan peraturan perundang-undangan yang berlaku di Indonesia.")
+
+	// Pasal 2
+	pasalTitle("PASAL 2")
+	pasalTitle("PERSETUJUAN ELEKTRONIK")
+	pasalContent("1. KLIEN menyatakan telah membaca, memahami, dan menyetujui seluruh isi Perjanjian ini sebelum melakukan pembayaran.\n" +
+		"2. Persetujuan KLIEN diberikan secara elektronik melalui:\n" +
+		"   a. pembuatan akun pada Platform HalalCore;\n" +
+		"   b. pengisian data usaha;\n" +
+		"   c. pemberian tanda persetujuan (checkbox) pada syarat dan ketentuan layanan;\n" +
+		"   d. verifikasi akun melalui sarana elektronik yang disediakan sistem; dan\n" +
+		"   e. pembayaran biaya layanan.\n" +
+		"3. Persetujuan sebagaimana dimaksud pada ayat (2) memiliki kekuatan hukum yang sama dengan tanda tangan konvensional sesuai ketentuan peraturan perundang-undangan yang berlaku.\n" +
+		"4. Catatan elektronik yang tersimpan dalam sistem HalalCore merupakan alat bukti yang sah dan mengikat para pihak.")
+
+	// === PAGE 2 ===
+	pdf.AddPage()
+
+	// Pasal 3
+	pasalTitle("PASAL 3")
+	pasalTitle("RUANG LINGKUP LAYANAN")
+	pasalContent("HalalCore memberikan layanan meliputi:\n" +
+		"1. Analisis kesiapan sertifikasi halal;\n" +
+		"2. Penyusunan dan/atau review dokumen Sistem Jaminan Produk Halal (SJPH);\n" +
+		"3. Pendampingan pendaftaran melalui sistem SIHALAL;\n" +
+		"4. Pendampingan pemenuhan dokumen persyaratan;\n" +
+		"5. Simulasi audit halal (pre-audit);\n" +
+		"6. Koordinasi administratif dengan lembaga terkait;\n" +
+		"7. Monitoring proses hingga terbit keputusan dari pihak berwenang.")
+
+	// Pasal 4
+	pasalTitle("PASAL 4")
+	pasalTitle("BATAS TANGGUNG JAWAB")
+	pasalContent("1. HalalCore bertanggung jawab pada proses pendampingan administrasi dan teknis.\n" +
+		"2. Keputusan penerbitan sertifikat halal sepenuhnya merupakan kewenangan:\n" +
+		"   a) BPJPH;\n" +
+		"   b) MUI;\n" +
+		"   c) LPH;\n" +
+		"3. HalalCore tidak bertanggung jawab atas:\n" +
+		"   a. penolakan akibat data tidak benar dari KLIEN;\n" +
+		"   b. ketidaklengkapan dokumen;\n" +
+		"   c. perubahan regulasi;\n" +
+		"   d. keterlambatan pihak ketiga.")
+
+	// Pasal 5
+	pasalTitle("PASAL 5")
+	pasalTitle("KEWAJIBAN KLIEN")
+	pdf.SetFont("Times", "", 12)
+	pdf.MultiCell(0, 5.5, "KLIEN wajib:\n" +
+		"1. Menyediakan data dan dokumen yang benar dan lengkap;\n" +
+		"2. Menjamin kehalalan bahan dan proses produksi;\n" +
+		"3. Menunjuk PIC selama proses pendampingan;", "", "J", false)
+	pdf.Ln(3)
+
+	// === PAGE 3 ===
+	pdf.AddPage()
+
+	pdf.SetFont("Times", "", 12)
+	pdf.MultiCell(0, 5.5, "4. Memberikan akses yang diperlukan untuk proses verifikasi;\n" +
+		"5. Melakukan pembayaran sesuai ketentuan.", "", "J", false)
+	pdf.Ln(4)
+
+	// Pasal 6
+	pasalTitle("PASAL 6")
+	pasalTitle("NILAI KONTRAK DAN PEMBAYARAN")
+	pasalContent(fmt.Sprintf("1. Nilai jasa sebesar:\n   Rp. %s (%s)\n   Termasuk biaya yang harus dibayarkan ke BPJPH, MUI, LPH dan biaya pelatihan (jika ada) sesuai rincian invoice yang terlampir.\n"+
+		"2. Skema pembayaran:\n"+
+		"   a. 70%% dibayarkan di awal sebelum pekerjaan dimulai;\n"+
+		"   b. 30%% dibayarkan sebelum pengajuan final ke sistem SIHALAL.\n"+
+		"3. Pembayaran dilakukan ke:\n"+
+		"   Bank: BNI\n"+
+		"   No. Rekening: 1825073247\n"+
+		"   Atas Nama: PT Ana Nahnu Indonesia\n"+
+		"4. Pembayaran dianggap sah setelah dana diterima pada rekening HalalCore.\n"+
+		"5. Pembayaran yang berhasil diverifikasi oleh sistem HalalCore dianggap sebagai penerimaan dan persetujuan KLIEN terhadap seluruh isi Perjanjian ini.", vars["[Nominal]"], vars["[Terbilang]"]))
+
+	// Pasal 7
+	pasalTitle("PASAL 7")
+	pasalTitle("JANGKA WAKTU")
+	pasalContent(fmt.Sprintf("1. Perjanjian berlaku sejak sistem HalalCore mengonfirmasi pembayaran KLIEN dan tetap berlaku sampai seluruh layanan selesai dilaksanakan.\n"+
+		"2. Estimasi penyelesaian maksimal: %s hari kerja sejak dokumen dinyatakan lengkap.\n"+
+		"3. Keterlambatan dari pihak KLIEN memperpanjang jangka waktu secara otomatis.", vars["[60]"]))
+
+	// === PAGE 4 ===
+	pdf.AddPage()
+
+	// Pasal 8
+	pasalTitle("PASAL 8")
+	pasalTitle("KERAHASIAAN")
+	pasalContent("Kedua pihak wajib menjaga kerahasiaan seluruh informasi yang diperoleh selama pelaksanaan Perjanjian ini, termasuk namun tidak terbatas pada data usaha, formula produk, dan dokumen internal.")
+
+	// Pasal 9
+	pasalTitle("PASAL 9")
+	pasalTitle("WANPRESTASI")
+	pdf.SetFont("Times", "", 12)
+	pdf.MultiCell(0, 5.5, "KLIEN dinyatakan wanprestasi apabila:\n" +
+		"1. Tidak melakukan pembayaran sesuai ketentuan;\n" +
+		"2. Memberikan data tidak benar;\n" +
+		"3. Tidak kooperatif dalam proses pendampingan.\n" +
+		"Dalam hal wanprestasi:\n" +
+		"- HalalCore berhak menghentikan layanan;\n" +
+		"- Pembayaran yang telah dilakukan tidak dapat diminta kembali.", "", "J", false)
+	pdf.Ln(4)
+
+	// Pasal 10
+	pasalTitle("PASAL 10")
+	pasalTitle("PEMBATALAN")
+	pasalContent("1. Pembatalan oleh KLIEN setelah kontrak berjalan dikenakan biaya minimal 50% dari nilai kontrak.\n" +
+		"2. Pembayaran yang telah dilakukan bersifat non-refundable.")
+
+	// Pasal 11
+	pasalTitle("PASAL 11")
+	pasalTitle("FORCE MAJEURE")
+	pdf.SetFont("Times", "", 12)
+	pdf.MultiCell(0, 5.5, "Yang dimaksud force majeure meliputi:\n" +
+		"- bencana alam;\n" +
+		"- gangguan sistem nasional;\n" +
+		"- kebijakan pemerintah;\n" +
+		"- kondisi di luar kendali para pihak.\n" +
+		"Dalam kondisi tersebut, kewajiban para pihak ditangguhkan sementara.", "", "J", false)
+	pdf.Ln(3)
+
+	// === PAGE 5 ===
+	pdf.AddPage()
+
+	// Pasal 12
+	pasalTitle("PASAL 12")
+	pasalTitle("PENYELASAIAN SENGKETA")
+	pasalContent("1. Diselesaikan secara musyawarah terlebih dahulu;\n" +
+		"2. Jika tidak tercapai, diselesaikan melalui Pengadilan Negeri Ciamis.")
+
+	// Pasal 13 - Rekam Jejak
+	pasalTitle("PASAL 13")
+	pasalTitle("REKAM JEJAK ELEKTRONIK")
+	pasalContent("1. HalalCore menyimpan seluruh rekam jejak elektronik yang berkaitan dengan transaksi dan pelaksanaan layanan, termasuk namun tidak terbatas pada:\n" +
+		"   a. identitas akun pengguna;\n" +
+		"   b. waktu registrasi;\n" +
+		"   c. waktu persetujuan perjanjian;\n" +
+		"   d. alamat IP perangkat;\n" +
+		"   e. riwayat komunikasi;\n" +
+		"   f. bukti pembayaran;\n" +
+		"   g. dokumen yang diunggah KLIEN.\n" +
+		"2. Rekam jejak elektronik tersebut merupakan bagian yang tidak terpisahkan dari Perjanjian ini dan dapat digunakan sebagai alat bukti yang sah apabila terjadi sengketa.")
+
+	// Pasal 13 - Penutup
+	pasalTitle("PASAL 13")
+	pasalTitle("PENUTUP")
+	pasalContent("Perjanjian Elektronik ini dibuat, disetujui, dan disimpan secara digital melalui Platform HalalCore. Dengan melakukan registrasi, menyetujui syarat dan ketentuan, serta melakukan pembayaran layanan, KLIEN menyatakan setuju dan terikat secara hukum terhadap seluruh ketentuan dalam Perjanjian ini. Perjanjian ini memiliki kekuatan hukum yang sama dengan perjanjian tertulis yang ditandatangani secara manual sesuai peraturan perundang-undangan yang berlaku.")
+
+	// Add Signatures with Verification QR Code if possible
+	pdf.Ln(5)
 	yPos := pdf.GetY()
 
-	// PIHAK PERTAMA (Consultant)
+	// Ensure signature block isn't orphans on a new page without headers
+	if yPos > 240 {
+		pdf.AddPage()
+		yPos = pdf.GetY()
+	}
+
+	// PIHAK PERTAMA
 	pdf.SetXY(20, yPos)
-	pdf.SetFont("Arial", "B", 10)
-	pdf.CellFormat(80, 5, "PIHAK PERTAMA", "0", 1, "L", false, 0, "")
-	pdf.CellFormat(80, 5, strings.ToUpper(vars["[Nama Perusahaan]"]), "0", 1, "L", false, 0, "")
+	pdf.SetFont("Times", "B", 12)
+	pdf.CellFormat(80, 5.5, "HALALCORE", "0", 1, "L", false, 0, "")
+	pdf.CellFormat(80, 5.5, "PT Ana Nahnu Indonesia", "0", 1, "L", false, 0, "")
 	pdf.Ln(15)
-	pdf.CellFormat(80, 5, "( ____________________ )", "0", 1, "L", false, 0, "")
-	pdf.SetFont("Arial", "", 10)
-	pdf.CellFormat(80, 5, "Nama: "+vars["[Nama Penandatangan]"], "0", 1, "L", false, 0, "")
+	pdf.CellFormat(80, 5.5, "( ____________________ )", "0", 1, "L", false, 0, "")
+	pdf.SetFont("Times", "", 12)
+	pdf.CellFormat(80, 5.5, "Nama: "+vars["[Nama Penandatangan]"], "0", 1, "L", false, 0, "")
 
-	// PIHAK KEDUA (Client)
+	// PIHAK KEDUA (Client) with verification QR Code if we can construct the link
 	pdf.SetXY(110, yPos)
-	pdf.SetFont("Arial", "B", 10)
-	pdf.CellFormat(80, 5, "PIHAK KEDUA", "0", 1, "L", false, 0, "")
-	pdf.Ln(5) // Placeholder line
-	pdf.Ln(20)
-	pdf.CellFormat(80, 5, "( ____________________ )", "0", 1, "L", false, 0, "")
-	pdf.SetFont("Arial", "", 10)
-	pdf.CellFormat(80, 5, "Nama: "+vars["[Nama Klien / Perusahaan]"], "0", 1, "L", false, 0, "")
+	pdf.SetFont("Times", "B", 12)
+	pdf.CellFormat(80, 5.5, "KLIEN", "0", 1, "L", false, 0, "")
+	pdf.CellFormat(80, 5.5, vars["[Nama Klien / Perusahaan]"], "0", 1, "L", false, 0, "")
 
+	// Get base URL for verification link
+	settings, _ := uc.SettingRepo.GetAllSettings()
+	settingMap := make(map[string]string)
+	for _, s := range settings {
+		settingMap[s.Key] = s.Value
+	}
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = os.Getenv("APP_FRONTEND_URL")
+	}
+	if frontendURL == "" {
+		frontendURL = uc.getSetting(settingMap, "FRONTEND_URL", "https://halalcore.id")
+	}
+
+	verifyURL := vars["[Verification URL]"]
+	if verifyURL == "" {
+		verifyURL = frontendURL
+	}
+
+	qrPNG, err := uc.generateQRImageWithLogo(verifyURL, "templates/logo_halalcore.png")
+	if err == nil {
+		pdf.RegisterImageOptionsReader("contract_qr", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(qrPNG))
+		pdf.ImageOptions("contract_qr", 110, yPos+12, 25, 25, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+		
+		pdf.SetY(yPos + 38)
+	} else {
+		pdf.Ln(15)
+		pdf.CellFormat(80, 5.5, "( ____________________ )", "0", 1, "L", false, 0, "")
+	}
+
+	pdf.SetX(110)
+	pdf.SetFont("Times", "", 12)
+	pdf.CellFormat(80, 5.5, "Ditandatangani secara elektronik", "0", 1, "L", false, 0, "")
+	
 	pdf.Ln(10)
-	pdf.SetFont("Arial", "I", 8)
-	pdf.CellFormat(0, 5, "Catatan: Dokumen ini dihasilkan secara otomatis oleh sistem.", "0", 1, "C", false, 0, "")
+	pdf.SetFont("Times", "I", 9)
+	pdf.CellFormat(0, 5.5, "Catatan: Dokumen ini dihasilkan secara otomatis dan sah secara hukum tanpa tanda tangan basah.", "0", 1, "C", false, 0, "")
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
