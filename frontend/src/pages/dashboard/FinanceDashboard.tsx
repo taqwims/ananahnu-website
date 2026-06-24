@@ -1326,7 +1326,7 @@ function PricingTab({ submissions, formatIDR }: { submissions: any[]; formatIDR:
 // ── Expanded Submission Detail for Pricing ───────────────────────────
 
 function ExpandedSubmissionDetail({ submissionId, onClose }: { submissionId: string; onClose: () => void }) {
-    const { submission, fieldValues, loading, refresh, updateClient, updateBusinessType } = useSubmission(submissionId);
+    const { submission, fieldValues, loading, refresh, updateClient, updateBusinessType, updateClientInfoAndPricing } = useSubmission(submissionId);
     const user = useAuthStore(state => state.user);
     const [businessTypes, setBusinessTypes] = useState<any[]>([]);
     const [editingData, setEditingData] = useState(false);
@@ -1348,6 +1348,7 @@ function ExpandedSubmissionDetail({ submissionId, onClose }: { submissionId: str
                 submission={submission} 
                 user={user} 
                 onUpdateClient={updateClient} 
+                onUpdateClientInfoAndPricing={updateClientInfoAndPricing}
                 onUpdateBusinessType={updateBusinessType}
                 businessTypes={businessTypes}
                 processing={false} 
