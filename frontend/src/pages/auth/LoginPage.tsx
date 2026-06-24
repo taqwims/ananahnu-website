@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Lock, Mail, Loader2, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Lock, Mail, Loader2, ArrowRight, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 
@@ -124,6 +124,11 @@ export default function LoginPage() {
                     <div className="lg:hidden flex justify-center mb-12">
                         <Logo size="lg" />
                     </div>
+
+                    <Link to="/" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-brand-600 transition-colors mb-6 group">
+                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                        Kembali ke Beranda
+                    </Link>
 
                     <div className="mb-10">
                         <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>

@@ -117,6 +117,17 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
     const user = useAuthStore(state => state.user);
     const role = user?.role ?? '';
 
+    const handleLogout = () => {
+        const isClient = role === 'CLIENT';
+        logout();
+        if (isClient) {
+            const telemarketingUrl = window.location.hostname === 'localhost'
+                ? 'http://localhost:5174'
+                : 'https://telemarketing.halalcore.id';
+            window.location.replace(`${telemarketingUrl}/login`);
+        }
+    };
+
     return (
         <>
             {/* Mobile Overlay */}
@@ -205,7 +216,7 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
                     {/* Footer / Logout */}
                     <div className="mt-auto p-4 border-t border-glass-border bg-white/20 backdrop-blur-sm">
                         <button
-                            onClick={logout}
+                            onClick={handleLogout}
                             className="flex w-full items-center gap-3 px-4 py-3 text-sm font-black text-red-600 rounded-xl hover:bg-red-50 hover:text-red-700 transition-all active:scale-95 group"
                         >
                             <LogOut className="w-5 h-5 transition-transform group-hover:-translate-x-1" />

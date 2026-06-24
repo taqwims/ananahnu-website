@@ -1,8 +1,9 @@
 import { Link, Outlet } from 'react-router-dom';
-import { Menu, X, Phone, MapPin, Mail } from 'lucide-react';
+import { Menu, X, Phone, MapPin, Mail, User, LogOut, ChevronDown, LayoutDashboard } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Logo from '../ui/Logo';
 import api from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 
 const TELEMARKETING_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:5174'
@@ -11,6 +12,24 @@ const TELEMARKETING_URL = window.location.hostname === 'localhost'
 export default function PublicLayout() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [publicSettings, setPublicSettings] = useState<Record<string, string>>({});
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+    const user = useAuthStore(state => state.user);
+    const logout = useAuthStore(state => state.logout);
+    const role = user?.role ?? '';
+
+    const handleLogout = () => {
+        const isClient = role === 'CLIENT';
+        logout();
+        if (isClient) {
+            const telemarketingUrl = window.location.hostname === 'localhost'
+                ? 'http://localhost:5174'
+                : 'https://telemarketing.halalcore.id';
+            window.location.replace(`${telemarketingUrl}/login`);
+        } else {
+            setIsDropdownOpen(false);
+        }
+    };
 
     useEffect(() => {
         api.get('/system-settings/public')
@@ -39,9 +58,76 @@ export default function PublicLayout() {
                             <a href="/#news" className="text-gray-600 hover:text-brand-600 font-medium transition-colors">News</a>
                             <a href="/#contact" className="text-gray-600 hover:text-brand-600 font-medium transition-colors">Contact</a>
                             <a href={`${TELEMARKETING_URL}/form`} className="text-amber-600 hover:text-amber-700 font-bold transition-colors">Sertifikasi Halal</a>
-                            <Link to="/login" className="px-6 py-2 rounded-full bg-brand-600 text-white hover:bg-brand-700 font-bold shadow-lg shadow-brand-200 transition-all hover:scale-105 active:scale-95">
-                                Login
-                            </Link>
+                            
+                            {user ? (
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                        className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors outline-none"
+                                    >
+                                        <div className="w-9 h-9 rounded-full bg-brand-600 flex items-center justify-center border border-gray-100 overflow-hidden shadow-sm">
+                                            {user.avatar_url ? (
+                                                <img
+                                                    src={user.avatar_url.startsWith('http') ? user.avatar_url : `${import.meta.env.VITE_API_URL}${user.avatar_url}`}
+                                                    alt={user.full_name}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <User className="text-white w-4 h-4" />
+                                            )}
+                                        </div>
+                                        <span className="hidden sm:block text-sm font-semibold text-gray-700 max-w-[120px] truncate">
+                                            {user.full_name.split(' ')[0]}
+                                        </span>
+                                        <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+
+                                    {isDropdownOpen && (
+                                        <>
+                                            <div className="fixed inset-0 z-10" onClick={() => setIsDropdownOpen(false)}></div>
+                                            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-20 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                <div className="px-4 py-3 border-b border-gray-50">
+                                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Signed in as</p>
+                                                    <p className="text-sm font-bold text-gray-800 truncate">{user.full_name}</p>
+                                                    <p className="text-[10px] text-gray-500 uppercase font-medium">{user.role?.replace(/_/g, ' ')}</p>
+                                                </div>
+                                                
+                                                <Link
+                                                    to="/dashboard"
+                                                    onClick={() => setIsDropdownOpen(false)}
+                                                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand-600 transition-colors font-semibold"
+                                                >
+                                                    <LayoutDashboard className="w-4 h-4" />
+                                                    Ke Dashboard
+                                                </Link>
+                                                
+                                                <Link
+                                                    to="/dashboard/profile"
+                                                    onClick={() => setIsDropdownOpen(false)}
+                                                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand-600 transition-colors font-semibold"
+                                                >
+                                                    <User className="w-4 h-4" />
+                                                    Profil Saya
+                                                </Link>
+
+                                                <hr className="border-gray-50 my-1" />
+
+                                                <button
+                                                    onClick={handleLogout}
+                                                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors font-semibold text-left"
+                                                >
+                                                    <LogOut className="w-4 h-4" />
+                                                    Keluar
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            ) : (
+                                <Link to="/login" className="px-6 py-2 rounded-full bg-brand-600 text-white hover:bg-brand-700 font-bold shadow-lg shadow-brand-200 transition-all hover:scale-105 active:scale-95">
+                                    Login
+                                </Link>
+                            )}
                         </div>
 
                         {/* Mobile Menu Button */}
@@ -66,7 +152,33 @@ export default function PublicLayout() {
                             <a href="/#news" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-600 hover:bg-brand-50">News</a>
                             <a href="/#contact" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-600 hover:bg-brand-50">Contact</a>
                             <a href={`${TELEMARKETING_URL}/form`} className="block px-3 py-2 rounded-md text-base font-bold text-amber-600 hover:text-amber-700 hover:bg-brand-50">Sertifikasi Halal</a>
-                            <Link to="/login" className="block w-full mt-4 px-5 py-3 text-center rounded-lg bg-brand-600 text-white font-bold">Login</Link>
+                            
+                            {user ? (
+                                <div className="pt-4 pb-2 border-t border-gray-100 mt-4 px-3">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-10 h-10 rounded-full bg-brand-600 flex items-center justify-center border border-gray-100 overflow-hidden shadow-sm">
+                                            {user.avatar_url ? (
+                                                <img
+                                                    src={user.avatar_url.startsWith('http') ? user.avatar_url : `${import.meta.env.VITE_API_URL}${user.avatar_url}`}
+                                                    alt={user.full_name}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <User className="text-white w-5 h-5" />
+                                            )}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-gray-800 truncate">{user.full_name}</p>
+                                            <p className="text-xs text-gray-400 truncate">{user.role?.replace(/_/g, ' ')}</p>
+                                        </div>
+                                    </div>
+                                    <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-600 hover:bg-brand-50">Dashboard</Link>
+                                    <Link to="/dashboard/profile" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-600 hover:bg-brand-50">Profil Saya</Link>
+                                    <button onClick={() => { setMobileMenuOpen(false); handleLogout(); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50">Keluar</button>
+                                </div>
+                            ) : (
+                                <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="block w-full mt-4 px-5 py-3 text-center rounded-lg bg-brand-600 text-white font-bold">Login</Link>
+                            )}
                         </div>
                     </div>
                 )}

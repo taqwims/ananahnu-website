@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Mail, Lock, Phone, MapPin, Loader2, ArrowRight, ArrowLeft, CheckCircle2, ShieldCheck, Star, Eye, EyeOff } from 'lucide-react';
 import api from '../../services/api';
@@ -201,6 +201,11 @@ export default function RegisterPage() {
                     <div className="md:hidden mb-12 flex justify-center">
                         <Logo size="lg" />
                     </div>
+
+                    <Link to="/" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-brand-600 transition-colors mb-6 group">
+                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                        Kembali ke Beranda
+                    </Link>
 
                     <div className="mb-12 text-center">
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 border border-brand-100 text-brand-600 text-[10px] font-black uppercase tracking-widest mb-4 mx-auto">
