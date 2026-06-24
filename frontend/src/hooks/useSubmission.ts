@@ -39,12 +39,16 @@ export const useSubmission = (id: string | undefined) => {
     const refresh = async () => {
         if (!id) return;
         try {
-            const [sub, hist] = await Promise.all([
+            const [sub, hist, inv] = await Promise.all([
                 submissionService.getById(id),
-                submissionService.getHistory(id)
+                submissionService.getHistory(id),
+                submissionService.getInvoice(id).catch(() => null)
             ]);
             setSubmission(sub);
             setHistory(hist);
+            if (inv) {
+                setInvoice(inv);
+            }
         } catch (err: any) {
             toast.error(err.message || 'Gagal memperbarui data');
         }
@@ -55,6 +59,20 @@ export const useSubmission = (id: string | undefined) => {
         try {
             await submissionService.updateClient(clientId, data);
             toast.success('Data klien berhasil diperbarui');
+            await refresh();
+        } catch (err: any) {
+            toast.error(err.message);
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    const updateClientInfoAndPricing = async (data: any) => {
+        if (!id) return;
+        setProcessing(true);
+        try {
+            await submissionService.updateClientInfoAndPricing(id, data);
+            toast.success('Data klien dan rincian biaya berhasil diperbarui');
             await refresh();
         } catch (err: any) {
             toast.error(err.message);
@@ -153,6 +171,7 @@ export const useSubmission = (id: string | undefined) => {
         processing,
         refresh,
         updateClient,
+        updateClientInfoAndPricing,
         handleAction,
         issueSH,
         saveAuditInfo,

@@ -3,8 +3,10 @@ package usecase
 import (
 	"ananahnu/internal/domain"
 	"ananahnu/internal/utils"
+	"ananahnu/pkg/qrcode"
 	"archive/zip"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"regexp"
@@ -18,11 +20,16 @@ import (
 type DocumentUsecase interface {
 	GenerateContract(submissionID uuid.UUID, format string) ([]byte, string, error)
 	GenerateSPH(submissionID uuid.UUID) ([]byte, string, error)
+	GenerateTeleAgreementPDF(agreementID uuid.UUID) ([]byte, string, error)
+	GenerateInvoicePDF(submissionID uuid.UUID) ([]byte, string, error)
 }
 
 type DocumentUsecaseDeps struct {
-	SubmissionRepo domain.SubmissionRepository
-	SettingRepo    domain.SystemSettingRepository
+	SubmissionRepo    domain.SubmissionRepository
+	SettingRepo       domain.SystemSettingRepository
+	TeleAgreementRepo domain.TeleAgreementRepository
+	InvoiceRepo       domain.InvoiceRepository
+	BillingConfigRepo domain.BillingConfigRepository
 }
 
 type documentUsecase struct {
@@ -405,3 +412,360 @@ func (uc *documentUsecase) GenerateSPH(submissionID uuid.UUID) ([]byte, string, 
 	filename := fmt.Sprintf("SPH_%s.docx", strings.ReplaceAll(businessName, " ", "_"))
 	return buf.Bytes(), filename, nil
 }
+
+// GenerateTeleAgreementPDF generates the signed agreement PDF for telemarketing.
+// It embeds the QR code in the signature area.
+func (uc *documentUsecase) GenerateTeleAgreementPDF(agreementID uuid.UUID) ([]byte, string, error) {
+	agreement, err := uc.TeleAgreementRepo.FindByID(agreementID)
+	if err != nil {
+		return nil, "", fmt.Errorf("agreement not found: %w", err)
+	}
+
+	pdf := fpdf.New("P", "mm", "A4", "")
+	pdf.SetMargins(20, 20, 20)
+	pdf.AddPage()
+
+	// Helper to add centered bold text
+	centerBold := func(text string, size float64) {
+		pdf.SetFont("Arial", "B", size)
+		pdf.CellFormat(0, 7, text, "", 1, "C", false, 0, "")
+	}
+
+	// Header
+	centerBold("PERJANJIAN LAYANAN PENDAMPINGAN SERTIFIKASI HALAL", 14)
+	centerBold("HALALCORE", 10)
+	pdf.SetFont("Arial", "", 10)
+	pdf.CellFormat(0, 5, "Nomor: "+agreement.AgreementNumber, "", 1, "C", false, 0, "")
+	pdf.Ln(10)
+
+	// Body
+	pdf.SetFont("Arial", "", 10)
+	intro := fmt.Sprintf("Dokumen ini merupakan perjanjian yang disepakati secara elektronik pada tanggal %s oleh dan antara:",
+		agreement.SignedAt.Format("02 Jan 2006 15:04 WIB"))
+	pdf.MultiCell(0, 5, intro, "", "L", false)
+	pdf.Ln(5)
+
+	// PIHAK PERTAMA
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(0, 5, "PIHAK PERTAMA", "0", 1, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 10)
+	pihak1 := "HALALCORE (PT Ana Nahnu Indonesia)\nBeralamat di: Banjarsari - Ciamis - Jawa Barat"
+	pdf.MultiCell(0, 5, pihak1, "", "L", false)
+	pdf.Ln(4)
+
+	// PIHAK KEDUA
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(0, 5, "PIHAK KEDUA", "0", 1, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 10)
+	pdf.CellFormat(40, 5, "Nama Usaha", "0", 0, "L", false, 0, "")
+	pdf.CellFormat(0, 5, ": "+agreement.BusinessName, "0", 1, "L", false, 0, "")
+	pdf.CellFormat(40, 5, "Penanggung Jawab", "0", 0, "L", false, 0, "")
+	pdf.CellFormat(0, 5, ": "+agreement.PICName, "0", 1, "L", false, 0, "")
+	pdf.CellFormat(40, 5, "Alamat", "0", 0, "L", false, 0, "")
+	pdf.MultiCell(0, 5, ": "+agreement.Address, "", "L", false)
+	pdf.CellFormat(40, 5, "Email", "0", 0, "L", false, 0, "")
+	pdf.CellFormat(0, 5, ": "+agreement.Email, "0", 1, "L", false, 0, "")
+	pdf.CellFormat(40, 5, "No. HP", "0", 0, "L", false, 0, "")
+	pdf.CellFormat(0, 5, ": "+agreement.Phone, "0", 1, "L", false, 0, "")
+	pdf.Ln(10)
+
+	pdf.MultiCell(0, 5, "Para pihak sepakat untuk mengikatkan diri dalam Perjanjian Layanan Pendampingan Sertifikasi Halal dengan rincian biaya dan persetujuan yang telah disahkan secara elektronik melalui sistem Halalcore.", "", "L", false)
+	pdf.Ln(10)
+
+	// Signatures
+	yPos := pdf.GetY()
+
+	// PIHAK PERTAMA
+	pdf.SetXY(20, yPos)
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(80, 5, "PIHAK PERTAMA", "0", 1, "L", false, 0, "")
+	pdf.CellFormat(80, 5, "PT Ana Nahnu Indonesia", "0", 1, "L", false, 0, "")
+	pdf.Ln(15)
+	pdf.CellFormat(80, 5, "( ____________________ )", "0", 1, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 10)
+	pdf.CellFormat(80, 5, "Halalcore Admin", "0", 1, "L", false, 0, "")
+
+	// PIHAK KEDUA (Client) with QR Code
+	pdf.SetXY(110, yPos)
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(80, 5, "PIHAK KEDUA", "0", 1, "L", false, 0, "")
+	pdf.CellFormat(80, 5, agreement.BusinessName, "0", 1, "L", false, 0, "")
+	
+	// Draw QR Code
+	// Get base URL for verification link
+	settings, _ := uc.SettingRepo.GetAllSettings()
+	settingMap := make(map[string]string)
+	for _, s := range settings {
+		settingMap[s.Key] = s.Value
+	}
+	frontendURL := uc.getSetting(settingMap, "FRONTEND_URL", "https://halalcore.id")
+	verifyURL := fmt.Sprintf("%s/verify/%s/%s", frontendURL, agreement.ID.String(), agreement.VerificationToken)
+	
+	// Embed QR using fpdf RegisterImageOptions
+	// Since go-qrcode outputs PNG, we can use RegisterImageOptionsReader
+	qrPNG, err := uc.generateQRImageWithLogo(verifyURL, "templates/logo_halalcore.png")
+	if err == nil {
+		pdf.RegisterImageOptionsReader("signature_qr", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(qrPNG))
+		// X: 110 (PIHAK KEDUA), Y: current Y + 10, W: 25, H: 25
+		pdf.ImageOptions("signature_qr", 110, pdf.GetY()+2, 25, 25, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+	}
+
+	pdf.SetY(pdf.GetY() + 30) // Move down past QR code
+	pdf.SetX(110)
+	pdf.SetFont("Arial", "", 10)
+	pdf.CellFormat(80, 5, "Ditandatangani secara elektronik oleh:", "0", 1, "L", false, 0, "")
+	pdf.SetX(110)
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(80, 5, agreement.PICName, "0", 1, "L", false, 0, "")
+
+	pdf.Ln(15)
+	pdf.SetFont("Arial", "I", 8)
+	pdf.CellFormat(0, 5, "Catatan: Dokumen ini dihasilkan secara otomatis dan sah secara hukum tanpa tanda tangan basah.", "0", 1, "C", false, 0, "")
+	pdf.CellFormat(0, 5, "Scan QR code untuk memverifikasi keabsahan dokumen.", "0", 1, "C", false, 0, "")
+
+	var buf bytes.Buffer
+	if err := pdf.Output(&buf); err != nil {
+		return nil, "", err
+	}
+
+	filename := fmt.Sprintf("Agreement_%s.pdf", strings.ReplaceAll(agreement.BusinessName, " ", "_"))
+	return buf.Bytes(), filename, nil
+}
+
+// Helper to wrap the qrcode generation
+func (uc *documentUsecase) generateQRImageWithLogo(url, logoPath string) ([]byte, error) {
+	// Import "ananahnu/pkg/qrcode" in document_usecase.go
+	return qrcode.GenerateWithLogo(url, logoPath)
+}
+
+// GenerateInvoicePDF generates the customized invoice PDF with a QR code signature.
+func (uc *documentUsecase) GenerateInvoicePDF(submissionID uuid.UUID) ([]byte, string, error) {
+	// Fetch Invoice
+	invoice, err := uc.InvoiceRepo.FindBySubmissionID(submissionID)
+	if err != nil || invoice == nil {
+		return nil, "", fmt.Errorf("invoice not found")
+	}
+
+	// Fetch Submission to get client details
+	submission, err := uc.SubmissionRepo.FindByID(submissionID)
+	if err != nil {
+		return nil, "", fmt.Errorf("submission not found")
+	}
+
+	// Fetch Cost Detail
+	var breakdown []map[string]interface{}
+	costDetail, err := uc.BillingConfigRepo.GetSubmissionCostDetail(submissionID)
+	if err == nil && costDetail != nil && costDetail.CostBreakdownData != "" {
+		_ = json.Unmarshal([]byte(costDetail.CostBreakdownData), &breakdown)
+	}
+
+	pdf := fpdf.New("P", "mm", "A4", "")
+	pdf.SetMargins(15, 15, 15)
+	pdf.AddPage()
+
+	// Logo
+	logoPath := "templates/logo_halalcore.png"
+	pdf.ImageOptions(logoPath, 15, 15, 40, 0, false, fpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
+
+	// Header
+	pdf.SetFont("Arial", "B", 24)
+	pdf.SetTextColor(50, 100, 150)
+	pdf.SetXY(120, 15)
+	pdf.CellFormat(75, 10, "Invoice", "", 1, "R", false, 0, "")
+
+	// Invoice Info
+	pdf.SetFont("Arial", "B", 10)
+	pdf.SetTextColor(0, 0, 0)
+	pdf.SetXY(120, 30)
+	pdf.CellFormat(30, 5, "Referensi", "", 0, "R", false, 0, "")
+	pdf.SetFont("Arial", "", 10)
+	pdf.CellFormat(45, 5, fmt.Sprintf("INV/%d/%04d", invoice.CreatedAt.Year(), invoice.ID), "", 1, "R", false, 0, "")
+
+	pdf.SetXY(120, 35)
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(30, 5, "Tanggal", "", 0, "R", false, 0, "")
+	pdf.SetFont("Arial", "", 10)
+	pdf.CellFormat(45, 5, invoice.CreatedAt.Format("02/01/2006"), "", 1, "R", false, 0, "")
+
+	pdf.SetXY(120, 40)
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(30, 5, "Tgl. Jatuh Tempo", "", 0, "R", false, 0, "")
+	pdf.SetFont("Arial", "", 10)
+	// Assume due date is 14 days after creation
+	pdf.CellFormat(45, 5, invoice.CreatedAt.AddDate(0, 0, 14).Format("02/01/2006"), "", 1, "R", false, 0, "")
+
+	pdf.Ln(20)
+
+	// Company Info & Billed To
+	yPos := pdf.GetY()
+	
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(90, 5, "Info Perusahaan", "B", 0, "L", false, 0, "")
+	pdf.CellFormat(10, 5, "", "", 0, "", false, 0, "") // spacer
+	pdf.CellFormat(80, 5, "Tagihan Untuk", "B", 1, "L", false, 0, "")
+	pdf.Ln(3)
+
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(90, 5, "PT Ana Nahnu Indonesia", "", 0, "L", false, 0, "")
+	pdf.CellFormat(10, 5, "", "", 0, "", false, 0, "")
+	businessName := submission.Client.BusinessName
+	if businessName == "" {
+		businessName = submission.Client.ClientName
+	}
+	if businessName == "" {
+		businessName = "Unknown Client"
+	}
+	pdf.CellFormat(80, 5, businessName, "", 1, "L", false, 0, "")
+	
+	pdf.SetFont("Arial", "", 10)
+	
+	// Address and contact
+	companyAddress := "Jl Raya Banjarsari no 153 Desa Cibadak,\nKab Ciamis,\nJawa Barat,\nTelp: 081564955280\nEmail: ananahnuindonesia@gmail.com"
+	clientContact := fmt.Sprintf("Telp: %s", submission.Client.Phone)
+	
+	xBefore := pdf.GetX()
+	yBefore := pdf.GetY()
+	pdf.MultiCell(90, 5, companyAddress, "", "L", false)
+	
+	pdf.SetXY(xBefore+100, yBefore)
+	pdf.MultiCell(80, 5, clientContact, "", "L", false)
+	
+	pdf.Ln(15)
+
+	// Table Header
+	pdf.SetFont("Arial", "B", 9)
+	pdf.SetFillColor(40, 50, 70) // Dark blue-grey
+	pdf.SetTextColor(255, 255, 255)
+	
+	pdf.CellFormat(60, 8, "Produk", "", 0, "L", true, 0, "")
+	pdf.CellFormat(30, 8, "Deskripsi", "", 0, "L", true, 0, "")
+	pdf.CellFormat(20, 8, "Kuantitas", "", 0, "C", true, 0, "")
+	pdf.CellFormat(30, 8, "Harga (Rp)", "", 0, "R", true, 0, "")
+	pdf.CellFormat(40, 8, "Jumlah (Rp)", "", 1, "R", true, 0, "")
+	
+	// Table Body
+	pdf.SetFont("Arial", "", 9)
+	pdf.SetTextColor(0, 0, 0)
+	pdf.SetFillColor(245, 245, 245)
+	
+	fill := false
+	
+	if len(breakdown) > 0 {
+		for _, item := range breakdown {
+			name := ""
+			if val, ok := item["category"].(string); ok {
+				name = val
+			} else if val, ok := item["item_name"].(string); ok {
+				name = val
+			}
+			
+			qty := 1.0
+			if val, ok := item["quantity"].(float64); ok {
+				qty = val
+			}
+			
+			price := 0.0
+			if val, ok := item["amount"].(float64); ok {
+				price = val
+			} else if val, ok := item["unit_price"].(float64); ok {
+				price = val
+			}
+			
+			total := qty * price
+			if val, ok := item["total"].(float64); ok {
+				total = val
+			}
+
+			// Add row
+			pdf.CellFormat(60, 8, name, "", 0, "L", fill, 0, "")
+			pdf.CellFormat(30, 8, "Layanan", "", 0, "L", fill, 0, "")
+			pdf.CellFormat(20, 8, fmt.Sprintf("%.0f", qty), "", 0, "C", fill, 0, "")
+			pdf.CellFormat(30, 8, uc.formatIDR(price), "", 0, "R", fill, 0, "")
+			pdf.CellFormat(40, 8, uc.formatIDR(total), "", 1, "R", fill, 0, "")
+			
+			fill = !fill
+		}
+	} else {
+		// Fallback if no breakdown
+		pdf.CellFormat(60, 8, "Biaya Layanan Sertifikasi", "", 0, "L", fill, 0, "")
+		pdf.CellFormat(30, 8, "Layanan", "", 0, "L", fill, 0, "")
+		pdf.CellFormat(20, 8, "1", "", 0, "C", fill, 0, "")
+		pdf.CellFormat(30, 8, uc.formatIDR(invoice.Amount), "", 0, "R", fill, 0, "")
+		pdf.CellFormat(40, 8, uc.formatIDR(invoice.Amount), "", 1, "R", fill, 0, "")
+	}
+
+	pdf.Ln(5)
+
+	// Summary
+	pdf.SetFont("Arial", "B", 10)
+	pdf.SetX(100)
+	pdf.CellFormat(40, 7, "Subtotal", "B", 0, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 10)
+	pdf.CellFormat(40, 7, "Rp "+uc.formatIDR(invoice.Amount), "B", 1, "R", false, 0, "")
+	
+	pdf.SetFont("Arial", "B", 10)
+	pdf.SetX(100)
+	pdf.CellFormat(40, 7, "Total", "B", 0, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 10)
+	pdf.CellFormat(40, 7, "Rp "+uc.formatIDR(invoice.Amount), "B", 1, "R", false, 0, "")
+	
+	pdf.SetFont("Arial", "B", 10)
+	pdf.SetX(100)
+	pdf.CellFormat(40, 7, "Sisa Tagihan", "B", 0, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 10)
+	if invoice.Status == "PAID" {
+		pdf.CellFormat(40, 7, "Rp 0", "B", 1, "R", false, 0, "")
+	} else {
+		pdf.CellFormat(40, 7, "Rp "+uc.formatIDR(invoice.Amount), "B", 1, "R", false, 0, "")
+	}
+
+	pdf.Ln(20)
+
+	// Keterangan & Signature
+	yPos = pdf.GetY()
+	
+	// Keterangan
+	pdf.SetXY(15, yPos)
+	pdf.SetFont("Arial", "B", 11)
+	pdf.CellFormat(90, 7, "Keterangan", "B", 1, "L", false, 0, "")
+	pdf.Ln(2)
+	pdf.SetFont("Arial", "B", 9)
+	pdf.CellFormat(90, 5, "Transfer Bank", "", 1, "L", false, 0, "")
+	pdf.CellFormat(90, 5, "Bank: BNI", "", 1, "L", false, 0, "")
+	pdf.CellFormat(90, 5, "Nomor Rekening: 1825073247", "", 1, "L", false, 0, "")
+	pdf.CellFormat(90, 5, "Atas Nama: PT. Ana Nahnu Indonesia", "", 1, "L", false, 0, "")
+	
+	// Signature (QR Code)
+	pdf.SetXY(130, yPos)
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(50, 7, time.Now().Format("02 Jan, 2006"), "", 1, "C", false, 0, "")
+	
+	// Generate QR Code for Invoice Verification
+	settings, _ := uc.SettingRepo.GetAllSettings()
+	settingMap := make(map[string]string)
+	for _, s := range settings {
+		settingMap[s.Key] = s.Value
+	}
+	frontendURL := uc.getSetting(settingMap, "FRONTEND_URL", "https://halalcore.id")
+	verifyURL := fmt.Sprintf("%s/verify-invoice/%s", frontendURL, submissionID.String())
+	
+	qrPNG, err := uc.generateQRImageWithLogo(verifyURL, "templates/logo_halalcore.png")
+	if err == nil {
+		pdf.RegisterImageOptionsReader("invoice_qr", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(qrPNG))
+		pdf.ImageOptions("invoice_qr", 140, pdf.GetY()+2, 30, 30, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+	}
+
+	pdf.SetY(pdf.GetY() + 35)
+	pdf.SetX(130)
+	pdf.SetFont("Arial", "I", 8)
+	pdf.CellFormat(50, 5, "Validasi Elektronik", "", 1, "C", false, 0, "")
+
+	var buf bytes.Buffer
+	if err := pdf.Output(&buf); err != nil {
+		return nil, "", err
+	}
+
+	filename := fmt.Sprintf("Invoice_%s.pdf", strings.ReplaceAll(businessName, " ", "_"))
+	return buf.Bytes(), filename, nil
+}
+

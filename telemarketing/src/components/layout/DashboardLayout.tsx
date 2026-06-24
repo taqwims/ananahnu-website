@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import {
-  LayoutDashboard, Users, Calendar, BarChart3, LogOut,
+  LayoutDashboard, Users, Calendar, BarChart3, LogOut, Calculator,
   Menu, X, ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { to: '/dashboard/clients', icon: Users, label: 'Client Management' },
   { to: '/dashboard/meetings', icon: Calendar, label: 'Jadwal Meeting' },
+  { to: '/dashboard/estimasi-reguler', icon: Calculator, label: 'Estimasi Reguler' },
   { to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
 ];
 

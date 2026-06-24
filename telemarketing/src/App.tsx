@@ -10,10 +10,12 @@ import DashboardLayout from './components/layout/DashboardLayout';
 import LoginPage from './pages/auth/LoginPage';
 import LandingPage from './pages/public/LandingPage';
 import PublicFormPage from './pages/public/FormPage';
+import { VerifyAgreement } from './pages/public/VerifyAgreement';
 import DashboardHome from './pages/dashboard/DashboardHome';
 import ClientManagement from './pages/dashboard/ClientManagement';
 import MeetingSchedule from './pages/dashboard/MeetingSchedule';
 import AnalyticsPage from './pages/dashboard/Analytics';
+import EstimasiReguler from './pages/dashboard/EstimasiReguler';
 
 // JWT expiry check
 function getTokenExpiry(token: string): number | null {
@@ -60,6 +62,7 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/form" element={<PublicFormPage />} />
+        <Route path="/verify/:id/:token" element={<VerifyAgreement />} />
         <Route path="/login" element={<LoginPage />} />
 
         {/* Protected Dashboard Routes */}
@@ -75,6 +78,7 @@ function App() {
           <Route path="clients" element={<ClientManagement />} />
           <Route path="meetings" element={<MeetingSchedule />} />
           <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="estimasi-reguler" element={<EstimasiReguler />} />
         </Route>
 
         {/* Catch-all */}

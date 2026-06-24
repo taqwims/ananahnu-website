@@ -31,6 +31,7 @@ func NewSubmissionHandler(r *gin.Engine, uc usecase.SubmissionWorkflowUsecase) {
 		g.POST("/:id/audit-result", handler.UploadAuditResult)
 		g.POST("/:id/assign-consultant", handler.AssignConsultant)
 		g.POST("/:id/business-type", handler.UpdateBusinessType)
+		g.PUT("/:id/client-info", handler.UpdateClientInfoAndPricing)
 		g.POST("/bulk-assign-drafter", handler.BulkAssignDrafter)
 		g.GET("", handler.GetList)
 		g.GET("/:id", handler.GetDetail)
@@ -486,3 +487,29 @@ func (h *SubmissionHandler) UpdateBusinessType(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "business type updated"})
 }
+
+func (h *SubmissionHandler) UpdateClientInfoAndPricing(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid submission id"})
+		return
+	}
+
+	var input usecase.UpdateClientInfoAndPricingInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	role := middleware.GetUserRole(c)
+
+	if err := h.workflowUC.UpdateClientInfoAndPricing(id, input, userID, role); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "client info and pricing updated"})
+}
+

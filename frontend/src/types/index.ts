@@ -83,7 +83,8 @@ export interface Submission {
     regency_id?: number;
     district_id?: number;
     payments?: Payment[];
-    invoice?: Invoice;
+    invoice?: Invoice;    // legacy: first invoice only
+    invoices?: Invoice[]; // all invoices (DP + PELUNASAN)
     field_values?: FormFieldValue[];
     cost_detail?: SubmissionCostDetail;
     sh_url?: string;
@@ -94,6 +95,12 @@ export interface Submission {
     reject_note?: string;
     business_type_id?: number;
     business_type?: BusinessType;
+    province_id?: number;
+    product_category_id?: number;
+    business_scale_id?: number;
+    product_count?: number;
+    branch_count?: number;
+    mandays?: number;
     bpjph_payment_status?: 'UNPAID' | 'PAID';
     bpjph_amount?: number;
     bpjph_paid_at?: string;
@@ -209,11 +216,12 @@ export interface Invoice {
     submission?: Submission;
     payer?: User;
     service_type: string;
+    type: 'DP' | 'PELUNASAN' | 'FULL'; // DP=70% awal, PELUNASAN=30% sebelum download SH
     amount: number;
     status: 'UNPAID' | 'PAID';
     regency_id?: number;
     district_id?: number;
-    pricing_source?: string;   // SCHEME_PRICE, COORDINATOR_RATE, COST_DETAIL, DEFAULT
+    pricing_source?: string;
     sales_scheme_id?: number;
     discount_applied?: number;
     notes: string;
@@ -270,11 +278,34 @@ export interface AuditLog {
     created_at: string;
 }
 
+export interface BusinessScale {
+    id: number;
+    name: string;
+}
+
+export interface ProductCategory {
+    id: number;
+    name: string;
+}
+
+export interface SalesScheme {
+    id: number;
+    name: string;
+}
+
 export interface SubmissionCostDetail {
     id: number;
     submission_id: string;
     product_category_id?: number;
+    product_category?: ProductCategory;
     business_scale_id?: number;
+    business_scale?: BusinessScale;
+    province_id?: number;
+    province?: Province;
+    regency_id?: number;
+    regency?: Regency;
+    district_id?: number;
+    district?: District;
     product_count: number;
     branch_count: number;
     mandays: number;

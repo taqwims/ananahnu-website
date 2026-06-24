@@ -22,7 +22,20 @@ func (r *submissionRepository) Create(submission *domain.Submission) error {
 
 func (r *submissionRepository) FindByID(id uuid.UUID) (*domain.Submission, error) {
 	var submission domain.Submission
-	if err := r.db.Preload("Client").Preload("Payments").Preload("Invoice").Preload("CostDetail").Preload("AssignedDrafter").Preload("Consultant").Preload("BusinessType").First(&submission, "id = ?", id).Error; err != nil {
+	if err := r.db.Preload("Client").
+		Preload("Payments").
+		Preload("Invoice").
+		Preload("Invoices").
+		Preload("CostDetail").
+		Preload("CostDetail.Province").
+		Preload("CostDetail.Regency").
+		Preload("CostDetail.District").
+		Preload("CostDetail.ProductCategory").
+		Preload("CostDetail.BusinessScale").
+		Preload("AssignedDrafter").
+		Preload("Consultant").
+		Preload("BusinessType").
+		First(&submission, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
 	return &submission, nil
@@ -163,4 +176,8 @@ func (r *submissionRepository) UpdateBPJPHPaymentBulk(ids []uuid.UUID, status st
 		"bpjph_amount":         amount,
 		"bpjph_paid_at":        paidAt,
 	}).Error
+}
+
+func (r *submissionRepository) Update(submission *domain.Submission) error {
+	return r.db.Model(submission).Updates(submission).Error
 }

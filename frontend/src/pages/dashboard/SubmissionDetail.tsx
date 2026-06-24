@@ -28,6 +28,7 @@ export default function SubmissionDetail() {
         processing, 
         refresh, 
         updateClient, 
+        updateClientInfoAndPricing,
         handleAction, 
         issueSH, 
         saveAuditInfo, 
@@ -124,6 +125,7 @@ export default function SubmissionDetail() {
                     submission={submission} 
                     user={user} 
                     onUpdateClient={updateClient} 
+                    onUpdateClientInfoAndPricing={updateClientInfoAndPricing}
                     onUpdateBusinessType={updateBusinessType}
                     businessTypes={businessTypes}
                     processing={processing} 
@@ -147,7 +149,26 @@ export default function SubmissionDetail() {
                 />
 
                 {submission.sh_url && (
-                    <SubmissionCertificate shUrl={submission.sh_url} />
+                    <SubmissionCertificate 
+                        shUrl={submission.sh_url}
+                        isSplitPayment={submission.service_type === 'REGULER'}
+                        pelunasanPaid={
+                            submission.service_type !== 'REGULER' ||
+                            !!(submission.invoices?.find(inv => inv.type === 'PELUNASAN')?.status === 'PAID')
+                        }
+                    />
+                )}
+
+                {/* Pelunasan 30% section — shown at SH_TERBIT for REGULER */}
+                {submission.status === 'SH_TERBIT' && 
+                 submission.service_type === 'REGULER' &&
+                 submission.invoices?.find(inv => inv.type === 'PELUNASAN')?.status !== 'PAID' && (
+                    <PaymentSection 
+                        submission={submission} 
+                        fieldValues={fieldValues}
+                        onPaymentSuccess={refresh}
+                        invoiceType="PELUNASAN"
+                    />
                 )}
 
                 {invoice && (
@@ -178,6 +199,7 @@ export default function SubmissionDetail() {
                         submission={submission} 
                         user={user} 
                         onUpdateClient={updateClient} 
+                        onUpdateClientInfoAndPricing={updateClientInfoAndPricing}
                         onUpdateBusinessType={updateBusinessType}
                         businessTypes={businessTypes}
                         processing={processing} 
@@ -206,10 +228,7 @@ export default function SubmissionDetail() {
                         {serviceType === 'REGULER' ? (
                             <KalkulatorReguler 
                                 submissionId={submission.id} 
-                                readOnly={!(
-                                    ['ADMIN', 'FINANCE', 'ADMIN_KEUANGAN', 'DIRECTOR'].includes(user?.role || '') ||
-                                    (['HALAL_ADVISOR', 'MARKETING', 'HALAL_MANAGER', 'HALAL_DIRECTOR'].includes(user?.role || '') && (submission.status === 'DRAFT' || submission.status === 'REVISION'))
-                                )} 
+                                readOnly={true} 
                                 onSaved={refresh}
                                 salesSchemeId={submission.sales_scheme_id || undefined}
                                 dataSource={submission.data_source}
@@ -225,7 +244,26 @@ export default function SubmissionDetail() {
                     </div>
 
                     {submission.sh_url && (
-                        <SubmissionCertificate shUrl={submission.sh_url} />
+                        <SubmissionCertificate 
+                            shUrl={submission.sh_url}
+                            isSplitPayment={submission.service_type === 'REGULER'}
+                            pelunasanPaid={
+                                submission.service_type !== 'REGULER' ||
+                                !!(submission.invoices?.find(inv => inv.type === 'PELUNASAN')?.status === 'PAID')
+                            }
+                        />
+                    )}
+
+                    {/* Pelunasan 30% section — shown at SH_TERBIT for REGULER (staff view) */}
+                    {submission.status === 'SH_TERBIT' && 
+                     submission.service_type === 'REGULER' &&
+                     submission.invoices?.find(inv => inv.type === 'PELUNASAN')?.status !== 'PAID' && (
+                        <PaymentSection 
+                            submission={submission} 
+                            fieldValues={fieldValues}
+                            onPaymentSuccess={refresh}
+                            invoiceType="PELUNASAN"
+                        />
                     )}
 
                     {invoice && (

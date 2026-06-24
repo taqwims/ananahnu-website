@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { getMyForms, updateFormStatus, generateClientAccount, setSelfDeclareType, type TeleForm } from '../../services/teleService';
+import { getMyForms, updateFormStatus, generateClientAccount, setSelfDeclareType, getAgreementByFormId, downloadAgreementPDF, type TeleForm } from '../../services/teleService';
 import { motion } from 'framer-motion';
 import {
   Users, Search, UserPlus, Eye, CheckCircle2,
-  XCircle, Phone, Mail, Building2, Filter, Tag
+  XCircle, Phone, Mail, Building2, Filter, Tag, Download
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -358,12 +358,40 @@ export default function ClientManagement() {
               ))}
             </div>
 
-            <button
-              onClick={() => setSelectedForm(null)}
-              className="btn-secondary w-full mt-4 flex items-center justify-center gap-2 font-bold text-dark-900 border border-dark-200"
-            >
-              <XCircle className="w-4 h-4 text-dark-550" /> Tutup Detail
-            </button>
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await getAgreementByFormId(selectedForm.id);
+                    if (!res.data || !res.data.id) {
+                      toast.error("Perjanjian belum dibuat untuk client ini");
+                      return;
+                    }
+                    const pdfRes = await downloadAgreementPDF(res.data.id);
+                    const url = window.URL.createObjectURL(new Blob([pdfRes.data]));
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.setAttribute('download', `Agreement_${res.data.agreement_number || 'Tele'}.pdf`);
+                    document.body.appendChild(link);
+                    link.click();
+                    link.parentNode?.removeChild(link);
+                    toast.success("Dokumen Perjanjian (PDF) berhasil diunduh!");
+                  } catch (e: any) {
+                    toast.error("Gagal mengunduh dokumen. Pastikan client sudah disetujui.");
+                  }
+                }}
+                className="btn-primary flex-1 flex items-center justify-center gap-2 font-bold"
+              >
+                <Download className="w-4 h-4" /> Unduh Perjanjian (PDF)
+              </button>
+              
+              <button
+                onClick={() => setSelectedForm(null)}
+                className="btn-secondary flex-1 flex items-center justify-center gap-2 font-bold text-dark-900 border border-dark-200"
+              >
+                <XCircle className="w-4 h-4 text-dark-550" /> Tutup Detail
+              </button>
+            </div>
           </motion.div>
         </div>
       )}

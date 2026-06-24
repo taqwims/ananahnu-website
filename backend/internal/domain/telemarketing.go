@@ -151,6 +151,10 @@ type TeleAgreement struct {
 	SignedAt  time.Time `json:"signed_at"`
 	PDFURL    string    `json:"pdf_url"`
 
+	// Digital Signature
+	VerificationToken string `gorm:"unique;not null" json:"verification_token"`
+	SignatureHash     string `json:"signature_hash"`
+
 	CreatedAt time.Time `json:"created_at"`
 }
 

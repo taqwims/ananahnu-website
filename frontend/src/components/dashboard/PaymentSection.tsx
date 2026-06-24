@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CreditCard, Upload, CheckCircle, Loader2, AlertCircle, Clock, ExternalLink, RefreshCw } from 'lucide-react';
+import { CreditCard, Upload, CheckCircle, Loader2, AlertCircle, Clock, ExternalLink, RefreshCw, Download } from 'lucide-react';
 import api from '../../services/api';
 import { loadSnapJs, isSnapReady } from '../../utils/midtrans';
 import { useAuthStore } from '../../store/authStore';
@@ -12,13 +12,15 @@ interface PaymentSectionProps {
     submission: Submission;
     fieldValues?: FormFieldValue[];
     onPaymentSuccess: () => void;
+    /** Which invoice to show: 'DP' for 70% initial, 'PELUNASAN' for 30% final. Defaults to 'DP' */
+    invoiceType?: 'DP' | 'PELUNASAN' | 'FULL';
 }
 
-export default function PaymentSection({ submission, fieldValues = [], onPaymentSuccess }: PaymentSectionProps) {
+export default function PaymentSection({ submission, fieldValues = [], onPaymentSuccess, invoiceType = 'DP' }: PaymentSectionProps) {
     const [loading, setLoading] = useState(false);
     const [method, setMethod] = useState<'MANUAL' | 'MIDTRANS'>('MIDTRANS');
     const [proofUrl, setProofUrl] = useState('');
-    const [amount, setAmount] = useState(submission.cost_detail?.total_amount || 0);
+    const [amount, setAmount] = useState(0);
     const [snapLoading, setSnapLoading] = useState(false);
     const [snapError, setSnapError] = useState<string | null>(null);
     const [paymentHistory, setPaymentHistory] = useState<Payment[]>([]);
@@ -28,13 +30,28 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
     const user = useAuthStore((state) => state.user);
     const isEditable = user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR';
 
-    // Sync amount if submission cost detail changes or from invoice
+    // Resolve the correct invoice based on invoiceType
+    const resolvedInvoice = (() => {
+        const allInvoices = submission.invoices || [];
+        if (allInvoices.length > 0) {
+            const match = allInvoices.find(inv => inv.type === invoiceType);
+            if (match) return match;
+        }
+        return submission.invoice || null;
+    })();
+
+    // Sync amount from the resolved invoice
     useEffect(() => {
-        if (submission.invoice?.amount) {
-            setAmount(submission.invoice.amount);
-        } else if (submission.cost_detail?.total_amount) {
-            setAmount(submission.cost_detail.total_amount);
-        } else if (submission.service_type === 'REGULER') {
+        if (resolvedInvoice?.amount) {
+            setAmount(resolvedInvoice.amount);
+            return;
+        }
+        if (submission.cost_detail?.total_amount) {
+            const total = submission.cost_detail.total_amount;
+            setAmount(invoiceType === 'PELUNASAN' ? total * 0.30 : total * 0.70);
+            return;
+        }
+        if (submission.service_type === 'REGULER') {
             setLoadingConfig(true);
             api.get(`/invoices/submission/${submission.id}`)
                 .then(res => {
@@ -54,7 +71,7 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                 .catch(err => console.error("Failed to load cost config", err))
                 .finally(() => setLoadingConfig(false));
         }
-    }, [submission, submission.id, submission.cost_detail?.total_amount, submission.service_type]);
+    }, [submission, submission.id, submission.cost_detail?.total_amount, submission.service_type, resolvedInvoice, invoiceType]);
 
     // Load payment history for this submission
     const loadHistory = useCallback(async () => {
@@ -178,11 +195,34 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
         }
     };
 
+    const handleDownloadInvoice = async () => {
+        try {
+            const toastId = toast.loading('Mengunduh Invoice...');
+            const res = await api.get(`/documents/submissions/${submission.id}/invoice-pdf`, { responseType: 'blob' });
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Invoice_${submission.client?.business_name || 'Tagihan'}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            toast.success('Invoice berhasil diunduh', { id: toastId });
+        } catch (error) {
+            toast.error('Gagal mengunduh invoice');
+            console.error('Download error:', error);
+        }
+    };
+
+    // Invoice type display label
+    const invoiceLabel = invoiceType === 'PELUNASAN' ? 'Pelunasan (30%)' 
+                       : invoiceType === 'DP' ? 'Down Payment (70%)' 
+                       : 'Pembayaran';
+
     // Check for existing paid/pending payments or paid invoice
     const foundPayment = paymentHistory.find(p => p.status === 'PAID') || 
                         submission.payments?.find(p => p.status === 'PAID');
-    const isInvoicePaid = submission.invoice?.status === 'PAID';
-    const paidPayment = foundPayment || (isInvoicePaid ? { amount: submission.invoice?.amount || 0, status: 'PAID' } : null);
+    const isInvoicePaid = resolvedInvoice?.status === 'PAID';
+    const paidPayment = foundPayment || (isInvoicePaid ? { amount: resolvedInvoice?.amount || 0, status: 'PAID' } : null);
     
     const pendingPayment = paymentHistory.find(p => p.status === 'PENDING') || submission.payments?.find(p => p.status === 'PENDING');
 
@@ -190,9 +230,12 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
     if (paidPayment) {
         return (
             <div className="glass-panel p-6 bg-green-50 border-green-200 space-y-4">
-                <div className="flex items-center gap-3 text-green-800">
-                    <CheckCircle className="w-6 h-6" />
-                    <h3 className="text-lg font-bold">Pembayaran Selesai</h3>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-green-800">
+                        <CheckCircle className="w-6 h-6" />
+                        <h3 className="text-lg font-bold">Pembayaran Selesai</h3>
+                    </div>
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-700">{invoiceLabel}</span>
                 </div>
                 <div className="space-y-1">
                     <p className="text-sm text-green-700">
@@ -214,6 +257,13 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                         <p className="text-xs text-green-600 italic">Dikonfirmasi secara manual oleh admin</p>
                     )}
                 </div>
+                <button
+                    onClick={handleDownloadInvoice}
+                    className="mt-4 flex items-center gap-2 px-4 py-2 bg-white text-green-700 border border-green-200 rounded-lg text-sm font-medium hover:bg-green-50 transition-colors"
+                >
+                    <Download className="w-4 h-4" />
+                    Download Invoice
+                </button>
             </div>
         );
     }
@@ -270,8 +320,21 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
     return (
         <div className="glass-panel p-6 space-y-5">
             <div>
-                <h3 className="text-lg font-semibold text-gray-800">Pembayaran Diperlukan</h3>
-                <p className="text-sm text-gray-500 mt-1">Silakan selesaikan pembayaran untuk melanjutkan proses verifikasi.</p>
+                <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-lg font-semibold text-gray-800">
+                        {invoiceType === 'PELUNASAN' ? 'Pelunasan Sertifikat Halal' : 'Pembayaran Diperlukan'}
+                    </h3>
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                        invoiceType === 'PELUNASAN' 
+                            ? 'bg-purple-100 text-purple-700' 
+                            : 'bg-amber-100 text-amber-700'
+                    }`}>{invoiceLabel}</span>
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                    {invoiceType === 'PELUNASAN' 
+                        ? 'Selesaikan pembayaran pelunasan 30% untuk mengunduh Sertifikat Halal Anda.'
+                        : 'Silakan selesaikan pembayaran untuk melanjutkan proses verifikasi.'}
+                </p>
             </div>
 
             {/* Amount input */}
@@ -295,6 +358,44 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                     />
                 )}
             </div>
+
+            {/* Cost Breakdown */}
+            {submission.cost_detail?.cost_breakdown_data && (
+                <div className="mb-4 bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                        <h4 className="text-sm font-semibold text-gray-700">Rincian Biaya</h4>
+                    </div>
+                    <div className="p-4 overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                            <thead className="bg-gray-50/50">
+                                <tr>
+                                    <th className="py-2 px-3 font-semibold text-gray-600">Komponen</th>
+                                    <th className="py-2 px-3 font-semibold text-gray-600 text-center">Qty</th>
+                                    <th className="py-2 px-3 font-semibold text-gray-600 text-right">Harga</th>
+                                    <th className="py-2 px-3 font-semibold text-gray-600 text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {(() => {
+                                    try {
+                                        const breakdown = JSON.parse(submission.cost_detail.cost_breakdown_data);
+                                        return breakdown.map((item: any, idx: number) => (
+                                            <tr key={idx} className="hover:bg-gray-50/50">
+                                                <td className="py-2 px-3 text-gray-800">{item.name || item.category || item.item_name}</td>
+                                                <td className="py-2 px-3 text-gray-600 text-center">{item.multiplier || item.quantity || 1}</td>
+                                                <td className="py-2 px-3 text-gray-600 text-right">{formatRupiah(item.unit_cost !== undefined ? item.unit_cost : (item.amount || item.unit_price || 0))}</td>
+                                                <td className="py-2 px-3 font-medium text-gray-800 text-right">{formatRupiah(item.total || 0)}</td>
+                                            </tr>
+                                        ));
+                                    } catch (e) {
+                                        return null;
+                                    }
+                                })()}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {/* Method selector */}
             <div className="flex gap-4">
@@ -415,6 +516,17 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                     </>
                 )}
             </button>
+
+            {/* Download Invoice Button */}
+            <div className="flex justify-center mt-2">
+                <button
+                    onClick={handleDownloadInvoice}
+                    className="flex items-center gap-2 px-4 py-2 text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-lg text-sm font-medium transition-colors"
+                >
+                    <Download className="w-4 h-4" />
+                    Download Invoice Sementara
+                </button>
+            </div>
 
             {/* Payment History */}
             {paymentHistory.length > 0 && (

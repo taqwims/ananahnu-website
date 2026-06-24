@@ -39,6 +39,12 @@ type Submission struct {
 	DistrictID          *int64           `json:"district_id,omitempty"`
 	BusinessTypeID      *int64           `json:"business_type_id,omitempty"`
 	BusinessType        *BusinessType    `gorm:"foreignKey:BusinessTypeID" json:"business_type,omitempty"`
+	ProvinceID          *int64           `json:"province_id,omitempty"`
+	ProductCategoryID   *int64           `json:"product_category_id,omitempty"`
+	BusinessScaleID     *int64           `json:"business_scale_id,omitempty"`
+	ProductCount        int              `gorm:"default:1" json:"product_count"`
+	BranchCount         int              `gorm:"default:1" json:"branch_count"`
+	Mandays             int              `gorm:"default:1" json:"mandays"`
 	RejectNote          string           `json:"reject_note,omitempty"`
 	TrackingNumber      *string          `gorm:"uniqueIndex" json:"tracking_number,omitempty"`
 	AuditDate           *time.Time       `json:"audit_date,omitempty"`
@@ -46,7 +52,8 @@ type Submission struct {
 	AuditResult2URL     string           `gorm:"column:audit_result_2_url" json:"audit_result_2_url,omitempty"`
 	SHURL               string           `json:"sh_url,omitempty"`
 	Payments            []Payment             `gorm:"foreignKey:SubmissionID" json:"payments"`
-	Invoice             *Invoice              `gorm:"foreignKey:SubmissionID" json:"invoice,omitempty"`
+	Invoice             *Invoice              `gorm:"foreignKey:SubmissionID" json:"invoice,omitempty"` // deprecated: use Invoices
+	Invoices            []Invoice             `gorm:"foreignKey:SubmissionID" json:"invoices,omitempty"`
 	Expenses            []Expense             `gorm:"foreignKey:SubmissionID" json:"expenses"`
 	CostDetail          *SubmissionCostDetail `gorm:"foreignKey:SubmissionID" json:"cost_detail,omitempty"`
 	FieldValues         []FormFieldValue      `gorm:"foreignKey:SubmissionID" json:"field_values,omitempty"`
@@ -83,4 +90,5 @@ type SubmissionRepository interface {
 	Delete(id uuid.UUID) error
 	UpdateBPJPHPayment(id uuid.UUID, status string, amount float64, paidAt *time.Time) error
 	UpdateBPJPHPaymentBulk(ids []uuid.UUID, status string, amount float64, paidAt *time.Time) error
+	Update(submission *Submission) error
 }

@@ -27,6 +27,7 @@ type SubmissionWorkflowUsecase interface {
 	Delete(id uuid.UUID, userID uuid.UUID, userRole string) error
 	HandlePaymentSuccess(id uuid.UUID, amount float64) error
 	IsAuthorized(userID uuid.UUID, role string, submissionID uuid.UUID) bool
+	UpdateClientInfoAndPricing(id uuid.UUID, input UpdateClientInfoAndPricingInput, userID uuid.UUID, userRole string) error
 }
 
 type CreateFullInput struct {
@@ -44,6 +45,32 @@ type CreateFullInput struct {
 		BusinessTypeID *int64 `json:"business_type_id"`
 	} `json:"client_data"`
 	FieldValues []FieldValueInput `json:"field_values"`
+}
+
+type UpdateClientInfoAndPricingInput struct {
+	// Client fields
+	BusinessName  string `json:"business_name"`
+	ClientName    string `json:"client_name"`
+	NIB           string `json:"nib"`
+	NIK           string `json:"nik"`
+	ProductName   string `json:"product_name"`
+	Address       string `json:"address"`
+	ContactPerson string `json:"contact_person"`
+	Phone         string `json:"phone"`
+
+	// Pricing fields
+	BusinessTypeID    *int64 `json:"business_type_id"`
+	ProductCategoryID *int64 `json:"product_category_id"`
+	BusinessScaleID   *int64 `json:"business_scale_id"`
+	ProvinceID        *int64 `json:"province_id"`
+	RegencyID         *int64 `json:"regency_id"`
+	DistrictID        *int64 `json:"district_id"`
+	ProductCount      int    `json:"product_count"`
+	BranchCount       int    `json:"branch_count"`
+	Mandays           int    `json:"mandays"`
+	SalesSchemeID     *int64 `json:"sales_scheme_id"`
+	DataSource        string `json:"data_source"`
+	SelectedOptionalComponentIDs *[]int64 `json:"selected_optional_component_ids"`
 }
 
 

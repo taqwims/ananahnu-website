@@ -251,7 +251,7 @@ export default function MeetingSchedule() {
       return forms;
     }
     if (modalTab === 'initial') {
-      return forms.filter((f) => f.status === 'TELECONFERENCE_QUEUED' || f.route_type === 'SELF_DECLARE');
+      return forms.filter((f) => f.status === 'TELECONFERENCE_QUEUED' || f.status === 'PENDING' || f.route_type === 'SELF_DECLARE');
     }
     return forms.filter(
       (f) => f.status !== 'TELECONFERENCE_QUEUED' && f.status !== 'PENDING' && f.status !== 'DELETED'

@@ -36,6 +36,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     // Dynamic cost components from master biaya
     const [masterComponents, setMasterComponents] = useState<BillingComponent[]>([]);
     const [loadingComponents, setLoadingComponents] = useState(false);
+    const [salesSchemePrice, setSalesSchemePrice] = useState<any | null>(null);
 
     // Form State
     const [businessTypeId, setBusinessTypeId] = useState('');
@@ -54,6 +55,9 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     const [optionalCosts, setOptionalCosts] = useState<OptionalCost[]>([]);
     const [newOptName, setNewOptName] = useState('');
     const [newOptAmount, setNewOptAmount] = useState('');
+    const [selectedOptionalComponentIds, setSelectedOptionalComponentIds] = useState<number[]>([]);
+    const [initialBreakdown, setInitialBreakdown] = useState<any[] | null>(null);
+    const [hasInitializedOptionalComponents, setHasInitializedOptionalComponents] = useState(false);
 
     // Geography cascading
     useEffect(() => {
@@ -97,11 +101,45 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             
             params.resolve_geography = 'true';
 
-            const [compRes] = await Promise.all([
+            const promises: [Promise<any>, Promise<any>?] = [
                 api.get('/billing-config/components', { params })
-            ]);
+            ];
+
+            if (targetSchemeId) {
+                const priceParams: Record<string, string> = {
+                    sales_scheme_id: targetSchemeId.toString(),
+                    is_active: 'true'
+                };
+                if (businessTypeId) priceParams.business_type_id = businessTypeId;
+                if (businessScaleId) priceParams.business_scale_id = businessScaleId;
+                if (dataSource) priceParams.data_source = dataSource === 'TELEMARKETING' ? 'ORGANIK' : dataSource;
+                promises.push(api.get('/billing-config/scheme-prices', { params: priceParams }));
+            }
+
+            const [compRes, priceRes] = await Promise.all(promises);
 
             setMasterComponents(compRes.data || []);
+
+            if (priceRes && priceRes.data && priceRes.data.length > 0) {
+                // Sort by specificity
+                const prices = priceRes.data;
+                prices.sort((a: any, b: any) => {
+                    let scoreA = 0;
+                    if (a.product_category_id) scoreA += 100;
+                    if (a.business_scale_id) scoreA += 10;
+                    if (a.business_type_id) scoreA += 1;
+
+                    let scoreB = 0;
+                    if (b.product_category_id) scoreB += 100;
+                    if (b.business_scale_id) scoreB += 10;
+                    if (b.business_type_id) scoreB += 1;
+
+                    return scoreB - scoreA;
+                });
+                setSalesSchemePrice(prices[0]);
+            } else {
+                setSalesSchemePrice(null);
+            }
 
         } catch (err) {
             console.error('Failed to load components:', err);
@@ -144,8 +182,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                     if (detailRes.data.cost_breakdown_data) {
                         try {
                             const bd = JSON.parse(detailRes.data.cost_breakdown_data);
-                            const optionals = bd.filter((b: any) => b.is_optional);
-                            setOptionalCosts(optionals.map((o: any) => ({ name: o.name, amount: o.total })));
+                            setInitialBreakdown(bd);
                         } catch (e) {
                             console.error(e);
                         }
@@ -164,6 +201,34 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     useEffect(() => {
         if (!loading) fetchComponents();
     }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, fetchComponents, loading]);
+
+    useEffect(() => {
+        if (!initialBreakdown || masterComponents.length === 0 || hasInitializedOptionalComponents) return;
+
+        const selectedIds: number[] = [];
+        const customOptionals: any[] = [];
+
+        initialBreakdown.forEach((item: any) => {
+            if (!item.is_optional) return;
+
+            // Check if this matches a component in masterComponents (by name prefix)
+            const matchingComp = masterComponents.find(c => 
+                !c.is_mandatory && 
+                c.category.toUpperCase() !== 'PENDAMPINGAN' &&
+                item.name.startsWith(c.name)
+            );
+
+            if (matchingComp) {
+                selectedIds.push(matchingComp.id);
+            } else {
+                customOptionals.push({ name: item.name, amount: item.total });
+            }
+        });
+
+        setSelectedOptionalComponentIds(selectedIds);
+        setOptionalCosts(customOptionals);
+        setHasInitializedOptionalComponents(true);
+    }, [masterComponents, initialBreakdown, hasInitializedOptionalComponents]);
 
     const addOptionalCost = () => {
         if (!newOptName || !newOptAmount) return;
@@ -192,7 +257,10 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         masterComponents.forEach(comp => {
             if (!comp || !comp.category) return;
             const cat = comp.category.toUpperCase();
-            if (cat === 'OPSIONAL') return;
+            if (cat === 'PENDAMPINGAN') return; // Skip PENDAMPINGAN as we use salesSchemePrice
+            
+            // Skip optional components from categoryMap (handled separately)
+            if (!comp.is_mandatory) return;
 
             let score = 0;
             if (comp.district_id) score += 1000;
@@ -208,6 +276,53 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 categoryMap.set(cat, { ...comp, score });
             }
         });
+
+        // Find matching PENDAMPINGAN component name from masterComponents
+        let pendampinganName = 'Jasa Pendampingan';
+        let bestPendScore = -1;
+        masterComponents.forEach(comp => {
+            if (!comp || comp.category.toUpperCase() !== 'PENDAMPINGAN') return;
+
+            // Match filters
+            if (comp.province_id && comp.province_id.toString() !== provinceId) return;
+            if (comp.regency_id && comp.regency_id.toString() !== regencyId) return;
+            if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId) return;
+            if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId) return;
+            if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== salesSchemeId?.toString()) return;
+
+            let score = 0;
+            if (comp.district_id) score += 1000;
+            if (comp.regency_id) score += 100;
+            if (comp.province_id) score += 10;
+            if (comp.sales_scheme_id) score += 8;
+            if (comp.business_scale_id) score += 5;
+            if (comp.product_category_id) score += 2;
+            if (comp.business_type_id) score += 1;
+
+            if (score > bestPendScore) {
+                bestPendScore = score;
+                pendampinganName = comp.name;
+            }
+        });
+
+        // Add Jasa Pendampingan from salesSchemePrice if exists
+        if (salesSchemePrice) {
+            const price = salesSchemePrice.base_price;
+            let finalPrice = price;
+            if (salesSchemePrice.discount_percent > 0) {
+                finalPrice = price - (price * (salesSchemePrice.discount_percent / 100));
+            }
+            
+            currentBreakdown.push({
+                name: pendampinganName,
+                category: 'JASA',
+                unit_cost: finalPrice,
+                multiplier: null,
+                total: finalPrice,
+                is_optional: false
+            });
+            currentTotal += finalPrice;
+        }
 
         Array.from(categoryMap.values()).forEach(comp => {
             let nameTag = '';
@@ -246,9 +361,9 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         // 2. Partnership discount on pendampingan
         const currentScheme = schemes.find((s: any) => s.id === (salesSchemeId || -1));
         if (currentScheme && currentScheme.name.toUpperCase() === 'PARTNERSHIP') {
-            const lphComp = categoryMap.get('LPH') || categoryMap.get('PENDAMPINGAN');
-            if (lphComp) {
-                const discountAmount = lphComp.base_amount * 0.1;
+            const jaseItem = currentBreakdown.find(item => item.category === 'JASA');
+            if (jaseItem) {
+                const discountAmount = jaseItem.unit_cost * 0.1;
                 currentBreakdown.push({
                     name: 'Diskon Partnership (10%)',
                     category: 'DISKON',
@@ -260,6 +375,45 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 currentTotal -= discountAmount;
             }
         }
+
+        // 1b. Optional components from master biaya (if selected)
+        masterComponents.forEach(comp => {
+            if (!comp || !comp.category || comp.is_mandatory) return;
+            if (comp.category.toUpperCase() === 'PENDAMPINGAN') return;
+            if (!selectedOptionalComponentIds.includes(comp.id)) return;
+
+            let multiplier = 1;
+            let multiplierLabel = '';
+            
+            if (comp.type === 'PER_CABANG') {
+                multiplier = branchCount;
+                multiplierLabel = ` (${branchCount} Cabang)`;
+            } else if (comp.type === 'PER_MANDAY') {
+                multiplier = mandays;
+                multiplierLabel = ` (${mandays} Manday)`;
+            } else if (comp.type === 'PER_PRODUK') {
+                multiplier = productCount;
+                multiplierLabel = ` (${productCount} Produk)`;
+            }
+
+            const itemTotal = comp.base_amount * multiplier;
+            let nameTag = '';
+            if (comp.district_id) nameTag = ' [Khusus Kecamatan]';
+            else if (comp.regency_id) nameTag = ' [Khusus Kabupaten]';
+            else if (comp.province_id) nameTag = ' [Khusus Provinsi]';
+            else if (comp.business_type_id || comp.product_category_id || comp.business_scale_id) nameTag = ' [Khusus Kriteria]';
+
+            currentBreakdown.push({
+                id: comp.id,
+                name: comp.name + nameTag + multiplierLabel,
+                category: comp.category.toUpperCase(),
+                unit_cost: comp.base_amount,
+                multiplier: multiplier > 1 ? multiplier : null,
+                total: itemTotal,
+                is_optional: true
+            });
+            currentTotal += itemTotal;
+        });
 
         // 3. Optional Costs
         optionalCosts.forEach(opt => {
@@ -275,7 +429,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         });
 
         return { total: currentTotal, breakdown: currentBreakdown };
-    }, [masterComponents, optionalCosts, salesSchemeId, schemes]);
+    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, mandays, productCount, selectedOptionalComponentIds]);
 
     const handleSave = async () => {
         setSaving(true);
@@ -322,10 +476,9 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 {dataSource && (
                     <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
                         dataSource === 'MARKETING' ? 'bg-amber-100 text-amber-700' : 
-                        dataSource === 'TELEMARKETING' ? 'bg-purple-100 text-purple-700' :
                         dataSource === 'BOTH' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
                     }`}>
-                        Sumber: {dataSource === 'MARKETING' ? 'Marketing (Partner)' : dataSource === 'TELEMARKETING' ? 'Telemarketing' : dataSource === 'BOTH' ? 'Semua (Internal & Partner)' : 'Organik (Advisor)'}
+                        Sumber: {dataSource === 'MARKETING' ? 'Marketing (Partner)' : dataSource === 'BOTH' ? 'Semua' : 'Organik / Telemarketing'}
                     </div>
                 )}
 
@@ -467,6 +620,39 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                             />
                         </div>
                     </div>
+
+                    {/* Optional Components from Master Biaya */}
+                    {masterComponents.filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN').length > 0 && (
+                        <div className="border-t border-gray-100 pt-4">
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Komponen Pilihan Master Biaya</label>
+                            <div className="space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                {masterComponents
+                                    .filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN')
+                                    .map(comp => {
+                                        const isChecked = selectedOptionalComponentIds.includes(comp.id);
+                                        return (
+                                            <label key={comp.id} className="flex items-center gap-3 cursor-pointer select-none">
+                                                <input
+                                                    type="checkbox"
+                                                    disabled={!isEditable}
+                                                    checked={isChecked}
+                                                    onChange={() => {
+                                                        if (isChecked) {
+                                                            setSelectedOptionalComponentIds(selectedOptionalComponentIds.filter(id => id !== comp.id));
+                                                        } else {
+                                                            setSelectedOptionalComponentIds([...selectedOptionalComponentIds, comp.id]);
+                                                        }
+                                                    }}
+                                                    className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
+                                                />
+                                                <div className="flex-1 text-sm text-gray-700 font-medium">{comp.name}</div>
+                                                <div className="text-xs text-gray-500 font-bold">{formatRupiah(comp.base_amount)}</div>
+                                            </label>
+                                        );
+                                    })}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Biaya Tambahan (Opsional) */}
                     <div className="border-t border-gray-100 pt-4">

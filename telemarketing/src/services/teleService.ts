@@ -146,6 +146,19 @@ export const createAgreement = (data: Record<string, unknown>) =>
 export const getAgreementByFormId = (formId: string) =>
   api.get<TeleAgreement>(`/tele/agreement/${formId}`);
 
+export const downloadAgreementQR = (id: string) =>
+  api.get(`/tele/agreement/${id}/qr`, { responseType: 'blob' });
+
+export const downloadAgreementPDF = (id: string) =>
+  api.get(`/document/agreement/${id}/pdf`, { responseType: 'blob' });
+
+// Estimasi & Verifikasi
+export const calculateReguler = (data: Record<string, unknown>) =>
+  api.post('/tele/calculate-reguler', data);
+
+export const verifyAgreement = (id: string, token: string) =>
+  api.get(`/tele/verify/${id}/${token}`);
+
 // Analytics & Dashboard
 export const getAnalytics = (params?: Record<string, string>) =>
   api.get<TeleAnalytics>('/tele/analytics', { params });

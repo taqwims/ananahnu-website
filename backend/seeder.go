@@ -139,8 +139,8 @@ func main() {
 	// 5. Seed Billing Components
 	components := []BillingComponent{
 		{Name: "Biaya Registrasi Dasar", Category: "REGISTRASI", Type: "FIXED", BaseAmount: 500000, IsMandatory: true},
-		{Name: "Biaya Audit LPH (Umum)", Category: "LPH", Type: "FIXED", BaseAmount: 3000000, IsMandatory: true},
-		{Name: "Biaya Audit LPH (Khusus Jakarta)", Category: "LPH", Type: "FIXED", BaseAmount: 4500000, IsMandatory: true, ProvinceID: dkiId},
+		{Name: "Biaya Audit LPH (Umum)", Category: "LPH", Type: "PER_CABANG", BaseAmount: 3000000, IsMandatory: true},
+		{Name: "Biaya Audit LPH (Khusus Jakarta)", Category: "LPH", Type: "PER_CABANG", BaseAmount: 4500000, IsMandatory: true, ProvinceID: dkiId},
 		{Name: "Biaya Sidang MUI", Category: "MUI", Type: "FIXED", BaseAmount: 1500000, IsMandatory: true},
 		{Name: "Sertifikat BPJPH", Category: "BPJPH", Type: "FIXED", BaseAmount: 1000000, IsMandatory: true},
 		{Name: "Sertifikat BPJPH (Khusus Kosmetik)", Category: "BPJPH", Type: "FIXED", BaseAmount: 2000000, IsMandatory: true, BusinessTypeID: &bTypes[1].ID},

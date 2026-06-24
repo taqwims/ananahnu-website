@@ -69,26 +69,30 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 				}
 				uc.InvoiceRepo.Create(&domain.Invoice{
 					SubmissionID: id,
-					PayerID:      nil, 
+					PayerID:      nil,
 					ServiceType:  "SELF_DECLARE_MANDIRI",
+					Type:         domain.InvoiceTypeFull,
 					Amount:       amount,
 					Status:       domain.InvoiceStatusUnpaid,
-					Notes:        "Pembayaran Awal SELF_DECLARE_MANDIRI",
+					Notes:        "Pembayaran Penuh SELF_DECLARE_MANDIRI",
 				})
 			case "REGULER":
 				costDetail, _ := uc.BillingConfigRepo.GetSubmissionCostDetail(id)
-				var amount float64
+				var totalAmount float64
 				if costDetail != nil && costDetail.TotalAmount > 0 {
-					amount = costDetail.TotalAmount
+					totalAmount = costDetail.TotalAmount
 				}
+				// DP = 70% dari total biaya
+				dpAmount := totalAmount * 0.70
 				uc.InvoiceRepo.Create(&domain.Invoice{
 					SubmissionID:  id,
 					PayerID:       nil,
 					ServiceType:   "REGULER",
-					Amount:        amount,
+					Type:          domain.InvoiceTypeDP,
+					Amount:        dpAmount,
 					Status:        domain.InvoiceStatusUnpaid,
 					PricingSource: "COST_DETAIL",
-					Notes:         "Full Payment Layanan Reguler",
+					Notes:         "Down Payment 70% Layanan Reguler",
 				})
 			}
 		}
@@ -404,7 +408,37 @@ func (uc *submissionWorkflowUsecase) IssueSH(id uuid.UUID, userID uuid.UUID, shU
 	}
 
 	uc.logChange(id, userID, "ISSUE_SH", sub.Status, nextStatus, "Sertifikat Halal diterbitkan")
-	
+
+	// Untuk REGULER: buat invoice Pelunasan 30% jika belum ada
+	if sub.ServiceType == "REGULER" {
+		if _, err := uc.InvoiceRepo.FindBySubmissionIDAndType(id, domain.InvoiceTypePelunasan); err != nil {
+			// Cari DP invoice untuk mengetahui total amount asli (DP = 70%, jadi total = DP / 0.7)
+			var pelunasanAmount float64
+			if dpInvoice, dpErr := uc.InvoiceRepo.FindBySubmissionIDAndType(id, domain.InvoiceTypeDP); dpErr == nil {
+				// pelunasan = 30/70 dari DP amount, atau bisa dihitung: totalAmount * 0.3
+				totalAmount := dpInvoice.Amount / 0.70
+				pelunasanAmount = totalAmount * 0.30
+			} else {
+				// Fallback: cari dari cost detail
+				if costDetail, err := uc.BillingConfigRepo.GetSubmissionCostDetail(id); err == nil && costDetail != nil {
+					pelunasanAmount = costDetail.TotalAmount * 0.30
+				}
+			}
+			if pelunasanAmount > 0 {
+				_ = uc.InvoiceRepo.Create(&domain.Invoice{
+					SubmissionID:  id,
+					PayerID:       nil,
+					ServiceType:   "REGULER",
+					Type:          domain.InvoiceTypePelunasan,
+					Amount:        pelunasanAmount,
+					Status:        domain.InvoiceStatusUnpaid,
+					PricingSource: "COST_DETAIL",
+					Notes:         "Pelunasan 30% Layanan Reguler (wajib lunas untuk unduh SH)",
+				})
+			}
+		}
+	}
+
 	// Notify Client
 	trackingNo := ""
 	if sub.TrackingNumber != nil {

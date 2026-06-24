@@ -4,7 +4,10 @@ import (
 	"ananahnu/internal/delivery/middleware"
 	"ananahnu/internal/domain"
 	"ananahnu/internal/usecase"
+	"ananahnu/pkg/qrcode"
+	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +27,7 @@ func NewTelemarketingHandler(r *gin.Engine, uc usecase.TelemarketingUsecase) {
 		pub.POST("/form", handler.SubmitPublicForm)
 		pub.GET("/form/:id", handler.GetFormByID)
 		pub.GET("/pricing", handler.GetPendampinganPricing)
+		pub.GET("/verify/:id/:token", handler.VerifyAgreement)
 	}
 
 	// Protected endpoints (auth required)
@@ -49,6 +53,10 @@ func NewTelemarketingHandler(r *gin.Engine, uc usecase.TelemarketingUsecase) {
 		// Agreement
 		tele.POST("/agreement", handler.CreateAgreement)
 		tele.GET("/agreement/:formId", handler.GetAgreementByFormID)
+		tele.GET("/agreement/:formId/qr", handler.DownloadAgreementQR)
+
+		// Calculator
+		tele.POST("/calculate-reguler", handler.CalculateReguler)
 
 		// Analytics & Dashboard
 		tele.GET("/analytics", handler.GetAnalytics)
@@ -400,6 +408,75 @@ func (h *TelemarketingHandler) GetDashboard(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, dashboard)
+}
+
+// ── Estimasi & Verification ───────────────────────────────────────────
+
+func (h *TelemarketingHandler) CalculateReguler(c *gin.Context) {
+	var input usecase.CalculateRegulerInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	estimation, err := h.uc.CalculateReguler(input)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, estimation)
+}
+
+func (h *TelemarketingHandler) VerifyAgreement(c *gin.Context) {
+	idStr := c.Param("id")
+	token := c.Param("token")
+
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid agreement id"})
+		return
+	}
+
+	result, err := h.uc.VerifyAgreement(id, token)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+func (h *TelemarketingHandler) DownloadAgreementQR(c *gin.Context) {
+	idStr := c.Param("formId")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid agreement id"})
+		return
+	}
+
+	agreement, err := h.uc.GetAgreementByFormID(id) // `id` param is formID in this route context based on frontend
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "agreement not found"})
+		return
+	}
+
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "https://halalcore.id"
+	}
+
+	verifyURL := fmt.Sprintf("%s/verify/%s/%s", frontendURL, agreement.ID.String(), agreement.VerificationToken)
+	logoPath := "templates/logo_halalcore.png"
+
+	pngData, err := qrcode.GenerateWithLogo(verifyURL, logoPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate qr code"})
+		return
+	}
+
+	c.Header("Content-Disposition", "attachment; filename=QR_Agreement_"+agreement.AgreementNumber+".png")
+	c.Data(http.StatusOK, "image/png", pngData)
 }
 
 // ── Public Pricing ─────────────────────────────────────────────────────

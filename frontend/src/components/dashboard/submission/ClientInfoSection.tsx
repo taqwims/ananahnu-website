@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Submission, User, Client, BusinessType } from '../../../types';
-import { formatDate } from '../../../utils/format';
+import { formatDate, formatRupiah } from '../../../utils/format';
+import api from '../../../services/api';
+import { toast } from 'react-hot-toast';
+import { submissionService } from '../../../services/submissionService';
 
 interface ClientInfoSectionProps {
     submission: Submission;
     user: User | null;
     onUpdateClient: (clientId: string, data: Partial<Client>) => Promise<void>;
+    onUpdateClientInfoAndPricing: (data: any) => Promise<void>;
     onUpdateBusinessType: (businessTypeID: number) => Promise<void>;
     businessTypes: BusinessType[];
     processing: boolean;
@@ -20,8 +24,19 @@ const InfoItem = ({ label, value, mono = false, highlight = false }: { label: st
     </div>
 );
 
-export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateBusinessType, businessTypes, processing }: ClientInfoSectionProps) => {
+export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateClientInfoAndPricing, onUpdateBusinessType, businessTypes, processing }: ClientInfoSectionProps) => {
     const [isEditingClient, setIsEditingClient] = useState(false);
+    
+    // Master data lists for dropdowns
+    const [provinces, setProvinces] = useState<any[]>([]);
+    const [regencies, setRegencies] = useState<any[]>([]);
+    const [districts, setDistricts] = useState<any[]>([]);
+    const [productCategories, setProductCategories] = useState<any[]>([]);
+    const [scales, setScales] = useState<any[]>([]);
+    const [schemes, setSchemes] = useState<any[]>([]);
+    const [masterComponents, setMasterComponents] = useState<any[]>([]);
+    const [selectedOptionalComponentIds, setSelectedOptionalComponentIds] = useState<number[]>([]);
+
     const [clientForm, setClientForm] = useState({
         business_name: submission.client?.business_name || '',
         client_name: submission.client?.client_name || '',
@@ -31,15 +46,94 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateBu
         address: submission.client?.address || '',
         contact_person: submission.client?.contact_person || '',
         phone: submission.client?.phone || '',
-        business_type_id: submission.business_type_id?.toString() || ''
+        business_type_id: submission.business_type_id?.toString() || '',
+        province_id: (submission.province_id || submission.cost_detail?.province_id)?.toString() || '',
+        regency_id: (submission.regency_id || submission.cost_detail?.regency_id)?.toString() || '',
+        district_id: (submission.district_id || submission.cost_detail?.district_id)?.toString() || '',
+        product_category_id: (submission.product_category_id || submission.cost_detail?.product_category_id)?.toString() || '',
+        business_scale_id: (submission.business_scale_id || submission.cost_detail?.business_scale_id)?.toString() || '',
+        sales_scheme_id: submission.sales_scheme_id?.toString() || '',
+        data_source: submission.data_source || 'ORGANIK',
+        product_count: submission.product_count || submission.cost_detail?.product_count || 1,
+        branch_count: submission.branch_count || submission.cost_detail?.branch_count || 1,
+        mandays: submission.mandays || submission.cost_detail?.mandays || 1,
     });
+
+    useEffect(() => {
+        if (isEditingClient) {
+            api.get('/geography/provinces').then(res => setProvinces(res.data || []));
+            api.get('/billing-config/product-categories').then(res => setProductCategories(res.data || []));
+            api.get('/billing-config/business-scales').then(res => setScales(res.data || []));
+            api.get('/billing-config/sales-schemes').then(res => setSchemes(res.data || []));
+            api.get('/billing-config/components').then(res => setMasterComponents(res.data || []));
+        }
+    }, [isEditingClient]);
+
+    useEffect(() => {
+        if (isEditingClient && submission.cost_detail?.cost_breakdown_data && masterComponents.length > 0) {
+            try {
+                const bd = JSON.parse(submission.cost_detail.cost_breakdown_data);
+                const selectedIds: number[] = [];
+                bd.forEach((item: any) => {
+                    if (!item.is_optional) return;
+                    const matchingComp = masterComponents.find(c => 
+                        !c.is_mandatory && 
+                        c.category.toUpperCase() !== 'PENDAMPINGAN' &&
+                        item.name.startsWith(c.name)
+                    );
+                    if (matchingComp) {
+                        selectedIds.push(matchingComp.id);
+                    }
+                });
+                setSelectedOptionalComponentIds(selectedIds);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    }, [isEditingClient, submission, masterComponents]);
+
+    useEffect(() => {
+        if (clientForm.province_id) {
+            api.get(`/geography/regencies/${clientForm.province_id}`).then(res => setRegencies(res.data || []));
+        } else {
+            setRegencies([]);
+        }
+    }, [clientForm.province_id]);
+
+    useEffect(() => {
+        if (clientForm.regency_id) {
+            api.get(`/geography/districts/${clientForm.regency_id}`).then(res => setDistricts(res.data || []));
+        } else {
+            setDistricts([]);
+        }
+    }, [clientForm.regency_id]);
 
     const handleUpdate = async () => {
         if (!submission.client?.id) return;
-        await Promise.all([
-            onUpdateClient(submission.client.id, clientForm),
-            clientForm.business_type_id ? onUpdateBusinessType(parseInt(clientForm.business_type_id)) : Promise.resolve()
-        ]);
+
+        const payload = {
+            ...clientForm,
+            business_type_id: clientForm.business_type_id ? parseInt(clientForm.business_type_id) : null,
+            province_id: clientForm.province_id ? parseInt(clientForm.province_id) : null,
+            regency_id: clientForm.regency_id ? parseInt(clientForm.regency_id) : null,
+            district_id: clientForm.district_id ? parseInt(clientForm.district_id) : null,
+            product_category_id: clientForm.product_category_id ? parseInt(clientForm.product_category_id) : null,
+            business_scale_id: clientForm.business_scale_id ? parseInt(clientForm.business_scale_id) : null,
+            sales_scheme_id: clientForm.sales_scheme_id ? parseInt(clientForm.sales_scheme_id) : null,
+            product_count: clientForm.product_count,
+            branch_count: clientForm.branch_count,
+            mandays: clientForm.mandays,
+            selected_optional_component_ids: selectedOptionalComponentIds
+        };
+
+        if (submission.service_type === 'REGULER') {
+            await onUpdateClientInfoAndPricing(payload);
+        } else {
+            await Promise.all([
+                onUpdateClient(submission.client.id, clientForm),
+                clientForm.business_type_id ? onUpdateBusinessType(parseInt(clientForm.business_type_id)) : Promise.resolve()
+            ]);
+        }
         setIsEditingClient(false);
     };
 
@@ -106,6 +200,170 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateBu
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Alamat Lengkap</label>
                             <textarea className="glass-input w-full" rows={2} value={clientForm.address} onChange={e => setClientForm({...clientForm, address: e.target.value})} placeholder="Alamat lengkap usaha" />
                         </div>
+
+                        {submission.service_type === 'REGULER' && (
+                            <>
+                                <div className="sm:col-span-2 border-t border-gray-100 pt-4 mt-2">
+                                    <h4 className="text-xs font-bold text-brand-700 uppercase tracking-wider mb-2">Informasi Penentuan Harga (Reguler)</h4>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Provinsi Usaha <span className="text-red-500">*</span></label>
+                                    <select 
+                                        className="glass-input w-full" 
+                                        value={clientForm.province_id} 
+                                        onChange={e => setClientForm({...clientForm, province_id: e.target.value, regency_id: '', district_id: ''})}
+                                    >
+                                        <option value="">Pilih Provinsi</option>
+                                        {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Kabupaten / Kota Usaha <span className="text-red-500">*</span></label>
+                                    <select 
+                                        className="glass-input w-full" 
+                                        value={clientForm.regency_id} 
+                                        onChange={e => setClientForm({...clientForm, regency_id: e.target.value, district_id: ''})}
+                                        disabled={!clientForm.province_id}
+                                    >
+                                        <option value="">Pilih Kabupaten</option>
+                                        {regencies.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Kecamatan Usaha</label>
+                                    <select 
+                                        className="glass-input w-full" 
+                                        value={clientForm.district_id} 
+                                        onChange={e => setClientForm({...clientForm, district_id: e.target.value})}
+                                        disabled={!clientForm.regency_id}
+                                    >
+                                        <option value="">Pilih Kecamatan</option>
+                                        {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Kategori Produk <span className="text-red-500">*</span></label>
+                                    <select 
+                                        className="glass-input w-full" 
+                                        value={clientForm.product_category_id} 
+                                        onChange={e => setClientForm({...clientForm, product_category_id: e.target.value})}
+                                    >
+                                        <option value="">Pilih Kategori Produk</option>
+                                        {productCategories.map(pc => <option key={pc.id} value={pc.id}>{pc.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Skala Usaha <span className="text-red-500">*</span></label>
+                                    <select 
+                                        className="glass-input w-full" 
+                                        value={clientForm.business_scale_id} 
+                                        onChange={e => setClientForm({...clientForm, business_scale_id: e.target.value})}
+                                    >
+                                        <option value="">Pilih Skala Usaha</option>
+                                        {scales.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Skema Penjualan <span className="text-red-500">*</span></label>
+                                    <select 
+                                        className="glass-input w-full" 
+                                        value={clientForm.sales_scheme_id} 
+                                        onChange={e => setClientForm({...clientForm, sales_scheme_id: e.target.value})}
+                                    >
+                                        <option value="">Pilih Skema</option>
+                                        {schemes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Sumber Data <span className="text-red-500">*</span></label>
+                                    <select 
+                                        className="glass-input w-full" 
+                                        value={clientForm.data_source === 'TELEMARKETING' ? 'ORGANIK' : clientForm.data_source} 
+                                        onChange={e => setClientForm({...clientForm, data_source: e.target.value})}
+                                    >
+                                        <option value="ORGANIK">Organik / Telemarketing</option>
+                                        <option value="MARKETING">Marketing (Partner)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Jumlah Produk</label>
+                                    <input 
+                                        type="number" 
+                                        min="1" 
+                                        className="glass-input w-full" 
+                                        value={clientForm.product_count} 
+                                        onChange={e => setClientForm({...clientForm, product_count: parseInt(e.target.value) || 1})} 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Jumlah Cabang</label>
+                                    <input 
+                                        type="number" 
+                                        min="1" 
+                                        className="glass-input w-full" 
+                                        value={clientForm.branch_count} 
+                                        onChange={e => setClientForm({...clientForm, branch_count: parseInt(e.target.value) || 1})} 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Jumlah Manday</label>
+                                    <input 
+                                        type="number" 
+                                        min="1" 
+                                        className="glass-input w-full" 
+                                        value={clientForm.mandays} 
+                                        onChange={e => setClientForm({...clientForm, mandays: parseInt(e.target.value) || 1})} 
+                                    />
+                                </div>
+
+                                {/* Optional Components */}
+                                {(() => {
+                                    const availableOptionals = masterComponents.filter(comp => {
+                                        if (!comp || comp.is_mandatory || comp.category.toUpperCase() === 'PENDAMPINGAN') return false;
+                                        
+                                        // Match filters
+                                        if (comp.province_id && comp.province_id.toString() !== clientForm.province_id) return false;
+                                        if (comp.regency_id && comp.regency_id.toString() !== clientForm.regency_id) return false;
+                                        if (comp.business_type_id && comp.business_type_id.toString() !== clientForm.business_type_id) return false;
+                                        if (comp.business_scale_id && comp.business_scale_id.toString() !== clientForm.business_scale_id) return false;
+                                        if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== clientForm.sales_scheme_id) return false;
+                                        
+                                        return true;
+                                    });
+
+                                    if (availableOptionals.length === 0) return null;
+
+                                    return (
+                                        <div className="col-span-1 sm:col-span-2 md:col-span-3 border-t border-gray-100 pt-4 mt-2">
+                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Komponen Tambahan (Opsional)</label>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-200/50">
+                                                {availableOptionals.map(comp => {
+                                                    const isChecked = selectedOptionalComponentIds.includes(comp.id);
+                                                    return (
+                                                        <label key={comp.id} className="flex items-center gap-3 cursor-pointer select-none">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isChecked}
+                                                                onChange={() => {
+                                                                    if (isChecked) {
+                                                                        setSelectedOptionalComponentIds(selectedOptionalComponentIds.filter(id => id !== comp.id));
+                                                                    } else {
+                                                                        setSelectedOptionalComponentIds([...selectedOptionalComponentIds, comp.id]);
+                                                                    }
+                                                                }}
+                                                                className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
+                                                            />
+                                                            <div className="flex-1 text-sm text-gray-700 font-medium">{comp.name}</div>
+                                                            <div className="text-xs text-gray-500 font-bold">({formatRupiah(comp.base_amount)})</div>
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                            </>
+                        )}
                     </div>
                     <div className="flex justify-end gap-3 pt-2">
                         <button onClick={() => setIsEditingClient(false)} className="px-4 py-2 text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors">Batal</button>
@@ -127,6 +385,23 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateBu
                     <InfoItem label="Produk Utama" value={submission.client?.product_name} />
                     <InfoItem label="Bidang Usaha" value={submission.business_type?.name} highlight />
                     <InfoItem label="Telepon" value={submission.client?.phone} />
+                    {submission.service_type === 'REGULER' && (
+                        <>
+                            <InfoItem label="Provinsi" value={submission.cost_detail?.province?.name || '-'} />
+                            <InfoItem label="Kabupaten / Kota" value={submission.cost_detail?.regency?.name || '-'} />
+                            <InfoItem label="Kecamatan" value={submission.cost_detail?.district?.name || '-'} />
+                            <InfoItem label="Kategori Produk" value={submission.cost_detail?.product_category?.name || '-'} />
+                            <InfoItem label="Skala Usaha" value={submission.cost_detail?.business_scale?.name || '-'} />
+                            <InfoItem label="Sumber Data" value={
+                                submission.data_source === 'MARKETING' ? 'Marketing (Partner)' :
+                                (submission.data_source === 'ORGANIK' || submission.data_source === 'TELEMARKETING') ? 'Organik / Telemarketing' :
+                                submission.data_source || '-'
+                            } />
+                            <InfoItem label="Jumlah Produk" value={submission.product_count?.toString() || submission.cost_detail?.product_count?.toString() || '1'} />
+                            <InfoItem label="Jumlah Cabang" value={submission.branch_count?.toString() || submission.cost_detail?.branch_count?.toString() || '1'} />
+                            <InfoItem label="Jumlah Manday" value={submission.mandays?.toString() || submission.cost_detail?.mandays?.toString() || '1'} />
+                        </>
+                    )}
                     {submission.consultant_id && (
                         <InfoItem label="Advisor Penanggung Jawab" value={submission.consultant?.full_name} highlight />
                     )}
@@ -165,13 +440,20 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateBu
             {submission.service_type === 'REGULER' && (
                 <div className="mt-6 flex flex-col sm:flex-row justify-between items-center bg-blue-50/50 p-4 rounded-2xl border border-blue-100 gap-4">
                     <span className="text-xs text-blue-800 font-bold text-center sm:text-left">Layanan Reguler membutuhkan kontrak pendampingan.</span>
-                    <a 
-                        href={`${import.meta.env.VITE_API_URL}/templates/kontrak_reguler.docx`} 
-                        download 
+                    <button 
+                        onClick={async () => {
+                            try {
+                                toast.loading('Mengunduh Kontrak...', { id: 'download-contract' });
+                                await submissionService.downloadContract(submission.id);
+                                toast.success('Kontrak berhasil diunduh', { id: 'download-contract' });
+                            } catch (e: any) {
+                                toast.error(e.message || 'Gagal mengunduh kontrak', { id: 'download-contract' });
+                            }
+                        }}
                         className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-blue-700 transition-all text-center shadow-lg shadow-blue-100"
                     >
-                        Unduh Template Kontrak
-                    </a>
+                        Unduh Kontrak Kerja
+                    </button>
                 </div>
             )}
         </div>

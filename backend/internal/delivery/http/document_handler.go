@@ -23,6 +23,8 @@ func NewDocumentHandler(r *gin.Engine, uc usecase.DocumentUsecase) {
 	{
 		g.GET("/submissions/:id/contract", handler.GenerateContract)
 		g.GET("/submissions/:id/sph", handler.GenerateSPH)
+		g.GET("/agreement/:id/pdf", handler.GenerateTeleAgreementPDF)
+		g.GET("/submissions/:id/invoice-pdf", handler.GenerateInvoicePDF)
 	}
 }
 
@@ -51,7 +53,7 @@ func (h *DocumentHandler) GenerateContract(c *gin.Context) {
 		contentType = "application/pdf"
 	}
 
-	c.Header("Content-Disposition", "attachment; filename="+filename)
+	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
 	c.Data(http.StatusOK, contentType, data)
 }
 
@@ -68,6 +70,41 @@ func (h *DocumentHandler) GenerateSPH(c *gin.Context) {
 		return
 	}
 
-	c.Header("Content-Disposition", "attachment; filename="+filename)
+	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
 	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", data)
 }
+
+func (h *DocumentHandler) GenerateTeleAgreementPDF(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid agreement id"})
+		return
+	}
+
+	data, filename, err := h.documentUsecase.GenerateTeleAgreementPDF(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
+	c.Data(http.StatusOK, "application/pdf", data)
+}
+
+func (h *DocumentHandler) GenerateInvoicePDF(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid submission id"})
+		return
+	}
+
+	data, filename, err := h.documentUsecase.GenerateInvoicePDF(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
+	c.Data(http.StatusOK, "application/pdf", data)
+}
+

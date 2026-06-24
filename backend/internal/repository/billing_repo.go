@@ -49,6 +49,14 @@ func (r *invoiceRepository) FindBySubmissionID(submissionID uuid.UUID) (*domain.
 	return &invoice, nil
 }
 
+func (r *invoiceRepository) FindBySubmissionIDAndType(submissionID uuid.UUID, invoiceType domain.InvoiceType) (*domain.Invoice, error) {
+	var invoice domain.Invoice
+	if err := r.db.Where("submission_id = ? AND type = ?", submissionID, invoiceType).First(&invoice).Error; err != nil {
+		return nil, err
+	}
+	return &invoice, nil
+}
+
 func (r *invoiceRepository) FindByIDs(ids []int64) ([]domain.Invoice, error) {
 	var invoices []domain.Invoice
 	if err := r.db.Preload("Payer").Preload("Submission.Client").Preload("Submission.BusinessType").Where("id IN ?", ids).Find(&invoices).Error; err != nil {

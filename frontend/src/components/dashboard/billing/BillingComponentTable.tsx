@@ -92,7 +92,7 @@ export const BillingComponentTable = ({
                                 )}
                                 <span className="text-xs text-gray-600 flex items-center gap-1.5">
                                     <span className={`w-1.5 h-1.5 rounded-full ${c.data_source === 'MARKETING' ? 'bg-amber-400' : c.data_source === 'BOTH' ? 'bg-blue-400' : 'bg-green-400'}`}></span>
-                                    Sumber: {c.data_source === 'BOTH' ? 'Semua' : (c.data_source || 'ORGANIK')}
+                                    Sumber: {c.data_source === 'BOTH' ? 'Semua' : ((c.data_source === 'ORGANIK' || c.data_source === 'TELEMARKETING' || !c.data_source) ? 'Organik / Telemarketing' : (c.data_source === 'MARKETING' ? 'Marketing (Partner)' : c.data_source))}
                                 </span>
                             </div>
                         </td>

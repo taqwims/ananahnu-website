@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { login } from '../../services/teleService';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import Logo from '../../components/ui/Logo';
 import loginImg from '../../assets/login.png';
@@ -96,11 +96,21 @@ export default function LoginPage() {
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.8 }}
-        className="flex-1 flex flex-col items-center justify-center p-8 lg:p-24 bg-gradient-brand/5"
+        className="flex-1 flex flex-col items-center justify-center p-8 lg:p-24 bg-gradient-brand/5 relative"
       >
+        {/* Floating Back to Home button for desktop & mobile */}
+        <div className="absolute top-6 left-8 z-30">
+          <button
+            onClick={() => navigate('/')}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-700 hover:text-brand-900 bg-white/80 backdrop-blur-xs px-3.5 py-2 rounded-xl border border-dark-150 shadow-xs hover:shadow-sm transition-all cursor-pointer active:scale-95"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Kembali ke Beranda
+          </button>
+        </div>
+
         <div className="max-w-md w-full relative z-10">
           {/* Mobile Logo */}
-          <div className="lg:hidden flex justify-center mb-12">
+          <div className="lg:hidden flex justify-center mb-12 mt-8">
             <Logo size="lg" clickable={true} />
           </div>
 

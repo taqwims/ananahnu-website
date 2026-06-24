@@ -4,6 +4,9 @@ import (
 	"ananahnu/internal/domain"
 	"ananahnu/pkg/utils"
 	"ananahnu/pkg/whatsapp"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -38,6 +41,10 @@ type TelemarketingUsecase interface {
 	// Agreement
 	CreateAgreement(input TeleAgreementInput) (*domain.TeleAgreement, error)
 	GetAgreementByFormID(formID uuid.UUID) (*domain.TeleAgreement, error)
+	VerifyAgreement(agreementID uuid.UUID, token string) (*VerificationResult, error)
+
+	// Reguler Estimation Calculator
+	CalculateReguler(input CalculateRegulerInput) (*RegulerEstimation, error)
 
 	// Analytics
 	GetAnalytics(filter map[string]interface{}) (*TeleAnalytics, error)
@@ -143,6 +150,49 @@ type TeleDashboard struct {
 	TodayMeetings      []domain.TeleMeeting `json:"today_meetings"`
 	RecentForms        []domain.TeleForm    `json:"recent_forms"`
 	StatusCounts       map[string]int64     `json:"status_counts"`
+}
+
+// ── Estimation Calculator DTO ──────────────────────────────────────────
+
+type CalculateRegulerInput struct {
+	BusinessTypeID  int64  `json:"business_type_id" binding:"required"`
+	BusinessScaleID int64  `json:"business_scale_id" binding:"required"`
+	ProvinceID      int64  `json:"province_id" binding:"required"`
+	RegencyID       *int64 `json:"regency_id"`
+	ProductCount    int    `json:"product_count"`
+	BranchCount     int    `json:"branch_count"`
+	SalesSchemeID   int64  `json:"sales_scheme_id" binding:"required"`
+	DataSource      string `json:"data_source"` // ORGANIK or MARKETING
+}
+
+type BreakdownItem struct {
+	Name     string  `json:"name"`
+	Category string  `json:"category"`
+	Amount   float64 `json:"amount"`
+}
+
+type SchemePriceInfo struct {
+	BasePrice       float64 `json:"base_price"`
+	DiscountPercent float64 `json:"discount_percent"`
+	Description     string  `json:"description"`
+}
+
+type RegulerEstimation struct {
+	TotalAmount  float64           `json:"total_amount"`
+	DPAmount     float64           `json:"dp_amount"`
+	DPPercent    float64           `json:"dp_percent"`
+	FinalAmount  float64           `json:"final_amount"`
+	FinalPercent float64           `json:"final_percent"`
+	Breakdown    []BreakdownItem   `json:"breakdown"`
+	SchemePrice  SchemePriceInfo   `json:"scheme_price"`
+}
+
+type VerificationResult struct {
+	Status        string    `json:"status"` // VALID, TAMPERED, INVALID
+	AgreementNum  string    `json:"agreement_number"`
+	BusinessName  string    `json:"business_name"`
+	PICName       string    `json:"pic_name"`
+	SignedAt      time.Time `json:"signed_at"`
 }
 
 // ── Pricing DTO ────────────────────────────────────────────────────────
@@ -507,7 +557,7 @@ func (uc *telemarketingUsecase) GenerateClientAccount(formID uuid.UUID, telemark
 
 	// Inline function to handle Client and Submission creation
 	createClientAndSubmission := func(userID uuid.UUID) (*uuid.UUID, error) {
-		businessName := form.Name + " Business"
+		businessName := form.Name
 		agreement, err := uc.AgreementRepo.FindByTeleFormID(form.ID)
 		if err == nil && agreement != nil && agreement.BusinessName != "" {
 			businessName = agreement.BusinessName
@@ -675,6 +725,22 @@ func (uc *telemarketingUsecase) CreateAgreement(input TeleAgreementInput) (*doma
 		CreatedAt:           time.Now(),
 	}
 
+	// Generate Verification Token (HMAC-SHA256)
+	secretKey := os.Getenv("JWT_SECRET")
+	if secretKey == "" {
+		secretKey = "halalcore-default-secret-key" // fallback
+	}
+	mac := hmac.New(sha256.New, []byte(secretKey))
+	mac.Write([]byte(agreement.ID.String() + agreement.AgreementNumber + agreement.SignedAt.Format(time.RFC3339)))
+	agreement.VerificationToken = hex.EncodeToString(mac.Sum(nil))
+
+	// Generate Signature Hash (SHA256 of frozen data)
+	hashInput := fmt.Sprintf("%s|%s|%s|%s|%s|%.2f|%t|%t|%t|%s",
+		input.BusinessName, input.PICName, input.Address, input.Email, input.Phone, input.ServiceValue,
+		input.DataAccuracyConsent, input.AgreementConsent, input.RegulatorConsent, input.IPAddress)
+	hash := sha256.Sum256([]byte(hashInput))
+	agreement.SignatureHash = hex.EncodeToString(hash[:])
+
 	if err := uc.AgreementRepo.Create(agreement); err != nil {
 		return nil, err
 	}
@@ -691,41 +757,227 @@ func (uc *telemarketingUsecase) GetAgreementByFormID(formID uuid.UUID) (*domain.
 	return uc.AgreementRepo.FindByTeleFormID(formID)
 }
 
+func (uc *telemarketingUsecase) VerifyAgreement(agreementID uuid.UUID, token string) (*VerificationResult, error) {
+	agreement, err := uc.AgreementRepo.FindByID(agreementID)
+	if err != nil {
+		return &VerificationResult{Status: "INVALID"}, nil
+	}
+
+	// Verify token
+	secretKey := os.Getenv("JWT_SECRET")
+	if secretKey == "" {
+		secretKey = "halalcore-default-secret-key" // fallback
+	}
+	mac := hmac.New(sha256.New, []byte(secretKey))
+	mac.Write([]byte(agreement.ID.String() + agreement.AgreementNumber + agreement.SignedAt.Format(time.RFC3339)))
+	expectedToken := hex.EncodeToString(mac.Sum(nil))
+
+	if token != expectedToken || token != agreement.VerificationToken {
+		return &VerificationResult{Status: "INVALID"}, nil
+	}
+
+	// Verify data integrity
+	hashInput := fmt.Sprintf("%s|%s|%s|%s|%s|%.2f|%t|%t|%t|%s",
+		agreement.BusinessName, agreement.PICName, agreement.Address, agreement.Email, agreement.Phone, agreement.ServiceValue,
+		agreement.DataAccuracyConsent, agreement.AgreementConsent, agreement.RegulatorConsent, agreement.IPAddress)
+	expectedHashBytes := sha256.Sum256([]byte(hashInput))
+	expectedHash := hex.EncodeToString(expectedHashBytes[:])
+
+	status := "VALID"
+	if expectedHash != agreement.SignatureHash {
+		status = "TAMPERED"
+	}
+
+	return &VerificationResult{
+		Status:       status,
+		AgreementNum: agreement.AgreementNumber,
+		BusinessName: agreement.BusinessName,
+		PICName:      agreement.PICName,
+		SignedAt:     agreement.SignedAt,
+	}, nil
+}
+
+// ── Estimation Calculator ──────────────────────────────────────────────
+
+func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*RegulerEstimation, error) {
+	if uc.BillingConfigRepo == nil {
+		return nil, errors.New("billing config not available")
+	}
+
+	// 1. Ambil skema penjualan
+	schemes, err := uc.BillingConfigRepo.FindAllSalesSchemePrices(map[string]interface{}{
+		"sales_scheme_id":   input.SalesSchemeID,
+		"business_type_id":  input.BusinessTypeID,
+		"business_scale_id": input.BusinessScaleID,
+		"is_active":         true,
+	})
+	if err != nil {
+		return nil, errors.New("gagal mengambil harga skema penjualan: " + err.Error())
+	}
+	
+	var scheme *domain.SalesSchemePrice
+	if len(schemes) > 0 {
+		scheme = &schemes[0]
+	}
+
+	// 2. Ambil semua komponen biaya yg aktif
+	components, err := uc.BillingConfigRepo.FindAllBillingComponents(map[string]interface{}{"is_active": true})
+	if err != nil {
+		return nil, errors.New("gagal mengambil komponen biaya: " + err.Error())
+	}
+
+	var total float64
+	var breakdown []BreakdownItem
+
+	// Masukkan harga jasa dari skema
+	if scheme != nil {
+		price := scheme.BasePrice
+		if scheme.DiscountPercent > 0 {
+			discount := price * (scheme.DiscountPercent / 100.0)
+			price -= discount
+		}
+		total += price
+		breakdown = append(breakdown, BreakdownItem{
+			Name:     "Jasa Pendampingan", // Default name if scheme has no relationship loaded
+			Category: "JASA",
+			Amount:   price,
+		})
+		if scheme.SalesScheme.Name != "" {
+			breakdown[len(breakdown)-1].Name = scheme.SalesScheme.Name
+		}
+	}
+
+	// 3. Hitung komponen lainnya berdasarkan rule masing-masing
+	for _, comp := range components {
+		if comp.Category == "PENDAMPINGAN" {
+			continue // Jasa pendampingan sudah diambil dari skema penjualan (SalesSchemePrice)
+		}
+
+		// Filter komponen yg mensyaratkan province/regency/dll
+		if comp.ProvinceID != nil && *comp.ProvinceID != input.ProvinceID {
+			continue
+		}
+		if comp.RegencyID != nil && input.RegencyID != nil && *comp.RegencyID != *input.RegencyID {
+			continue
+		}
+		if comp.BusinessTypeID != nil && *comp.BusinessTypeID != input.BusinessTypeID {
+			continue
+		}
+		if comp.BusinessScaleID != nil && *comp.BusinessScaleID != input.BusinessScaleID {
+			continue
+		}
+		if comp.SalesSchemeID != nil && *comp.SalesSchemeID != input.SalesSchemeID {
+			continue
+		}
+
+		amount := comp.BaseAmount
+		
+		// Modifier untuk cabang
+		if comp.Type == "PER_CABANG" && input.BranchCount > 1 {
+			amount = amount * float64(input.BranchCount)
+		}
+
+		// Modifier untuk produk
+		if comp.Type == "PER_PRODUK" && input.ProductCount > 0 {
+			// Misalnya ada free produk, ini bisa dilanjut logicnya. Untuk sederhananya:
+			amount = amount * float64(input.ProductCount)
+		}
+
+		total += amount
+		breakdown = append(breakdown, BreakdownItem{
+			Name:     comp.Name,
+			Category: comp.Category,
+			Amount:   amount,
+		})
+	}
+
+	// Skema DP (70% - 30%)
+	dpPercent := 70.0
+	dpAmount := total * (dpPercent / 100.0)
+	finalAmount := total - dpAmount
+
+	var schemePriceInfo SchemePriceInfo
+	if scheme != nil {
+		schemePriceInfo = SchemePriceInfo{
+			BasePrice:       scheme.BasePrice,
+			DiscountPercent: scheme.DiscountPercent,
+			Description:     scheme.Description,
+		}
+	}
+
+	return &RegulerEstimation{
+		TotalAmount:  total,
+		DPAmount:     dpAmount,
+		DPPercent:    dpPercent,
+		FinalAmount:  finalAmount,
+		FinalPercent: 100.0 - dpPercent,
+		Breakdown:    breakdown,
+		SchemePrice:  schemePriceInfo,
+	}, nil
+}
+
 // ── Analytics ──────────────────────────────────────────────────────────
 
 func (uc *telemarketingUsecase) GetAnalytics(filter map[string]interface{}) (*TeleAnalytics, error) {
-	statusCounts, err := uc.FormRepo.CountByStatus(filter)
+	allForms, _, err := uc.FormRepo.FindAll(filter, 1, 100000)
 	if err != nil {
 		return nil, err
 	}
 
 	analytics := &TeleAnalytics{}
 
-	// Sum totals from status counts
-	for status, count := range statusCounts {
-		analytics.TotalForms += count
+	for _, f := range allForms {
+		if f.Status == domain.TeleFormStatusDeleted {
+			continue
+		}
 
-		switch domain.TeleFormStatus(status) {
-		case domain.TeleFormStatusTeleconferenceQueued, domain.TeleFormStatusMeetingScheduled, domain.TeleFormStatusMeetingCompleted:
-			analytics.TotalTeleconference += count
-		case domain.TeleFormStatusAccountCreated, domain.TeleFormStatusDataInput:
-			analytics.TotalAccountCreated += count
-		case domain.TeleFormStatusAgreementSigned:
-			analytics.TotalAgreementSigned += count
-		case domain.TeleFormStatusInvoiceSent:
-			analytics.TotalInvoiceSent += count
-		case domain.TeleFormStatusPaid:
-			analytics.TotalPaid += count
-		case domain.TeleFormStatusExpired, domain.TeleFormStatusDeleted:
-			analytics.TotalExpired += count
+		analytics.TotalForms++
+
+		// Route Type Distributions
+		if f.RouteType == domain.TeleRouteSelfDeclare {
+			analytics.TotalSelfDeclare++
+		} else if f.RouteType == domain.TeleRouteTeleconference {
+			analytics.TotalTeleconference++
+		}
+
+		// Funnel Metrics (Cumulative)
+		
+		// 1. Akun Dibuat (and beyond)
+		if f.Status == domain.TeleFormStatusAccountCreated ||
+			f.Status == domain.TeleFormStatusDataInput ||
+			f.Status == domain.TeleFormStatusAgreementSigned ||
+			f.Status == domain.TeleFormStatusInvoiceSent ||
+			f.Status == domain.TeleFormStatusPaid {
+			analytics.TotalAccountCreated++
+		}
+
+		// 2. Agreement Signed (and beyond)
+		if f.Status == domain.TeleFormStatusAgreementSigned ||
+			f.Status == domain.TeleFormStatusInvoiceSent ||
+			f.Status == domain.TeleFormStatusPaid {
+			analytics.TotalAgreementSigned++
+		}
+
+		// 3. Invoice Sent (and beyond)
+		if f.Status == domain.TeleFormStatusInvoiceSent ||
+			f.Status == domain.TeleFormStatusPaid {
+			analytics.TotalInvoiceSent++
+		}
+
+		// 4. Paid
+		if f.Status == domain.TeleFormStatusPaid {
+			analytics.TotalPaid++
 		}
 	}
 
-	// Also count self-declare from route_type
-	allForms, _, _ := uc.FormRepo.FindAll(filter, 1, 100000)
+	// For the funnel step "Teleconference", calculate the cumulative count of teleconference-routed forms that went past PENDING
+	var teleconferenceFunnelCount int64
 	for _, f := range allForms {
-		if f.RouteType == domain.TeleRouteSelfDeclare {
-			analytics.TotalSelfDeclare++
+		if f.Status == domain.TeleFormStatusDeleted {
+			continue
+		}
+		if f.RouteType == domain.TeleRouteTeleconference && f.Status != domain.TeleFormStatusPending {
+			teleconferenceFunnelCount++
 		}
 	}
 
@@ -737,7 +989,7 @@ func (uc *telemarketingUsecase) GetAnalytics(filter map[string]interface{}) (*Te
 	// Build funnel data
 	analytics.FunnelData = []TeleFunnelStep{
 		{Step: "Form Masuk", Count: analytics.TotalForms},
-		{Step: "Teleconference", Count: analytics.TotalTeleconference},
+		{Step: "Teleconference", Count: teleconferenceFunnelCount},
 		{Step: "Akun Dibuat", Count: analytics.TotalAccountCreated},
 		{Step: "Agreement", Count: analytics.TotalAgreementSigned},
 		{Step: "Invoice Terkirim", Count: analytics.TotalInvoiceSent},
@@ -747,6 +999,9 @@ func (uc *telemarketingUsecase) GetAnalytics(filter map[string]interface{}) (*Te
 	// Build monthly trend
 	monthlyMap := make(map[string]*TeleMonthlyData)
 	for _, f := range allForms {
+		if f.Status == domain.TeleFormStatusDeleted {
+			continue
+		}
 		key := f.CreatedAt.Format("2006-01")
 		if _, ok := monthlyMap[key]; !ok {
 			monthlyMap[key] = &TeleMonthlyData{Month: key}

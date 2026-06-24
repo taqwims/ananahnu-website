@@ -1,10 +1,7 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ShieldCheck, Download, Loader2 } from 'lucide-react';
+import { ChevronLeft, ShieldCheck } from 'lucide-react';
 import type { Submission, User } from '../../../types';
 import { formatServiceType } from '../../../utils/format';
-import api from '../../../services/api';
-import toast from 'react-hot-toast';
 
 interface SubmissionHeaderProps {
     submission: Submission;
@@ -14,29 +11,7 @@ interface SubmissionHeaderProps {
 export const SubmissionHeader = ({ submission, user }: SubmissionHeaderProps) => {
     const navigate = useNavigate();
     const serviceType = submission.service_type || submission.client?.service_type || '';
-    const [downloadingSPH, setDownloadingSPH] = useState(false);
 
-    const handleDownloadSPH = async () => {
-        setDownloadingSPH(true);
-        try {
-            const res = await api.get(`/documents/submissions/${submission.id}/sph`, {
-                responseType: 'blob',
-            });
-            const url = window.URL.createObjectURL(new Blob([res.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            const businessName = submission.client?.business_name?.replace(/\s+/g, '_') || 'SPH';
-            link.setAttribute('download', `SPH_${businessName}.docx`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
-        } catch {
-            toast.error('Gagal mengunduh SPH');
-        } finally {
-            setDownloadingSPH(false);
-        }
-    };
 
     return (
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-white/40 p-4 rounded-2xl backdrop-blur-md border border-white/60">
@@ -67,18 +42,7 @@ export const SubmissionHeader = ({ submission, user }: SubmissionHeaderProps) =>
                         <span className="text-sm font-black text-brand-600 font-mono leading-none">{submission.tracking_number}</span>
                     </div>
                 )}
-                {serviceType === 'REGULER' && (
-                    <button
-                        onClick={handleDownloadSPH}
-                        disabled={downloadingSPH}
-                        className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-100 hover:scale-105 transition-all flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-                    >
-                        {downloadingSPH
-                            ? <><Loader2 className="w-4 h-4 animate-spin" /> Mengunduh...</>
-                            : <><Download className="w-4 h-4" /> Download SPH</>
-                        }
-                    </button>
-                )}
+
                 {user?.role === 'DRAFTER' && submission.status === 'DRAFTER' && (
                     <button 
                         onClick={() => navigate(`/dashboard/drafter-workspace?id=${submission.id}`)}

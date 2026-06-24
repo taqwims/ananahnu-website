@@ -40,6 +40,8 @@ func main() {
 	// Force add audit result columns if they are missing (Fail-safe)
 	_ = db.Exec("ALTER TABLE submissions ADD COLUMN IF NOT EXISTS audit_result_1_url TEXT")
 	_ = db.Exec("ALTER TABLE submissions ADD COLUMN IF NOT EXISTS audit_result_2_url TEXT")
+	// Add invoice type column for DP/PELUNASAN/FULL split payment support
+	_ = db.Exec("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS type VARCHAR(20) DEFAULT 'FULL'")
 
 	err = db.AutoMigrate(
 		// Auth & Users
@@ -304,8 +306,11 @@ func main() {
 		Repo: settingRepo,
 	})
 	documentUC := usecase.NewDocumentUsecase(usecase.DocumentUsecaseDeps{
-		SubmissionRepo: submissionRepo,
-		SettingRepo:    settingRepo,
+		SubmissionRepo:    submissionRepo,
+		SettingRepo:       settingRepo,
+		TeleAgreementRepo: teleAgreementRepo,
+		InvoiceRepo:       invoiceRepo,
+		BillingConfigRepo: billingConfigRepo,
 	})
 
 	promotionRepo := repository.NewPromotionRepository(db)

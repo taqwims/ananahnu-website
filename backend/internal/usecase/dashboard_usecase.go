@@ -294,7 +294,7 @@ func (uc *dashboardUsecase) GetDraftManagerAnalytics() (*DraftManagerAnalytics, 
 		monthStr := log.CreatedAt.Format("2006-01")
 
 		isAssigned := log.Action == "ASSIGN_DRAFTER"
-		isCompleted := log.Action == "APPROVE" && strings.Contains(string(log.Payload), `"old_status":"DRAFTER"`)
+		isCompleted := log.Action == "APPROVE" && strings.Contains(log.Notes, "Status change: DRAFTER ->")
 
 		if isAssigned {
 			if item, ok := dailyMap[dateStr]; ok {

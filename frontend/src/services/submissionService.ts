@@ -57,6 +57,14 @@ class SubmissionService extends BaseService {
         }
     }
 
+    async updateClientInfoAndPricing(id: string, data: any): Promise<void> {
+        try {
+            await this.api.put(`/submissions/${id}/client-info`, data);
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
     async getDrafters(): Promise<User[]> {
         try {
             const response = await this.api.get('/admin/users/drafters');
