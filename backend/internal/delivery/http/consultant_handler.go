@@ -86,7 +86,8 @@ func (h *ConsultantHandler) GetAllProfiles(c *gin.Context) {
 	}
 
 	// Filter based on role
-	if role == "HALAL_MANAGER" {
+	switch role {
+	case "HALAL_MANAGER":
 		var filtered []domain.ConsultantProfile
 		for _, p := range profiles {
 			if p.User.LeaderID != nil && *p.User.LeaderID == userID {
@@ -94,7 +95,7 @@ func (h *ConsultantHandler) GetAllProfiles(c *gin.Context) {
 			}
 		}
 		profiles = filtered
-	} else if role == "HALAL_DIRECTOR" {
+	case "HALAL_DIRECTOR":
 		var filtered []domain.ConsultantProfile
 		for _, p := range profiles {
 			isDirect := p.User.LeaderID != nil && *p.User.LeaderID == userID

@@ -132,7 +132,8 @@ func (uc *promotionUsecase) SubmitPromotionRequest(userID uuid.UUID, certificate
 	targetRole := ""
 	reqSnapshot := fmt.Sprintf(`{"team_size": %d, "omset_3_months": %.2f}`, teamSize, totalOmset)
 
-	if roleName == "HALAL_ADVISOR" {
+	switch roleName {
+	case "HALAL_ADVISOR":
 		if teamSize < 10 {
 			return nil, fmt.Errorf("tim referral minimal 10 orang, saat ini: %d", teamSize)
 		}
@@ -140,7 +141,7 @@ func (uc *promotionUsecase) SubmitPromotionRequest(userID uuid.UUID, certificate
 			return nil, fmt.Errorf("omset 3 bulan minimal Rp 30.000.000, saat ini: Rp %.2f", totalOmset)
 		}
 		targetRole = "HALAL_MANAGER"
-	} else if roleName == "HALAL_MANAGER" {
+	case "HALAL_MANAGER":
 		managerCount := 0
 		for _, downline := range downlines {
 			if downline.Role.Name == "HALAL_MANAGER" {
@@ -155,7 +156,7 @@ func (uc *promotionUsecase) SubmitPromotionRequest(userID uuid.UUID, certificate
 			return nil, fmt.Errorf("omset grup 3 bulan minimal Rp 150.000.000, saat ini: Rp %.2f", totalOmset)
 		}
 		targetRole = "HALAL_DIRECTOR"
-	} else {
+	default:
 		return nil, fmt.Errorf("role %s tidak dapat mengajukan promosi", roleName)
 	}
 

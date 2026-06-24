@@ -60,6 +60,8 @@ func NewBillingHandler(r *gin.Engine, bUC usecase.BillingUsecase, pUC usecase.Pa
 	invoices.Use(middleware.AuthMiddleware())
 	{
 		invoices.GET("/submission/:submissionId", handler.GetInvoiceBySubmission)
+		// Ganti mode pembayaran: DP → Full Payment (sebelum pembayaran dilakukan)
+		invoices.PUT("/:id/switch-full", handler.SwitchToFullPayment)
 	}
 }
 
@@ -252,3 +254,19 @@ func (h *BillingHandler) GetInvoiceBySubmission(c *gin.Context) {
 	c.JSON(http.StatusOK, invoice)
 }
 
+// SwitchToFullPayment mengubah invoice DP menjadi Full Payment (100%) sebelum bayar.
+// Dipanggil frontend ketika klien memilih opsi "Bayar Penuh" di halaman pembayaran.
+func (h *BillingHandler) SwitchToFullPayment(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid invoice id"})
+		return
+	}
+
+	if err := h.billingUC.SwitchToFullPayment(id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "invoice berhasil diubah ke Full Payment"})
+}

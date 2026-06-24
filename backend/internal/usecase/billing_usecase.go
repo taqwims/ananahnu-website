@@ -16,6 +16,8 @@ type BillingUsecase interface {
 	CreateInvoiceForSubmission(submissionID uuid.UUID, serviceType string, regencyID *int64, districtID *int64) error
 	MarkInvoicePaid(invoiceID int64) error
 	RemindPayment(invoiceID int64, senderID uuid.UUID) error
+	// SwitchToFullPayment mengubah invoice DP menjadi FULL (100%) sehingga pelunasan tidak diperlukan
+	SwitchToFullPayment(invoiceID int64) error
 
 	// Commissions
 	GetReferralCommissions(page, limit int, status string) ([]domain.Commission, int64, error)
@@ -58,7 +60,8 @@ func (uc *billingUsecase) GetMyInvoices(userID uuid.UUID, roleName string, statu
 		filter["status"] = status
 	}
 
-	if roleName == "HALAL_MANAGER" {
+	switch roleName {
+	case "HALAL_MANAGER":
 		// Get team members
 		team, err := uc.UserRepo.FindByLeaderID(userID)
 		if err == nil {
@@ -70,7 +73,7 @@ func (uc *billingUsecase) GetMyInvoices(userID uuid.UUID, roleName string, statu
 		} else {
 			filter["payer_id"] = userID
 		}
-	} else if roleName == "HALAL_DIRECTOR" {
+	case "HALAL_DIRECTOR":
 		// Get managers and their advisors
 		var ids []uuid.UUID
 		ids = append(ids, userID)
@@ -87,7 +90,7 @@ func (uc *billingUsecase) GetMyInvoices(userID uuid.UUID, roleName string, statu
 			}
 		}
 		filter["payer_id"] = ids
-	} else {
+	default:
 		filter["payer_id"] = userID
 	}
 
@@ -141,6 +144,33 @@ func (uc *billingUsecase) CreateInvoiceForSubmission(submissionID uuid.UUID, ser
 
 	return uc.InvoiceRepo.Create(invoice)
 }
+
+// SwitchToFullPayment mengubah invoice dari DP (70%) menjadi Full Payment (100%).
+// Ini digunakan ketika klien memilih membayar lunas di awal.
+// Jika sudah ada invoice pelunasan, hapus (cancel) - tidak relevan lagi.
+func (uc *billingUsecase) SwitchToFullPayment(invoiceID int64) error {
+	invoices, _, err := uc.InvoiceRepo.FindAll(map[string]interface{}{"id": invoiceID}, 1, 1)
+	if err != nil || len(invoices) == 0 {
+		return fmt.Errorf("invoice not found")
+	}
+
+	invoice := &invoices[0]
+	if invoice.Status == domain.InvoiceStatusPaid {
+		return fmt.Errorf("invoice sudah lunas, tidak bisa diubah")
+	}
+	if invoice.Type != domain.InvoiceTypeDP {
+		return fmt.Errorf("hanya invoice DP yang bisa diubah ke Full Payment")
+	}
+
+	// Hitung total (DP = 70%, jadi total = DP / 0.7)
+	totalAmount := invoice.Amount / 0.70
+	invoice.Amount = totalAmount
+	invoice.Type = domain.InvoiceTypeFull
+	invoice.Notes = "Full Payment (diubah dari DP)"
+
+	return uc.InvoiceRepo.Update(invoice)
+}
+
 
 func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 	invoices, _, err := uc.InvoiceRepo.FindAll(map[string]interface{}{"id": invoiceID}, 1, 1)

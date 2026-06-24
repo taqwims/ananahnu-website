@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CreditCard, Upload, CheckCircle, Loader2, AlertCircle, Clock, ExternalLink, RefreshCw, Download } from 'lucide-react';
+import { CreditCard, Upload, CheckCircle, Loader2, AlertCircle, Clock, ExternalLink, RefreshCw, Download, Zap } from 'lucide-react';
 import api from '../../services/api';
 import { loadSnapJs, isSnapReady } from '../../utils/midtrans';
 import { useAuthStore } from '../../store/authStore';
@@ -26,6 +26,8 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
     const [paymentHistory, setPaymentHistory] = useState<Payment[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
     const [loadingConfig, setLoadingConfig] = useState(false);
+    // Mode pembayaran: DP (70%) atau Full (100%) — hanya untuk DP invoice
+    const [paymentMode, setPaymentMode] = useState<'DP' | 'FULL'>('DP');
 
     const user = useAuthStore((state) => state.user);
     const isEditable = user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR';
@@ -40,23 +42,35 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
         return submission.invoice || null;
     })();
 
-    // Sync amount from the resolved invoice
+    // Sync amount from the resolved invoice + paymentMode
     useEffect(() => {
+        let base = 0;
         if (resolvedInvoice?.amount) {
-            setAmount(resolvedInvoice.amount);
-            return;
-        }
-        if (submission.cost_detail?.total_amount) {
+            // resolvedInvoice.amount adalah nominal sesuai type (DP=70%, PELUNASAN=30%)
+            // Untuk mode FULL, hitung total dari DP amount
+            base = resolvedInvoice.amount;
+        } else if (submission.cost_detail?.total_amount) {
             const total = submission.cost_detail.total_amount;
-            setAmount(invoiceType === 'PELUNASAN' ? total * 0.30 : total * 0.70);
+            base = invoiceType === 'PELUNASAN' ? total * 0.30 : total * 0.70;
+        }
+
+        if (base > 0) {
+            if (invoiceType === 'DP' && paymentMode === 'FULL') {
+                // Full payment: DP / 0.7 = total
+                setAmount(Math.round(base / 0.70));
+            } else {
+                setAmount(Math.round(base));
+            }
             return;
         }
+
         if (submission.service_type === 'REGULER') {
             setLoadingConfig(true);
             api.get(`/invoices/submission/${submission.id}`)
                 .then(res => {
                     if (res.data && res.data.amount) {
-                        setAmount(res.data.amount);
+                        const a = res.data.amount;
+                        setAmount(invoiceType === 'DP' && paymentMode === 'FULL' ? Math.round(a / 0.70) : a);
                     }
                 })
                 .catch(err => console.error("Failed to load invoice amount", err))
@@ -71,7 +85,7 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                 .catch(err => console.error("Failed to load cost config", err))
                 .finally(() => setLoadingConfig(false));
         }
-    }, [submission, submission.id, submission.cost_detail?.total_amount, submission.service_type, resolvedInvoice, invoiceType]);
+    }, [submission, submission.id, submission.cost_detail?.total_amount, submission.service_type, resolvedInvoice, invoiceType, paymentMode]);
 
     // Load payment history for this submission
     const loadHistory = useCallback(async () => {
@@ -129,6 +143,11 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
 
         setLoading(true);
         try {
+            // Jika mode Full Payment, ubah invoice dulu ke FULL type
+            if (invoiceType === 'DP' && paymentMode === 'FULL' && resolvedInvoice?.id) {
+                await api.put(`/invoices/${resolvedInvoice.id}/switch-full`);
+            }
+
             if (method === 'MIDTRANS') {
                 // Ensure Snap.js is loaded
                 if (!isSnapReady()) {
@@ -336,6 +355,72 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                         : 'Silakan selesaikan pembayaran untuk melanjutkan proses verifikasi.'}
                 </p>
             </div>
+
+            {/* Toggle DP vs Full Payment — hanya tampil untuk DP invoice yang belum di-switch ke FULL */}
+            {invoiceType === 'DP' && resolvedInvoice?.type === 'DP' && (
+                <div>
+                    <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">Mode Pembayaran</p>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button
+                            id="payment-mode-dp"
+                            type="button"
+                            onClick={() => setPaymentMode('DP')}
+                            className={`relative flex flex-col items-start gap-1 p-4 rounded-xl border-2 text-left transition-all ${
+                                paymentMode === 'DP'
+                                    ? 'border-amber-400 bg-amber-50'
+                                    : 'border-gray-200 bg-white hover:border-gray-300'
+                            }`}
+                        >
+                            <div className="flex items-center gap-2 w-full">
+                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                                    paymentMode === 'DP' ? 'border-amber-500' : 'border-gray-300'
+                                }`}>
+                                    {paymentMode === 'DP' && <div className="w-2 h-2 rounded-full bg-amber-500" />}
+                                </div>
+                                <span className={`text-sm font-bold ${
+                                    paymentMode === 'DP' ? 'text-amber-700' : 'text-gray-600'
+                                }`}>Down Payment</span>
+                                <span className={`ml-auto text-xs font-black px-2 py-0.5 rounded-full ${
+                                    paymentMode === 'DP' ? 'bg-amber-200 text-amber-800' : 'bg-gray-100 text-gray-500'
+                                }`}>70%</span>
+                            </div>
+                            <p className="text-xs text-gray-400 ml-6">Bayar sebagian, lunasi saat SH terbit</p>
+                        </button>
+
+                        <button
+                            id="payment-mode-full"
+                            type="button"
+                            onClick={() => setPaymentMode('FULL')}
+                            className={`relative flex flex-col items-start gap-1 p-4 rounded-xl border-2 text-left transition-all ${
+                                paymentMode === 'FULL'
+                                    ? 'border-emerald-400 bg-emerald-50'
+                                    : 'border-gray-200 bg-white hover:border-gray-300'
+                            }`}
+                        >
+                            <div className="flex items-center gap-2 w-full">
+                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                                    paymentMode === 'FULL' ? 'border-emerald-500' : 'border-gray-300'
+                                }`}>
+                                    {paymentMode === 'FULL' && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
+                                </div>
+                                <span className={`text-sm font-bold ${
+                                    paymentMode === 'FULL' ? 'text-emerald-700' : 'text-gray-600'
+                                }`}>Bayar Penuh</span>
+                                <span className={`ml-auto text-xs font-black px-2 py-0.5 rounded-full ${
+                                    paymentMode === 'FULL' ? 'bg-emerald-200 text-emerald-800' : 'bg-gray-100 text-gray-500'
+                                }`}>100%</span>
+                            </div>
+                            <p className="text-xs text-gray-400 ml-6">Lunas sekarang, unduh SH langsung</p>
+                            {paymentMode === 'FULL' && (
+                                <div className="ml-6 flex items-center gap-1 text-emerald-600">
+                                    <Zap className="w-3 h-3" />
+                                    <span className="text-xs font-semibold">Tidak perlu pelunasan lagi!</span>
+                                </div>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Amount input */}
             <div>

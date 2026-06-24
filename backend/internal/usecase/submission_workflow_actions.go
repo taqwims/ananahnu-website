@@ -411,30 +411,39 @@ func (uc *submissionWorkflowUsecase) IssueSH(id uuid.UUID, userID uuid.UUID, shU
 
 	// Untuk REGULER: buat invoice Pelunasan 30% jika belum ada
 	if sub.ServiceType == "REGULER" {
-		if _, err := uc.InvoiceRepo.FindBySubmissionIDAndType(id, domain.InvoiceTypePelunasan); err != nil {
-			// Cari DP invoice untuk mengetahui total amount asli (DP = 70%, jadi total = DP / 0.7)
-			var pelunasanAmount float64
-			if dpInvoice, dpErr := uc.InvoiceRepo.FindBySubmissionIDAndType(id, domain.InvoiceTypeDP); dpErr == nil {
-				// pelunasan = 30/70 dari DP amount, atau bisa dihitung: totalAmount * 0.3
-				totalAmount := dpInvoice.Amount / 0.70
-				pelunasanAmount = totalAmount * 0.30
-			} else {
-				// Fallback: cari dari cost detail
-				if costDetail, err := uc.BillingConfigRepo.GetSubmissionCostDetail(id); err == nil && costDetail != nil {
-					pelunasanAmount = costDetail.TotalAmount * 0.30
+		// Cek dulu apakah klien sudah pilih Full Payment (DP invoice di-switch ke FULL)
+		dpInvoice, dpErr := uc.InvoiceRepo.FindBySubmissionIDAndType(id, domain.InvoiceTypeDP)
+		fullInvoice, fullErr := uc.InvoiceRepo.FindBySubmissionIDAndType(id, domain.InvoiceTypeFull)
+
+		isFullPaymentMode := (fullErr == nil && fullInvoice != nil) ||
+			(dpErr == nil && dpInvoice != nil && dpInvoice.Type == domain.InvoiceTypeFull)
+
+		if isFullPaymentMode {
+			// Klien sudah bayar lunas di awal, tidak perlu pelunasan
+		} else {
+			// Mode DP: buat invoice pelunasan 30% jika belum ada
+			if _, err := uc.InvoiceRepo.FindBySubmissionIDAndType(id, domain.InvoiceTypePelunasan); err != nil {
+				var pelunasanAmount float64
+				if dpErr == nil && dpInvoice != nil {
+					totalAmount := dpInvoice.Amount / 0.70
+					pelunasanAmount = totalAmount * 0.30
+				} else {
+					if costDetail, err := uc.BillingConfigRepo.GetSubmissionCostDetail(id); err == nil && costDetail != nil {
+						pelunasanAmount = costDetail.TotalAmount * 0.30
+					}
 				}
-			}
-			if pelunasanAmount > 0 {
-				_ = uc.InvoiceRepo.Create(&domain.Invoice{
-					SubmissionID:  id,
-					PayerID:       nil,
-					ServiceType:   "REGULER",
-					Type:          domain.InvoiceTypePelunasan,
-					Amount:        pelunasanAmount,
-					Status:        domain.InvoiceStatusUnpaid,
-					PricingSource: "COST_DETAIL",
-					Notes:         "Pelunasan 30% Layanan Reguler (wajib lunas untuk unduh SH)",
-				})
+				if pelunasanAmount > 0 {
+					_ = uc.InvoiceRepo.Create(&domain.Invoice{
+						SubmissionID:  id,
+						PayerID:       nil,
+						ServiceType:   "REGULER",
+						Type:          domain.InvoiceTypePelunasan,
+						Amount:        pelunasanAmount,
+						Status:        domain.InvoiceStatusUnpaid,
+						PricingSource: "COST_DETAIL",
+						Notes:         "Pelunasan 30% Layanan Reguler (wajib lunas untuk unduh SH)",
+					})
+				}
 			}
 		}
 	}

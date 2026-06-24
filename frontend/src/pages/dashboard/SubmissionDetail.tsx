@@ -154,6 +154,9 @@ export default function SubmissionDetail() {
                         isSplitPayment={submission.service_type === 'REGULER'}
                         pelunasanPaid={
                             submission.service_type !== 'REGULER' ||
+                            // Full payment di awal: invoice FULL type sudah lunas
+                            !!(submission.invoices?.find(inv => inv.type === 'FULL')?.status === 'PAID') ||
+                            // Pelunasan 30% sudah dibayar
                             !!(submission.invoices?.find(inv => inv.type === 'PELUNASAN')?.status === 'PAID')
                         }
                     />
@@ -162,6 +165,7 @@ export default function SubmissionDetail() {
                 {/* Pelunasan 30% section — shown at SH_TERBIT for REGULER */}
                 {submission.status === 'SH_TERBIT' && 
                  submission.service_type === 'REGULER' &&
+                 !submission.invoices?.find(inv => inv.type === 'FULL' && inv.status === 'PAID') &&
                  submission.invoices?.find(inv => inv.type === 'PELUNASAN')?.status !== 'PAID' && (
                     <PaymentSection 
                         submission={submission} 

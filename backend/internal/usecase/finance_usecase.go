@@ -115,12 +115,13 @@ func (uc *financeUsecase) GetDashboard(month, year int) (*FinanceDashboardData, 
 			}
 		}
 
-		if inv.ServiceType == "REGULER" {
+		switch inv.ServiceType {
+		case "REGULER":
 			if inv.Status == domain.InvoiceStatusPaid {
 				dashboard.IncomeReguler += inv.Amount
 			}
 			dashboard.CountReguler++
-		} else if inv.ServiceType == "SELF_DECLARE" {
+		case "SELF_DECLARE":
 			if inv.Amount > 0 {
 				if inv.Status == domain.InvoiceStatusPaid {
 					dashboard.IncomeSelfDeclarePaid += inv.Amount
