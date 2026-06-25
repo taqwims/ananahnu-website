@@ -151,8 +151,8 @@ func main() {
 
 	// 6. Seed Sales Scheme Prices
 	prices := []SalesSchemePrice{
-		// Default generic price for Direct Sale (5 juta)
-		{SalesSchemeID: schemes[0].ID, BasePrice: 5000000, DataSource: "ORGANIK", Description: "Harga Dasar Umum"},
+		// Default generic price for Direct Sale (3.5 juta)
+		{SalesSchemeID: schemes[0].ID, BasePrice: 3500000, DataSource: "ORGANIK", Description: "Harga Dasar Umum"},
 		// Specific price for Direct Sale -> Makanan -> Skala Mikro (3 juta)
 		{SalesSchemeID: schemes[0].ID, BusinessTypeID: &bTypes[0].ID, BusinessScaleID: &scales[0].ID, BasePrice: 3000000, DataSource: "ORGANIK", Description: "Promo Makanan Mikro"},
 		// Specific price for Direct Sale -> Kosmetik -> Semua Skala (8 juta)

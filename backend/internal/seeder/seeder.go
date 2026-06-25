@@ -420,7 +420,7 @@ func seedKalkulatorData(db *gorm.DB) {
 
 	// 6. Seed Sales Scheme Prices
 	prices := []domain.SalesSchemePrice{
-		{SalesSchemeID: schemes[0].ID, BasePrice: 5000000, DataSource: "ORGANIK", Description: "Harga Dasar Umum", IsActive: true},
+		{SalesSchemeID: schemes[0].ID, BasePrice: 3500000, DataSource: "ORGANIK", Description: "Harga Dasar Umum", IsActive: true},
 		{SalesSchemeID: schemes[0].ID, BusinessTypeID: &bTypes[0].ID, BusinessScaleID: &scales[0].ID, BasePrice: 3000000, DataSource: "ORGANIK", Description: "Promo Makanan Mikro", IsActive: true},
 		{SalesSchemeID: schemes[0].ID, BusinessTypeID: &bTypes[1].ID, BasePrice: 8000000, DataSource: "ORGANIK", Description: "Harga Dasar Kosmetik", IsActive: true},
 		{SalesSchemeID: schemes[1].ID, BasePrice: 4000000, DataSource: "MARKETING", Description: "Harga Dasar Partnership", IsActive: true},

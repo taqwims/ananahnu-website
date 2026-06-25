@@ -55,11 +55,11 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
 
   // ── Klien & Pengajuan ─────────────────────────────────────────────
   'clients': [
-    'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR',
+    'DIRECTOR', 'MANAGER', 'HALAL_DIRECTOR',
     'DRAFTER', 'QC_OFFICER', 'MARKETING', 'AUDIT_MANAGER',
   ],
   'clients/new': [
-    'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'MARKETING',
+    'DIRECTOR', 'MANAGER', 'HALAL_DIRECTOR', 'MARKETING',
   ],
   // clients/:id  → sama dengan clients/new (edit)
   'submissions': [
@@ -90,12 +90,12 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   'draft-monitoring':  ['DRAFT_MANAGER', 'DIRECTOR'],
 
   // ── Profil Advisor & Karir ────────────────────────────────────────
-  'consultant-profile': ['HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR'],
+  'consultant-profile': ['HALAL_DIRECTOR'],
   'karir':              ['HALAL_ADVISOR', 'HALAL_MANAGER'],
 
   // ── Jaringan & Referral ───────────────────────────────────────────
   'team':           ['HALAL_MANAGER', 'HALAL_DIRECTOR'],
-  'referrals':      ['HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'MARKETING', 'DIRECTOR'],
+  'referrals':      ['HALAL_MANAGER', 'HALAL_DIRECTOR', 'MARKETING', 'DIRECTOR'],
   'admin-referrals':['DIRECTOR', 'ADMIN_PELATIHAN', 'ADMIN_KEUANGAN'],
   'referral-fees':  ['DIRECTOR', 'ADMIN_KEUANGAN', 'ADMIN_PELATIHAN'],
   'coordinator-rates': ['DIRECTOR', 'ADMIN_KEUANGAN'],

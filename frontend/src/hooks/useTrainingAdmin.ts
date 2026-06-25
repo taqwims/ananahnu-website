@@ -18,6 +18,7 @@ export const useTrainingAdmin = () => {
     
     const user = useAuthStore(state => state.user);
     const isCoordinator = user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR';
+    const canGraduate = user?.role === 'ADMIN_PELATIHAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'MANAGER';
 
     const loadTrainings = useCallback(async () => {
         setLoading(true);
@@ -154,6 +155,7 @@ export const useTrainingAdmin = () => {
         newUserID, setNewUserID,
         allUsers,
         isCoordinator,
+        canGraduate,
         handleCreate, handleDelete, addParticipant, updateStatus,
         selectTraining, handleApprove, handleReject
     };

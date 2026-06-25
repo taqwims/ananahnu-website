@@ -134,9 +134,6 @@ func (uc *promotionUsecase) SubmitPromotionRequest(userID uuid.UUID, certificate
 
 	switch roleName {
 	case "HALAL_ADVISOR":
-		if teamSize < 10 {
-			return nil, fmt.Errorf("tim referral minimal 10 orang, saat ini: %d", teamSize)
-		}
 		if totalOmset < 30000000 {
 			return nil, fmt.Errorf("omset 3 bulan minimal Rp 30.000.000, saat ini: Rp %.2f", totalOmset)
 		}
@@ -273,10 +270,10 @@ func (uc *promotionUsecase) GetEligibilityStats(userID uuid.UUID) (*EligibilityS
 	}
 
 	if roleName == "HALAL_ADVISOR" {
-		stats.RequireTeam = 10
+		stats.RequireTeam = 0
 		stats.RequireOmset = 30000000
 		stats.TargetRole = "HALAL_MANAGER"
-		stats.IsEligible = teamSize >= 10 && totalOmset >= 30000000 && trainingPassed
+		stats.IsEligible = totalOmset >= 30000000 && trainingPassed
 	} else {
 		stats.RequireTeam = 3 // jumlah HALAL_MANAGER di tim
 		stats.RequireOmset = 150000000

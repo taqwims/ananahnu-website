@@ -3,6 +3,8 @@ import { Loader2, Download, Plus, Trash, BookOpen } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'react-hot-toast';
 import type { BillingComponent } from '../../types';
+import { useAuthStore } from '../../store/authStore';
+import logoImg from '../../assets/logo.png';
 
 type Props = {
     onSaveClick?: (data: any) => void;
@@ -14,6 +16,9 @@ type OptionalCost = {
 };
 
 export default function KalkulatorStandalone({ onSaveClick }: Props) {
+    const user = useAuthStore(state => state.user);
+    const isAdvisorOrManager = user?.role === 'HALAL_ADVISOR' || user?.role === 'HALAL_MANAGER';
+
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -158,7 +163,16 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                 setProducts(pRes.data || []);
                 setScales(bsRes.data || []);
                 setProvinces(provRes.data || []);
-                setSchemes(scRes.data || []);
+                const schemeList = scRes.data || [];
+                setSchemes(schemeList);
+
+                const directSaleScheme = schemeList.find((s: any) => s.name.toLowerCase().includes('direct'));
+                if (isAdvisorOrManager) {
+                    setDataSource('ORGANIK');
+                    if (directSaleScheme) {
+                        setSalesSchemeId(directSaleScheme.id.toString());
+                    }
+                }
             } catch (err) {
                 console.error(err);
             } finally {
@@ -424,6 +438,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
             </head>
             <body>
                 <div class="header">
+                    <img src="${logoImg}" style="height: 55px; margin-bottom: 8px; object-fit: contain;" />
                     <h1>ESTIMASI BIAYA SERTIFIKASI HALAL</h1>
                     <p>Dokumen Simulasi Perhitungan Mandiri</p>
                 </div>
@@ -444,7 +459,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                         <div class="details-row"><span>Sumber Data:</span><span>${dataSource === 'MARKETING' ? 'Marketing (Partner)' : 'Organik'}</span></div>
                         <div class="details-row"><span>Jumlah Cabang:</span><span>${branchCount}</span></div>
                         <div class="details-row"><span>Jumlah Produk:</span><span>${productCount}</span></div>
-                        <div class="details-row"><span>Jumlah Manday:</span><span>${mandays}</span></div>
+                        ${!isAdvisorOrManager ? `<div class="details-row"><span>Jumlah Manday:</span><span>${mandays}</span></div>` : ''}
                     </div>
                 </div>
 
@@ -527,30 +542,32 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                 </div>
 
                 {/* Sumber Data & Skema Selection */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                        <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Sumber Data</label>
-                        <select
-                            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all font-bold text-brand-700"
-                            value={dataSource}
-                            onChange={e => setDataSource(e.target.value)}
-                        >
-                            <option value="ORGANIK">Organik / Telemarketing</option>
-                            <option value="MARKETING">Marketing (Partner)</option>
-                        </select>
+                {!isAdvisorOrManager && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Sumber Data</label>
+                            <select
+                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all font-bold text-brand-700"
+                                value={dataSource}
+                                onChange={e => setDataSource(e.target.value)}
+                            >
+                                <option value="ORGANIK">Organik / Telemarketing</option>
+                                <option value="MARKETING">Marketing (Partner)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Skema Penjualan</label>
+                            <select
+                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all font-bold text-brand-700"
+                                value={salesSchemeId}
+                                onChange={e => setSalesSchemeId(e.target.value)}
+                            >
+                                <option value="">Pilih Skema...</option>
+                                {schemes.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Skema Penjualan</label>
-                        <select
-                            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all font-bold text-brand-700"
-                            value={salesSchemeId}
-                            onChange={e => setSalesSchemeId(e.target.value)}
-                        >
-                            <option value="">Pilih Skema...</option>
-                            {schemes.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                    </div>
-                </div>
+                )}
 
                 {/* Guide Section */}
                 <div className="bg-brand-50 border border-brand-100 p-3 rounded-xl flex gap-2 text-brand-850 text-xs">
@@ -650,7 +667,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                     )}
 
                     {/* Quantities */}
-                    <div className="grid grid-cols-3 gap-3 border-t border-gray-100 pt-3.5">
+                    <div className={`grid ${isAdvisorOrManager ? 'grid-cols-2' : 'grid-cols-3'} gap-3 border-t border-gray-100 pt-3.5`}>
                         <div>
                             <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Jumlah Cabang</label>
                             <input
@@ -671,16 +688,18 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                                 onChange={e => setProductCount(Math.max(1, parseInt(e.target.value) || 1))}
                             />
                         </div>
-                        <div>
-                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Jumlah Manday</label>
-                            <input
-                                type="number"
-                                min="1"
-                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
-                                value={mandays}
-                                onChange={e => setMandays(Math.max(1, parseInt(e.target.value) || 1))}
-                            />
-                        </div>
+                        {!isAdvisorOrManager && (
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Jumlah Manday</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
+                                    value={mandays}
+                                    onChange={e => setMandays(Math.max(1, parseInt(e.target.value) || 1))}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {/* Optional Components */}

@@ -558,7 +558,7 @@ func (uc *telemarketingUsecase) GenerateClientAccount(formID uuid.UUID, telemark
 	}
 
 	// Inline function to handle Client and Submission creation
-	createClientAndSubmission := func(userID uuid.UUID) (*uuid.UUID, error) {
+	createClientAndSubmission := func() (*uuid.UUID, error) {
 		var address string
 		if form.Address != "" {
 			address = form.Address
@@ -643,7 +643,7 @@ func (uc *telemarketingUsecase) GenerateClientAccount(formID uuid.UUID, telemark
 		form.Status = domain.TeleFormStatusDataInput
 		form.UpdatedAt = time.Now()
 
-		subIDPtr, err := createClientAndSubmission(existing.ID)
+		subIDPtr, err := createClientAndSubmission()
 		if err == nil {
 			form.SubmissionID = subIDPtr
 		}
@@ -680,7 +680,7 @@ func (uc *telemarketingUsecase) GenerateClientAccount(formID uuid.UUID, telemark
 	form.Status = domain.TeleFormStatusDataInput
 	form.UpdatedAt = time.Now()
 
-	subIDPtr, err := createClientAndSubmission(newUserID)
+	subIDPtr, err := createClientAndSubmission()
 	if err == nil {
 		form.SubmissionID = subIDPtr
 	}
@@ -863,28 +863,78 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 	var total float64
 	var breakdown []BreakdownItem
 
-	// Masukkan harga jasa dari skema
-	if scheme != nil {
-		price := scheme.BasePrice
-		if scheme.DiscountPercent > 0 {
-			discount := price * (scheme.DiscountPercent / 100.0)
-			price -= discount
+	// Find the best matching PENDAMPINGAN component
+	var bestPendampingan *domain.BillingComponent
+	bestScore := -1
+
+	for _, comp := range components {
+		if comp.Category != "PENDAMPINGAN" {
+			continue
 		}
+		// Match filters
+		if comp.ProvinceID != nil && *comp.ProvinceID != input.ProvinceID {
+			continue
+		}
+		if comp.RegencyID != nil && input.RegencyID != nil && *comp.RegencyID != *input.RegencyID {
+			continue
+		}
+		if comp.BusinessTypeID != nil && *comp.BusinessTypeID != input.BusinessTypeID {
+			continue
+		}
+		if comp.BusinessScaleID != nil && *comp.BusinessScaleID != input.BusinessScaleID {
+			continue
+		}
+		if comp.SalesSchemeID != nil && *comp.SalesSchemeID != input.SalesSchemeID {
+			continue
+		}
+
+		// Score specificity
+		score := 0
+		if comp.DistrictID != nil { score += 1000 }
+		if comp.RegencyID != nil { score += 100 }
+		if comp.ProvinceID != nil { score += 10 }
+		if comp.SalesSchemeID != nil { score += 8 }
+		if comp.BusinessScaleID != nil { score += 5 }
+		if comp.ProductCategoryID != nil { score += 2 }
+		if comp.BusinessTypeID != nil { score += 1 }
+
+		if score > bestScore {
+			bestScore = score
+			bestPendampingan = &comp
+		}
+	}
+
+	var price float64
+	var name string = "Jasa Pendampingan"
+
+	if bestPendampingan != nil {
+		price = bestPendampingan.BaseAmount
+		name = bestPendampingan.Name
+	} else if scheme != nil {
+		price = scheme.BasePrice
+		if scheme.SalesScheme.Name != "" {
+			name = scheme.SalesScheme.Name
+		}
+	}
+
+	if scheme != nil && scheme.DiscountPercent > 0 {
+		discount := price * (scheme.DiscountPercent / 100.0)
+		price -= discount
+	}
+
+	if price > 0 {
 		total += price
 		breakdown = append(breakdown, BreakdownItem{
-			Name:     "Jasa Pendampingan", // Default name if scheme has no relationship loaded
+			Name:     name,
 			Category: "JASA",
 			Amount:   price,
 		})
-		if scheme.SalesScheme.Name != "" {
-			breakdown[len(breakdown)-1].Name = scheme.SalesScheme.Name
-		}
 	}
 
 	// 3. Hitung komponen lainnya berdasarkan rule masing-masing
 	for _, comp := range components {
 		if comp.Category == "PENDAMPINGAN" {
-			continue // Jasa pendampingan sudah diambil dari skema penjualan (SalesSchemePrice)
+			continue // Jasa pendampingan sudah dihitung
 		}
 
 		// Filter komponen yg mensyaratkan province/regency/dll
@@ -931,11 +981,22 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 	finalAmount := total - dpAmount
 
 	var schemePriceInfo SchemePriceInfo
+	basePriceVal := price
+	if scheme != nil && scheme.DiscountPercent > 0 {
+		// Calculate the basePrice before discount to display correctly
+		basePriceVal = price / (1.0 - (scheme.DiscountPercent / 100.0))
+	}
 	if scheme != nil {
 		schemePriceInfo = SchemePriceInfo{
-			BasePrice:       scheme.BasePrice,
+			BasePrice:       basePriceVal,
 			DiscountPercent: scheme.DiscountPercent,
 			Description:     scheme.Description,
+		}
+	} else if bestPendampingan != nil {
+		schemePriceInfo = SchemePriceInfo{
+			BasePrice:       basePriceVal,
+			DiscountPercent: 0,
+			Description:     "Harga Berdasarkan Kategori Pendampingan",
 		}
 	}
 
@@ -968,9 +1029,10 @@ func (uc *telemarketingUsecase) GetAnalytics(filter map[string]interface{}) (*Te
 		analytics.TotalForms++
 
 		// Route Type Distributions
-		if f.RouteType == domain.TeleRouteSelfDeclare {
+		switch f.RouteType {
+		case domain.TeleRouteSelfDeclare:
 			analytics.TotalSelfDeclare++
-		} else if f.RouteType == domain.TeleRouteTeleconference {
+		case domain.TeleRouteTeleconference:
 			analytics.TotalTeleconference++
 		}
 

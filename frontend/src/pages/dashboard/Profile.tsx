@@ -1,11 +1,20 @@
 import { useState, useEffect } from 'react';
-import { User, Phone, MapPin, Loader2, Save, Lock, UserCircle, Eye, EyeOff } from 'lucide-react';
+import { User, Phone, MapPin, Loader2, Save, Lock, UserCircle, Eye, EyeOff, UserCheck, Upload, CheckCircle, Shield } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { userService } from '../../services/userService';
 import { geographyService } from '../../services/geographyService';
 import FileUpload from '../../components/dashboard/FileUpload';
 import type { Province, Regency } from '../../types';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
+
+const DOCUMENTS = [
+    { key: 'ktp_url', label: 'KTP', required: true },
+    { key: 'photo_3x4_url', label: 'Foto 3x4 Latar Merah', required: true },
+    { key: 'ijazah_sta_url', label: 'Ijazah STA', required: true },
+    { key: 'bank_account_url', label: 'Buku Rekening', required: true },
+    { key: 'npwp_url', label: 'NPWP', required: false },
+] as const;
 
 export default function ProfilePage() {
     const { user, updateUser } = useAuthStore();
@@ -16,6 +25,14 @@ export default function ProfilePage() {
     const [provinces, setProvinces] = useState<Province[]>([]);
     const [regencies, setRegencies] = useState<Regency[]>([]);
     
+    const [consultantProfile, setConsultantProfile] = useState<any | null>(null);
+    const [consultantForm, setConsultantForm] = useState({
+        ktp_url: '', photo_3x4_url: '', ijazah_sta_url: '',
+        bank_account_url: '', npwp_url: '',
+    });
+
+    const docKey = (key: string) => key as 'ktp_url' | 'photo_3x4_url' | 'ijazah_sta_url' | 'bank_account_url' | 'npwp_url';
+
     const [form, setForm] = useState({
         full_name: '',
         phone: '',
@@ -50,6 +67,22 @@ export default function ProfilePage() {
                 if (profile.province_id) {
                     const regencyList = await geographyService.getRegencies(profile.province_id);
                     setRegencies(regencyList);
+                }
+
+                if (user?.id && (user?.role === 'HALAL_ADVISOR' || user?.role === 'HALAL_MANAGER')) {
+                    try {
+                        const cpRes = await api.get(`/consultant/profile/${user.id}`);
+                        setConsultantProfile(cpRes.data);
+                        setConsultantForm({
+                            ktp_url: cpRes.data.ktp_url || '',
+                            photo_3x4_url: cpRes.data.photo_3x4_url || '',
+                            ijazah_sta_url: cpRes.data.ijazah_sta_url || '',
+                            bank_account_url: cpRes.data.bank_account_url || '',
+                            npwp_url: cpRes.data.npwp_url || '',
+                        });
+                    } catch (e) {
+                        console.error("No consultant profile found", e);
+                    }
                 }
             } catch (err) {
                 toast.error('Gagal mengambil data profil');
@@ -109,6 +142,13 @@ export default function ProfilePage() {
                 regency_id: Number(form.regency_id),
                 avatar_url: form.avatar_url,
             });
+
+            // Save consultant profile details if advisor/manager
+            if (user?.role === 'HALAL_ADVISOR' || user?.role === 'HALAL_MANAGER') {
+                await api.put('/consultant/profile', { ...consultantForm, user_id: user.id });
+                const cpRes = await api.get(`/consultant/profile/${user.id}`);
+                setConsultantProfile(cpRes.data);
+            }
 
             toast.success('Profil berhasil diperbarui');
             setForm(prev => ({ ...prev, password: '', confirm_password: '' }));
@@ -275,6 +315,77 @@ export default function ProfilePage() {
                             </div>
                         </div>
                     </div>
+
+                    {(user?.role === 'HALAL_ADVISOR' || user?.role === 'HALAL_MANAGER') && (
+                        <div className="glass-panel p-8 space-y-6">
+                            <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
+                                <UserCheck className="w-6 h-6 text-brand-600" />
+                                <h2 className="text-lg font-bold text-gray-800">Profil Advisor Halal</h2>
+                            </div>
+
+                            {/* Status Banner */}
+                            <div className={`p-4 flex items-center gap-3 rounded-2xl ${consultantProfile?.is_verified ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+                                {consultantProfile?.is_verified ? (
+                                    <>
+                                        <Shield className="w-5 h-5 text-green-600" />
+                                        <span className="text-sm font-medium text-green-800">Profil Terverifikasi</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Shield className="w-5 h-5 text-yellow-600" />
+                                        <span className="text-sm font-medium text-yellow-800">
+                                            Menunggu Verifikasi — {DOCUMENTS.filter(d => consultantForm[docKey(d.key)]).length}/{DOCUMENTS.length} dokumen terisi
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Document Upload Form */}
+                            <div className="space-y-5">
+                                {DOCUMENTS.map(doc => (
+                                    <div key={doc.key} className="space-y-1">
+                                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                            <Upload className="w-4 h-4 text-brand-500" />
+                                            {doc.label}
+                                            {doc.required ? (
+                                                <span className="text-red-500 text-xs">*wajib</span>
+                                            ) : (
+                                                <span className="text-gray-400 text-xs">(opsional)</span>
+                                            )}
+                                            {consultantForm[docKey(doc.key)] && (
+                                                <CheckCircle className="w-4 h-4 text-green-500 ml-auto" />
+                                            )}
+                                        </label>
+                                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                            <div className="flex-1">
+                                                <input
+                                                    type="text"
+                                                    className="glass-input text-sm"
+                                                    placeholder="URL dokumen atau upload file"
+                                                    value={consultantForm[docKey(doc.key)]}
+                                                    onChange={e => setConsultantForm(p => ({ ...p, [doc.key]: e.target.value }))}
+                                                />
+                                            </div>
+                                            <div className="sm:w-48">
+                                                <FileUpload 
+                                                    subfolder="consultant" 
+                                                    label={`Upload ${doc.label}`}
+                                                    onUploadSuccess={(url) => setConsultantForm(p => ({ ...p, [doc.key]: url }))}
+                                                />
+                                            </div>
+                                        </div>
+                                        {consultantForm[docKey(doc.key)] && (
+                                            <a href={consultantForm[docKey(doc.key)].startsWith('http') ? consultantForm[docKey(doc.key)] : `${import.meta.env.VITE_API_URL}${consultantForm[docKey(doc.key)]}`} target="_blank" rel="noopener noreferrer"
+                                                className="text-xs text-brand-600 hover:underline flex items-center gap-1">
+                                                <CheckCircle className="w-3 h-3 text-green-500" />
+                                                Lihat dokumen →
+                                            </a>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Right Column - Status & Action */}

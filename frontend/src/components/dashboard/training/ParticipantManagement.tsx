@@ -1,4 +1,4 @@
-import { Plus, Loader2, CheckCircle, Clock, Users } from 'lucide-react';
+import { Plus, Loader2, Clock, Users } from 'lucide-react';
 import type { TrainingParticipant } from '../../../types';
 
 interface ParticipantManagementProps {
@@ -9,6 +9,7 @@ interface ParticipantManagementProps {
     setNewUserId: (id: string) => void;
     onAdd: () => void;
     onUpdateStatus: (userId: string, status: string) => void;
+    canGraduate?: boolean;
 }
 
 export const ParticipantManagement = ({
@@ -18,7 +19,8 @@ export const ParticipantManagement = ({
     newUserId,
     setNewUserId,
     onAdd,
-    onUpdateStatus
+    onUpdateStatus,
+    canGraduate
 }: ParticipantManagementProps) => {
     return (
         <div className="space-y-4">
@@ -54,33 +56,33 @@ export const ParticipantManagement = ({
             {/* Participant List */}
             {loading ? (
                 <div className="flex justify-center py-4"><Loader2 className="animate-spin text-brand-600" /></div>
-            ) : participants.length === 0 ? (
+            ) : participants.filter(p => p.status !== 'LULUS').length === 0 ? (
                 <p className="text-center text-gray-400 text-sm py-8 border-2 border-dashed border-gray-100 rounded-xl">Belum ada peserta terdaftar</p>
             ) : (
                 <div className="divide-y divide-gray-100 bg-white rounded-xl border border-gray-100 overflow-hidden">
-                    {participants.map(p => (
+                    {participants.filter(p => p.status !== 'LULUS').map(p => (
                         <div key={p.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
                             <div>
                                 <p className="text-sm font-bold text-gray-800">{p.user?.full_name || p.user_id}</p>
                                 <p className="text-xs text-gray-500">{p.user?.email}</p>
+                                {(p.user?.phone || p.user?.address) && (
+                                    <p className="text-xs text-gray-400 mt-1 font-medium">
+                                        {p.user?.phone && <span className="mr-3">📞 {p.user.phone}</span>}
+                                        {p.user?.address && <span>📍 {p.user.address}</span>}
+                                    </p>
+                                )}
                             </div>
                             <div className="flex items-center gap-3">
-                                {p.status === 'LULUS' ? (
-                                    <span className="flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-700 rounded-full text-[10px] font-black uppercase tracking-widest">
-                                        <CheckCircle className="w-3.5 h-3.5" /> Lulus
-                                    </span>
-                                ) : (
-                                    <>
-                                        <span className="flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black uppercase tracking-widest">
-                                            <Clock className="w-3.5 h-3.5" /> Peserta
-                                        </span>
-                                        <button
-                                            onClick={() => onUpdateStatus(p.user_id, 'LULUS')}
-                                            className="px-4 py-1 bg-brand-600 text-white rounded-lg text-xs font-bold hover:bg-brand-700 transition shadow-lg shadow-brand-100"
-                                        >
-                                            Luluskan
-                                        </button>
-                                    </>
+                                <span className="flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-[10px] font-black uppercase tracking-widest">
+                                    <Clock className="w-3.5 h-3.5" /> Peserta
+                                </span>
+                                {canGraduate && (
+                                    <button
+                                        onClick={() => onUpdateStatus(p.user_id, 'LULUS')}
+                                        className="px-4 py-1 bg-brand-600 text-white rounded-lg text-xs font-bold hover:bg-brand-700 transition shadow-lg shadow-brand-100"
+                                    >
+                                        Luluskan
+                                    </button>
                                 )}
                             </div>
                         </div>

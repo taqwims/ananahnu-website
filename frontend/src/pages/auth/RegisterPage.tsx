@@ -27,7 +27,7 @@ const registerSchema = z.object({
         }
         return cleaned;
     }),
-    referral_code: z.string().optional(),
+    referral_code: z.string().min(1, "Kode referral wajib diisi"),
 }).refine((data) => data.password === data.confirm_password, {
     message: "Password tidak cocok",
     path: ["confirm_password"],
@@ -335,12 +335,13 @@ export default function RegisterPage() {
                                     </div>
 
                                     <div>
-                                        <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">Kode Referral (Opsional)</label>
+                                        <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">Kode Referral <span className="text-red-500">*wajib</span></label>
                                         <div className="relative group">
                                             <Star className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 group-focus-within:text-brand-600 transition-colors" />
-                                            <input {...register('referral_code')} placeholder="Masukkan kode referral jika ada" className="glass-input pl-12 h-14 bg-white/50" />
+                                            <input {...register('referral_code')} placeholder="Masukkan kode referral rekan Anda" className="glass-input pl-12 h-14 bg-white/50" />
                                         </div>
-                                        <p className="text-[10px] text-gray-400 mt-2 font-medium ml-1">Gunakan kode referral dari rekan Anda untuk benefit khusus.</p>
+                                        {errors.referral_code && <p className="text-red-500 text-[10px] mt-2 font-bold ml-1">{errors.referral_code.message}</p>}
+                                        <p className="text-[10px] text-gray-400 mt-2 font-medium ml-1">Gunakan kode referral dari Halal Manager / Coordinator yang merekrut Anda.</p>
                                     </div>
 
                                     <div className="p-6 rounded-2xl bg-gold-50 border border-gold-100 shadow-sm shadow-gold-100">

@@ -66,7 +66,7 @@ export default function KarirDashboard() {
                     team_size: 0,
                     manager_count: 0,
                     omset_3_months: 0,
-                    require_team: role === 'HALAL_ADVISOR' ? 10 : 3,
+                    require_team: role === 'HALAL_ADVISOR' ? 0 : 3,
                     require_omset: role === 'HALAL_ADVISOR' ? 30000000 : 150000000,
                     is_eligible: false,
                     target_role: role === 'HALAL_ADVISOR' ? 'HALAL_MANAGER' : 'HALAL_DIRECTOR',
@@ -182,21 +182,23 @@ export default function KarirDashboard() {
                     ) : stats ? (
                         <div className="space-y-6">
                             {/* Syarat Tim */}
-                            <div>
-                                <div className="flex justify-between text-sm mb-2">
-                                    <span className="font-medium text-gray-700">{teamLabel}</span>
-                                    <span className={`font-bold ${currentTeamValue >= stats.require_team ? 'text-emerald-600' : 'text-gray-900'}`}>
-                                        {currentTeamValue} / {stats.require_team}
-                                        {currentTeamValue >= stats.require_team && ' ✓'}
-                                    </span>
+                            {user?.role !== 'HALAL_ADVISOR' && (
+                                <div>
+                                    <div className="flex justify-between text-sm mb-2">
+                                        <span className="font-medium text-gray-700">{teamLabel}</span>
+                                        <span className={`font-bold ${currentTeamValue >= stats.require_team ? 'text-emerald-600' : 'text-gray-900'}`}>
+                                            {currentTeamValue} / {stats.require_team}
+                                            {currentTeamValue >= stats.require_team && ' ✓'}
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-gray-100 rounded-full h-2.5">
+                                        <div
+                                            className={`h-2.5 rounded-full transition-all ${currentTeamValue >= stats.require_team ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                                            style={{ width: `${Math.min((currentTeamValue / stats.require_team) * 100, 100)}%` }}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="w-full bg-gray-100 rounded-full h-2.5">
-                                    <div
-                                        className={`h-2.5 rounded-full transition-all ${currentTeamValue >= stats.require_team ? 'bg-emerald-500' : 'bg-blue-500'}`}
-                                        style={{ width: `${Math.min((currentTeamValue / stats.require_team) * 100, 100)}%` }}
-                                    />
-                                </div>
-                            </div>
+                            )}
 
                             {/* Syarat Omset */}
                             <div>

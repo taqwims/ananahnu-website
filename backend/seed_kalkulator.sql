@@ -28,9 +28,9 @@ INSERT INTO sales_schemes (id, name, description, created_at, updated_at) VALUES
 ON CONFLICT DO NOTHING;
 
 -- 5. Insert Harga Dasar (Sales Scheme Prices)
--- a. Harga Default Direct Sale (5 Juta) - Berlaku untuk semuanya jika tidak ada yang lebih spesifik
+-- a. Harga Default Direct Sale (3.5 Juta) - Berlaku untuk semuanya jika tidak ada yang lebih spesifik
 INSERT INTO sales_scheme_prices (sales_scheme_id, data_source, base_price, description, is_active, created_at, updated_at) 
-VALUES (1, 'ORGANIK', 5000000, 'Harga Default Direct Sale', true, NOW(), NOW());
+VALUES (1, 'ORGANIK', 3500000, 'Harga Default Direct Sale', true, NOW(), NOW());
 
 -- b. Harga Khusus Direct Sale untuk Kosmetik (8 Juta)
 INSERT INTO sales_scheme_prices (sales_scheme_id, business_type_id, data_source, base_price, description, is_active, created_at, updated_at) 

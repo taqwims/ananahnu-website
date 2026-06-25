@@ -48,6 +48,7 @@ type AuthUsecaseDeps struct {
 	TokenRepo      domain.PasswordTokenRepository
 	CommissionRepo domain.CommissionRepository
 	EmailSender    email.EmailSender
+	ConsultantRepo domain.ConsultantProfileRepository
 }
 
 type authUsecase struct {
@@ -124,19 +125,18 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 	// 5. Create User
 	userID := uuid.New()
 	
-	// Handle Referral Code
+	// Handle Referral Code (Mandatory)
 	var referredByID *uuid.UUID
 	var leaderID *uuid.UUID
-	if input.ReferralCode != "" {
-		referrer, err := uc.UserRepo.FindByReferralCode(input.ReferralCode)
-		if err == nil && referrer != nil {
-			referredByID = &referrer.ID
-			// Otomatis set leader_id ke referrer agar masuk tim karir referrer
-			leaderID = &referrer.ID
-		} else {
-			return errors.New("invalid referral code")
-		}
+	if input.ReferralCode == "" {
+		return errors.New("kode referral wajib diisi")
 	}
+	referrer, err := uc.UserRepo.FindByReferralCode(input.ReferralCode)
+	if err != nil || referrer == nil {
+		return errors.New("kode referral tidak valid")
+	}
+	referredByID = &referrer.ID
+	leaderID = &referrer.ID
 
 	pID, _ := strconv.ParseInt(input.ProvinceID, 10, 64)
 	rID, _ := strconv.ParseInt(input.RegencyID, 10, 64)
@@ -161,8 +161,17 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 		return err
 	}
 
+	// Automatically create a ConsultantProfile row for the new advisor
+	if uc.ConsultantRepo != nil {
+		_ = uc.ConsultantRepo.Create(&domain.ConsultantProfile{
+			ID:         uuid.New(),
+			UserID:     userID,
+			IsVerified: false,
+		})
+	}
+
 	// Buat komisi REFERRAL untuk referrer jika ada
-	if referredByID != nil && uc.CommissionRepo != nil {
+	if uc.CommissionRepo != nil {
 		_ = uc.CommissionRepo.Create(&domain.Commission{
 			ID:         uuid.New(),
 			Type:       domain.CommissionTypeReferral,

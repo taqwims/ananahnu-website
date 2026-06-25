@@ -132,6 +132,7 @@ export default function SubmissionDetail() {
                     onUpdateBusinessType={updateBusinessType}
                     businessTypes={businessTypes}
                     processing={processing} 
+                    defaultCollapsed={submission.status === 'WAITING_PAYMENT'}
                 />
 
                 {submission.status === 'WAITING_PAYMENT' && (
@@ -149,6 +150,7 @@ export default function SubmissionDetail() {
                     editingData={editingData}
                     setEditingData={setEditingData}
                     onRefresh={refresh}
+                    defaultCollapsed={submission.status === 'WAITING_PAYMENT'}
                 />
 
                 {submission.sh_url && (

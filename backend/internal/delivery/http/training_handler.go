@@ -35,7 +35,7 @@ func NewTrainingHandler(r *gin.Engine, uc usecase.TrainingUsecase) {
 
 		// Participants
 		g.POST("/:id/participants", writeRoles, handler.AddParticipant)
-		g.PUT("/:id/participants/:userId", writeRoles, handler.UpdateParticipantStatus)
+		g.PUT("/:id/participants/:userId", middleware.RoleMiddleware("DIRECTOR", "MANAGER", "ADMIN_PELATIHAN"), handler.UpdateParticipantStatus)
 		g.DELETE("/participants/:participantId", writeRoles, handler.RemoveParticipant)
 
 		// List users available to be added as participants (HALAL_ADVISOR)
@@ -228,7 +228,24 @@ func (h *TrainingHandler) GetUserTrainings(c *gin.Context) {
 // Accessible by ADMIN_PELATIHAN, MANAGER, DIRECTOR, HALAL_MANAGER.
 func (h *TrainingHandler) ListAvailableParticipants(c *gin.Context) {
 	search := c.Query("search")
-	users, err := h.trainingUC.GetAvailableParticipants(search)
+	userIDVal, existsUserID := c.Get("userID")
+	roleVal, existsRole := c.Get("role")
+
+	var userID uuid.UUID
+	var role string
+
+	if existsUserID {
+		if id, ok := userIDVal.(uuid.UUID); ok {
+			userID = id
+		}
+	}
+	if existsRole {
+		if r, ok := roleVal.(string); ok {
+			role = r
+		}
+	}
+
+	users, err := h.trainingUC.GetAvailableParticipants(search, userID, role)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

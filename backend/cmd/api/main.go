@@ -183,6 +183,7 @@ func main() {
 	teleFormRepo := repository.NewTeleFormRepository(db)
 	teleMeetingRepo := repository.NewTeleMeetingRepository(db)
 	teleAgreementRepo := repository.NewTeleAgreementRepository(db)
+	promotionRepo := repository.NewPromotionRepository(db)
 
 	// Services
 	emailSender := email.NewGmailSender()
@@ -206,6 +207,7 @@ func main() {
 		TokenRepo:      tokenRepo,
 		CommissionRepo: commissionRepo,
 		EmailSender:    emailSender,
+		ConsultantRepo: consultantRepo,
 	})
 	notificationUC := usecase.NewNotificationUsecase(usecase.NotificationUsecaseDeps{
 		NotifRepo:   notifRepo,
@@ -245,6 +247,9 @@ func main() {
 		TrainingRepo:    trainingRepo,
 		ParticipantRepo: participantRepo,
 		UserRepo:        userRepo,
+		PromotionRepo:   promotionRepo,
+		CommissionRepo:  commissionRepo,
+		RoleRepo:        roleRepo,
 	})
 	consultantUC := usecase.NewConsultantUsecase(usecase.ConsultantUsecaseDeps{
 		ProfileRepo: consultantRepo,
@@ -315,7 +320,6 @@ func main() {
 		BillingConfigRepo: billingConfigRepo,
 	})
 
-	promotionRepo := repository.NewPromotionRepository(db)
 	promotionUC := usecase.NewPromotionUsecase(usecase.PromotionUsecaseDeps{
 		PromotionRepo:   promotionRepo,
 		UserRepo:        userRepo,

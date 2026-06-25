@@ -14,6 +14,7 @@ export default function TrainingAdmin() {
         newUserID, setNewUserID,
         allUsers,
         isCoordinator,
+        canGraduate,
         handleCreate, handleDelete, addParticipant, updateStatus,
         selectTraining, handleApprove, handleReject
     } = useTrainingAdmin();
@@ -118,6 +119,7 @@ export default function TrainingAdmin() {
                                         setNewUserId={setNewUserID}
                                         onAdd={addParticipant}
                                         onUpdateStatus={updateStatus}
+                                        canGraduate={canGraduate}
                                     />
                                 ) : (
                                     <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">

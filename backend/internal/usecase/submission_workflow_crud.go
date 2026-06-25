@@ -424,8 +424,8 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 	var total float64
 	var breakdown []map[string]interface{}
 
-	// Find the best matching PENDAMPINGAN component name
-	var pendampinganName string
+	// Find the best matching PENDAMPINGAN component
+	var bestPendampingan *domain.BillingComponent
 	bestScore := -1
 
 	for _, comp := range components {
@@ -461,21 +461,26 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 
 		if score > bestScore {
 			bestScore = score
-			pendampinganName = comp.Name
+			bestPendampingan = &comp
 		}
 	}
 
-	if pendampinganName == "" {
-		pendampinganName = "Jasa Pendampingan"
+	var price float64
+	var pendampinganName string = "Jasa Pendampingan"
+
+	if bestPendampingan != nil {
+		price = bestPendampingan.BaseAmount
+		pendampinganName = bestPendampingan.Name
+	} else if scheme != nil {
+		price = scheme.BasePrice
 	}
 
-	// Jasa Pendampingan from Sales Scheme Price
-	if scheme != nil {
-		price := scheme.BasePrice
-		if scheme.DiscountPercent > 0 {
-			discount := price * (scheme.DiscountPercent / 100.0)
-			price -= discount
-		}
+	if scheme != nil && scheme.DiscountPercent > 0 {
+		discount := price * (scheme.DiscountPercent / 100.0)
+		price -= discount
+	}
+
+	if price > 0 {
 		total += price
 		breakdown = append(breakdown, map[string]interface{}{
 			"name":      pendampinganName,

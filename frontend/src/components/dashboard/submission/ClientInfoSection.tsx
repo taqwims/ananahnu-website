@@ -4,6 +4,7 @@ import { formatDate, formatRupiah } from '../../../utils/format';
 import api from '../../../services/api';
 import { toast } from 'react-hot-toast';
 import { submissionService } from '../../../services/submissionService';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ClientInfoSectionProps {
     submission: Submission;
@@ -13,6 +14,7 @@ interface ClientInfoSectionProps {
     onUpdateBusinessType: (businessTypeID: number) => Promise<void>;
     businessTypes: BusinessType[];
     processing: boolean;
+    defaultCollapsed?: boolean;
 }
 
 const InfoItem = ({ label, value, mono = false, highlight = false }: { label: string; value?: string; mono?: boolean; highlight?: boolean }) => (
@@ -24,8 +26,28 @@ const InfoItem = ({ label, value, mono = false, highlight = false }: { label: st
     </div>
 );
 
-export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateClientInfoAndPricing, onUpdateBusinessType, businessTypes, processing }: ClientInfoSectionProps) => {
+export const ClientInfoSection = ({ 
+    submission, 
+    user, 
+    onUpdateClient, 
+    onUpdateClientInfoAndPricing, 
+    onUpdateBusinessType, 
+    businessTypes, 
+    processing,
+    defaultCollapsed = false
+}: ClientInfoSectionProps) => {
     const [isEditingClient, setIsEditingClient] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+
+    useEffect(() => {
+        setIsCollapsed(defaultCollapsed);
+    }, [defaultCollapsed]);
+
+    useEffect(() => {
+        if (isEditingClient) {
+            setIsCollapsed(false);
+        }
+    }, [isEditingClient]);
     
     // Master data lists for dropdowns
     const [provinces, setProvinces] = useState<any[]>([]);
@@ -148,23 +170,31 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateCl
 
     return (
         <div className="glass-panel p-6 shadow-xl border border-white/40">
-            <div className="flex items-center justify-between mb-6">
+            <div 
+                className="flex items-center justify-between mb-6 cursor-pointer select-none"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+            >
                 <h3 className="text-lg font-black text-gray-800 tracking-tight flex items-center gap-2">
                     <div className="w-1.5 h-6 bg-brand-600 rounded-full"></div>
                     Informasi Client
+                    {isCollapsed ? <ChevronDown className="w-5 h-5 text-gray-400 ml-1" /> : <ChevronUp className="w-5 h-5 text-gray-400 ml-1" />}
                 </h3>
-                {canEdit && !isEditingClient && (
-                    <button 
-                        onClick={() => setIsEditingClient(true)}
-                        className="px-3 py-1.5 bg-brand-50 text-brand-700 text-[10px] font-black uppercase tracking-wider rounded-xl border border-brand-100 hover:bg-brand-100 transition-all"
-                    >
-                        Edit Data Klien
-                    </button>
-                )}
+                <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                    {canEdit && !isEditingClient && (
+                        <button 
+                            onClick={() => setIsEditingClient(true)}
+                            className="px-3 py-1.5 bg-brand-50 text-brand-700 text-[10px] font-black uppercase tracking-wider rounded-xl border border-brand-100 hover:bg-brand-100 transition-all"
+                        >
+                            Edit Data Klien
+                        </button>
+                    )}
+                </div>
             </div>
             
-            {isEditingClient ? (
-                <div className="space-y-4">
+            {!isCollapsed && (
+                <>
+                    {isEditingClient ? (
+                        <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="sm:col-span-2">
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Nama Usaha <span className="text-red-500">*</span></label>
@@ -480,6 +510,8 @@ export const ClientInfoSection = ({ submission, user, onUpdateClient, onUpdateCl
                         Unduh Kontrak Kerja
                     </button>
                 </div>
+            )}
+                </>
             )}
         </div>
     );
