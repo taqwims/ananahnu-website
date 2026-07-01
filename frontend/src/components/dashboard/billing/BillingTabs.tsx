@@ -18,9 +18,12 @@ export const BillingTabs = ({
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-2 flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between">
             <div className="flex flex-wrap gap-2">
                 {[
-                    { key: 'components', label: 'Komponen Biaya', icon: Plus },
+                    { key: 'components', label: 'Komponen Biaya Reguler', icon: Plus },
+                    { key: 'scheme_prices', label: 'Tarif Skema Penjualan', icon: Tag },
+                    { key: 'self_declare', label: 'Tarif Self Declare Mandiri', icon: Tag },
+                    { key: 'facilitation', label: 'Tarif SH Fasilitasi', icon: Tag },
                     { key: 'master_data', label: 'Klasifikasi & Master', icon: Tag },
-                    { key: 'settings', label: 'Pengaturan Global', icon: Tag },
+                    { key: 'settings', label: 'Identitas Perusahaan', icon: Tag },
                 ].map(tab => (
                     <button
                         key={tab.key}

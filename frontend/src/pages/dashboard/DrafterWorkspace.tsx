@@ -27,6 +27,8 @@ export default function DrafterWorkspace() {
         setIsEditingDocs,
         clientForm,
         setClientForm,
+        nibFile,
+        setNibFile,
         handleAction,
         handleUpdateClient,
         handleUpdateDocs,
@@ -127,6 +129,8 @@ export default function DrafterWorkspace() {
                                         setClientForm={setClientForm}
                                         onSave={handleUpdateClient}
                                         processing={processing}
+                                        nibFile={nibFile}
+                                        setNibFile={setNibFile}
                                     />
                                     <WorkflowPanel
                                         submission={activeSubmission}

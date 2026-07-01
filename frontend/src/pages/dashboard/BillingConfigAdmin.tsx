@@ -5,6 +5,9 @@ import { GlobalSettingsPanel } from '../../components/dashboard/billing/GlobalSe
 import { BillingComponentForm } from '../../components/dashboard/billing/BillingComponentForm';
 import { BillingComponentTable } from '../../components/dashboard/billing/BillingComponentTable';
 import { MasterDataManagement } from '../../components/dashboard/billing/MasterDataManagement';
+import { SelfDeclareRates } from '../../components/dashboard/billing/SelfDeclareRates';
+import { SchemePricesPanel } from '../../components/dashboard/billing/SchemePricesPanel';
+import CoordinatorRates from './CoordinatorRates';
 
 export default function BillingConfigAdmin() {
     const {
@@ -118,6 +121,29 @@ export default function BillingConfigAdmin() {
                     scales={scales}
                     schemes={schemes}
                 />
+            )}
+
+            {activeMainTab === 'self_declare' && (
+                <SelfDeclareRates
+                    systemSettings={systemSettings}
+                    setSystemSettings={setSystemSettings}
+                    onUpdate={handleUpdateSystemSetting}
+                />
+            )}
+
+            {activeMainTab === 'scheme_prices' && (
+                <SchemePricesPanel
+                    schemes={schemes}
+                    businessTypes={businessTypes}
+                    products={products}
+                    scales={scales}
+                />
+            )}
+
+            {activeMainTab === 'facilitation' && (
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <CoordinatorRates />
+                </div>
             )}
         </div>
     );

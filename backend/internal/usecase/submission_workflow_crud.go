@@ -94,8 +94,34 @@ func (uc *submissionWorkflowUsecase) checkVerification(userID uuid.UUID) error {
 	return nil
 }
 
+func (uc *submissionWorkflowUsecase) checkUnpaidInvoices(userID uuid.UUID, serviceType string) error {
+	if serviceType != "SELF_DECLARE" && serviceType != "SELF_DECLARE_MANDIRI" {
+		return nil
+	}
+	
+	// Cek apakah ada tagihan SELF_DECLARE yang belum dibayar
+	filter := map[string]interface{}{
+		"payer_id": userID,
+		"status":   "UNPAID",
+	}
+	invoices, _, err := uc.InvoiceRepo.FindAll(filter, 1, 100)
+	if err != nil {
+		return err
+	}
+	
+	for _, inv := range invoices {
+		if inv.ServiceType == "SELF_DECLARE" || inv.ServiceType == "SELF_DECLARE_MANDIRI" {
+			return errors.New("Tidak dapat membuat pengajuan baru. Anda masih memiliki tagihan Self Declare yang belum dibayar. Silakan lunasi tagihan Anda di menu 'Tagihan Self Declare'.")
+		}
+	}
+	return nil
+}
+
 func (uc *submissionWorkflowUsecase) CreateDraft(clientID *uuid.UUID, businessName string, serviceType string, facilitatorID uuid.UUID) (*domain.Submission, error) {
 	if err := uc.checkVerification(facilitatorID); err != nil {
+		return nil, err
+	}
+	if err := uc.checkUnpaidInvoices(facilitatorID, serviceType); err != nil {
 		return nil, err
 	}
 
@@ -139,6 +165,9 @@ func (uc *submissionWorkflowUsecase) CreateDraft(clientID *uuid.UUID, businessNa
 
 func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uuid.UUID, userRole string) (*domain.Submission, error) {
 	if err := uc.checkVerification(userID); err != nil {
+		return nil, err
+	}
+	if err := uc.checkUnpaidInvoices(userID, input.ClientData.ServiceType); err != nil {
 		return nil, err
 	}
 
@@ -302,6 +331,9 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 	client.BusinessName = input.BusinessName
 	client.ClientName = input.ClientName
 	client.NIB = input.NIB
+	if input.NIBFileURL != "" {
+		client.NIBFileURL = input.NIBFileURL
+	}
 	client.NIK = input.NIK
 	client.ProductName = input.ProductName
 	client.Address = input.Address
@@ -467,12 +499,17 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 
 	var price float64
 	var pendampinganName string = "Jasa Pendampingan"
+	var pendampinganCategory string = "PENDAMPINGAN"
 
 	if bestPendampingan != nil {
 		price = bestPendampingan.BaseAmount
 		pendampinganName = bestPendampingan.Name
+		pendampinganCategory = bestPendampingan.Category
 	} else if scheme != nil {
 		price = scheme.BasePrice
+		if scheme.SalesScheme.Name != "" {
+			pendampinganName = scheme.SalesScheme.Name
+		}
 	}
 
 	if scheme != nil && scheme.DiscountPercent > 0 {
@@ -484,7 +521,7 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 		total += price
 		breakdown = append(breakdown, map[string]interface{}{
 			"name":      pendampinganName,
-			"category":  "JASA",
+			"category":  pendampinganCategory,
 			"unit_cost": price,
 			"total":     price,
 		})
@@ -576,7 +613,7 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 	// Partnership discount
 	if scheme != nil && strings.ToUpper(scheme.SalesScheme.Name) == "PARTNERSHIP" {
 		for _, item := range breakdown {
-			if cat, ok := item["category"].(string); ok && cat == "JASA" {
+			if cat, ok := item["category"].(string); ok && cat == pendampinganCategory {
 				if cost, ok := item["total"].(float64); ok {
 					discountAmount := cost * 0.1
 					breakdown = append(breakdown, map[string]interface{}{

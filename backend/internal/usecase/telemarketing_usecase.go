@@ -926,7 +926,7 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 		total += price
 		breakdown = append(breakdown, BreakdownItem{
 			Name:     name,
-			Category: "JASA",
+			Category: "PENDAMPINGAN",
 			Amount:   price,
 		})
 	}

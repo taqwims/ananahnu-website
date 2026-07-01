@@ -284,6 +284,7 @@ func main() {
 		ParticipantRepo:   participantRepo,
 		SettingRepo:       settingRepo,
 		TeleFormRepo:      teleFormRepo,
+		PaymentConfigRepo: paymentConfigRepo,
 	})
 
 	paymentUC := usecase.NewPaymentUsecase(usecase.PaymentUsecaseDeps{

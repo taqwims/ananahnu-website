@@ -266,7 +266,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         masterComponents.forEach(comp => {
             if (!comp || !comp.category) return;
             const cat = comp.category.toUpperCase();
-            if (cat === 'PENDAMPINGAN') return; // Skip PENDAMPINGAN as we use salesSchemePrice
+            if (cat === 'PENDAMPINGAN') return; // Skip PENDAMPINGAN as it is handled separately below
             
             // Skip optional components from categoryMap (handled separately)
             if (!comp.is_mandatory) return;
@@ -285,53 +285,6 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 categoryMap.set(cat, { ...comp, score });
             }
         });
-
-        // Find matching PENDAMPINGAN component name from masterComponents
-        let pendampinganName = 'Jasa Pendampingan';
-        let bestPendScore = -1;
-        masterComponents.forEach(comp => {
-            if (!comp || comp.category.toUpperCase() !== 'PENDAMPINGAN') return;
-
-            // Match filters
-            if (comp.province_id && comp.province_id.toString() !== provinceId) return;
-            if (comp.regency_id && comp.regency_id.toString() !== regencyId) return;
-            if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId) return;
-            if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId) return;
-            if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== salesSchemeId?.toString()) return;
-
-            let score = 0;
-            if (comp.district_id) score += 1000;
-            if (comp.regency_id) score += 100;
-            if (comp.province_id) score += 10;
-            if (comp.sales_scheme_id) score += 8;
-            if (comp.business_scale_id) score += 5;
-            if (comp.product_category_id) score += 2;
-            if (comp.business_type_id) score += 1;
-
-            if (score > bestPendScore) {
-                bestPendScore = score;
-                pendampinganName = comp.name;
-            }
-        });
-
-        // Add Jasa Pendampingan from salesSchemePrice if exists
-        if (salesSchemePrice) {
-            const price = salesSchemePrice.base_price;
-            let finalPrice = price;
-            if (salesSchemePrice.discount_percent > 0) {
-                finalPrice = price - (price * (salesSchemePrice.discount_percent / 100));
-            }
-            
-            currentBreakdown.push({
-                name: pendampinganName,
-                category: 'JASA',
-                unit_cost: finalPrice,
-                multiplier: null,
-                total: finalPrice,
-                is_optional: false
-            });
-            currentTotal += finalPrice;
-        }
 
         Array.from(categoryMap.values()).forEach(comp => {
             let nameTag = '';
@@ -367,10 +320,69 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             currentTotal += itemTotal;
         });
 
+        // Handle PENDAMPINGAN manually with fallback to salesSchemePrice
+        let bestPend: any = null;
+        let bestPendScore = -1;
+        masterComponents.forEach(comp => {
+            if (!comp || comp.category.toUpperCase() !== 'PENDAMPINGAN') return;
+
+            // Match filters
+            if (comp.province_id && comp.province_id.toString() !== provinceId) return;
+            if (comp.regency_id && comp.regency_id.toString() !== regencyId) return;
+            if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId) return;
+            if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId) return;
+            if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== salesSchemeId?.toString()) return;
+
+            let score = 0;
+            if (comp.district_id) score += 1000;
+            if (comp.regency_id) score += 100;
+            if (comp.province_id) score += 10;
+            if (comp.sales_scheme_id) score += 8;
+            if (comp.business_scale_id) score += 5;
+            if (comp.product_category_id) score += 2;
+            if (comp.business_type_id) score += 1;
+
+            if (score > bestPendScore) {
+                bestPendScore = score;
+                bestPend = comp;
+            }
+        });
+
+        let finalPrice = 0;
+        let dispName = 'Jasa Pendampingan';
+        let dispCategory = 'PENDAMPINGAN';
+
+        if (bestPend) {
+            finalPrice = bestPend.base_amount;
+            dispName = bestPend.name;
+            dispCategory = bestPend.category;
+        } else if (salesSchemePrice) {
+            finalPrice = salesSchemePrice.base_price;
+            if (salesSchemePrice.sales_scheme?.name) {
+                dispName = salesSchemePrice.sales_scheme.name;
+            }
+        }
+
+        if (salesSchemePrice && salesSchemePrice.discount_percent > 0) {
+            finalPrice = finalPrice - (finalPrice * (salesSchemePrice.discount_percent / 100));
+        }
+
+        if (finalPrice > 0) {
+            currentBreakdown.push({
+                name: dispName,
+                category: dispCategory.toUpperCase(),
+                unit_cost: finalPrice,
+                multiplier: null,
+                total: finalPrice,
+                is_optional: false
+            });
+            currentTotal += finalPrice;
+        }
+
         // 2. Partnership discount on pendampingan
         const currentScheme = schemes.find((s: any) => s.id === (salesSchemeId || -1));
         if (currentScheme && currentScheme.name.toUpperCase() === 'PARTNERSHIP') {
-            const jaseItem = currentBreakdown.find(item => item.category === 'JASA');
+            const jaseItem = currentBreakdown.find(item => item.category === 'PENDAMPINGAN');
             if (jaseItem) {
                 const discountAmount = jaseItem.unit_cost * 0.1;
                 currentBreakdown.push({
@@ -643,7 +655,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                     {/* Optional Components from Master Biaya */}
                     {masterComponents.filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN').length > 0 && (
                         <div className="border-t border-gray-100 pt-4">
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Komponen Pilihan Master Biaya</label>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Biaya Tambahan</label>
                             <div className="space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-200">
                                 {masterComponents
                                     .filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN')
@@ -695,9 +707,9 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                         </div>
                     )}
 
-                    {/* Biaya Tambahan (Opsional) */}
+                    {/* Biaya Tambahan Lainnya */}
                     <div className="border-t border-gray-100 pt-4">
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Biaya Tambahan (Opsional)</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Biaya Tambahan Lainnya</label>
                         {optionalCosts.map((opt, idx) => (
                             <div key={idx} className="flex gap-2 items-center mb-2">
                                 <span className="flex-1 text-sm bg-gray-50 p-2.5 rounded-lg border border-gray-100">{opt.name}</span>

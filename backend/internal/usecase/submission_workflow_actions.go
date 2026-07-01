@@ -435,7 +435,7 @@ func (uc *submissionWorkflowUsecase) IssueSH(id uuid.UUID, userID uuid.UUID, shU
 				if pelunasanAmount > 0 {
 					_ = uc.InvoiceRepo.Create(&domain.Invoice{
 						SubmissionID:  id,
-						PayerID:       nil,
+						PayerID:       nil, // default to client/pemilik usaha
 						ServiceType:   "REGULER",
 						Type:          domain.InvoiceTypePelunasan,
 						Amount:        pelunasanAmount,
@@ -444,6 +444,36 @@ func (uc *submissionWorkflowUsecase) IssueSH(id uuid.UUID, userID uuid.UUID, shU
 						Notes:         "Pelunasan 30% Layanan Reguler (wajib lunas untuk unduh SH)",
 					})
 				}
+			}
+		}
+	} else if sub.ServiceType == "SELF_DECLARE" || sub.ServiceType == "SELF_DECLARE_MANDIRI" {
+		// Buat invoice Full untuk agen/fasilitator
+		if _, err := uc.InvoiceRepo.FindBySubmissionIDAndType(id, domain.InvoiceTypeFull); err != nil {
+			configs, err := uc.PaymentConfigRepo.FindByServiceType("SELF_DECLARE_MANDIRI")
+			var totalAmount float64
+			if err == nil {
+				for _, c := range configs {
+					if c.IsActive {
+						totalAmount += c.Amount
+					}
+				}
+			}
+			
+			if totalAmount > 0 {
+				var payerID *uuid.UUID
+				if sub.Client.FacilitatorID != uuid.Nil {
+					payerID = &sub.Client.FacilitatorID
+				}
+				_ = uc.InvoiceRepo.Create(&domain.Invoice{
+					SubmissionID:  id,
+					PayerID:       payerID,
+					ServiceType:   sub.ServiceType,
+					Type:          domain.InvoiceTypeFull,
+					Amount:        totalAmount,
+					Status:        domain.InvoiceStatusUnpaid,
+					PricingSource: "SELF_DECLARE_MANDIRI",
+					Notes:         "Tagihan Self Declare (terbit SH)",
+				})
 			}
 		}
 	}

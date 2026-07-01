@@ -60,6 +60,14 @@ export const useConsultantVerification = () => {
         );
     }, [profiles, search]);
 
+    useEffect(() => {
+        if (selectedProfile?.user?.leader_id) {
+            setSelectedLeader(selectedProfile.user.leader_id);
+        } else {
+            setSelectedLeader('');
+        }
+    }, [selectedProfile]);
+
     return {
         profiles, loading, search, setSearch,
         selectedProfile, setSelectedProfile,

@@ -158,6 +158,7 @@ func (h *ClientHandler) Update(c *gin.Context) {
 		BusinessName  string `json:"business_name"`
 		ClientName    string `json:"client_name"`
 		NIB           string `json:"nib"`
+		NIBFileURL    string `json:"nib_file_url"`
 		NIK           string `json:"nik"`
 		ProductName   string `json:"product_name"`
 		Address       string `json:"address"`
@@ -173,6 +174,9 @@ func (h *ClientHandler) Update(c *gin.Context) {
 	existing.BusinessName = input.BusinessName
 	existing.ClientName = input.ClientName
 	existing.NIB = input.NIB
+	if input.NIBFileURL != "" {
+		existing.NIBFileURL = input.NIBFileURL
+	}
 	existing.NIK = input.NIK
 	existing.ProductName = input.ProductName
 	existing.Address = input.Address

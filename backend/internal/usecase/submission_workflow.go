@@ -52,6 +52,7 @@ type UpdateClientInfoAndPricingInput struct {
 	BusinessName  string `json:"business_name"`
 	ClientName    string `json:"client_name"`
 	NIB           string `json:"nib"`
+	NIBFileURL    string `json:"nib_file_url"`
 	NIK           string `json:"nik"`
 	ProductName   string `json:"product_name"`
 	Address       string `json:"address"`
@@ -89,6 +90,7 @@ type SubmissionWorkflowDeps struct {
 	ParticipantRepo   domain.TrainingParticipantRepository
 	SettingRepo       domain.SystemSettingRepository
 	TeleFormRepo      domain.TeleFormRepository
+	PaymentConfigRepo domain.PaymentConfigRepository
 }
 
 type submissionWorkflowUsecase struct {

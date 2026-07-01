@@ -13,6 +13,7 @@ interface Invoice {
     status: string;
     service_type: string;
     created_at: string;
+    payment_id?: number;
     submission?: {
         client?: {
             business_name: string;
@@ -42,7 +43,34 @@ export default function MyInvoices() {
         setLoading(true);
         try {
             const res = await api.get('/billing/my-invoices?status=UNPAID');
-            setInvoices(res.data.data || []);
+            const data: Invoice[] = res.data.data || [];
+            setInvoices(data);
+
+            // Auto sync any invoices that have a payment_id (meaning a Midtrans transaction was initiated)
+            const pendingPaymentIds = Array.from(
+                new Set(
+                    data
+                        .map(inv => inv.payment_id)
+                        .filter((id): id is number => !!id)
+                )
+            );
+            if (pendingPaymentIds.length > 0) {
+                // Trigger background sync for these payments
+                Promise.all(
+                    pendingPaymentIds.map(async (pid) => {
+                        try {
+                            await api.post(`/payments/${pid}/sync`);
+                        } catch (err) {
+                            console.error(`Failed to sync payment ${pid}`, err);
+                        }
+                    })
+                ).then(() => {
+                    // Re-fetch after syncing to show updated status
+                    api.get('/billing/my-invoices?status=UNPAID').then(reRes => {
+                        setInvoices(reRes.data.data || []);
+                    }).catch(console.error);
+                });
+            }
         } catch (err) {
             console.error(err);
         } finally {
@@ -84,14 +112,25 @@ export default function MyInvoices() {
             });
 
             const snapToken = res.data.snap_token;
+            const paymentId = res.data.id;
             (window as any).snap.pay(snapToken, {
-                onSuccess: () => {
+                onSuccess: async () => {
                     toast.success("Pembayaran berhasil!");
+                    try {
+                        await api.post(`/payments/${paymentId}/sync`);
+                    } catch (e) {
+                        console.error("Failed to sync payment status", e);
+                    }
                     fetchInvoices();
                     setSelectedIds([]);
                 },
-                onPending: () => {
+                onPending: async () => {
                     toast("Menunggu pembayaran...", { icon: '⏳' });
+                    try {
+                        await api.post(`/payments/${paymentId}/sync`);
+                    } catch (e) {
+                        console.error("Failed to sync payment status", e);
+                    }
                     fetchInvoices();
                     setSelectedIds([]);
                 },
@@ -133,7 +172,7 @@ export default function MyInvoices() {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800">{isCoordinator ? 'Tagihan Tim & Saya' : 'Tagihan Saya'}</h1>
+                    <h1 className="text-2xl font-bold text-gray-800">{isCoordinator ? 'Tagihan Self Declare (Tim & Saya)' : 'Tagihan Self Declare'}</h1>
                     <p className="text-gray-500 text-sm">
                         {isCoordinator 
                             ? 'Daftar tagihan sertifikasi Anda dan tim advisor Anda.' 

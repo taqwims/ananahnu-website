@@ -129,7 +129,9 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
             if (cfg.is_required) {
                 const val = values[cfg.id];
                 const isEmpty = cfg.input_type === 'FILE_UPLOAD' ? !val?.file_url
-                    : cfg.input_type === 'LINK' ? !val?.link_value : !val?.text_value;
+                    : cfg.input_type === 'LINK' ? !val?.link_value 
+                    : cfg.input_type === 'REPEATER' ? (!val?.text_value || val.text_value === '[]' || val.text_value === '[""]')
+                    : !val?.text_value;
                 if (isEmpty) {
                     return false;
                 }
@@ -282,6 +284,8 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
                             {cfg.input_type === 'FILE_UPLOAD' && <Upload className="w-4 h-4 text-brand-500" />}
                             {cfg.input_type === 'LINK' && <LinkIcon className="w-4 h-4 text-blue-500" />}
                             {cfg.input_type === 'TEXT' && <FileText className="w-4 h-4 text-gray-500" />}
+                            {cfg.input_type === 'DATE' && <FileText className="w-4 h-4 text-brand-500" />}
+                            {cfg.input_type === 'REPEATER' && <FileText className="w-4 h-4 text-indigo-500" />}
                             {cfg.field_label}
                             {cfg.is_required && <span className="text-red-500 text-xs font-bold">*wajib</span>}
                         </label>
@@ -383,12 +387,80 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
                             />
                         )}
 
+                        {cfg.input_type === 'DATE' && (
+                            <input
+                                type="date"
+                                className="glass-input text-sm"
+                                value={values[cfg.id]?.text_value || ''}
+                                onChange={e => updateValue(cfg.id, 'text_value', e.target.value)}
+                                disabled={readOnly}
+                            />
+                        )}
+
+                        {cfg.input_type === 'REPEATER' && (
+                            <div className="space-y-2">
+                                {(() => {
+                                    let items: string[] = [];
+                                    try {
+                                        items = values[cfg.id]?.text_value ? JSON.parse(values[cfg.id].text_value) : [];
+                                        if (!Array.isArray(items)) items = [];
+                                    } catch { items = []; }
+                                    
+                                    return (
+                                        <>
+                                            {items.map((item, idx) => (
+                                                <div key={idx} className="flex gap-2 items-center">
+                                                    <input
+                                                        type="text"
+                                                        className="glass-input text-sm flex-1"
+                                                        value={item}
+                                                        onChange={e => {
+                                                            const newItems = [...items];
+                                                            newItems[idx] = e.target.value;
+                                                            updateValue(cfg.id, 'text_value', JSON.stringify(newItems));
+                                                        }}
+                                                        disabled={readOnly}
+                                                    />
+                                                    {!readOnly && (
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const newItems = items.filter((_, i) => i !== idx);
+                                                                updateValue(cfg.id, 'text_value', JSON.stringify(newItems));
+                                                            }}
+                                                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                                                        >
+                                                            &times;
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            {!readOnly && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newItems = [...items, ''];
+                                                        updateValue(cfg.id, 'text_value', JSON.stringify(newItems));
+                                                    }}
+                                                    className="px-3 py-1.5 text-xs font-bold bg-brand-50 text-brand-600 rounded-lg hover:bg-brand-100"
+                                                >
+                                                    + Tambah Item
+                                                </button>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        )}
+
                         {/* Required field warning */}
                         {cfg.is_required && !readOnly && (
                             (() => {
                                 const v = values[cfg.id];
                                 const isEmpty = cfg.input_type === 'FILE_UPLOAD' ? !v?.file_url
-                                    : cfg.input_type === 'LINK' ? !v?.link_value : !v?.text_value;
+                                    : cfg.input_type === 'LINK' ? !v?.link_value 
+                                    : cfg.input_type === 'REPEATER' ? (!v?.text_value || v.text_value === '[]' || v.text_value === '[""]')
+                                    : !v?.text_value;
                                 return isEmpty ? (
                                     <p className="flex items-center gap-1 text-xs text-amber-600 font-medium mt-1">
                                         <AlertCircle className="w-3.5 h-3.5" /> Field ini wajib diisi

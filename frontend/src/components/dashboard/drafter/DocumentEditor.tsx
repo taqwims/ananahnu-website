@@ -1,4 +1,4 @@
-import { Edit3, Save, X, ExternalLink, Link as LinkIcon, Upload, FileText } from 'lucide-react';
+import { Edit3, Save, X, ExternalLink, Link as LinkIcon, Upload, FileText, Trash2 } from 'lucide-react';
 import type { FormFieldValue } from '../../../types';
 import FileUpload from '../FileUpload';
 
@@ -78,18 +78,46 @@ export const DocumentEditor = ({
                             {isEditing ? (
                                 <div className="space-y-2">
                                     {fv.form_field.input_type === 'FILE_UPLOAD' ? (
-                                        <FileUpload
-                                            subfolder="submissions"
-                                            label="Ganti File"
-                                            onUploadSuccess={(url) => onUpdateValue(idx, 'file_url', url)}
-                                        />
+                                        <div className="space-y-2">
+                                            <FileUpload
+                                                subfolder="submissions"
+                                                label="Upload / Ganti File"
+                                                onUploadSuccess={(url) => onUpdateValue(idx, 'file_url', url)}
+                                            />
+                                            {fv.file_url && (
+                                                <div className="flex items-center justify-between p-2.5 bg-red-50/50 rounded-xl border border-red-100/50">
+                                                    <span className="text-xs font-bold text-red-700 truncate max-w-[75%]">
+                                                        {fv.file_url.split('/').pop()}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onUpdateValue(idx, 'file_url', '')}
+                                                        className="flex items-center gap-1 text-[10px] font-black text-red-600 hover:text-red-700 uppercase bg-white border border-red-100 hover:border-red-200 px-2 py-1 rounded-lg shadow-sm transition-colors"
+                                                    >
+                                                        <Trash2 className="w-3 h-3" /> Hapus
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                     ) : (
-                                        <input
-                                            className="w-full px-3 py-2 bg-gray-50 border-none rounded-xl text-xs focus:ring-2 focus:ring-blue-500/10 font-medium"
-                                            value={fv.link_value || fv.text_value || ''}
-                                            onChange={e => onUpdateValue(idx, fv.form_field.input_type === 'LINK' ? 'link_value' : 'text_value', e.target.value)}
-                                            placeholder={`Masukkan ${fv.form_field.field_label}...`}
-                                        />
+                                        <div className="flex gap-2 items-center">
+                                            <input
+                                                className="w-full px-3 py-2 bg-gray-50 border-none rounded-xl text-xs focus:ring-2 focus:ring-blue-500/10 font-medium"
+                                                value={fv.link_value || fv.text_value || ''}
+                                                onChange={e => onUpdateValue(idx, fv.form_field.input_type === 'LINK' ? 'link_value' : 'text_value', e.target.value)}
+                                                placeholder={`Masukkan ${fv.form_field.field_label}...`}
+                                            />
+                                            {(fv.link_value || fv.text_value) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onUpdateValue(idx, fv.form_field.input_type === 'LINK' ? 'link_value' : 'text_value', '')}
+                                                    className="p-2 bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl transition-all border border-gray-100 hover:border-red-100"
+                                                    title="Hapus Nilai"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             ) : (

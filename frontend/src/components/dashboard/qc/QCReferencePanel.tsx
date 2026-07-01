@@ -1,4 +1,4 @@
-import { Building2, User as UserIcon, FileText, X, Edit3, Save, Loader2, Eye, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Building2, User as UserIcon, FileText, X, Edit3, Save, Loader2, Eye, ExternalLink, CheckCircle2, Trash2 } from 'lucide-react';
 import type { Submission, FormFieldValue } from '../../../types';
 import { InfoBox, EditField } from './helpers';
 import FileUpload from '../FileUpload';
@@ -148,6 +148,17 @@ export const QCReferencePanel = ({
                                                 <a href={`${import.meta.env.VITE_API_URL}${fv.file_url}`} target="_blank" rel="noreferrer" className="p-1 hover:bg-emerald-100 rounded-lg">
                                                     <Eye className="w-3 h-3" />
                                                 </a>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        onUpdateValue(idx, 'file_url', '');
+                                                        toast.success("File dihapus");
+                                                    }}
+                                                    className="p-1 hover:bg-red-50 text-red-500 rounded-lg transition-colors"
+                                                    title="Hapus file"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
                                             </div>
                                         )}
                                     </div>

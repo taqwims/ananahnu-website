@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Loader2, Send, FileText, AlertTriangle } from 'lucide-react';
+import { Loader2, Send, FileText, AlertTriangle, AlertCircle } from 'lucide-react';
 import PaymentSection from '../../components/dashboard/PaymentSection';
 import CostCalculator from '../../components/dashboard/CostCalculator';
 import KalkulatorReguler from '../../components/dashboard/KalkulatorReguler';
@@ -270,13 +270,43 @@ export default function SubmissionDetail() {
             </div>
         );
     }
-
-    return (
+return (
         <div className="max-w-[1440px] mx-auto space-y-6 px-4 sm:px-6">
             <SubmissionHeader submission={submission} user={user} />
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 <div className="lg:col-span-8 space-y-6 order-2 lg:order-1">
+                    {submission.reject_note && (submission.status === 'REJECTED' || submission.status === 'REVISION') && (
+                        <div className={`p-4 border rounded-2xl flex items-start gap-4 shadow-sm ${
+                            submission.status === 'REJECTED' ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'
+                        }`}>
+                            <div className={`p-2 rounded-xl ${
+                                submission.status === 'REJECTED' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
+                            }`}>
+                                <AlertCircle className="w-5 h-5" />
+                            </div>
+                            <div className="flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                    <h4 className={`text-xs font-black uppercase tracking-widest ${
+                                        submission.status === 'REJECTED' ? 'text-red-900' : 'text-amber-900'
+                                    }`}>
+                                        Catatan {submission.status === 'REJECTED' ? 'Penolakan' : 'Revisi'}
+                                    </h4>
+                                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase ${
+                                        submission.status === 'REJECTED' ? 'bg-red-200 text-red-800' : 'bg-amber-200 text-amber-800'
+                                    }`}>
+                                        Perlu Perhatian
+                                    </span>
+                                </div>
+                                <p className={`text-sm font-medium leading-relaxed ${
+                                    submission.status === 'REJECTED' ? 'text-red-800' : 'text-amber-800'
+                                }`}>
+                                    {submission.reject_note}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     <ClientInfoSection 
                         submission={submission} 
                         user={user} 

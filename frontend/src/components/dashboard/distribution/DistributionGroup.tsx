@@ -112,7 +112,6 @@ export const DistributionGroup = ({
                                 <td className="p-4 text-right">
                                     <a 
                                         href={`/dashboard/submissions/${sub.id}`} 
-                                        target="_blank"
                                         rel="noreferrer"
                                         className="inline-flex items-center gap-1 text-[11px] font-black text-brand-600 hover:text-brand-800 bg-brand-50 px-3 py-1.5 rounded-lg transition-colors"
                                     >
@@ -163,7 +162,6 @@ export const DistributionGroup = ({
                                 <a 
                                     href={`/dashboard/submissions/${sub.id}`} 
                                     onClick={(e) => e.stopPropagation()}
-                                    target="_blank"
                                     rel="noreferrer"
                                     className="text-[11px] font-black text-brand-600 flex items-center gap-1"
                                 >

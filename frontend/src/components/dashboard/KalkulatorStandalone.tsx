@@ -46,6 +46,9 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
     const [regencyId, setRegencyId] = useState('');
     const [districtId, setDistrictId] = useState('');
 
+    const [clientName, setClientName] = useState('');
+    const [businessName, setBusinessName] = useState('');
+
     // Quantities
     const [branchCount, setBranchCount] = useState(1);
     const [productCount, setProductCount] = useState(1);
@@ -211,7 +214,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
         masterComponents.forEach(comp => {
             if (!comp || !comp.category) return;
             const cat = comp.category.toUpperCase();
-            if (cat === 'PENDAMPINGAN') return; // Skip PENDAMPINGAN as we use salesSchemePrice
+            if (cat === 'PENDAMPINGAN') return; // Skip PENDAMPINGAN as it is handled separately below
             
             if (!comp.is_mandatory) return;
 
@@ -229,52 +232,6 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                 categoryMap.set(cat, { ...comp, score });
             }
         });
-
-        // Find matching PENDAMPINGAN component name
-        let pendampinganName = 'Jasa Pendampingan';
-        let bestPendScore = -1;
-        masterComponents.forEach(comp => {
-            if (!comp || comp.category.toUpperCase() !== 'PENDAMPINGAN') return;
-
-            if (comp.province_id && comp.province_id.toString() !== provinceId) return;
-            if (comp.regency_id && comp.regency_id.toString() !== regencyId) return;
-            if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId) return;
-            if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId) return;
-            if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== salesSchemeId) return;
-
-            let score = 0;
-            if (comp.district_id) score += 1000;
-            if (comp.regency_id) score += 100;
-            if (comp.province_id) score += 10;
-            if (comp.sales_scheme_id) score += 8;
-            if (comp.business_scale_id) score += 5;
-            if (comp.product_category_id) score += 2;
-            if (comp.business_type_id) score += 1;
-
-            if (score > bestPendScore) {
-                bestPendScore = score;
-                pendampinganName = comp.name;
-            }
-        });
-
-        // Add Jasa Pendampingan from salesSchemePrice if exists
-        if (salesSchemePrice) {
-            const price = salesSchemePrice.base_price;
-            let finalPrice = price;
-            if (salesSchemePrice.discount_percent > 0) {
-                finalPrice = price - (price * (salesSchemePrice.discount_percent / 100));
-            }
-            
-            currentBreakdown.push({
-                name: pendampinganName,
-                category: 'JASA',
-                unit_cost: finalPrice,
-                multiplier: null,
-                total: finalPrice,
-                is_optional: false
-            });
-            currentTotal += finalPrice;
-        }
 
         Array.from(categoryMap.values()).forEach(comp => {
             let nameTag = '';
@@ -310,10 +267,68 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
             currentTotal += itemTotal;
         });
 
+        // Handle PENDAMPINGAN manually with fallback to salesSchemePrice
+        let bestPend: any = null;
+        let bestPendScore = -1;
+        masterComponents.forEach(comp => {
+            if (!comp || comp.category.toUpperCase() !== 'PENDAMPINGAN') return;
+
+            if (comp.province_id && comp.province_id.toString() !== provinceId) return;
+            if (comp.regency_id && comp.regency_id.toString() !== regencyId) return;
+            if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId) return;
+            if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId) return;
+            if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== salesSchemeId) return;
+
+            let score = 0;
+            if (comp.district_id) score += 1000;
+            if (comp.regency_id) score += 100;
+            if (comp.province_id) score += 10;
+            if (comp.sales_scheme_id) score += 8;
+            if (comp.business_scale_id) score += 5;
+            if (comp.product_category_id) score += 2;
+            if (comp.business_type_id) score += 1;
+
+            if (score > bestPendScore) {
+                bestPendScore = score;
+                bestPend = comp;
+            }
+        });
+
+        let finalPrice = 0;
+        let dispName = 'Jasa Pendampingan';
+        let dispCategory = 'PENDAMPINGAN';
+
+        if (bestPend) {
+            finalPrice = bestPend.base_amount;
+            dispName = bestPend.name;
+            dispCategory = bestPend.category;
+        } else if (salesSchemePrice) {
+            finalPrice = salesSchemePrice.base_price;
+            if (salesSchemePrice.sales_scheme?.name) {
+                dispName = salesSchemePrice.sales_scheme.name;
+            }
+        }
+
+        if (salesSchemePrice && salesSchemePrice.discount_percent > 0) {
+            finalPrice = finalPrice - (finalPrice * (salesSchemePrice.discount_percent / 100));
+        }
+
+        if (finalPrice > 0) {
+            currentBreakdown.push({
+                name: dispName,
+                category: dispCategory.toUpperCase(),
+                unit_cost: finalPrice,
+                multiplier: null,
+                total: finalPrice,
+                is_optional: false
+            });
+            currentTotal += finalPrice;
+        }
+
         // 2. Partnership discount on pendampingan
         const currentScheme = schemes.find((s: any) => s.id === parseInt(salesSchemeId));
         if (currentScheme && currentScheme.name.toUpperCase() === 'PARTNERSHIP') {
-            const jaseItem = currentBreakdown.find(item => item.category === 'JASA');
+            const jaseItem = currentBreakdown.find(item => item.category === 'PENDAMPINGAN');
             if (jaseItem) {
                 const discountAmount = jaseItem.unit_cost * 0.1;
                 currentBreakdown.push({
@@ -445,7 +460,10 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                 
                 <div class="details-grid">
                     <div class="details-box">
-                        <h3>Informasi Wilayah & Kriteria</h3>
+                        <h3>Informasi Pemohon</h3>
+                        <div class="details-row"><span>Nama Klien:</span><span>${clientName || '-'}</span></div>
+                        <div class="details-row"><span>Nama Usaha:</span><span>${businessName || '-'}</span></div>
+                        <h3 style="margin-top: 10px;">Informasi Wilayah & Kriteria</h3>
                         <div class="details-row"><span>Provinsi:</span><span>${selectedProv}</span></div>
                         <div class="details-row"><span>Kabupaten:</span><span>${selectedReg}</span></div>
                         <div class="details-row"><span>Kecamatan:</span><span>${selectedDist}</span></div>
@@ -569,7 +587,6 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                     </div>
                 )}
 
-                {/* Guide Section */}
                 <div className="bg-brand-50 border border-brand-100 p-3 rounded-xl flex gap-2 text-brand-850 text-xs">
                     <BookOpen className="w-4 h-4 text-brand-600 shrink-0 mt-0.5" />
                     <div>
@@ -578,6 +595,29 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                             <li>Harga berubah otomatis saat Provinsi, Bidang, atau Produk dipilih.</li>
                             <li>Sistem otomatis menyesuaikan jika ada tarif khusus wilayah.</li>
                         </ul>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Nama Klien / Perusahaan</label>
+                        <input
+                            type="text"
+                            placeholder="Opsional untuk cetak PDF"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
+                            value={clientName}
+                            onChange={e => setClientName(e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Nama Usaha / Merk</label>
+                        <input
+                            type="text"
+                            placeholder="Opsional untuk cetak PDF"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
+                            value={businessName}
+                            onChange={e => setBusinessName(e.target.value)}
+                        />
                     </div>
                 </div>
 
@@ -705,7 +745,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                     {/* Optional Components */}
                     {masterComponents.filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN').length > 0 && (
                         <div className="border-t border-gray-100 pt-3">
-                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">Komponen Pilihan Master Biaya</label>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">Biaya Tambahan</label>
                             <div className="space-y-1.5 bg-gray-50 p-3 rounded-lg border border-gray-200">
                                 {masterComponents
                                     .filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN')
@@ -734,9 +774,9 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                         </div>
                     )}
 
-                    {/* Biaya Tambahan (Opsional) */}
+                    {/* Biaya Tambahan Lainnya */}
                     <div className="border-t border-gray-100 pt-3">
-                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Biaya Tambahan (Opsional)</label>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Biaya Tambahan Lainnya</label>
                         {optionalCosts.map((opt, idx) => (
                             <div key={idx} className="flex gap-2 items-center mb-1.5">
                                 <span className="flex-1 text-xs bg-gray-50 p-2 rounded-lg border border-gray-100">{opt.name}</span>

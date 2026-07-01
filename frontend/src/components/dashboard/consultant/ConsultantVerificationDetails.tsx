@@ -63,15 +63,22 @@ export const ConsultantVerificationDetails = ({
                         <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Halal Manager</label>
                             <select 
-                                className="glass-input text-xs py-2"
+                                className="glass-input text-xs py-2 disabled:bg-gray-100 disabled:text-gray-500"
                                 value={selectedLeader}
                                 onChange={e => setSelectedLeader(e.target.value)}
+                                disabled={!!profile.user?.leader_id}
+                                title={profile.user?.leader_id ? "Halal Manager sudah terikat dari Referral Code" : ""}
                             >
                                 <option value="">-- Tanpa Halal Manager --</option>
                                 {coordinators.map(c => (
                                     <option key={c.id} value={c.id}>{c.full_name}</option>
                                 ))}
                             </select>
+                            {!!profile.user?.leader_id && (
+                                <span className="text-[10px] text-brand-600 font-bold mt-1">
+                                    *Terikat otomatis dari Referral
+                                </span>
+                            )}
                         </div>
                     )}
                     

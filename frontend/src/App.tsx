@@ -34,6 +34,7 @@ import DashboardLayout from './components/layout/DashboardLayout';
 import DashboardHome from './pages/dashboard/DashboardHome';
 import ClientList from './pages/dashboard/ClientList';
 import ClientForm from './pages/dashboard/ClientForm';
+import ClientDetail from './pages/dashboard/ClientDetail';
 import SubmissionList from './pages/dashboard/SubmissionList';
 import SubmissionCreate from './pages/dashboard/SubmissionCreate';
 import SubmissionDetail from './pages/dashboard/SubmissionDetail';
@@ -113,6 +114,9 @@ function App() {
             <RoleRoute path="clients/new"><ClientForm /></RoleRoute>
           } />
           <Route path="clients/:id" element={
+            <RoleRoute path="clients"><ClientDetail /></RoleRoute>
+          } />
+          <Route path="clients/:id/edit" element={
             <RoleRoute path="clients/new"><ClientForm /></RoleRoute>
           } />
 

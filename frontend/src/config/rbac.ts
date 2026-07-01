@@ -73,8 +73,7 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
 
   // ── Tagihan ───────────────────────────────────────────────────────
   'my-invoices': [
-    'HALAL_MANAGER', 'HALAL_DIRECTOR', 'HALAL_ADVISOR', 'MARKETING', 'FINANCE',
-    'ADMIN_KEUANGAN', 'DIRECTOR',
+    'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'MARKETING', 'CLIENT', 'FINANCE', 'ADMIN_KEUANGAN',
   ],
 
   // ── Workflow ──────────────────────────────────────────────────────

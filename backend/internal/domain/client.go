@@ -10,6 +10,7 @@ import (
 type Client struct {
 	ID            uuid.UUID `gorm:"type:uuid;default:gen_random_uuid()" json:"id"`
 	NIB           string    `gorm:"unique;column:nib" json:"nib"`
+	NIBFileURL    string    `gorm:"column:nib_file_url" json:"nib_file_url,omitempty"`
 	NIK           string    `gorm:"column:nik" json:"nik"`
 	BusinessName  string    `gorm:"column:business_name" json:"business_name"`
 	ClientName    string    `gorm:"column:client_name" json:"client_name"`

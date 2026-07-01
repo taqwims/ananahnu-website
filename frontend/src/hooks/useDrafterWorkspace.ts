@@ -14,10 +14,12 @@ export const useDrafterWorkspace = (initialSubId: string | null) => {
     // Client Edit States
     const [isEditingClient, setIsEditingClient] = useState(false);
     const [isEditingDocs, setIsEditingDocs] = useState(false);
+    const [nibFile, setNibFile] = useState<File | null>(null);
     const [clientForm, setClientForm] = useState({
         business_name: '',
         client_name: '',
         nib: '',
+        nib_file_url: '',
         nik: '',
         product_name: '',
         address: ''
@@ -56,6 +58,7 @@ export const useDrafterWorkspace = (initialSubId: string | null) => {
                     business_name: sub.client.business_name || '',
                     client_name: sub.client.client_name || '',
                     nib: sub.client.nib || '',
+                    nib_file_url: sub.client.nib_file_url || '',
                     nik: sub.client.nik || '',
                     product_name: sub.client.product_name || '',
                     address: sub.client.address || ''
@@ -112,9 +115,26 @@ export const useDrafterWorkspace = (initialSubId: string | null) => {
         if (!activeSubmission?.client_id) return;
         setProcessing(true);
         try {
-            await submissionService.updateClient(activeSubmission.client_id, clientForm);
+            let finalNIBFileURL = clientForm.nib_file_url;
+            if (nibFile) {
+                const toastId = toast.loading('Mengunggah File NIB...');
+                try {
+                    finalNIBFileURL = await submissionService.uploadMedia(nibFile);
+                    toast.success('Berhasil mengunggah NIB', { id: toastId });
+                } catch (e: any) {
+                    toast.error(e.message || 'Gagal mengunggah NIB', { id: toastId });
+                    setProcessing(false);
+                    return;
+                }
+            }
+
+            await submissionService.updateClient(activeSubmission.client_id, {
+                ...clientForm,
+                nib_file_url: finalNIBFileURL
+            });
             toast.success("Data klien diperbarui");
             setIsEditingClient(false);
+            setNibFile(null);
             if (activeSubId) await loadDetail(activeSubId);
         } catch (err: any) {
             toast.error(err.message || "Gagal memperbarui data klien");
@@ -183,6 +203,8 @@ export const useDrafterWorkspace = (initialSubId: string | null) => {
         setIsEditingDocs,
         clientForm,
         setClientForm,
+        nibFile,
+        setNibFile,
         handleAction,
         handleUpdateClient,
         handleUpdateDocs,

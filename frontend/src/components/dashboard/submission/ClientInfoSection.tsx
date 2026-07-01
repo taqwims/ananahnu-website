@@ -58,11 +58,13 @@ export const ClientInfoSection = ({
     const [schemes, setSchemes] = useState<any[]>([]);
     const [masterComponents, setMasterComponents] = useState<any[]>([]);
     const [selectedOptionalComponentIds, setSelectedOptionalComponentIds] = useState<number[]>([]);
+    const [nibFile, setNibFile] = useState<File | null>(null);
 
     const [clientForm, setClientForm] = useState({
         business_name: submission.client?.business_name || '',
         client_name: submission.client?.client_name || '',
         nib: submission.client?.nib || '',
+        nib_file_url: submission.client?.nib_file_url || '',
         nik: submission.client?.nik || '',
         product_name: submission.client?.product_name || '',
         address: submission.client?.address || '',
@@ -140,30 +142,49 @@ export const ClientInfoSection = ({
             mandays: user?.role === 'CLIENT' ? 1 : clientForm.mandays,
         };
 
-        const payload = {
-            ...updatedClientForm,
-            business_type_id: updatedClientForm.business_type_id ? parseInt(updatedClientForm.business_type_id) : null,
-            province_id: updatedClientForm.province_id ? parseInt(updatedClientForm.province_id) : null,
-            regency_id: updatedClientForm.regency_id ? parseInt(updatedClientForm.regency_id) : null,
-            district_id: updatedClientForm.district_id ? parseInt(updatedClientForm.district_id) : null,
-            product_category_id: updatedClientForm.product_category_id ? parseInt(updatedClientForm.product_category_id) : null,
-            business_scale_id: updatedClientForm.business_scale_id ? parseInt(updatedClientForm.business_scale_id) : null,
-            sales_scheme_id: updatedClientForm.sales_scheme_id ? parseInt(updatedClientForm.sales_scheme_id) : null,
-            product_count: updatedClientForm.product_count,
-            branch_count: updatedClientForm.branch_count,
-            mandays: updatedClientForm.mandays,
-            selected_optional_component_ids: selectedOptionalComponentIds
-        };
+        try {
+            let finalNIBFileURL = clientForm.nib_file_url;
+            if (nibFile) {
+                const toastId = toast.loading('Mengunggah File NIB...');
+                try {
+                    finalNIBFileURL = await submissionService.uploadMedia(nibFile);
+                    toast.success('Berhasil mengunggah NIB', { id: toastId });
+                } catch (e: any) {
+                    toast.error(e.message || 'Gagal mengunggah NIB', { id: toastId });
+                    setIsEditingClient(false);
+                    return;
+                }
+            }
 
-        if (submission.service_type === 'REGULER') {
-            await onUpdateClientInfoAndPricing(payload);
-        } else {
-            await Promise.all([
-                onUpdateClient(submission.client.id, updatedClientForm),
-                updatedClientForm.business_type_id ? onUpdateBusinessType(parseInt(updatedClientForm.business_type_id)) : Promise.resolve()
-            ]);
+            const payload = {
+                ...updatedClientForm,
+                nib_file_url: finalNIBFileURL,
+                business_type_id: updatedClientForm.business_type_id ? parseInt(updatedClientForm.business_type_id) : null,
+                product_category_id: updatedClientForm.product_category_id ? parseInt(updatedClientForm.product_category_id) : null,
+                province_id: updatedClientForm.province_id ? parseInt(updatedClientForm.province_id) : null,
+                regency_id: updatedClientForm.regency_id ? parseInt(updatedClientForm.regency_id) : null,
+                district_id: updatedClientForm.district_id ? parseInt(updatedClientForm.district_id) : null,
+                business_scale_id: updatedClientForm.business_scale_id ? parseInt(updatedClientForm.business_scale_id) : null,
+                sales_scheme_id: updatedClientForm.sales_scheme_id ? parseInt(updatedClientForm.sales_scheme_id) : null,
+                product_count: updatedClientForm.product_count,
+                branch_count: updatedClientForm.branch_count,
+                mandays: updatedClientForm.mandays,
+                selected_optional_component_ids: selectedOptionalComponentIds
+            };
+
+            if (submission.service_type === 'REGULER') {
+                await onUpdateClientInfoAndPricing(payload);
+            } else {
+                await Promise.all([
+                    onUpdateClient(submission.client.id, payload),
+                    updatedClientForm.business_type_id ? onUpdateBusinessType(parseInt(updatedClientForm.business_type_id)) : Promise.resolve()
+                ]);
+            }
+            setIsEditingClient(false);
+            setNibFile(null);
+        } catch (e: any) {
+            toast.error(e.message || 'Gagal menyimpan data');
         }
-        setIsEditingClient(false);
     };
 
     const canEdit = (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'DRAFTER' || user?.role === 'QC_OFFICER' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'HALAL_ADVISOR' || (user?.role === 'AUDIT_MANAGER' && submission.service_type === 'REGULER') || (user?.role === 'CLIENT' && (submission.status === 'DRAFT' || submission.status === 'REVISION')));
@@ -205,8 +226,29 @@ export const ClientInfoSection = ({
                             <input className="glass-input w-full" value={clientForm.client_name} onChange={e => setClientForm({...clientForm, client_name: e.target.value})} placeholder="Nama Lengkap Pemilik" />
                         </div>
                         <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">NIB</label>
-                            <input className="glass-input w-full font-mono" value={clientForm.nib} onChange={e => setClientForm({...clientForm, nib: e.target.value})} placeholder="Nomor Induk Berusaha" />
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">NIB <span className="text-red-500">*</span></label>
+                            <input className="glass-input w-full font-mono mb-2" value={clientForm.nib} onChange={e => setClientForm({...clientForm, nib: e.target.value})} placeholder="Nomor Induk Berusaha" />
+                            {user?.role !== 'CLIENT' && (
+                                <div className="mt-2">
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">File NIB (PDF/Gambar)</label>
+                                    <input 
+                                        type="file" 
+                                        accept=".pdf,image/*"
+                                        onChange={(e) => {
+                                            if (e.target.files && e.target.files.length > 0) {
+                                                setNibFile(e.target.files[0]);
+                                            }
+                                        }}
+                                        className="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
+                                    />
+                                    {clientForm.nib_file_url && !nibFile && (
+                                        <p className="text-[10px] text-green-600 mt-1 font-bold flex items-center gap-1">
+                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                            File sudah diunggah
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">NIK <span className="text-red-500">*</span></label>
@@ -431,7 +473,56 @@ export const ClientInfoSection = ({
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-6">
                     <InfoItem label="Nama Usaha" value={submission.client?.business_name} highlight />
                     <InfoItem label="Nama Pemilik" value={submission.client?.client_name} />
-                    <InfoItem label="NIB" value={submission.client?.nib} mono />
+                    <div className="p-3 bg-white/50 rounded-xl border border-gray-100 col-span-1 sm:col-span-2">
+                        <dt className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">NIB</dt>
+                        <dd className="text-sm font-bold text-gray-700 font-mono flex items-center gap-2 truncate">
+                            {submission.client?.nib || '-'}
+                            {submission.client?.nib_file_url && (
+                                <a 
+                                    href={submission.client.nib_file_url} 
+                                    target="_blank" 
+                                    rel="noreferrer"
+                                    className="px-2 py-1 bg-brand-50 text-brand-600 rounded text-[10px] uppercase font-black tracking-wider hover:bg-brand-100 transition-colors flex items-center gap-1"
+                                >
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                    Lihat File
+                                </a>
+                            )}
+                        </dd>
+                        {submission.client?.nib_file_url && (
+                            <div className="mt-2 pt-2 border-t border-gray-100/60">
+                                {(() => {
+                                    const url = submission.client.nib_file_url;
+                                    const isImg = /\.(jpg|jpeg|png|webp|gif|svg)(\?.*)?$/i.test(url);
+                                    if (isImg) {
+                                        return (
+                                            <div className="mt-1 border border-gray-100 rounded-xl overflow-hidden max-w-sm shadow-sm bg-white">
+                                                <img src={url} alt="NIB File" className="w-full h-auto object-contain max-h-64" />
+                                                <div className="p-2 text-center bg-gray-50 border-t border-gray-100">
+                                                    <a href={url} target="_blank" rel="noreferrer" className="text-[10px] font-black text-brand-600 hover:text-brand-700 uppercase tracking-wider">
+                                                        Buka Gambar Penuh
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    return (
+                                        <div className="mt-1 flex items-center gap-3 p-3 bg-red-50/50 rounded-xl border border-red-100/50 max-w-sm">
+                                            <svg className="w-8 h-8 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[9px] font-black text-red-500 uppercase tracking-widest">Dokumen PDF</p>
+                                                <a href={url} target="_blank" rel="noreferrer" className="text-xs font-bold text-gray-700 hover:text-brand-600 truncate block underline">
+                                                    Lihat File NIB (PDF)
+                                                </a>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        )}
+                    </div>
                     <InfoItem label="NIK" value={submission.client?.nik} mono />
                     <InfoItem label="Produk Utama" value={submission.client?.product_name} />
                     <InfoItem label="Bidang Usaha" value={submission.business_type?.name} highlight />

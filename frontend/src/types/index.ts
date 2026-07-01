@@ -30,6 +30,7 @@ export interface BusinessType {
 export interface Client {
     id: string;
     nib: string;
+    nib_file_url?: string;
     nik: string;
     business_name: string;
     client_name: string;
@@ -151,7 +152,7 @@ export interface FormFieldConfig {
     form_type: string;
     field_key: string;
     field_label: string;
-    input_type: 'FILE_UPLOAD' | 'LINK' | 'TEXT';
+    input_type: 'FILE_UPLOAD' | 'LINK' | 'TEXT' | 'DATE' | 'REPEATER';
     is_required: boolean;
     sort_order: number;
     description: string;

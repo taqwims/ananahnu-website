@@ -97,7 +97,9 @@ func (uc *dashboardUsecase) GetStats(userID uuid.UUID, role string) (map[string]
 
 	// Filter
 	filter := make(map[string]interface{})
-	if len(facilitatorIDs) > 0 {
+	if role == "DRAFTER" {
+		filter["assigned_drafter_id"] = userID
+	} else if len(facilitatorIDs) > 0 {
 		filter["facilitator_ids"] = facilitatorIDs
 	}
 	if role == "AUDIT_MANAGER" {

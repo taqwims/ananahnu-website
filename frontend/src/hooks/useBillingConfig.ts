@@ -3,7 +3,7 @@ import { billingService } from '../services/billingService';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
-export type MainTab = 'master_data' | 'components' | 'settings';
+export type MainTab = 'master_data' | 'components' | 'settings' | 'self_declare' | 'facilitation' | 'scheme_prices';
 export type TabKey = 'schemes' | 'business_types' | 'products' | 'scales' | 'components';
 
 export const useBillingConfig = () => {
