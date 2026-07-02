@@ -91,7 +91,9 @@ func PerformResetAndSeed(db *gorm.DB) error {
 	}
 	for _, name := range roles {
 		var role domain.Role
-		db.Where("name = ?", name).FirstOrCreate(&role)
+		if err := db.Where(&domain.Role{Name: name}).FirstOrCreate(&role).Error; err != nil {
+			return fmt.Errorf("failed to seed role %s: %w", name, err)
+		}
 	}
 	log.Println("✓ Roles seeded.")
 
