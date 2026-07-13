@@ -67,7 +67,7 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 						amount = val
 					}
 				}
-				uc.InvoiceRepo.Create(&domain.Invoice{
+				if err := uc.InvoiceRepo.Create(&domain.Invoice{
 					SubmissionID: id,
 					PayerID:      nil,
 					ServiceType:  "SELF_DECLARE_MANDIRI",
@@ -75,7 +75,9 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 					Amount:       amount,
 					Status:       domain.InvoiceStatusUnpaid,
 					Notes:        "Pembayaran Penuh SELF_DECLARE_MANDIRI",
-				})
+				}); err != nil {
+					return err
+				}
 			case "REGULER":
 				costDetail, _ := uc.BillingConfigRepo.GetSubmissionCostDetail(id)
 				var totalAmount float64
@@ -84,7 +86,7 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 				}
 				// DP = 70% dari total biaya
 				dpAmount := totalAmount * 0.70
-				uc.InvoiceRepo.Create(&domain.Invoice{
+				if err := uc.InvoiceRepo.Create(&domain.Invoice{
 					SubmissionID:  id,
 					PayerID:       nil,
 					ServiceType:   "REGULER",
@@ -93,7 +95,9 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 					Status:        domain.InvoiceStatusUnpaid,
 					PricingSource: "COST_DETAIL",
 					Notes:         "Down Payment 70% Layanan Reguler",
-				})
+				}); err != nil {
+					return err
+				}
 			}
 		}
 		

@@ -62,7 +62,7 @@ func (h *PromotionHandler) SubmitRequest(c *gin.Context) {
 		CertificateURL string `json:"certificate_url"`
 	}
 	// ShouldBindJSON tidak wajib berhasil — certificate_url opsional untuk HALAL_MANAGER
-	c.ShouldBindJSON(&input)
+	_ = c.ShouldBindJSON(&input)
 
 	req, err := h.promotionUC.SubmitPromotionRequest(userID, input.CertificateURL)
 	if err != nil {

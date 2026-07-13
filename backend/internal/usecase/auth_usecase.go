@@ -268,7 +268,7 @@ func (uc *authUsecase) ResetPassword(tokenStr, newPassword string) error {
 	}
 
 	if time.Now().After(token.ExpiresAt) {
-		uc.TokenRepo.Delete(tokenStr)
+		_ = uc.TokenRepo.Delete(tokenStr)
 		return errors.New("token expired")
 	}
 

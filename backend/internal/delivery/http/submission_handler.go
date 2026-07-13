@@ -127,7 +127,7 @@ func (h *SubmissionHandler) Approve(c *gin.Context) {
 	var input struct {
 		DrafterID string `json:"drafter_id"`
 	}
-	c.ShouldBindJSON(&input)
+	_ = c.ShouldBindJSON(&input)
 
 	if input.DrafterID != "" {
 		drafterUUID, err := uuid.Parse(input.DrafterID)
@@ -261,7 +261,7 @@ func (h *SubmissionHandler) Reject(c *gin.Context) {
 	var input struct {
 		Note string `json:"note"`
 	}
-	c.ShouldBindJSON(&input)
+	_ = c.ShouldBindJSON(&input)
 
 	userID := middleware.GetUserID(c)
 	role := middleware.GetUserRole(c)

@@ -1,7 +1,7 @@
 import { GripVertical, Trash2 } from 'lucide-react';
 import type { FormFieldConfig } from '../../../types';
 
-const INPUT_TYPES = ['FILE_UPLOAD', 'LINK', 'TEXT'] as const;
+const INPUT_TYPES = ['FILE_UPLOAD', 'LINK', 'TEXT', 'DATE', 'REPEATER'] as const;
 
 interface FieldItemProps {
     field: FormFieldConfig;

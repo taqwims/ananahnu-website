@@ -35,7 +35,9 @@ func main() {
 	log.Println("Database connected successfully")
 
 	// 3. Init Dependencies & Migrate
-	db.AutoMigrate(&domain.Client{})
+	if err := db.AutoMigrate(&domain.Client{}); err != nil {
+		log.Fatalf("Failed to run AutoMigrate: %v", err)
+	}
 	clientRepo := repository.NewClientRepository(db)
 	importUC := usecase.NewImportUsecase(usecase.ImportUsecaseDeps{
 		ClientRepo: clientRepo,

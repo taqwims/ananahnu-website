@@ -323,7 +323,9 @@ func (uc *promotionUsecase) CompletePromotionAssessment(id int64, passed bool) e
 			user, _ := uc.userRepo.FindByID(req.UserID)
 			if user != nil {
 				user.RoleID = targetRoleID
-				uc.userRepo.Update(user)
+				if err := uc.userRepo.Update(user); err != nil {
+					return err
+				}
 
 				// When HALAL_ADVISOR promoted to HALAL_MANAGER:
 				// Generate 1% REFERRAL commission to the Halal Manager who recruited them

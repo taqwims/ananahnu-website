@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, Upload, Link as LinkIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import { FileText, Upload, Link as LinkIcon, ChevronDown, ChevronUp, Calendar, List } from 'lucide-react';
 import type { Submission, User, FormFieldValue } from '../../../types';
 import DynamicSubmissionForm from '../DynamicSubmissionForm';
 
@@ -120,7 +120,7 @@ export const DocumentList = ({
                                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${
                                                         isActive 
                                                             ? 'bg-gradient-to-tr from-blue-600 to-indigo-600 text-white ring-4 ring-blue-100 scale-110 shadow-md'
-                                                            : 'bg-white text-gray-400 border-2 border-gray-200 hover:border-gray-300'
+                                                             : 'bg-white text-gray-400 border-2 border-gray-200 hover:border-gray-300'
                                                     }`}>
                                                         {step.step_number}
                                                     </div>
@@ -145,17 +145,39 @@ export const DocumentList = ({
                             {steps.length > 0 ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                                     {steps[activeStepIdx]?.fieldValues.map(fv => (
-                                        <div key={fv.id} className="flex items-center justify-between p-3 bg-white/50 rounded-xl border border-gray-100 hover:border-brand-200 transition-all group/item shadow-sm">
-                                            <div className="flex items-center gap-3 overflow-hidden">
-                                                <div className="p-2 rounded-lg bg-gray-50 group-hover/item:bg-brand-50 transition-colors">
+                                        <div key={fv.id} className="flex items-start justify-between p-3 bg-white/50 rounded-xl border border-gray-100 hover:border-brand-200 transition-all group/item shadow-sm">
+                                            <div className="flex items-start gap-3 overflow-hidden flex-1">
+                                                <div className="p-2 rounded-lg bg-gray-50 group-hover/item:bg-brand-50 transition-colors shrink-0">
                                                     {fv.form_field.input_type === 'FILE_UPLOAD' && <Upload className="w-4 h-4 text-brand-500" />}
                                                     {fv.form_field.input_type === 'LINK' && <LinkIcon className="w-4 h-4 text-blue-500" />}
                                                     {fv.form_field.input_type === 'TEXT' && <FileText className="w-4 h-4 text-gray-400" />}
+                                                    {fv.form_field.input_type === 'DATE' && <Calendar className="w-4 h-4 text-emerald-500" />}
+                                                    {fv.form_field.input_type === 'REPEATER' && <List className="w-4 h-4 text-indigo-500" />}
                                                 </div>
-                                                <div className="overflow-hidden">
+                                                <div className="overflow-hidden flex-1">
                                                     <span className="text-xs font-bold text-gray-700 block truncate">{fv.form_field.field_label}</span>
                                                     {fv.text_value && (
-                                                        <p className="text-[10px] text-gray-400 truncate">{fv.text_value}</p>
+                                                        fv.form_field.input_type === 'REPEATER' ? (
+                                                            (() => {
+                                                                let items: string[] = [];
+                                                                try {
+                                                                    items = JSON.parse(fv.text_value);
+                                                                    if (!Array.isArray(items)) items = [];
+                                                                } catch { items = []; }
+                                                                if (items.length === 0) return <p className="text-[10px] text-gray-400 italic">Kosong</p>;
+                                                                return (
+                                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                                        {items.map((item, idx) => (
+                                                                            <span key={idx} className="inline-block px-1.5 py-0.5 text-[9px] font-semibold bg-indigo-50 text-indigo-600 rounded-md border border-indigo-100">
+                                                                                {item}
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                );
+                                                            })()
+                                                        ) : (
+                                                            <p className="text-[10px] text-gray-400 truncate">{fv.text_value}</p>
+                                                        )
                                                     )}
                                                 </div>
                                             </div>

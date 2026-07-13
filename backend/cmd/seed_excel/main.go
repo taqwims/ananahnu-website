@@ -12,13 +12,17 @@ func main() {
 	sheet := "Sheet1"
 	
 	// Create Dir
-	os.MkdirAll("data_samples", 0755)
+	if err := os.MkdirAll("data_samples", 0755); err != nil {
+		log.Fatal("failed to create directory:", err)
+	}
 
 	// Headers
 	headers := []string{"NIB", "Business Name", "Address", "Product", "Phone"}
 	for i, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
-		f.SetCellValue(sheet, cell, h)
+		if err := f.SetCellValue(sheet, cell, h); err != nil {
+			log.Fatal("failed to set cell value:", err)
+		}
 	}
 
 	// Data
@@ -32,7 +36,9 @@ func main() {
 		r := i + 2
 		for j, val := range row {
 			cell, _ := excelize.CoordinatesToCellName(j+1, r)
-			f.SetCellValue(sheet, cell, val)
+			if err := f.SetCellValue(sheet, cell, val); err != nil {
+				log.Fatal("failed to set cell value:", err)
+			}
 		}
 	}
 

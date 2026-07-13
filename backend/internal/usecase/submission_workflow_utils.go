@@ -9,7 +9,7 @@ import (
 )
 
 func (uc *submissionWorkflowUsecase) logChange(id uuid.UUID, userID uuid.UUID, action string, oldStatus, newStatus domain.SubmissionStatus, note string) {
-	uc.AuditRepo.Create(&domain.AuditLog{
+	_ = uc.AuditRepo.Create(&domain.AuditLog{
 		UserID:     &userID,
 		Action:     action,
 		EntityType: "SUBMISSION",

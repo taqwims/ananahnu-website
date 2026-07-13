@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Upload, Link as LinkIcon, FileText, Loader2, CheckCircle, AlertCircle, Camera } from 'lucide-react';
+import { Upload, Link as LinkIcon, FileText, Loader2, CheckCircle, AlertCircle, Camera, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 import { compressImage } from '../../utils/compressor';
 import type { FormFieldConfig, FormFieldValue } from '../../types';
@@ -338,9 +338,21 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
                                 
                                 {values[cfg.id]?.file_url && (
                                     <div className="bg-emerald-50 text-emerald-700 p-3 rounded-xl text-xs font-bold border border-emerald-100 flex flex-col gap-2">
-                                        <div className="flex items-center gap-2">
-                                            <FileText className="w-4 h-4" />
-                                            <span className="truncate flex-1">{values[cfg.id].file_url.split('/').pop()}</span>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="flex items-center gap-2 overflow-hidden flex-1">
+                                                <FileText className="w-4 h-4 shrink-0" />
+                                                <span className="truncate">{values[cfg.id].file_url.split('/').pop()}</span>
+                                            </div>
+                                            {!readOnly && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => updateValue(cfg.id, 'file_url', '')}
+                                                    className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors shrink-0"
+                                                    title="Hapus File"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            )}
                                         </div>
                                         {values[cfg.id].file_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
                                             <div className="mt-1 w-full max-w-[200px] rounded-lg overflow-hidden border border-emerald-200">

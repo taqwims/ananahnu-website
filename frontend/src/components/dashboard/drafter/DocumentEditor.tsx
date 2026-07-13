@@ -1,4 +1,4 @@
-import { Edit3, Save, X, ExternalLink, Link as LinkIcon, Upload, FileText, Trash2 } from 'lucide-react';
+import { Edit3, Save, X, ExternalLink, Link as LinkIcon, Upload, FileText, Trash2, Calendar, List } from 'lucide-react';
 import type { FormFieldValue } from '../../../types';
 import FileUpload from '../FileUpload';
 
@@ -23,31 +23,39 @@ export const DocumentEditor = ({
         <div className="glass-panel flex-1 flex flex-col border-white/60 shadow-xl overflow-hidden group">
             <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white/40">
                 <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-4 bg-blue-600 rounded-full"></div>
-                    <h3 className="text-sm font-black text-gray-800 tracking-tight uppercase">Dokumen Persyaratan</h3>
+                    <div className="w-1.5 h-5 bg-blue-600 rounded-full"></div>
+                    <span className="text-sm font-extrabold text-gray-800 tracking-tight">Data / Dokumen Pengisian</span>
                 </div>
-                {!isEditing ? (
-                    <button
-                        onClick={() => setIsEditing(true)}
-                        className="p-2 hover:bg-brand-50 rounded-lg text-brand-600 transition-all opacity-0 group-hover:opacity-100"
-                    >
-                        <Edit3 className="w-4 h-4" />
-                    </button>
-                ) : (
+                {fieldValues.length > 0 && (
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setIsEditing(false)}
-                            className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={onSave}
-                            disabled={processing}
-                            className="p-1.5 bg-blue-600 text-white rounded-lg shadow-lg shadow-blue-100"
-                        >
-                            <Save className="w-4 h-4" />
-                        </button>
+                        {isEditing ? (
+                            <>
+                                <button 
+                                    onClick={() => setIsEditing(false)}
+                                    className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
+                                    disabled={processing}
+                                    title="Batal"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                                <button 
+                                    onClick={onSave}
+                                    className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm transition-all"
+                                    disabled={processing}
+                                    title="Simpan"
+                                >
+                                    <Save className="w-4 h-4" />
+                                </button>
+                            </>
+                        ) : (
+                            <button 
+                                onClick={() => setIsEditing(true)}
+                                className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-blue-600 transition-colors"
+                                title="Edit Data"
+                            >
+                                <Edit3 className="w-4 h-4" />
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
@@ -58,7 +66,11 @@ export const DocumentEditor = ({
                         <div key={fv.id} className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-3 transition-all hover:border-blue-100 hover:shadow-md">
                             <div className="flex items-start justify-between">
                                 <div className="flex items-center gap-2">
-                                    {fv.form_field.input_type === 'FILE_UPLOAD' ? <Upload className="w-3.5 h-3.5 text-brand-500" /> : <LinkIcon className="w-3.5 h-3.5 text-blue-500" />}
+                                    {fv.form_field.input_type === 'FILE_UPLOAD' && <Upload className="w-3.5 h-3.5 text-brand-500" />}
+                                    {fv.form_field.input_type === 'LINK' && <LinkIcon className="w-3.5 h-3.5 text-blue-500" />}
+                                    {fv.form_field.input_type === 'TEXT' && <FileText className="w-3.5 h-3.5 text-gray-500" />}
+                                    {fv.form_field.input_type === 'DATE' && <Calendar className="w-3.5 h-3.5 text-emerald-500" />}
+                                    {fv.form_field.input_type === 'REPEATER' && <List className="w-3.5 h-3.5 text-indigo-500" />}
                                     <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">{fv.form_field.field_label}</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
@@ -99,6 +111,61 @@ export const DocumentEditor = ({
                                                 </div>
                                             )}
                                         </div>
+                                    ) : fv.form_field.input_type === 'REPEATER' ? (
+                                        <div className="space-y-2">
+                                            {(() => {
+                                                let items: string[] = [];
+                                                try {
+                                                    items = fv.text_value ? JSON.parse(fv.text_value) : [];
+                                                    if (!Array.isArray(items)) items = [];
+                                                } catch { items = []; }
+                                                return (
+                                                    <>
+                                                        {items.map((item, itemIdx) => (
+                                                            <div key={itemIdx} className="flex gap-2 items-center">
+                                                                <input
+                                                                    className="w-full px-3 py-2 bg-gray-50 border-none rounded-xl text-xs focus:ring-2 focus:ring-blue-500/10 font-medium"
+                                                                    value={item}
+                                                                    onChange={e => {
+                                                                        const newItems = [...items];
+                                                                        newItems[itemIdx] = e.target.value;
+                                                                        onUpdateValue(idx, 'text_value', JSON.stringify(newItems));
+                                                                    }}
+                                                                    placeholder="Bahan/Item..."
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const newItems = items.filter((_, i) => i !== itemIdx);
+                                                                        onUpdateValue(idx, 'text_value', JSON.stringify(newItems));
+                                                                    }}
+                                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                                >
+                                                                    &times;
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const newItems = [...items, ''];
+                                                                onUpdateValue(idx, 'text_value', JSON.stringify(newItems));
+                                                            }}
+                                                            className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                                        >
+                                                            + Tambah Item
+                                                        </button>
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+                                    ) : fv.form_field.input_type === 'DATE' ? (
+                                        <input
+                                            type="date"
+                                            className="w-full px-3 py-2 bg-gray-50 border-none rounded-xl text-xs focus:ring-2 focus:ring-blue-500/10 font-medium"
+                                            value={fv.text_value || ''}
+                                            onChange={e => onUpdateValue(idx, 'text_value', e.target.value)}
+                                        />
                                     ) : (
                                         <div className="flex gap-2 items-center">
                                             <input
@@ -121,12 +188,28 @@ export const DocumentEditor = ({
                                     )}
                                 </div>
                             ) : (
-                                <div className="flex items-center gap-2 min-h-[32px]">
+                                <div className="flex flex-wrap gap-1.5 min-h-[32px] items-center">
                                     {fv.file_url || fv.link_value || fv.text_value ? (
-                                        <span className="text-xs font-bold text-gray-700 flex items-center gap-2">
-                                            <FileText className="w-3.5 h-3.5 text-gray-400" />
-                                            {fv.file_url ? 'Dokumen Terupload' : (fv.link_value || fv.text_value)}
-                                        </span>
+                                        fv.form_field.input_type === 'REPEATER' ? (
+                                            (() => {
+                                                let items: string[] = [];
+                                                try {
+                                                    items = fv.text_value ? JSON.parse(fv.text_value) : [];
+                                                    if (!Array.isArray(items)) items = [];
+                                                } catch { items = []; }
+                                                if (items.length === 0) return <span className="text-xs font-medium text-gray-300 italic">Belum diisi</span>;
+                                                return items.map((item, itemIdx) => (
+                                                    <span key={itemIdx} className="inline-block px-2 py-0.5 text-[10px] font-semibold bg-indigo-50 text-indigo-600 rounded-md border border-indigo-100">
+                                                        {item}
+                                                    </span>
+                                                ));
+                                            })()
+                                        ) : (
+                                            <span className="text-xs font-bold text-gray-700 flex items-center gap-2">
+                                                <FileText className="w-3.5 h-3.5 text-gray-400" />
+                                                {fv.file_url ? 'Dokumen Terupload' : (fv.link_value || fv.text_value)}
+                                            </span>
+                                        )
                                     ) : (
                                         <span className="text-xs font-medium text-gray-300 italic">Belum diisi</span>
                                     )}

@@ -47,24 +47,40 @@ func (uc *exportUsecase) ExportClients(filter map[string]interface{}, format str
 func (uc *exportUsecase) generateExcel(clients []domain.Client) ([]byte, error) {
 	f := excelize.NewFile()
 	sheet := "Sheet1"
-	f.SetSheetName("Sheet1", sheet)
+	if err := f.SetSheetName("Sheet1", sheet); err != nil {
+		return nil, err
+	}
 
 	// Header
 	headers := []string{"NIB", "Business Name", "Address", "Phone", "Product", "Service Type"}
 	for i, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
-		f.SetCellValue(sheet, cell, h)
+		if err := f.SetCellValue(sheet, cell, h); err != nil {
+			return nil, err
+		}
 	}
 
 	// Data
 	for i, c := range clients {
 		row := i + 2
-		f.SetCellValue(sheet, fmt.Sprintf("A%d", row), c.NIB)
-		f.SetCellValue(sheet, fmt.Sprintf("B%d", row), c.BusinessName)
-		f.SetCellValue(sheet, fmt.Sprintf("C%d", row), c.Address)
-		f.SetCellValue(sheet, fmt.Sprintf("D%d", row), c.Phone)
-		f.SetCellValue(sheet, fmt.Sprintf("E%d", row), c.ProductName)
-		f.SetCellValue(sheet, fmt.Sprintf("F%d", row), c.ServiceType)
+		if err := f.SetCellValue(sheet, fmt.Sprintf("A%d", row), c.NIB); err != nil {
+			return nil, err
+		}
+		if err := f.SetCellValue(sheet, fmt.Sprintf("B%d", row), c.BusinessName); err != nil {
+			return nil, err
+		}
+		if err := f.SetCellValue(sheet, fmt.Sprintf("C%d", row), c.Address); err != nil {
+			return nil, err
+		}
+		if err := f.SetCellValue(sheet, fmt.Sprintf("D%d", row), c.Phone); err != nil {
+			return nil, err
+		}
+		if err := f.SetCellValue(sheet, fmt.Sprintf("E%d", row), c.ProductName); err != nil {
+			return nil, err
+		}
+		if err := f.SetCellValue(sheet, fmt.Sprintf("F%d", row), c.ServiceType); err != nil {
+			return nil, err
+		}
 	}
 
 	buf, err := f.WriteToBuffer()

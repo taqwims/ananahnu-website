@@ -256,7 +256,7 @@ func (uc *financeUsecase) GetFeeConfig() ([]FeeConfigItem, error) {
 		setting, err := uc.SettingRepo.GetSetting(fk.Key)
 		val := fk.Default
 		if err == nil && setting != nil && setting.Value != "" {
-			fmt.Sscanf(setting.Value, "%f", &val)
+			_, _ = fmt.Sscanf(setting.Value, "%f", &val)
 		}
 		items = append(items, FeeConfigItem{
 			Key:   fk.Key,

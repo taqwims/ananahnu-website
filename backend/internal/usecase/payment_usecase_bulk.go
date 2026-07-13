@@ -55,7 +55,9 @@ func (uc *paymentUsecase) InitiateBulkPayment(invoiceIDs []int64, payerID uuid.U
 	// Link Invoices to this Payment
 	for _, inv := range invoices {
 		inv.PaymentID = &payment.ID
-		uc.InvoiceRepo.Update(&inv)
+		if err := uc.InvoiceRepo.Update(&inv); err != nil {
+			return nil, err
+		}
 	}
 
 	return payment, nil

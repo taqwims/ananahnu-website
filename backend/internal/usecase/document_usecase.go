@@ -225,12 +225,12 @@ func (uc *documentUsecase) generateDocx(vars map[string]string) ([]byte, error) 
 			// Copy as is
 			_, err = io.Copy(fw, rc)
 		}
-		rc.Close()
+		_ = rc.Close()
 		if err != nil {
 			return nil, err
 		}
 	}
-	w.Close()
+	_ = w.Close()
 	return buf.Bytes(), nil
 }
 
@@ -591,12 +591,12 @@ func (uc *documentUsecase) GenerateSPH(submissionID uuid.UUID) ([]byte, string, 
 		} else {
 			_, err = io.Copy(fw, rc)
 		}
-		rc.Close()
+		_ = rc.Close()
 		if err != nil {
 			return nil, "", err
 		}
 	}
-	w.Close()
+	_ = w.Close()
 
 	filename := fmt.Sprintf("SPH_%s.docx", strings.ReplaceAll(businessName, " ", "_"))
 	return buf.Bytes(), filename, nil

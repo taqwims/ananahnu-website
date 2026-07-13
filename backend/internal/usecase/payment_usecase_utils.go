@@ -9,7 +9,7 @@ import (
 )
 
 func (uc *paymentUsecase) logPaymentActivity(submissionID uuid.UUID, action, note string) {
-	uc.AuditRepo.Create(&domain.AuditLog{
+	_ = uc.AuditRepo.Create(&domain.AuditLog{
 		UserID:     nil, // System action
 		Action:     action,
 		EntityType: "SUBMISSION",
@@ -34,7 +34,7 @@ func (uc *paymentUsecase) CleanupExpiredPayments() error {
 			}
 
 			log.Printf("[CLEANUP] Deleting expired pending payment %d (Order ID: %s, Created at %v)", p.ID, p.ExternalID, p.CreatedAt)
-			uc.PaymentRepo.Delete(p.ID)
+			_ = uc.PaymentRepo.Delete(p.ID)
 		}
 	}
 

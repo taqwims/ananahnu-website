@@ -61,8 +61,8 @@ func (uc *formConfigUsecase) CreateField(config *domain.FormFieldConfig) error {
 	if config.FormType == "" || config.FieldKey == "" || config.InputType == "" {
 		return errors.New("form_type, field_key, and input_type are required")
 	}
-	if config.InputType != "FILE_UPLOAD" && config.InputType != "LINK" && config.InputType != "TEXT" {
-		return errors.New("input_type must be FILE_UPLOAD, LINK, or TEXT")
+	if config.InputType != "FILE_UPLOAD" && config.InputType != "LINK" && config.InputType != "TEXT" && config.InputType != "DATE" && config.InputType != "REPEATER" {
+		return errors.New("input_type must be FILE_UPLOAD, LINK, TEXT, DATE, or REPEATER")
 	}
 	return uc.ConfigRepo.Create(config)
 }

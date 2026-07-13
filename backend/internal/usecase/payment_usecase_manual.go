@@ -55,7 +55,7 @@ func (uc *paymentUsecase) VerifyManualPayment(paymentID int64, approved bool, ve
 
 	if approved {
 		// Update linked invoices
-		uc.updateLinkedInvoices(payment.ID)
+		_ = uc.updateLinkedInvoices(payment.ID)
 
 		if payment.SubmissionID != nil {
 			// Delegate workflow transition to WorkflowUC
