@@ -14,8 +14,10 @@ type User struct {
 	FullName     string     `json:"full_name"`
 	Phone        string     `json:"phone"`
 	Address      string     `json:"address"`
-	ProvinceID   int64      `json:"province_id"`
-	RegencyID    int64      `json:"regency_id"`
+	ProvinceID   *int64      `json:"province_id"`
+	Province     *Province  `gorm:"foreignKey:ProvinceID;references:ID;constraint:false" json:"province,omitempty"`
+	RegencyID    *int64      `json:"regency_id"`
+	Regency      *Regency   `gorm:"foreignKey:RegencyID;references:ID;constraint:false" json:"regency,omitempty"`
 	AvatarURL    string     `json:"avatar_url"`
 	RoleID       int        `json:"role_id"`
 	Role         Role       `gorm:"foreignKey:RoleID" json:"role"`

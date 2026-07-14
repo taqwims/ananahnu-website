@@ -174,9 +174,7 @@ func (h *ClientHandler) Update(c *gin.Context) {
 	existing.BusinessName = input.BusinessName
 	existing.ClientName = input.ClientName
 	existing.NIB = input.NIB
-	if input.NIBFileURL != "" {
-		existing.NIBFileURL = input.NIBFileURL
-	}
+	existing.NIBFileURL = input.NIBFileURL
 	existing.NIK = input.NIK
 	existing.ProductName = input.ProductName
 	existing.Address = input.Address

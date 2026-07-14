@@ -16,6 +16,7 @@ import ClientManagement from './pages/dashboard/ClientManagement';
 import MeetingSchedule from './pages/dashboard/MeetingSchedule';
 import AnalyticsPage from './pages/dashboard/Analytics';
 import EstimasiReguler from './pages/dashboard/EstimasiReguler';
+import AdvisorsGeo from './pages/dashboard/AdvisorsGeo';
 
 // JWT expiry check
 function getTokenExpiry(token: string): number | null {
@@ -91,6 +92,7 @@ function App() {
           <Route path="meetings" element={<MeetingSchedule />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="estimasi-reguler" element={<EstimasiReguler />} />
+          <Route path="advisors" element={<AdvisorsGeo />} />
         </Route>
 
         {/* Catch-all */}

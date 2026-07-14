@@ -91,7 +91,7 @@ func (r *userRepository) FindAll(filter map[string]interface{}, page, limit int)
 	var users []domain.User
 	var total int64
 
-	query := r.db.Model(&domain.User{}).Preload("Role")
+	query := r.db.Model(&domain.User{}).Preload("Role").Preload("Province").Preload("Regency")
 
 	if roleID, ok := filter["role_id"]; ok {
 		query = query.Where("users.role_id = ?", roleID)
@@ -111,6 +111,12 @@ func (r *userRepository) FindAll(filter map[string]interface{}, page, limit int)
 	if search, ok := filter["search"]; ok {
 		s := "%" + search.(string) + "%"
 		query = query.Where("users.full_name ILIKE ? OR users.email ILIKE ?", s, s)
+	}
+	if provinceID, ok := filter["province_id"]; ok {
+		query = query.Where("users.province_id = ?", provinceID)
+	}
+	if regencyID, ok := filter["regency_id"]; ok {
+		query = query.Where("users.regency_id = ?", regencyID)
 	}
 	if noLeader, ok := filter["no_leader"]; ok && noLeader == true {
 		query = query.Where("users.leader_id IS NULL")

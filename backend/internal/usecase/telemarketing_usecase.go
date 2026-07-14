@@ -69,6 +69,7 @@ type TeleFormInput struct {
 	ProvinceID         int64  `json:"province_id" binding:"required"`
 	IsCatering         bool   `json:"is_catering"`
 	IsAMDK             bool   `json:"is_amdk"`
+	IsFoodBeverage     bool   `json:"is_food_beverage"`
 	BranchCount        int    `json:"branch_count"`         // Jumlah cabang
 	ConsultationMethod string `json:"consultation_method"` // ONLINE_MEET, CHAT
 	AgreedTerms        bool   `json:"agreed_terms" binding:"required"`
@@ -254,6 +255,7 @@ func (uc *telemarketingUsecase) SubmitPublicForm(input TeleFormInput) (*domain.T
 		ProvinceID:         input.ProvinceID,
 		IsCatering:         input.IsCatering,
 		IsAMDK:             input.IsAMDK,
+		IsFoodBeverage:     input.IsFoodBeverage,
 		BranchCount:        branchCount,
 		ConsultationMethod: input.ConsultationMethod,
 		AgreedTerms:        input.AgreedTerms,
@@ -303,7 +305,7 @@ func (uc *telemarketingUsecase) SubmitPublicForm(input TeleFormInput) (*domain.T
 // - If scale is mikro/kecil, and any of (uses_meat || is_catering || is_amdk) is checked -> TELECONFERENCE
 // - Otherwise -> SELF_DECLARE
 func (uc *telemarketingUsecase) determineRouteType(input TeleFormInput) domain.TeleRouteType {
-	hasSpecialFlag := input.UsesMeat || input.IsCatering || input.IsAMDK
+	hasSpecialFlag := input.UsesMeat || input.IsCatering || input.IsAMDK || !input.IsFoodBeverage
 	isMicroOrUmkm := input.BusinessScale == "mikro_kecil"
 
 	if !isMicroOrUmkm || hasSpecialFlag {
@@ -659,6 +661,10 @@ func (uc *telemarketingUsecase) GenerateClientAccount(formID uuid.UUID, telemark
 
 	// Create new user
 	newUserID := uuid.New()
+	var provinceIDPtr *int64
+	if form.ProvinceID != 0 {
+		provinceIDPtr = &form.ProvinceID
+	}
 	user := &domain.User{
 		ID:           newUserID,
 		Username:     form.Email,
@@ -666,7 +672,7 @@ func (uc *telemarketingUsecase) GenerateClientAccount(formID uuid.UUID, telemark
 		PasswordHash: hash,
 		FullName:     form.Name,
 		Phone:        form.Phone,
-		ProvinceID:   form.ProvinceID,
+		ProvinceID:   provinceIDPtr,
 		RoleID:       clientRole.ID,
 		ReferralCode: uc.generateReferralCode(form.Name, newUserID),
 	}

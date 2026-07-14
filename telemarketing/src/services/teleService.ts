@@ -14,6 +14,7 @@ export interface TeleForm {
   province?: { id: number; name: string };
   is_catering: boolean;
   is_amdk: boolean;
+  is_food_beverage: boolean;
   branch_count: number;
   consultation_method: string;
   agreed_terms: boolean;

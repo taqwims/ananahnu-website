@@ -69,6 +69,27 @@ export const useAuditManagerWorkspace = (initialSubId: string | null) => {
             ]);
             setActiveSubmission(sub);
             setFieldValues(fields);
+
+            if (sub.province_id) {
+                submissionService.getConsultants(sub.province_id, sub.regency_id || '')
+                    .then(res => {
+                        if (res && res.length > 0) {
+                            setConsultants(res);
+                        } else {
+                            submissionService.getConsultants(sub.province_id)
+                                .then(resProv => {
+                                    if (resProv && resProv.length > 0) {
+                                        setConsultants(resProv);
+                                    } else {
+                                        submissionService.getConsultants().then(setConsultants);
+                                    }
+                                });
+                        }
+                    })
+                    .catch(() => {});
+            } else {
+                submissionService.getConsultants().then(setConsultants).catch(() => {});
+            }
             
             if (sub.client) {
                 setClientForm({

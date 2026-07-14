@@ -331,9 +331,7 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 	client.BusinessName = input.BusinessName
 	client.ClientName = input.ClientName
 	client.NIB = input.NIB
-	if input.NIBFileURL != "" {
-		client.NIBFileURL = input.NIBFileURL
-	}
+	client.NIBFileURL = input.NIBFileURL
 	client.NIK = input.NIK
 	client.ProductName = input.ProductName
 	client.Address = input.Address

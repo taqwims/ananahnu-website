@@ -52,6 +52,7 @@ import ConsultantProfilePage from './pages/dashboard/ConsultantProfile';
 import TrainingAdmin from './pages/dashboard/TrainingAdmin';
 import BillingManagement from './pages/dashboard/BillingManagement';
 import GeographyAdmin from './pages/dashboard/GeographyAdmin';
+import AdvisorsGeo from './pages/dashboard/AdvisorsGeo';
 import CoordinatorDashboard from './pages/dashboard/CoordinatorDashboard';
 import UserManagement from './pages/dashboard/UserManagement';
 import ConsultantVerification from './pages/dashboard/ConsultantVerification';
@@ -154,6 +155,9 @@ function App() {
           } />
           <Route path="draft-monitoring" element={
             <RoleRoute path="draft-monitoring"><DraftManagerDashboard /></RoleRoute>
+          } />
+          <Route path="advisors" element={
+            <RoleRoute path="advisors"><AdvisorsGeo /></RoleRoute>
           } />
 
           {/* Profil Advisor & Karir */}

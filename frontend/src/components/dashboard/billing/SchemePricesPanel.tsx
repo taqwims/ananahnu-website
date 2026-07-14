@@ -27,7 +27,7 @@ export const SchemePricesPanel = ({
     const [businessTypeId, setBusinessTypeId] = useState('');
     const [businessScaleId, setBusinessScaleId] = useState('');
     const [productCategoryId, setProductCategoryId] = useState('');
-    const [dataSource, setDataSource] = useState('ORGANIK');
+    const [dataSource, setDataSource] = useState('BOTH');
     const [basePrice, setBasePrice] = useState('');
     const [discountPercent, setDiscountPercent] = useState('0');
     const [description, setDescription] = useState('');
@@ -102,7 +102,7 @@ export const SchemePricesPanel = ({
         setBusinessTypeId(item.business_type_id?.toString() || '');
         setBusinessScaleId(item.business_scale_id?.toString() || '');
         setProductCategoryId(item.product_category_id?.toString() || '');
-        setDataSource(item.data_source || 'ORGANIK');
+        setDataSource(item.data_source || 'BOTH');
         setBasePrice(item.base_price?.toString() || '');
         setDiscountPercent(item.discount_percent?.toString() || '0');
         setDescription(item.description || '');
@@ -115,7 +115,7 @@ export const SchemePricesPanel = ({
         setBusinessTypeId('');
         setBusinessScaleId('');
         setProductCategoryId('');
-        setDataSource('ORGANIK');
+        setDataSource('BOTH');
         setBasePrice('');
         setDiscountPercent('0');
         setDescription('');
@@ -152,19 +152,7 @@ export const SchemePricesPanel = ({
                                 ))}
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">Sumber Data *</label>
-                            <select
-                                value={dataSource}
-                                onChange={e => setDataSource(e.target.value)}
-                                className="glass-input w-full"
-                                required
-                            >
-                                <option value="ORGANIK">ORGANIK</option>
-                                <option value="MARKETING">MARKETING (Partner)</option>
-                                <option value="BOTH">Keduanya (BOTH)</option>
-                            </select>
-                        </div>
+
                         <div>
                             <label className="block text-xs font-bold text-gray-700 mb-1">Skala Usaha (Opsional)</label>
                             <select

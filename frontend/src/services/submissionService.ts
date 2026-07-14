@@ -74,9 +74,16 @@ class SubmissionService extends BaseService {
         }
     }
 
-    async getConsultants(): Promise<User[]> {
+    async getConsultants(provinceId?: number | string, regencyId?: number | string): Promise<User[]> {
         try {
-            const response = await this.api.get('/admin/users/consultants');
+            let url = '/admin/users/consultants';
+            const params: string[] = [];
+            if (provinceId) params.push(`province_id=${provinceId}`);
+            if (regencyId) params.push(`regency_id=${regencyId}`);
+            if (params.length > 0) {
+                url += `?${params.join('&')}`;
+            }
+            const response = await this.api.get(url);
             return response.data || [];
         } catch (error) {
             this.handleError(error);

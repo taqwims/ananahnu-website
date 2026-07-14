@@ -13,6 +13,7 @@ const navItems = [
   { to: '/dashboard/clients', icon: Users, label: 'Client Management' },
   { to: '/dashboard/meetings', icon: Calendar, label: 'Jadwal Meeting' },
   { to: '/dashboard/estimasi-reguler', icon: Calculator, label: 'Estimasi Reguler' },
+  { to: '/dashboard/advisors', icon: Users, label: 'Halal Advisor Geo' },
   { to: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
 ];
 

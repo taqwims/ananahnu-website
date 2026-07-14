@@ -87,6 +87,7 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   'qc-workspace':      ['QC_OFFICER', 'DIRECTOR'],
   'audit-manager-workspace': ['AUDIT_MANAGER', 'DIRECTOR'],
   'draft-monitoring':  ['DRAFT_MANAGER', 'DIRECTOR'],
+  'advisors':          ['QC_OFFICER', 'DIRECTOR', 'MANAGER', 'AUDIT_MANAGER', 'HALAL_MANAGER', 'HALAL_DIRECTOR'],
 
   // ── Profil Advisor & Karir ────────────────────────────────────────
   'consultant-profile': ['HALAL_DIRECTOR'],

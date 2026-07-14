@@ -1,6 +1,8 @@
 import { Edit3, Save, X, ExternalLink, Link as LinkIcon, Upload, FileText, Trash2, Calendar, List } from 'lucide-react';
 import type { FormFieldValue } from '../../../types';
 import FileUpload from '../FileUpload';
+import api from '../../../services/api';
+import { compressImage } from '../../../utils/compressor';
 
 interface DocumentEditorProps {
     fieldValues: FormFieldValue[];
@@ -71,6 +73,7 @@ export const DocumentEditor = ({
                                     {fv.form_field.input_type === 'TEXT' && <FileText className="w-3.5 h-3.5 text-gray-500" />}
                                     {fv.form_field.input_type === 'DATE' && <Calendar className="w-3.5 h-3.5 text-emerald-500" />}
                                     {fv.form_field.input_type === 'REPEATER' && <List className="w-3.5 h-3.5 text-indigo-500" />}
+                                    {fv.form_field.input_type === 'PRODUCT_LIST' && <List className="w-3.5 h-3.5 text-brand-500" />}
                                     <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">{fv.form_field.field_label}</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
@@ -159,6 +162,181 @@ export const DocumentEditor = ({
                                                 );
                                             })()}
                                         </div>
+                                    ) : fv.form_field.input_type === 'PRODUCT_LIST' ? (
+                                        <div className="space-y-4">
+                                            {(() => {
+                                                interface ProductItem {
+                                                    nama: string;
+                                                    foto_url: string;
+                                                    varian: string[];
+                                                }
+                                                let products: ProductItem[] = [];
+                                                try {
+                                                    products = fv.text_value ? JSON.parse(fv.text_value) : [];
+                                                    if (!Array.isArray(products)) products = [];
+                                                } catch { products = []; }
+
+                                                const updateProductRow = (rowIdx: number, fieldKey: keyof ProductItem, fieldValue: any) => {
+                                                    const newProducts = [...products];
+                                                    newProducts[rowIdx] = {
+                                                        ...newProducts[rowIdx],
+                                                        [fieldKey]: fieldValue
+                                                    };
+                                                    onUpdateValue(idx, 'text_value', JSON.stringify(newProducts));
+                                                };
+
+                                                const handleProductPhotoUpload = async (rowIdx: number, file: File) => {
+                                                    let finalFile = file;
+                                                    if (finalFile.type.startsWith('image/')) {
+                                                        try { finalFile = await compressImage(finalFile); } catch {}
+                                                    }
+                                                    if (finalFile.size > 2 * 1024 * 1024) {
+                                                        alert("Ukuran file tidak boleh lebih dari 2MB");
+                                                        return;
+                                                    }
+                                                    try {
+                                                        const formData = new FormData();
+                                                        formData.append('file', finalFile);
+                                                        const res = await api.post(`/media/upload?subfolder=submission_edited`, formData);
+                                                        updateProductRow(rowIdx, 'foto_url', res.data.url);
+                                                    } catch {
+                                                        alert("Gagal mengunggah foto produk");
+                                                    }
+                                                };
+
+                                                return (
+                                                    <div className="border border-gray-150 rounded-2xl overflow-hidden shadow-sm bg-white">
+                                                        <div className="overflow-x-auto">
+                                                            <table className="w-full text-left border-collapse min-w-[550px]">
+                                                                <thead>
+                                                                    <tr className="bg-gray-50/75 border-b border-gray-100 text-[9px] font-black uppercase text-gray-400 tracking-wider">
+                                                                        <th className="p-2 w-10 text-center">No</th>
+                                                                        <th className="p-2">Nama</th>
+                                                                        <th className="p-2 w-48">Foto</th>
+                                                                        <th className="p-2">Varian</th>
+                                                                        <th className="p-2 w-12 text-center">Aksi</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody className="divide-y divide-gray-50 text-xs text-gray-600">
+                                                                    {products.map((p, rowIdx) => (
+                                                                        <tr key={rowIdx} className="hover:bg-gray-50/50 transition-colors align-top">
+                                                                            <td className="p-2 font-bold text-gray-400 text-center pt-3.5">{rowIdx + 1}</td>
+                                                                            <td className="p-2">
+                                                                                <input
+                                                                                    type="text"
+                                                                                    className="w-full px-2.5 py-1.5 bg-gray-50 border-none rounded-lg text-xs focus:ring-2 focus:ring-blue-500/10 font-medium"
+                                                                                    placeholder="Nama produk..."
+                                                                                    value={p.nama || ''}
+                                                                                    onChange={e => updateProductRow(rowIdx, 'nama', e.target.value)}
+                                                                                />
+                                                                            </td>
+                                                                            <td className="p-2">
+                                                                                <div className="flex flex-col gap-1.5">
+                                                                                    {p.foto_url ? (
+                                                                                        <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 p-1 rounded-lg border border-emerald-100 max-w-[200px]">
+                                                                                            <img 
+                                                                                                src={`${import.meta.env.VITE_API_URL}${p.foto_url}`} 
+                                                                                                alt="Product" 
+                                                                                                className="w-7 h-7 object-cover rounded border border-emerald-200 shrink-0"
+                                                                                            />
+                                                                                            <span className="truncate flex-1 text-[9px] font-bold">{p.foto_url.split('/').pop()}</span>
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                onClick={() => updateProductRow(rowIdx, 'foto_url', '')}
+                                                                                                className="p-0.5 hover:bg-emerald-100 text-red-500 rounded transition-colors shrink-0"
+                                                                                            >
+                                                                                                &times;
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <label className="flex items-center gap-1 px-2.5 py-1.5 border border-dashed border-brand-200 hover:border-brand-400 bg-brand-50/30 hover:bg-brand-50/50 rounded-lg cursor-pointer transition-colors max-w-[130px] justify-center">
+                                                                                            <input
+                                                                                                type="file"
+                                                                                                className="hidden"
+                                                                                                onChange={e => e.target.files?.[0] && handleProductPhotoUpload(rowIdx, e.target.files[0])}
+                                                                                                accept="image/*"
+                                                                                            />
+                                                                                            <Upload className="w-3 h-3 text-brand-600" />
+                                                                                            <span className="text-[9px] text-brand-700 font-bold uppercase tracking-wider">Pilih Foto</span>
+                                                                                        </label>
+                                                                                    )}
+                                                                                </div>
+                                                                            </td>
+                                                                            <td className="p-2">
+                                                                                <div className="flex flex-col gap-1.5">
+                                                                                    <div className="flex flex-wrap gap-1">
+                                                                                        {(p.varian || []).map((v, vIdx) => (
+                                                                                            <span key={vIdx} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold text-[8px] uppercase tracking-wider">
+                                                                                                {v}
+                                                                                                <button
+                                                                                                    type="button"
+                                                                                                    onClick={() => {
+                                                                                                        const newVarian = p.varian.filter((_, i) => i !== vIdx);
+                                                                                                        updateProductRow(rowIdx, 'varian', newVarian);
+                                                                                                    }}
+                                                                                                    className="text-red-500 hover:text-red-700"
+                                                                                                >
+                                                                                                    &times;
+                                                                                                </button>
+                                                                                            </span>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        className="w-full px-2 py-1 bg-gray-50 border-none rounded-lg text-[9px] focus:ring-2 focus:ring-blue-500/10"
+                                                                                        placeholder="Varian + Enter..."
+                                                                                        onKeyDown={e => {
+                                                                                            if (e.key === 'Enter') {
+                                                                                                e.preventDefault();
+                                                                                                const val = e.currentTarget.value.trim();
+                                                                                                if (val) {
+                                                                                                    const newVarian = [...(p.varian || []), val];
+                                                                                                    updateProductRow(rowIdx, 'varian', newVarian);
+                                                                                                    e.currentTarget.value = '';
+                                                                                                }
+                                                                                            }
+                                                                                        }}
+                                                                                    />
+                                                                                </div>
+                                                                            </td>
+                                                                            <td className="p-2 text-center pt-3.5">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        const newProducts = products.filter((_, i) => i !== rowIdx);
+                                                                                        onUpdateValue(idx, 'text_value', JSON.stringify(newProducts));
+                                                                                    }}
+                                                                                    className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
+                                                                                >
+                                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                                </button>
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                    {products.length === 0 && (
+                                                                        <tr>
+                                                                            <td colSpan={5} className="p-4 text-center text-gray-400 italic">Belum ada produk.</td>
+                                                                        </tr>
+                                                                    )}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                        <div className="p-2.5 bg-gray-50/50 border-t border-gray-100">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const newProducts = [...products, { nama: '', foto_url: '', varian: [] }];
+                                                                    onUpdateValue(idx, 'text_value', JSON.stringify(newProducts));
+                                                                }}
+                                                                className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 hover:border-gray-300 text-gray-600 rounded-lg shadow-sm transition-all"
+                                                            >
+                                                                + Tambah Produk
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </div>
                                     ) : fv.form_field.input_type === 'DATE' ? (
                                         <input
                                             type="date"
@@ -203,6 +381,68 @@ export const DocumentEditor = ({
                                                         {item}
                                                     </span>
                                                 ));
+                                            })()
+                                        ) : fv.form_field.input_type === 'PRODUCT_LIST' ? (
+                                            (() => {
+                                                interface ProductItem {
+                                                    nama: string;
+                                                    foto_url: string;
+                                                    varian: string[];
+                                                }
+                                                let products: ProductItem[] = [];
+                                                try {
+                                                    products = fv.text_value ? JSON.parse(fv.text_value) : [];
+                                                    if (!Array.isArray(products)) products = [];
+                                                } catch { products = []; }
+                                                if (products.length === 0) return <span className="text-xs font-medium text-gray-300 italic">Belum diisi</span>;
+                                                return (
+                                                    <div className="w-full border border-gray-100 rounded-xl overflow-hidden bg-gray-50/50 mt-1">
+                                                        <table className="w-full text-left border-collapse text-[10px]">
+                                                            <thead>
+                                                                <tr className="bg-gray-100 border-b border-gray-100 text-[8px] font-black uppercase text-gray-400 tracking-wider">
+                                                                    <th className="p-2 w-10 text-center">No</th>
+                                                                    <th className="p-2">Nama</th>
+                                                                    <th className="p-2 w-28">Foto</th>
+                                                                    <th className="p-2">Varian</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody className="divide-y divide-gray-50 text-gray-600">
+                                                                {products.map((p, pIdx) => (
+                                                                    <tr key={pIdx} className="align-middle">
+                                                                        <td className="p-2 text-center font-bold text-gray-400">{pIdx + 1}</td>
+                                                                        <td className="p-2 font-bold text-gray-800">{p.nama}</td>
+                                                                        <td className="p-2">
+                                                                            {p.foto_url ? (
+                                                                                <a href={`${import.meta.env.VITE_API_URL}${p.foto_url}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:underline text-brand-600 font-medium">
+                                                                                    <img 
+                                                                                        src={`${import.meta.env.VITE_API_URL}${p.foto_url}`} 
+                                                                                        alt={p.nama} 
+                                                                                        className="w-6 h-6 object-cover rounded border border-gray-100 shrink-0"
+                                                                                    />
+                                                                                    <span className="truncate text-[8px] max-w-[60px]">{p.foto_url.split('/').pop()}</span>
+                                                                                </a>
+                                                                            ) : (
+                                                                                <span className="text-[8px] text-gray-300 italic">Tidak ada foto</span>
+                                                                            )}
+                                                                        </td>
+                                                                        <td className="p-2">
+                                                                            <div className="flex flex-wrap gap-1">
+                                                                                {(p.varian || []).map((v, vIdx) => (
+                                                                                    <span key={vIdx} className="inline-block px-1.5 py-0.5 text-[8px] font-bold bg-indigo-50 text-indigo-700 rounded border border-indigo-100 uppercase tracking-wide">
+                                                                                        {v}
+                                                                                    </span>
+                                                                                ))}
+                                                                                {(p.varian || []).length === 0 && (
+                                                                                    <span className="text-[8px] text-gray-300 italic">-</span>
+                                                                                )}
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                );
                                             })()
                                         ) : (
                                             <span className="text-xs font-bold text-gray-700 flex items-center gap-2">

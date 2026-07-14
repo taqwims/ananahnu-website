@@ -131,6 +131,7 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
                 const isEmpty = cfg.input_type === 'FILE_UPLOAD' ? !val?.file_url
                     : cfg.input_type === 'LINK' ? !val?.link_value 
                     : cfg.input_type === 'REPEATER' ? (!val?.text_value || val.text_value === '[]' || val.text_value === '[""]')
+                    : cfg.input_type === 'PRODUCT_LIST' ? (!val?.text_value || val.text_value === '[]')
                     : !val?.text_value;
                 if (isEmpty) {
                     return false;
@@ -465,6 +466,196 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
                             </div>
                         )}
 
+                        {cfg.input_type === 'PRODUCT_LIST' && (
+                            <div className="space-y-4">
+                                {(() => {
+                                    interface ProductItem {
+                                        nama: string;
+                                        foto_url: string;
+                                        varian: string[];
+                                    }
+                                    let products: ProductItem[] = [];
+                                    try {
+                                        products = values[cfg.id]?.text_value ? JSON.parse(values[cfg.id].text_value) : [];
+                                        if (!Array.isArray(products)) products = [];
+                                    } catch { products = []; }
+
+                                    const updateProductRow = (rowIdx: number, fieldKey: keyof ProductItem, fieldValue: any) => {
+                                        const newProducts = [...products];
+                                        newProducts[rowIdx] = {
+                                            ...newProducts[rowIdx],
+                                            [fieldKey]: fieldValue
+                                        };
+                                        updateValue(cfg.id, 'text_value', JSON.stringify(newProducts));
+                                    };
+
+                                    const handleProductPhotoUpload = async (rowIdx: number, file: File) => {
+                                        let finalFile = file;
+                                        if (finalFile.type.startsWith('image/')) {
+                                            try { finalFile = await compressImage(finalFile); } catch {}
+                                        }
+                                        if (finalFile.size > 2 * 1024 * 1024) {
+                                            alert("Ukuran file tidak boleh lebih dari 2MB");
+                                            return;
+                                        }
+                                        try {
+                                            const formData = new FormData();
+                                            formData.append('file', finalFile);
+                                            const res = await api.post(`/media/upload?subfolder=submission_${submissionId}`, formData);
+                                            updateProductRow(rowIdx, 'foto_url', res.data.url);
+                                        } catch {
+                                            alert("Gagal mengunggah foto produk");
+                                        }
+                                    };
+
+                                    return (
+                                        <div className="border border-gray-150 rounded-2xl overflow-hidden shadow-sm bg-white">
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-left border-collapse min-w-[600px]">
+                                                    <thead>
+                                                        <tr className="bg-gray-50/75 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                                                            <th className="p-3.5 w-12 text-center">No</th>
+                                                            <th className="p-3.5">Nama Produk</th>
+                                                            <th className="p-3.5 w-60">Foto Produk</th>
+                                                            <th className="p-3.5">Varian</th>
+                                                            {!readOnly && <th className="p-3.5 w-16 text-center">Aksi</th>}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-50 text-xs">
+                                                        {products.map((p, rowIdx) => (
+                                                            <tr key={rowIdx} className="hover:bg-gray-50/50 transition-colors align-top">
+                                                                <td className="p-3.5 font-bold text-gray-400 text-center pt-5">{rowIdx + 1}</td>
+                                                                <td className="p-3.5">
+                                                                    <input
+                                                                        type="text"
+                                                                        className="glass-input text-xs w-full py-1.5"
+                                                                        placeholder="Contoh: Kopi Bubuk"
+                                                                        value={p.nama || ''}
+                                                                        onChange={e => updateProductRow(rowIdx, 'nama', e.target.value)}
+                                                                        disabled={readOnly}
+                                                                    />
+                                                                </td>
+                                                                <td className="p-3.5">
+                                                                    <div className="flex flex-col gap-2">
+                                                                        {p.foto_url ? (
+                                                                            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 p-1.5 rounded-xl border border-emerald-100 max-w-[220px]">
+                                                                                <img 
+                                                                                    src={`${import.meta.env.VITE_API_URL}${p.foto_url}`} 
+                                                                                    alt="Product" 
+                                                                                    className="w-10 h-10 object-cover rounded-lg border border-emerald-200 shrink-0"
+                                                                                />
+                                                                                <span className="truncate flex-1 text-[10px] font-bold">{p.foto_url.split('/').pop()}</span>
+                                                                                {!readOnly && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => updateProductRow(rowIdx, 'foto_url', '')}
+                                                                                        className="p-1 hover:bg-emerald-100 text-red-500 rounded-lg transition-colors shrink-0"
+                                                                                    >
+                                                                                        &times;
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        ) : (
+                                                                            !readOnly && (
+                                                                                <label className="flex items-center gap-1.5 px-3 py-2 border border-dashed border-brand-200 hover:border-brand-400 bg-brand-50/30 hover:bg-brand-50/50 rounded-xl cursor-pointer transition-colors max-w-[150px] justify-center">
+                                                                                    <input
+                                                                                        type="file"
+                                                                                        className="hidden"
+                                                                                        onChange={e => e.target.files?.[0] && handleProductPhotoUpload(rowIdx, e.target.files[0])}
+                                                                                        accept="image/*"
+                                                                                    />
+                                                                                    <Upload className="w-3.5 h-3.5 text-brand-600" />
+                                                                                    <span className="text-[10px] text-brand-700 font-bold uppercase tracking-wider">Foto Produk</span>
+                                                                                </label>
+                                                                            )
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="p-3.5">
+                                                                    <div className="flex flex-col gap-1.5">
+                                                                        <div className="flex flex-wrap gap-1">
+                                                                            {(p.varian || []).map((v, vIdx) => (
+                                                                                <span key={vIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold text-[9px] uppercase tracking-wider">
+                                                                                    {v}
+                                                                                    {!readOnly && (
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            onClick={() => {
+                                                                                                const newVarian = p.varian.filter((_, i) => i !== vIdx);
+                                                                                                updateProductRow(rowIdx, 'varian', newVarian);
+                                                                                            }}
+                                                                                            className="text-red-500 hover:text-red-700 font-bold text-xs"
+                                                                                        >
+                                                                                            &times;
+                                                                                        </button>
+                                                                                    )}
+                                                                                </span>
+                                                                            ))}
+                                                                        </div>
+                                                                        {!readOnly && (
+                                                                            <input
+                                                                                type="text"
+                                                                                className="glass-input text-[10px] w-full py-1"
+                                                                                placeholder="Varian baru + Enter..."
+                                                                                onKeyDown={e => {
+                                                                                    if (e.key === 'Enter') {
+                                                                                        e.preventDefault();
+                                                                                        const val = e.currentTarget.value.trim();
+                                                                                        if (val) {
+                                                                                            const newVarian = [...(p.varian || []), val];
+                                                                                            updateProductRow(rowIdx, 'varian', newVarian);
+                                                                                            e.currentTarget.value = '';
+                                                                                        }
+                                                                                    }
+                                                                                }}
+                                                                            />
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                {!readOnly && (
+                                                                    <td className="p-3.5 text-center pt-5">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const newProducts = products.filter((_, i) => i !== rowIdx);
+                                                                                updateValue(cfg.id, 'text_value', JSON.stringify(newProducts));
+                                                                            }}
+                                                                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                                        >
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                    </td>
+                                                                )}
+                                                            </tr>
+                                                        ))}
+                                                        {products.length === 0 && (
+                                                            <tr>
+                                                                <td colSpan={readOnly ? 4 : 5} className="p-6 text-center text-gray-400 italic font-medium bg-gray-50/25">Belum ada produk ditambahkan.</td>
+                                                            </tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            {!readOnly && (
+                                                <div className="p-3 bg-gray-50/50 border-t border-gray-100">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const newProducts = [...products, { nama: '', foto_url: '', varian: [] }];
+                                                            updateValue(cfg.id, 'text_value', JSON.stringify(newProducts));
+                                                        }}
+                                                        className="px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-xl shadow-sm transition-all"
+                                                    >
+                                                        + Tambah Produk
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        )}
+
                         {/* Required field warning */}
                         {cfg.is_required && !readOnly && (
                             (() => {
@@ -472,6 +663,7 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
                                 const isEmpty = cfg.input_type === 'FILE_UPLOAD' ? !v?.file_url
                                     : cfg.input_type === 'LINK' ? !v?.link_value 
                                     : cfg.input_type === 'REPEATER' ? (!v?.text_value || v.text_value === '[]' || v.text_value === '[""]')
+                                    : cfg.input_type === 'PRODUCT_LIST' ? (!v?.text_value || v.text_value === '[]')
                                     : !v?.text_value;
                                 return isEmpty ? (
                                     <p className="flex items-center gap-1 text-xs text-amber-600 font-medium mt-1">

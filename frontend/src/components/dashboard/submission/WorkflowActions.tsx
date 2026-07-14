@@ -53,9 +53,28 @@ export const WorkflowActions = ({
         }
         if ((submission.data_source === 'MARKETING' || submission.data_source === 'TELEMARKETING' || !submission.consultant_id) && 
             (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER' || user?.role === 'AUDIT_MANAGER')) {
-            submissionService.getConsultants().then(setConsultants).catch(() => toast.error('Gagal memuat data konsultan'));
+            submissionService.getConsultants(submission.province_id || '', submission.regency_id || '')
+                .then(res => {
+                    if (res && res.length > 0) {
+                        setConsultants(res);
+                    } else if (submission.province_id) {
+                        submissionService.getConsultants(submission.province_id)
+                            .then(resProv => {
+                                if (resProv && resProv.length > 0) {
+                                    setConsultants(resProv);
+                                } else {
+                                    submissionService.getConsultants().then(setConsultants);
+                                }
+                            });
+                    } else {
+                        submissionService.getConsultants().then(setConsultants);
+                    }
+                })
+                .catch(() => {
+                    submissionService.getConsultants().then(setConsultants).catch(() => toast.error('Gagal memuat data konsultan'));
+                });
         }
-    }, [submission.status, submission.data_source, submission.consultant_id, user?.role]);
+    }, [submission.status, submission.data_source, submission.consultant_id, submission.province_id, submission.regency_id, user?.role]);
 
     const handleIssueSH = async () => {
         if (!shFile) return;

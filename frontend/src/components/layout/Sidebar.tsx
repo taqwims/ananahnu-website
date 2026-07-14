@@ -61,6 +61,7 @@ const GROUPS: SidebarGroup[] = [
             { name: 'Ruang Kerja Drafter',    pathKey: 'drafter-workspace',     to: '/dashboard/drafter-workspace',     icon: ShieldCheck },
             { name: 'Ruang Kerja QC',         pathKey: 'qc-workspace',          to: '/dashboard/qc-workspace',          icon: ShieldCheck },
             { name: 'Ruang Kerja Audit Manager',pathKey: 'audit-manager-workspace', to: '/dashboard/audit-manager-workspace', icon: ShieldCheck },
+            { name: 'Halal Advisor Geo',      pathKey: 'advisors',              to: '/dashboard/advisors',              icon: UsersRound },
             { name: 'Monitoring Draft',       pathKey: 'draft-monitoring',      to: '/dashboard/draft-monitoring',      icon: BarChart3 },
             { name: 'Profil Advisor',         pathKey: 'consultant-profile',    to: '/dashboard/consultant-profile',    icon: UserCheck },
             { name: 'Jenjang Karir',          pathKey: 'karir',                 to: '/dashboard/karir',                 icon: Award },

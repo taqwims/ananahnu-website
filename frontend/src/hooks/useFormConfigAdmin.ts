@@ -85,6 +85,44 @@ export const useFormConfigAdmin = () => {
         setFields(prev => prev.map(f => f.id === id ? { ...f, [key]: value } : f));
     };
 
+    const handleReorder = async (fieldId: number, direction: 'UP' | 'DOWN') => {
+        const currentFieldObj = fields.find(x => x.id === fieldId);
+        if (!currentFieldObj) return;
+
+        const stepNum = currentFieldObj.step_number || 1;
+        const stepFields = fields
+            .filter(f => (f.step_number || 1) === stepNum)
+            .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+        const index = stepFields.findIndex(f => f.id === fieldId);
+        if (index === -1) return;
+
+        const targetIndex = direction === 'UP' ? index - 1 : index + 1;
+        if (targetIndex < 0 || targetIndex >= stepFields.length) return;
+
+        const currentField = stepFields[index];
+        const targetField = stepFields[targetIndex];
+
+        const tempOrder = currentField.sort_order;
+        currentField.sort_order = targetField.sort_order;
+        targetField.sort_order = tempOrder;
+
+        setLoading(true);
+        try {
+            await Promise.all([
+                api.put(`/form-config/${currentField.id}`, currentField),
+                api.put(`/form-config/${targetField.id}`, targetField)
+            ]);
+            loadFields(activeTab);
+            toast.success('Urutan diperbarui');
+        } catch {
+            toast.error('Gagal memperbarui urutan');
+            loadFields(activeTab);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return {
         activeTab, setActiveTab,
         fields, loading,
@@ -92,6 +130,6 @@ export const useFormConfigAdmin = () => {
         businessTypes,
         newField, setNewField,
         handleAdd, handleUpdate, handleDelete, updateFieldState,
-        loadFields
+        loadFields, handleReorder
     };
 };

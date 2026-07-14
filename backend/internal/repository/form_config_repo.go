@@ -19,7 +19,7 @@ func NewFormConfigRepository(db *gorm.DB) domain.FormConfigRepository {
 
 func (r *formConfigRepository) FindByFormType(formType string) ([]domain.FormFieldConfig, error) {
 	var configs []domain.FormFieldConfig
-	if err := r.db.Where("form_type = ?", formType).Order("sort_order ASC").Find(&configs).Error; err != nil {
+	if err := r.db.Where("form_type = ? AND is_active = ?", formType, true).Order("sort_order ASC").Find(&configs).Error; err != nil {
 		return nil, err
 	}
 	return configs, nil
@@ -27,7 +27,7 @@ func (r *formConfigRepository) FindByFormType(formType string) ([]domain.FormFie
 
 func (r *formConfigRepository) FindByFormTypeAndBusinessType(formType string, businessTypeID *int64) ([]domain.FormFieldConfig, error) {
 	var configs []domain.FormFieldConfig
-	query := r.db.Where("form_type = ?", formType)
+	query := r.db.Where("form_type = ? AND is_active = ?", formType, true)
 	if businessTypeID != nil {
 		query = query.Where("business_type_id = ? OR business_type_id IS NULL", *businessTypeID)
 	}
@@ -54,6 +54,13 @@ func (r *formConfigRepository) Update(config *domain.FormFieldConfig) error {
 }
 
 func (r *formConfigRepository) Delete(id int64) error {
+	var count int64
+	if err := r.db.Table("form_field_values").Where("form_field_id = ?", id).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return r.db.Model(&domain.FormFieldConfig{}).Where("id = ?", id).Update("is_active", false).Error
+	}
 	return r.db.Delete(&domain.FormFieldConfig{}, id).Error
 }
 

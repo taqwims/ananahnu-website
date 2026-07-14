@@ -1,6 +1,6 @@
 import { Loader2, Save, X } from 'lucide-react';
 
-const INPUT_TYPES = ['FILE_UPLOAD', 'LINK', 'TEXT', 'DATE', 'REPEATER'] as const;
+const INPUT_TYPES = ['FILE_UPLOAD', 'LINK', 'TEXT', 'DATE', 'REPEATER', 'PRODUCT_LIST'] as const;
 
 interface AddFieldModalProps {
     newField: any;

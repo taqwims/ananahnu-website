@@ -63,6 +63,7 @@ type TeleForm struct {
 	Province      Province       `gorm:"foreignKey:ProvinceID" json:"province,omitempty"`
 	IsCatering         bool           `json:"is_catering"`                // Catering/Restoran/SPPG?
 	IsAMDK             bool           `json:"is_amdk"`                    // Depot Air Minum/AMDK?
+	IsFoodBeverage     bool           `gorm:"default:true" json:"is_food_beverage"`       // Makanan / Minuman Olahan Sederhana?
 	BranchCount        int            `gorm:"default:1" json:"branch_count"`              // Jumlah cabang
 	ConsultationMethod string         `json:"consultation_method"`        // ONLINE_MEET, CHAT
 	AgreedTerms        bool           `gorm:"default:false" json:"agreed_terms"`

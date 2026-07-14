@@ -16,7 +16,7 @@ export default function FormConfigAdmin() {
         businessTypes,
         newField, setNewField,
         handleAdd, handleUpdate, handleDelete, updateFieldState,
-        loadFields
+        loadFields, handleReorder
     } = useFormConfigAdmin();
 
     const [activeStepNum, setActiveStepNum] = useState<number>(1);
@@ -231,7 +231,7 @@ export default function FormConfigAdmin() {
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {filteredFields.map(field => (
+                        {filteredFields.map((field, idx) => (
                             <FieldItem 
                                 key={field.id}
                                 field={field}
@@ -239,6 +239,8 @@ export default function FormConfigAdmin() {
                                 onUpdateState={updateFieldState}
                                 onHandleUpdate={handleUpdate}
                                 onDelete={handleDelete}
+                                onMoveUp={idx > 0 ? () => handleReorder(field.id, 'UP') : undefined}
+                                onMoveDown={idx < filteredFields.length - 1 ? () => handleReorder(field.id, 'DOWN') : undefined}
                             />
                         ))}
                     </div>

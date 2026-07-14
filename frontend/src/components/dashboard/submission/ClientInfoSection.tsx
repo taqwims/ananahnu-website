@@ -241,12 +241,34 @@ export const ClientInfoSection = ({
                                         }}
                                         className="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
                                     />
-                                    {clientForm.nib_file_url && !nibFile && (
-                                        <p className="text-[10px] text-green-600 mt-1 font-bold flex items-center gap-1">
-                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                            File sudah diunggah
-                                        </p>
-                                    )}
+                                    {clientForm.nib_file_url && !nibFile ? (
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <p className="text-[10px] text-green-600 font-bold flex items-center gap-1">
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                                File sudah diunggah
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => setClientForm({ ...clientForm, nib_file_url: '' })}
+                                                className="text-[9px] font-black uppercase tracking-wider text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded-lg border border-red-200 transition-all flex items-center gap-1"
+                                            >
+                                                Hapus File
+                                            </button>
+                                        </div>
+                                    ) : nibFile ? (
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <p className="text-[10px] text-brand-650 font-bold">
+                                                File terpilih: {nibFile.name}
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => setNibFile(null)}
+                                                className="text-[9px] font-black uppercase tracking-wider text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded-lg border border-red-200 transition-all flex items-center gap-1"
+                                            >
+                                                Batal
+                                            </button>
+                                        </div>
+                                    ) : null}
                                 </div>
                             )}
                         </div>

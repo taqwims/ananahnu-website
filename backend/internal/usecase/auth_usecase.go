@@ -141,6 +141,14 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 	pID, _ := strconv.ParseInt(input.ProvinceID, 10, 64)
 	rID, _ := strconv.ParseInt(input.RegencyID, 10, 64)
 
+	var pIDPtr, rIDPtr *int64
+	if pID != 0 {
+		pIDPtr = &pID
+	}
+	if rID != 0 {
+		rIDPtr = &rID
+	}
+
 	user := &domain.User{
 		ID:           userID,
 		Username:     input.Email,
@@ -149,8 +157,8 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 		FullName:     input.FullName,
 		Phone:        input.Phone,
 		Address:      input.Address,
-		ProvinceID:   pID,
-		RegencyID:    rID,
+		ProvinceID:   pIDPtr,
+		RegencyID:    rIDPtr,
 		RoleID:       role.ID,
 		ReferralCode: uc.generateReferralCode(input.FullName, userID),
 		ReferredByID: referredByID,

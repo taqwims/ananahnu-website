@@ -98,6 +98,6 @@ func (r *clientRepository) Update(client *domain.Client) error {
 	// This prevents zero-value UUIDs (facilitator_id, created_by) from being
 	// sent in the SQL UPDATE and violating foreign key constraints.
 	return r.db.Model(client).
-		Select("business_name", "client_name", "nib", "nik", "product_name", "address", "contact_person", "phone", "updated_at").
+		Select("business_name", "client_name", "nib", "nib_file_url", "nik", "product_name", "address", "contact_person", "phone", "updated_at").
 		Updates(client).Error
 }

@@ -187,10 +187,12 @@ func (uc *userManagementUsecase) UpdateProfile(id uuid.UUID, input UpdateProfile
 		user.Address = input.Address
 	}
 	if input.ProvinceID != 0 {
-		user.ProvinceID = input.ProvinceID
+		pIDVal := input.ProvinceID
+		user.ProvinceID = &pIDVal
 	}
 	if input.RegencyID != 0 {
-		user.RegencyID = input.RegencyID
+		rIDVal := input.RegencyID
+		user.RegencyID = &rIDVal
 	}
 	if input.AvatarURL != "" {
 		user.AvatarURL = input.AvatarURL

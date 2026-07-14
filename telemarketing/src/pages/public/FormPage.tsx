@@ -50,6 +50,7 @@ export default function PublicFormPage() {
     province_id: 0,
     is_catering: false,
     is_amdk: false,
+    is_food_beverage: true,
     branch_count: 1,
     consultation_method: 'ONLINE_MEET',
     agreed_terms: false,
@@ -188,6 +189,7 @@ export default function PublicFormPage() {
         province_id: form.province_id,
         is_catering: form.is_catering,
         is_amdk: form.is_amdk,
+        is_food_beverage: form.is_food_beverage,
         branch_count: form.branch_count,
         consultation_method: form.consultation_method,
         agreed_terms: true,
@@ -692,6 +694,23 @@ export default function PublicFormPage() {
                   {/* Checkbox Fields */}
                   <div className="space-y-3 pt-2">
                     <p className="text-xs font-bold text-dark-500 uppercase tracking-wider">Informasi Tambahan</p>
+
+                    <label className={`flex items-center gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${form.is_food_beverage ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
+                      }`}>
+                      <input
+                        type="checkbox"
+                        className="form-checkbox"
+                        checked={form.is_food_beverage}
+                        onChange={(e) => updateForm('is_food_beverage', e.target.checked)}
+                      />
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                        <UtensilsCrossed className="w-4 h-4 text-emerald-600" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-dark-900 block leading-tight">Produk Kategori Makanan & Minuman</span>
+                        <span className="text-[10px] text-dark-500 font-semibold mt-0.5 block">Wajib dicentang jika jenis produk Anda adalah makanan/minuman ringan olahan sederhana (Syarat wajib Self Declare)</span>
+                      </div>
+                    </label>
 
                     <label className={`flex items-center gap-3.5 p-4 rounded-xl border cursor-pointer hover:border-brand-300 transition-all duration-200 ${form.uses_meat ? 'bg-brand-50/40 border-brand-350 shadow-sm' : 'bg-white border-dark-200'
                       }`}>

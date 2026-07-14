@@ -1,7 +1,7 @@
-import { GripVertical, Trash2 } from 'lucide-react';
+import { GripVertical, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import type { FormFieldConfig } from '../../../types';
 
-const INPUT_TYPES = ['FILE_UPLOAD', 'LINK', 'TEXT', 'DATE', 'REPEATER'] as const;
+const INPUT_TYPES = ['FILE_UPLOAD', 'LINK', 'TEXT', 'DATE', 'REPEATER', 'PRODUCT_LIST'] as const;
 
 interface FieldItemProps {
     field: FormFieldConfig;
@@ -9,6 +9,8 @@ interface FieldItemProps {
     onUpdateState: (id: number, key: string, value: any) => void;
     onHandleUpdate: (field: FormFieldConfig) => void;
     onDelete: (id: number) => void;
+    onMoveUp?: () => void;
+    onMoveDown?: () => void;
 }
 
 export const FieldItem = ({
@@ -16,11 +18,33 @@ export const FieldItem = ({
     businessTypes,
     onUpdateState,
     onHandleUpdate,
-    onDelete
+    onDelete,
+    onMoveUp,
+    onMoveDown
 }: FieldItemProps) => {
     return (
         <div className="flex items-center gap-4 p-5 bg-white rounded-2xl border border-gray-100 group hover:border-brand-200 hover:shadow-xl hover:shadow-brand-50/50 transition-all">
-            <GripVertical className="w-4 h-4 text-gray-300 cursor-grab shrink-0" />
+            <div className="flex flex-col gap-0.5 shrink-0">
+                {onMoveUp && (
+                    <button 
+                        onClick={onMoveUp}
+                        className="p-1 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-700 transition-all"
+                        title="Geser Ke Atas"
+                    >
+                        <ChevronUp className="w-4 h-4" />
+                    </button>
+                )}
+                <GripVertical className="w-4 h-4 text-gray-300 mx-auto" />
+                {onMoveDown && (
+                    <button 
+                        onClick={onMoveDown}
+                        className="p-1 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-700 transition-all"
+                        title="Geser Ke Bawah"
+                    >
+                        <ChevronDown className="w-4 h-4" />
+                    </button>
+                )}
+            </div>
 
             <div className="flex-1 grid grid-cols-1 md:grid-cols-8 gap-4 items-center">
                 <div className="md:col-span-1 space-y-1">

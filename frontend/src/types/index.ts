@@ -152,7 +152,7 @@ export interface FormFieldConfig {
     form_type: string;
     field_key: string;
     field_label: string;
-    input_type: 'FILE_UPLOAD' | 'LINK' | 'TEXT' | 'DATE' | 'REPEATER';
+    input_type: 'FILE_UPLOAD' | 'LINK' | 'TEXT' | 'DATE' | 'REPEATER' | 'PRODUCT_LIST';
     is_required: boolean;
     sort_order: number;
     description: string;

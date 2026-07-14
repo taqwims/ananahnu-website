@@ -309,6 +309,12 @@ func (h *UserManagementHandler) ListDrafters(c *gin.Context) {
 
 func (h *UserManagementHandler) ListConsultants(c *gin.Context) {
 	filter := map[string]interface{}{"roles": []string{"HALAL_ADVISOR", "HALAL_MANAGER", "MARKETING"}}
+	if prov := c.Query("province_id"); prov != "" {
+		filter["province_id"] = prov
+	}
+	if reg := c.Query("regency_id"); reg != "" {
+		filter["regency_id"] = reg
+	}
 	users, _, err := h.userMgmtUC.ListUsers(filter, 1, 1000)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

@@ -144,67 +144,135 @@ export const DocumentList = ({
 
                             {steps.length > 0 ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                                    {steps[activeStepIdx]?.fieldValues.map(fv => (
-                                        <div key={fv.id} className="flex items-start justify-between p-3 bg-white/50 rounded-xl border border-gray-100 hover:border-brand-200 transition-all group/item shadow-sm">
-                                            <div className="flex items-start gap-3 overflow-hidden flex-1">
-                                                <div className="p-2 rounded-lg bg-gray-50 group-hover/item:bg-brand-50 transition-colors shrink-0">
-                                                    {fv.form_field.input_type === 'FILE_UPLOAD' && <Upload className="w-4 h-4 text-brand-500" />}
-                                                    {fv.form_field.input_type === 'LINK' && <LinkIcon className="w-4 h-4 text-blue-500" />}
-                                                    {fv.form_field.input_type === 'TEXT' && <FileText className="w-4 h-4 text-gray-400" />}
-                                                    {fv.form_field.input_type === 'DATE' && <Calendar className="w-4 h-4 text-emerald-500" />}
-                                                    {fv.form_field.input_type === 'REPEATER' && <List className="w-4 h-4 text-indigo-500" />}
+                                    {steps[activeStepIdx]?.fieldValues.map(fv => {
+                                        const isProductList = fv.form_field.input_type === 'PRODUCT_LIST';
+                                        return (
+                                            <div key={fv.id} className={`p-3 bg-white/50 rounded-xl border border-gray-100 hover:border-brand-200 transition-all group/item shadow-sm ${isProductList ? 'col-span-1 sm:col-span-2 flex flex-col items-stretch' : 'flex items-center justify-between'}`}>
+                                                <div className="flex items-start gap-3 overflow-hidden flex-1">
+                                                    <div className="p-2 rounded-lg bg-gray-50 group-hover/item:bg-brand-50 transition-colors shrink-0">
+                                                        {fv.form_field.input_type === 'FILE_UPLOAD' && <Upload className="w-4 h-4 text-brand-500" />}
+                                                        {fv.form_field.input_type === 'LINK' && <LinkIcon className="w-4 h-4 text-blue-500" />}
+                                                        {fv.form_field.input_type === 'TEXT' && <FileText className="w-4 h-4 text-gray-400" />}
+                                                        {fv.form_field.input_type === 'DATE' && <Calendar className="w-4 h-4 text-emerald-500" />}
+                                                        {fv.form_field.input_type === 'REPEATER' && <List className="w-4 h-4 text-indigo-500" />}
+                                                        {fv.form_field.input_type === 'PRODUCT_LIST' && <List className="w-4 h-4 text-brand-500" />}
+                                                    </div>
+                                                    <div className="overflow-hidden flex-1">
+                                                        <span className="text-xs font-bold text-gray-700 block truncate">{fv.form_field.field_label}</span>
+                                                        {fv.text_value && (
+                                                            fv.form_field.input_type === 'REPEATER' ? (
+                                                                (() => {
+                                                                    let items: string[] = [];
+                                                                    try {
+                                                                        items = JSON.parse(fv.text_value);
+                                                                        if (!Array.isArray(items)) items = [];
+                                                                    } catch { items = []; }
+                                                                    if (items.length === 0) return <p className="text-[10px] text-gray-400 italic">Kosong</p>;
+                                                                    return (
+                                                                        <div className="flex flex-wrap gap-1 mt-1">
+                                                                            {items.map((item, idx) => (
+                                                                                <span key={idx} className="inline-block px-1.5 py-0.5 text-[9px] font-semibold bg-indigo-50 text-indigo-600 rounded-md border border-indigo-100">
+                                                                                    {item}
+                                                                                </span>
+                                                                            ))}
+                                                                        </div>
+                                                                    );
+                                                                })()
+                                                            ) : fv.form_field.input_type === 'PRODUCT_LIST' ? (
+                                                                (() => {
+                                                                    interface ProductItem {
+                                                                        nama: string;
+                                                                        foto_url: string;
+                                                                        varian: string[];
+                                                                    }
+                                                                    let products: ProductItem[] = [];
+                                                                    try {
+                                                                        products = JSON.parse(fv.text_value);
+                                                                        if (!Array.isArray(products)) products = [];
+                                                                    } catch { products = []; }
+                                                                    if (products.length === 0) return <p className="text-[10px] text-gray-400 italic mt-1">Belum ada produk ditambahkan</p>;
+                                                                    return (
+                                                                        <div className="mt-3 border border-gray-150 rounded-xl overflow-hidden bg-white/85">
+                                                                            <table className="w-full text-left border-collapse text-[11px]">
+                                                                                <thead>
+                                                                                    <tr className="bg-gray-50/75 border-b border-gray-100 text-[9px] font-black uppercase text-gray-400 tracking-wider">
+                                                                                        <th className="p-2 w-10 text-center">No</th>
+                                                                                        <th className="p-2">Nama Produk</th>
+                                                                                        <th className="p-2 w-40">Foto</th>
+                                                                                        <th className="p-2">Varian</th>
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody className="divide-y divide-gray-50 text-gray-600">
+                                                                                    {products.map((p, pIdx) => (
+                                                                                        <tr key={pIdx} className="hover:bg-gray-50/50 transition-colors align-middle">
+                                                                                            <td className="p-2 text-center font-bold text-gray-400">{pIdx + 1}</td>
+                                                                                            <td className="p-2 font-bold text-gray-800">{p.nama}</td>
+                                                                                            <td className="p-2">
+                                                                                                {p.foto_url ? (
+                                                                                                    <a href={`${import.meta.env.VITE_API_URL}${p.foto_url}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:underline text-brand-600">
+                                                                                                        <img 
+                                                                                                            src={`${import.meta.env.VITE_API_URL}${p.foto_url}`} 
+                                                                                                            alt={p.nama} 
+                                                                                                            className="w-8 h-8 object-cover rounded border border-gray-100 shrink-0"
+                                                                                                        />
+                                                                                                        <span className="truncate text-[9px] font-medium max-w-[100px]">{p.foto_url.split('/').pop()}</span>
+                                                                                                    </a>
+                                                                                                ) : (
+                                                                                                    <span className="text-[9px] text-gray-300 italic">Tidak ada foto</span>
+                                                                                                )}
+                                                                                            </td>
+                                                                                            <td className="p-2">
+                                                                                                <div className="flex flex-wrap gap-1">
+                                                                                                    {(p.varian || []).map((v, vIdx) => (
+                                                                                                        <span key={vIdx} className="inline-block px-1.5 py-0.5 text-[8px] font-bold bg-indigo-50 text-indigo-700 rounded border border-indigo-100 uppercase tracking-wide">
+                                                                                                            {v}
+                                                                                                        </span>
+                                                                                                    ))}
+                                                                                                    {(p.varian || []).length === 0 && (
+                                                                                                        <span className="text-[9px] text-gray-300 italic">-</span>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            </td>
+                                                                                        </tr>
+                                                                                    ))}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    );
+                                                                })()
+                                                            ) : (
+                                                                <p className="text-[10px] text-gray-400 truncate">{fv.text_value}</p>
+                                                            )
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className="overflow-hidden flex-1">
-                                                    <span className="text-xs font-bold text-gray-700 block truncate">{fv.form_field.field_label}</span>
-                                                    {fv.text_value && (
-                                                        fv.form_field.input_type === 'REPEATER' ? (
-                                                            (() => {
-                                                                let items: string[] = [];
-                                                                try {
-                                                                    items = JSON.parse(fv.text_value);
-                                                                    if (!Array.isArray(items)) items = [];
-                                                                } catch { items = []; }
-                                                                if (items.length === 0) return <p className="text-[10px] text-gray-400 italic">Kosong</p>;
-                                                                return (
-                                                                    <div className="flex flex-wrap gap-1 mt-1">
-                                                                        {items.map((item, idx) => (
-                                                                            <span key={idx} className="inline-block px-1.5 py-0.5 text-[9px] font-semibold bg-indigo-50 text-indigo-600 rounded-md border border-indigo-100">
-                                                                                {item}
-                                                                            </span>
-                                                                        ))}
-                                                                    </div>
-                                                                );
-                                                            })()
-                                                        ) : (
-                                                            <p className="text-[10px] text-gray-400 truncate">{fv.text_value}</p>
-                                                        )
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-1 ml-2 shrink-0">
-                                                {fv.file_url && (
-                                                    <a 
-                                                        href={`${import.meta.env.VITE_API_URL}${fv.file_url}`} 
-                                                        target="_blank" 
-                                                        rel="noreferrer"
-                                                        className="p-2 hover:bg-brand-600 hover:text-white rounded-lg text-brand-600 transition-all"
-                                                    >
-                                                        <FileText className="w-4 h-4" />
-                                                    </a>
-                                                )}
-                                                {fv.link_value && (
-                                                    <a 
-                                                        href={fv.link_value} 
-                                                        target="_blank" 
-                                                        rel="noreferrer"
-                                                        className="p-2 hover:bg-blue-600 hover:text-white rounded-lg text-blue-600 transition-all"
-                                                    >
-                                                        <LinkIcon className="w-4 h-4" />
-                                                    </a>
+                                                {!isProductList && (
+                                                    <div className="flex items-center gap-1 ml-2 shrink-0">
+                                                        {fv.file_url && (
+                                                            <a 
+                                                                href={`${import.meta.env.VITE_API_URL}${fv.file_url}`} 
+                                                                target="_blank" 
+                                                                rel="noreferrer"
+                                                                className="p-2 hover:bg-brand-600 hover:text-white rounded-lg text-brand-600 transition-all"
+                                                            >
+                                                                <FileText className="w-4 h-4" />
+                                                            </a>
+                                                        )}
+                                                        {fv.link_value && (
+                                                            <a 
+                                                                href={fv.link_value} 
+                                                                target="_blank" 
+                                                                rel="noreferrer"
+                                                                className="p-2 hover:bg-blue-600 hover:text-white rounded-lg text-blue-600 transition-all"
+                                                            >
+                                                                <LinkIcon className="w-4 h-4" />
+                                                            </a>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <p className="text-center text-xs text-gray-400 py-4">Tidak ada data dokumen.</p>
