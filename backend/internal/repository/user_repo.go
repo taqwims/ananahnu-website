@@ -76,7 +76,7 @@ func (r *userRepository) GetAllReferralAnalytics() ([]map[string]interface{}, er
 }
 
 func (r *userRepository) Update(user *domain.User) error {
-	return r.db.Save(user).Error
+	return r.db.Omit("Role", "Leader").Save(user).Error
 }
 
 func (r *userRepository) FindByLeaderID(leaderID uuid.UUID) ([]domain.User, error) {
