@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Loader2, Download, Plus, Trash, BookOpen, Calculator } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'react-hot-toast';
+import { useAuthStore } from '../../store/authStore';
 
 type OptionalCost = {
     name: string;
@@ -26,8 +27,14 @@ export default function EstimasiReguler() {
     const [loadingComponents, setLoadingComponents] = useState(false);
     const [salesSchemePrice, setSalesSchemePrice] = useState<any | null>(null);
 
+    const user = useAuthStore(state => state.user);
+
     // Form State
-    const [dataSource, setDataSource] = useState('ORGANIK');
+    const [dataSource, setDataSource] = useState(user?.role === 'MARKETING' ? 'MARKETING' : 'ORGANIK');
+
+    useEffect(() => {
+        setDataSource(user?.role === 'MARKETING' ? 'MARKETING' : 'ORGANIK');
+    }, [user?.role]);
     const [salesSchemeId, setSalesSchemeId] = useState('');
     const [businessTypeId, setBusinessTypeId] = useState('');
     const [productId, setProductId] = useState('');
@@ -516,19 +523,8 @@ export default function EstimasiReguler() {
                         <h3 className="text-lg font-bold text-brand-700">Form Perhitungan Biaya</h3>
                     </div>
 
-                    {/* Sumber Data & Skema Selection */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Sumber Data</label>
-                            <select
-                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all font-bold text-brand-700"
-                                value={dataSource}
-                                onChange={e => setDataSource(e.target.value)}
-                            >
-                                <option value="ORGANIK">Organik / Telemarketing</option>
-                                <option value="MARKETING">Marketing (Partner)</option>
-                            </select>
-                        </div>
+                    {/* Skema Selection */}
+                    <div className="grid grid-cols-1 gap-3">
                         <div>
                             <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Skema Penjualan</label>
                             <select
