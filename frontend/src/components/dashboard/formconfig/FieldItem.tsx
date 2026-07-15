@@ -1,7 +1,7 @@
 import { GripVertical, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import type { FormFieldConfig } from '../../../types';
 
-const INPUT_TYPES = ['FILE_UPLOAD', 'LINK', 'TEXT', 'DATE', 'REPEATER', 'PRODUCT_LIST'] as const;
+const INPUT_TYPES = ['FILE_UPLOAD', 'LINK', 'TEXT', 'DATE', 'REPEATER', 'PRODUCT_LIST', 'INGREDIENT_LIST', 'INGREDIENT_MATRIX', 'ACTIVITY_PHOTOS', 'HALAL_TEAM'] as const;
 
 interface FieldItemProps {
     field: FormFieldConfig;

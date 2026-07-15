@@ -61,7 +61,7 @@ export default function SubmissionDetail() {
     if (user?.role === 'CLIENT') {
         return (
             <div className="max-w-4xl mx-auto space-y-6 px-4 sm:px-6">
-                <SubmissionHeader submission={submission} user={user} />
+                <SubmissionHeader submission={submission} user={user} fieldValues={fieldValues} />
 
                 {/* Instruction / Status Alert */}
                 {(submission.status === 'DRAFT' || submission.status === 'REVISION') && (
@@ -272,7 +272,7 @@ export default function SubmissionDetail() {
     }
 return (
         <div className="max-w-[1440px] mx-auto space-y-6 px-4 sm:px-6">
-            <SubmissionHeader submission={submission} user={user} />
+            <SubmissionHeader submission={submission} user={user} fieldValues={fieldValues} />
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 <div className="lg:col-span-8 space-y-6 order-2 lg:order-1">

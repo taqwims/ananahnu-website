@@ -145,7 +145,7 @@ export const DocumentList = ({
                             {steps.length > 0 ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                                     {steps[activeStepIdx]?.fieldValues.map(fv => {
-                                        const isProductList = fv.form_field.input_type === 'PRODUCT_LIST';
+                                        const isProductList = fv.form_field.input_type === 'PRODUCT_LIST' || fv.form_field.input_type === 'INGREDIENT_LIST' || fv.form_field.input_type === 'INGREDIENT_MATRIX' || fv.form_field.input_type === 'ACTIVITY_PHOTOS' || fv.form_field.input_type === 'HALAL_TEAM';
                                         return (
                                             <div key={fv.id} className={`p-3 bg-white/50 rounded-xl border border-gray-100 hover:border-brand-200 transition-all group/item shadow-sm ${isProductList ? 'col-span-1 sm:col-span-2 flex flex-col items-stretch' : 'flex items-center justify-between'}`}>
                                                 <div className="flex items-start gap-3 overflow-hidden flex-1">
@@ -156,6 +156,10 @@ export const DocumentList = ({
                                                         {fv.form_field.input_type === 'DATE' && <Calendar className="w-4 h-4 text-emerald-500" />}
                                                         {fv.form_field.input_type === 'REPEATER' && <List className="w-4 h-4 text-indigo-500" />}
                                                         {fv.form_field.input_type === 'PRODUCT_LIST' && <List className="w-4 h-4 text-brand-500" />}
+                                                        {fv.form_field.input_type === 'INGREDIENT_LIST' && <List className="w-4 h-4 text-amber-500" />}
+                                                        {fv.form_field.input_type === 'INGREDIENT_MATRIX' && <List className="w-4 h-4 text-pink-500" />}
+                                                        {fv.form_field.input_type === 'ACTIVITY_PHOTOS' && <Upload className="w-4 h-4 text-emerald-500" />}
+                                                        {fv.form_field.input_type === 'HALAL_TEAM' && <List className="w-4 h-4 text-indigo-500" />}
                                                     </div>
                                                     <div className="overflow-hidden flex-1">
                                                         <span className="text-xs font-bold text-gray-700 block truncate">{fv.form_field.field_label}</span>
@@ -183,7 +187,6 @@ export const DocumentList = ({
                                                                     interface ProductItem {
                                                                         nama: string;
                                                                         foto_url: string;
-                                                                        varian: string[];
                                                                     }
                                                                     let products: ProductItem[] = [];
                                                                     try {
@@ -199,7 +202,6 @@ export const DocumentList = ({
                                                                                         <th className="p-2 w-10 text-center">No</th>
                                                                                         <th className="p-2">Nama Produk</th>
                                                                                         <th className="p-2 w-40">Foto</th>
-                                                                                        <th className="p-2">Varian</th>
                                                                                     </tr>
                                                                                 </thead>
                                                                                 <tbody className="divide-y divide-gray-50 text-gray-600">
@@ -221,17 +223,207 @@ export const DocumentList = ({
                                                                                                     <span className="text-[9px] text-gray-300 italic">Tidak ada foto</span>
                                                                                                 )}
                                                                                             </td>
-                                                                                            <td className="p-2">
-                                                                                                <div className="flex flex-wrap gap-1">
-                                                                                                    {(p.varian || []).map((v, vIdx) => (
-                                                                                                        <span key={vIdx} className="inline-block px-1.5 py-0.5 text-[8px] font-bold bg-indigo-50 text-indigo-700 rounded border border-indigo-100 uppercase tracking-wide">
-                                                                                                            {v}
-                                                                                                        </span>
+                                                                                        </tr>
+                                                                                    ))}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    );
+                                                                })()
+                                                            ) : fv.form_field.input_type === 'INGREDIENT_LIST' ? (
+                                                                (() => {
+                                                                    interface IngredientItem {
+                                                                        nama: string;
+                                                                        produsen: string;
+                                                                        penerbit: string;
+                                                                        no_id: string;
+                                                                        tanggal: string;
+                                                                    }
+                                                                    let ingredients: IngredientItem[] = [];
+                                                                    try {
+                                                                        ingredients = JSON.parse(fv.text_value);
+                                                                        if (!Array.isArray(ingredients)) ingredients = [];
+                                                                    } catch { ingredients = []; }
+                                                                    if (ingredients.length === 0) return <p className="text-[10px] text-gray-400 italic mt-1">Belum ada bahan ditambahkan</p>;
+                                                                    return (
+                                                                        <div className="mt-3 border border-gray-150 rounded-xl overflow-hidden bg-white/85">
+                                                                            <table className="w-full text-left border-collapse text-[11px]">
+                                                                                <thead>
+                                                                                    <tr className="bg-gray-50/75 border-b border-gray-100 text-[9px] font-black uppercase text-gray-400 tracking-wider">
+                                                                                        <th className="p-2 w-10 text-center">No</th>
+                                                                                        <th className="p-2">Nama Bahan & Merk</th>
+                                                                                        <th className="p-2">Produsen</th>
+                                                                                        <th className="p-2">Penerbit Sertifikat</th>
+                                                                                        <th className="p-2">No ID SH</th>
+                                                                                        <th className="p-2">Tanggal Terbit SH</th>
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody className="divide-y divide-gray-50 text-gray-600">
+                                                                                    {ingredients.map((item, idx) => (
+                                                                                        <tr key={idx} className="hover:bg-gray-50/50 transition-colors align-middle">
+                                                                                            <td className="p-2 text-center font-bold text-gray-400">{idx + 1}</td>
+                                                                                            <td className="p-2 font-bold text-gray-800">{item.nama}</td>
+                                                                                            <td className="p-2">{item.produsen || '-'}</td>
+                                                                                            <td className="p-2">{item.penerbit || '-'}</td>
+                                                                                            <td className="p-2 font-mono text-[10px]">{item.no_id || '-'}</td>
+                                                                                            <td className="p-2">{item.tanggal || '-'}</td>
+                                                                                        </tr>
+                                                                                    ))}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    );
+                                                                })()
+                                                            ) : fv.form_field.input_type === 'INGREDIENT_MATRIX' ? (
+                                                                 (() => {
+                                                                     interface MatrixItem {
+                                                                         nama_produk: string;
+                                                                         bahan: string[];
+                                                                     }
+                                                                     let items: MatrixItem[] = [];
+                                                                     try {
+                                                                         items = JSON.parse(fv.text_value);
+                                                                         if (!Array.isArray(items)) items = [];
+                                                                     } catch { items = []; }
+                                                                     if (items.length === 0) return <p className="text-[10px] text-gray-400 italic mt-1">Belum ada data ditambahkan</p>;
+                                                                     return (
+                                                                         <div className="mt-3 border border-gray-150 rounded-xl overflow-hidden bg-white/85">
+                                                                             <table className="w-full text-left border-collapse text-[11px]">
+                                                                                 <thead>
+                                                                                     <tr className="bg-gray-50/75 border-b border-gray-100 text-[9px] font-black uppercase text-gray-400 tracking-wider">
+                                                                                         <th className="p-2 w-10 text-center">No</th>
+                                                                                         <th className="p-2 w-1/3">Nama Produk</th>
+                                                                                         <th className="p-2">Bahan Yang Digunakan</th>
+                                                                                     </tr>
+                                                                                 </thead>
+                                                                                 <tbody className="divide-y divide-gray-50 text-gray-600">
+                                                                                     {items.map((row, idx) => (
+                                                                                         <tr key={idx} className="hover:bg-gray-50/50 transition-colors align-top">
+                                                                                             <td className="p-2 text-center font-bold text-gray-400 pt-3">{idx + 1}</td>
+                                                                                             <td className="p-2 font-bold text-gray-800 pt-3">{row.nama_produk}</td>
+                                                                                             <td className="p-2 pt-3">
+                                                                                                 <ul className="list-disc pl-4 space-y-0.5 text-gray-700">
+                                                                                                     {(row.bahan || []).map((b, bIdx) => (
+                                                                                                         <li key={bIdx}>{b}</li>
+                                                                                                     ))}
+                                                                                                     {(row.bahan || []).length === 0 && (
+                                                                                                         <span className="text-[10px] text-gray-300 italic">-</span>
+                                                                                                     )}
+                                                                                                 </ul>
+                                                                                             </td>
+                                                                                         </tr>
+                                                                                     ))}
+                                                                                 </tbody>
+                                                                             </table>
+                                                                         </div>
+                                                                     );
+                                                                 })()
+                                                            ) : fv.form_field.input_type === 'ACTIVITY_PHOTOS' ? (
+                                                                (() => {
+                                                                    interface ActivityItem {
+                                                                        nama_kegiatan: string;
+                                                                        fotos: string[];
+                                                                    }
+                                                                    let items: ActivityItem[] = [];
+                                                                    try {
+                                                                        items = JSON.parse(fv.text_value);
+                                                                        if (!Array.isArray(items)) items = [];
+                                                                    } catch { items = []; }
+                                                                    if (items.length === 0) return <p className="text-[10px] text-gray-400 italic mt-1">Belum ada data ditambahkan</p>;
+                                                                    return (
+                                                                        <div className="mt-3 border border-gray-150 rounded-xl overflow-hidden bg-white/85">
+                                                                            <table className="w-full text-left border-collapse text-[11px]">
+                                                                                <thead>
+                                                                                    <tr className="bg-gray-50/75 border-b border-gray-100 text-[9px] font-black uppercase text-gray-400 tracking-wider">
+                                                                                        <th className="p-2 w-10 text-center">No</th>
+                                                                                        <th className="p-2 w-1/3">Nama Kegiatan</th>
+                                                                                        <th className="p-2">Foto Kegiatan</th>
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody className="divide-y divide-gray-50 text-gray-600">
+                                                                                    {items.map((row, idx) => (
+                                                                                        <tr key={idx} className="hover:bg-gray-50/50 transition-colors align-top">
+                                                                                            <td className="p-2 text-center font-bold text-gray-400 pt-3">{idx + 1}</td>
+                                                                                            <td className="p-2 font-bold text-gray-800 pt-3">{row.nama_kegiatan}</td>
+                                                                                            <td className="p-2 pt-3">
+                                                                                                <div className="flex flex-wrap gap-2 pb-2">
+                                                                                                    {(row.fotos || []).map((fUrl, fIdx) => (
+                                                                                                        <a
+                                                                                                            key={fIdx}
+                                                                                                            href={`${import.meta.env.VITE_API_URL}${fUrl}`}
+                                                                                                            target="_blank"
+                                                                                                            rel="noreferrer"
+                                                                                                            className="block w-14 h-14 rounded-lg overflow-hidden border border-gray-200 hover:border-brand-400 transition-colors shrink-0 bg-gray-50"
+                                                                                                        >
+                                                                                                            <img
+                                                                                                                src={`${import.meta.env.VITE_API_URL}${fUrl}`}
+                                                                                                                alt="Kegiatan"
+                                                                                                                className="w-full h-full object-cover"
+                                                                                                            />
+                                                                                                        </a>
                                                                                                     ))}
-                                                                                                    {(p.varian || []).length === 0 && (
-                                                                                                        <span className="text-[9px] text-gray-300 italic">-</span>
+                                                                                                    {(row.fotos || []).length === 0 && (
+                                                                                                        <span className="text-[10px] text-gray-300 italic">Tidak ada foto</span>
                                                                                                     )}
                                                                                                 </div>
+                                                                                            </td>
+                                                                                        </tr>
+                                                                                    ))}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    );
+                                                                })()
+                                                            ) : fv.form_field.input_type === 'HALAL_TEAM' ? (
+                                                                (() => {
+                                                                    interface HalalTeamItem {
+                                                                        nama: string;
+                                                                        jabatan: string;
+                                                                        posisi_tim: string;
+                                                                        ttd_url: string;
+                                                                    }
+                                                                    let items: HalalTeamItem[] = [];
+                                                                    try {
+                                                                        items = JSON.parse(fv.text_value);
+                                                                        if (!Array.isArray(items)) items = [];
+                                                                    } catch { items = []; }
+                                                                    if (items.length === 0) return <p className="text-[10px] text-gray-400 italic mt-1">Belum ada data ditambahkan</p>;
+                                                                    return (
+                                                                        <div className="mt-3 border border-gray-155 rounded-xl overflow-hidden bg-white/85">
+                                                                            <table className="w-full text-left border-collapse text-[11px]">
+                                                                                <thead>
+                                                                                    <tr className="bg-gray-50/75 border-b border-gray-100 text-[9px] font-black uppercase text-gray-400 tracking-wider">
+                                                                                        <th className="p-2 w-10 text-center">No</th>
+                                                                                        <th className="p-2">Nama</th>
+                                                                                        <th className="p-2">Jabatan</th>
+                                                                                        <th className="p-2">Posisi Di Tim</th>
+                                                                                        <th className="p-2 w-24">Tanda Tangan</th>
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody className="divide-y divide-gray-50 text-gray-600">
+                                                                                    {items.map((row, idx) => (
+                                                                                        <tr key={idx} className="hover:bg-gray-50/50 transition-colors align-middle">
+                                                                                            <td className="p-2 text-center font-bold text-gray-400">{idx + 1}</td>
+                                                                                            <td className="p-2 font-bold text-gray-800">{row.nama}</td>
+                                                                                            <td className="p-2">{row.jabatan}</td>
+                                                                                            <td className="p-2">{row.posisi_tim}</td>
+                                                                                            <td className="p-2">
+                                                                                                {row.ttd_url ? (
+                                                                                                    <a
+                                                                                                        href={`${import.meta.env.VITE_API_URL}${row.ttd_url}`}
+                                                                                                        target="_blank"
+                                                                                                        rel="noreferrer"
+                                                                                                        className="block w-10 h-10 rounded border border-gray-200 hover:border-brand-400 transition-colors shrink-0 bg-white"
+                                                                                                    >
+                                                                                                        <img
+                                                                                                            src={`${import.meta.env.VITE_API_URL}${row.ttd_url}`}
+                                                                                                            alt="Ttd"
+                                                                                                            className="w-full h-full object-contain"
+                                                                                                        />
+                                                                                                    </a>
+                                                                                                ) : (
+                                                                                                    <span className="text-[10px] text-gray-300 italic">-</span>
+                                                                                                )}
                                                                                             </td>
                                                                                         </tr>
                                                                                     ))}

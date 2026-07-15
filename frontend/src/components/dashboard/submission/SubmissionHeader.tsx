@@ -1,14 +1,16 @@
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ShieldCheck } from 'lucide-react';
-import type { Submission, User } from '../../../types';
+import { ChevronLeft, ShieldCheck, Download } from 'lucide-react';
+import type { Submission, User, FormFieldValue } from '../../../types';
 import { formatServiceType } from '../../../utils/format';
+import { exportSubmissionToDoc } from '../../../utils/exportDoc';
 
 interface SubmissionHeaderProps {
     submission: Submission;
     user: User | null;
+    fieldValues?: FormFieldValue[];
 }
 
-export const SubmissionHeader = ({ submission, user }: SubmissionHeaderProps) => {
+export const SubmissionHeader = ({ submission, user, fieldValues = [] }: SubmissionHeaderProps) => {
     const navigate = useNavigate();
     const serviceType = submission.service_type || submission.client?.service_type || '';
 
@@ -42,6 +44,14 @@ export const SubmissionHeader = ({ submission, user }: SubmissionHeaderProps) =>
                         <span className="text-sm font-black text-brand-600 font-mono leading-none">{submission.tracking_number}</span>
                     </div>
                 )}
+
+                <button
+                    onClick={() => exportSubmissionToDoc(submission, fieldValues)}
+                    className="px-4 py-2 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-sm hover:scale-105 transition-all flex items-center gap-1.5"
+                >
+                    <Download className="w-3.5 h-3.5" />
+                    Unduh DOC
+                </button>
 
                 {user?.role === 'DRAFTER' && submission.status === 'DRAFTER' && (
                     <button 

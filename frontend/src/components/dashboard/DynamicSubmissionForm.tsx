@@ -131,7 +131,7 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
                 const isEmpty = cfg.input_type === 'FILE_UPLOAD' ? !val?.file_url
                     : cfg.input_type === 'LINK' ? !val?.link_value 
                     : cfg.input_type === 'REPEATER' ? (!val?.text_value || val.text_value === '[]' || val.text_value === '[""]')
-                    : cfg.input_type === 'PRODUCT_LIST' ? (!val?.text_value || val.text_value === '[]')
+                    : (cfg.input_type === 'PRODUCT_LIST' || cfg.input_type === 'INGREDIENT_LIST' || cfg.input_type === 'INGREDIENT_MATRIX' || cfg.input_type === 'ACTIVITY_PHOTOS' || cfg.input_type === 'HALAL_TEAM') ? (!val?.text_value || val.text_value === '[]')
                     : !val?.text_value;
                 if (isEmpty) {
                     return false;
@@ -469,192 +469,748 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
                         {cfg.input_type === 'PRODUCT_LIST' && (
                             <div className="space-y-4">
                                 {(() => {
-                                    interface ProductItem {
-                                        nama: string;
-                                        foto_url: string;
-                                        varian: string[];
-                                    }
-                                    let products: ProductItem[] = [];
-                                    try {
-                                        products = values[cfg.id]?.text_value ? JSON.parse(values[cfg.id].text_value) : [];
-                                        if (!Array.isArray(products)) products = [];
-                                    } catch { products = []; }
+                                     interface ProductItem {
+                                         nama: string;
+                                         foto_url: string;
+                                     }
+                                     let products: ProductItem[] = [];
+                                     try {
+                                         products = values[cfg.id]?.text_value ? JSON.parse(values[cfg.id].text_value) : [];
+                                         if (!Array.isArray(products)) products = [];
+                                     } catch { products = []; }
 
-                                    const updateProductRow = (rowIdx: number, fieldKey: keyof ProductItem, fieldValue: any) => {
-                                        const newProducts = [...products];
-                                        newProducts[rowIdx] = {
-                                            ...newProducts[rowIdx],
-                                            [fieldKey]: fieldValue
-                                        };
-                                        updateValue(cfg.id, 'text_value', JSON.stringify(newProducts));
-                                    };
+                                     const updateProductRow = (rowIdx: number, fieldKey: keyof ProductItem, fieldValue: any) => {
+                                         const newProducts = [...products];
+                                         newProducts[rowIdx] = {
+                                             ...newProducts[rowIdx],
+                                             [fieldKey]: fieldValue
+                                         };
+                                         updateValue(cfg.id, 'text_value', JSON.stringify(newProducts));
+                                     };
 
-                                    const handleProductPhotoUpload = async (rowIdx: number, file: File) => {
-                                        let finalFile = file;
-                                        if (finalFile.type.startsWith('image/')) {
-                                            try { finalFile = await compressImage(finalFile); } catch {}
-                                        }
-                                        if (finalFile.size > 2 * 1024 * 1024) {
-                                            alert("Ukuran file tidak boleh lebih dari 2MB");
-                                            return;
-                                        }
-                                        try {
-                                            const formData = new FormData();
-                                            formData.append('file', finalFile);
-                                            const res = await api.post(`/media/upload?subfolder=submission_${submissionId}`, formData);
-                                            updateProductRow(rowIdx, 'foto_url', res.data.url);
-                                        } catch {
-                                            alert("Gagal mengunggah foto produk");
-                                        }
-                                    };
+                                     const handleProductPhotoUpload = async (rowIdx: number, file: File) => {
+                                         let finalFile = file;
+                                         if (finalFile.type.startsWith('image/')) {
+                                             try { finalFile = await compressImage(finalFile); } catch {}
+                                         }
+                                         if (finalFile.size > 2 * 1024 * 1024) {
+                                             alert("Ukuran file tidak boleh lebih dari 2MB");
+                                             return;
+                                         }
+                                         try {
+                                             const formData = new FormData();
+                                             formData.append('file', finalFile);
+                                             const res = await api.post(`/media/upload?subfolder=submission_${submissionId}`, formData);
+                                             updateProductRow(rowIdx, 'foto_url', res.data.url);
+                                         } catch {
+                                             alert("Gagal mengunggah foto produk");
+                                         }
+                                     };
 
-                                    return (
-                                        <div className="border border-gray-150 rounded-2xl overflow-hidden shadow-sm bg-white">
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-left border-collapse min-w-[600px]">
-                                                    <thead>
-                                                        <tr className="bg-gray-50/75 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                                                            <th className="p-3.5 w-12 text-center">No</th>
-                                                            <th className="p-3.5">Nama Produk</th>
-                                                            <th className="p-3.5 w-60">Foto Produk</th>
-                                                            <th className="p-3.5">Varian</th>
-                                                            {!readOnly && <th className="p-3.5 w-16 text-center">Aksi</th>}
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-gray-50 text-xs">
-                                                        {products.map((p, rowIdx) => (
-                                                            <tr key={rowIdx} className="hover:bg-gray-50/50 transition-colors align-top">
-                                                                <td className="p-3.5 font-bold text-gray-400 text-center pt-5">{rowIdx + 1}</td>
-                                                                <td className="p-3.5">
-                                                                    <input
-                                                                        type="text"
-                                                                        className="glass-input text-xs w-full py-1.5"
-                                                                        placeholder="Contoh: Kopi Bubuk"
-                                                                        value={p.nama || ''}
-                                                                        onChange={e => updateProductRow(rowIdx, 'nama', e.target.value)}
-                                                                        disabled={readOnly}
-                                                                    />
-                                                                </td>
-                                                                <td className="p-3.5">
-                                                                    <div className="flex flex-col gap-2">
-                                                                        {p.foto_url ? (
-                                                                            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 p-1.5 rounded-xl border border-emerald-100 max-w-[220px]">
-                                                                                <img 
-                                                                                    src={`${import.meta.env.VITE_API_URL}${p.foto_url}`} 
-                                                                                    alt="Product" 
-                                                                                    className="w-10 h-10 object-cover rounded-lg border border-emerald-200 shrink-0"
-                                                                                />
-                                                                                <span className="truncate flex-1 text-[10px] font-bold">{p.foto_url.split('/').pop()}</span>
-                                                                                {!readOnly && (
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        onClick={() => updateProductRow(rowIdx, 'foto_url', '')}
-                                                                                        className="p-1 hover:bg-emerald-100 text-red-500 rounded-lg transition-colors shrink-0"
-                                                                                    >
-                                                                                        &times;
-                                                                                    </button>
-                                                                                )}
-                                                                            </div>
-                                                                        ) : (
-                                                                            !readOnly && (
-                                                                                <label className="flex items-center gap-1.5 px-3 py-2 border border-dashed border-brand-200 hover:border-brand-400 bg-brand-50/30 hover:bg-brand-50/50 rounded-xl cursor-pointer transition-colors max-w-[150px] justify-center">
-                                                                                    <input
-                                                                                        type="file"
-                                                                                        className="hidden"
-                                                                                        onChange={e => e.target.files?.[0] && handleProductPhotoUpload(rowIdx, e.target.files[0])}
-                                                                                        accept="image/*"
-                                                                                    />
-                                                                                    <Upload className="w-3.5 h-3.5 text-brand-600" />
-                                                                                    <span className="text-[10px] text-brand-700 font-bold uppercase tracking-wider">Foto Produk</span>
-                                                                                </label>
-                                                                            )
-                                                                        )}
-                                                                    </div>
-                                                                </td>
-                                                                <td className="p-3.5">
-                                                                    <div className="flex flex-col gap-1.5">
-                                                                        <div className="flex flex-wrap gap-1">
-                                                                            {(p.varian || []).map((v, vIdx) => (
-                                                                                <span key={vIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold text-[9px] uppercase tracking-wider">
-                                                                                    {v}
-                                                                                    {!readOnly && (
-                                                                                        <button
-                                                                                            type="button"
-                                                                                            onClick={() => {
-                                                                                                const newVarian = p.varian.filter((_, i) => i !== vIdx);
-                                                                                                updateProductRow(rowIdx, 'varian', newVarian);
-                                                                                            }}
-                                                                                            className="text-red-500 hover:text-red-700 font-bold text-xs"
-                                                                                        >
-                                                                                            &times;
-                                                                                        </button>
-                                                                                    )}
-                                                                                </span>
-                                                                            ))}
-                                                                        </div>
-                                                                        {!readOnly && (
-                                                                            <input
-                                                                                type="text"
-                                                                                className="glass-input text-[10px] w-full py-1"
-                                                                                placeholder="Varian baru + Enter..."
-                                                                                onKeyDown={e => {
-                                                                                    if (e.key === 'Enter') {
-                                                                                        e.preventDefault();
-                                                                                        const val = e.currentTarget.value.trim();
-                                                                                        if (val) {
-                                                                                            const newVarian = [...(p.varian || []), val];
-                                                                                            updateProductRow(rowIdx, 'varian', newVarian);
-                                                                                            e.currentTarget.value = '';
-                                                                                        }
-                                                                                    }
-                                                                                }}
-                                                                            />
-                                                                        )}
-                                                                    </div>
-                                                                </td>
-                                                                {!readOnly && (
-                                                                    <td className="p-3.5 text-center pt-5">
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                const newProducts = products.filter((_, i) => i !== rowIdx);
-                                                                                updateValue(cfg.id, 'text_value', JSON.stringify(newProducts));
-                                                                            }}
-                                                                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                                        >
-                                                                            <Trash2 className="w-3.5 h-3.5" />
-                                                                        </button>
-                                                                    </td>
-                                                                )}
-                                                            </tr>
-                                                        ))}
-                                                        {products.length === 0 && (
-                                                            <tr>
-                                                                <td colSpan={readOnly ? 4 : 5} className="p-6 text-center text-gray-400 italic font-medium bg-gray-50/25">Belum ada produk ditambahkan.</td>
-                                                            </tr>
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                            {!readOnly && (
-                                                <div className="p-3 bg-gray-50/50 border-t border-gray-100">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const newProducts = [...products, { nama: '', foto_url: '', varian: [] }];
-                                                            updateValue(cfg.id, 'text_value', JSON.stringify(newProducts));
-                                                        }}
-                                                        className="px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-xl shadow-sm transition-all"
-                                                    >
-                                                        + Tambah Produk
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })()}
-                            </div>
-                        )}
+                                     return (
+                                         <div className="border border-gray-150 rounded-2xl overflow-hidden shadow-sm bg-white">
+                                             <div className="overflow-x-auto">
+                                                 <table className="w-full text-left border-collapse min-w-[600px]">
+                                                     <thead>
+                                                         <tr className="bg-gray-50/75 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                                                             <th className="p-3.5 w-12 text-center">No</th>
+                                                             <th className="p-3.5">Nama Produk</th>
+                                                             <th className="p-3.5 w-60">Foto Produk</th>
+                                                             {!readOnly && <th className="p-3.5 w-16 text-center">Aksi</th>}
+                                                         </tr>
+                                                     </thead>
+                                                     <tbody className="divide-y divide-gray-50 text-xs">
+                                                         {products.map((p, rowIdx) => (
+                                                             <tr key={rowIdx} className="hover:bg-gray-50/50 transition-colors align-top">
+                                                                 <td className="p-3.5 font-bold text-gray-400 text-center pt-5">{rowIdx + 1}</td>
+                                                                 <td className="p-3.5">
+                                                                     <input
+                                                                         type="text"
+                                                                         className="glass-input text-xs w-full py-1.5"
+                                                                         placeholder="Contoh: Kopi Bubuk"
+                                                                         value={p.nama || ''}
+                                                                         onChange={e => updateProductRow(rowIdx, 'nama', e.target.value)}
+                                                                         disabled={readOnly}
+                                                                     />
+                                                                 </td>
+                                                                 <td className="p-3.5">
+                                                                     <div className="flex flex-col gap-2">
+                                                                         {p.foto_url ? (
+                                                                             <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 p-1.5 rounded-xl border border-emerald-100 max-w-[220px]">
+                                                                                 <img 
+                                                                                     src={`${import.meta.env.VITE_API_URL}${p.foto_url}`} 
+                                                                                     alt="Product" 
+                                                                                     className="w-10 h-10 object-cover rounded-lg border border-emerald-200 shrink-0"
+                                                                                 />
+                                                                                 <span className="truncate flex-1 text-[10px] font-bold">{p.foto_url.split('/').pop()}</span>
+                                                                                 {!readOnly && (
+                                                                                     <button
+                                                                                         type="button"
+                                                                                         onClick={() => updateProductRow(rowIdx, 'foto_url', '')}
+                                                                                         className="p-1 hover:bg-emerald-100 text-red-500 rounded-lg transition-colors shrink-0"
+                                                                                     >
+                                                                                         &times;
+                                                                                     </button>
+                                                                                 )}
+                                                                             </div>
+                                                                         ) : (
+                                                                             !readOnly && (
+                                                                                 <label className="flex items-center gap-1.5 px-3 py-2 border border-dashed border-brand-200 hover:border-brand-400 bg-brand-50/30 hover:bg-brand-50/50 rounded-xl cursor-pointer transition-colors max-w-[150px] justify-center">
+                                                                                     <input
+                                                                                         type="file"
+                                                                                         className="hidden"
+                                                                                         onChange={e => e.target.files?.[0] && handleProductPhotoUpload(rowIdx, e.target.files[0])}
+                                                                                         accept="image/*"
+                                                                                     />
+                                                                                     <Upload className="w-3.5 h-3.5 text-brand-600" />
+                                                                                     <span className="text-[10px] text-brand-700 font-bold uppercase tracking-wider">Foto Produk</span>
+                                                                                 </label>
+                                                                             )
+                                                                         )}
+                                                                     </div>
+                                                                 </td>
+                                                                 {!readOnly && (
+                                                                     <td className="p-3.5 text-center pt-5">
+                                                                         <button
+                                                                             type="button"
+                                                                             onClick={() => {
+                                                                                 const newProducts = products.filter((_, i) => i !== rowIdx);
+                                                                                 updateValue(cfg.id, 'text_value', JSON.stringify(newProducts));
+                                                                             }}
+                                                                             className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                                         >
+                                                                             <Trash2 className="w-3.5 h-3.5" />
+                                                                         </button>
+                                                                     </td>
+                                                                 )}
+                                                             </tr>
+                                                         ))}
+                                                         {products.length === 0 && (
+                                                             <tr>
+                                                                 <td colSpan={readOnly ? 3 : 4} className="p-6 text-center text-gray-400 italic font-medium bg-gray-50/25">Belum ada produk ditambahkan.</td>
+                                                             </tr>
+                                                         )}
+                                                     </tbody>
+                                                 </table>
+                                             </div>
+                                             {!readOnly && (
+                                                 <div className="p-3 bg-gray-50/50 border-t border-gray-100">
+                                                     <button
+                                                         type="button"
+                                                         onClick={() => {
+                                                             const newProducts = [...products, { nama: '', foto_url: '' }];
+                                                             updateValue(cfg.id, 'text_value', JSON.stringify(newProducts));
+                                                         }}
+                                                         className="px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-xl shadow-sm transition-all"
+                                                     >
+                                                         + Tambah Produk
+                                                     </button>
+                                                 </div>
+                                             )}
+                                         </div>
+                                     );
+                                 })()}
+                             </div>
+                         )}
+
+                         {cfg.input_type === 'INGREDIENT_LIST' && (
+                             <div className="space-y-4">
+                                 {(() => {
+                                     interface IngredientItem {
+                                         nama: string;
+                                         produsen: string;
+                                         penerbit: string;
+                                         no_id: string;
+                                         tanggal: string;
+                                     }
+                                     let ingredients: IngredientItem[] = [];
+                                     try {
+                                         ingredients = values[cfg.id]?.text_value ? JSON.parse(values[cfg.id].text_value) : [];
+                                         if (!Array.isArray(ingredients)) ingredients = [];
+                                     } catch { ingredients = []; }
+
+                                     const updateIngredientRow = (rowIdx: number, fieldKey: keyof IngredientItem, fieldValue: any) => {
+                                         const newIngredients = [...ingredients];
+                                         newIngredients[rowIdx] = {
+                                             ...newIngredients[rowIdx],
+                                             [fieldKey]: fieldValue
+                                         };
+                                         updateValue(cfg.id, 'text_value', JSON.stringify(newIngredients));
+                                     };
+
+                                     return (
+                                         <div className="border border-gray-150 rounded-2xl overflow-hidden shadow-sm bg-white">
+                                             <div className="overflow-x-auto">
+                                                 <table className="w-full text-left border-collapse min-w-[700px]">
+                                                     <thead>
+                                                         <tr className="bg-gray-50/75 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                                                             <th className="p-3.5 w-12 text-center">No</th>
+                                                             <th className="p-3.5">Nama Bahan & Merk</th>
+                                                             <th className="p-3.5">Produsen</th>
+                                                             <th className="p-3.5">Penerbit Sertifikat</th>
+                                                             <th className="p-3.5">No ID SH</th>
+                                                             <th className="p-3.5">Tanggal Terbit SH</th>
+                                                             {!readOnly && <th className="p-3.5 w-16 text-center">Aksi</th>}
+                                                         </tr>
+                                                     </thead>
+                                                     <tbody className="divide-y divide-gray-50 text-xs">
+                                                         {ingredients.map((item, rowIdx) => (
+                                                             <tr key={rowIdx} className="hover:bg-gray-50/50 transition-colors align-top">
+                                                                 <td className="p-3.5 font-bold text-gray-400 text-center pt-5">{rowIdx + 1}</td>
+                                                                 <td className="p-3.5">
+                                                                     <input
+                                                                         type="text"
+                                                                         className="glass-input text-xs w-full py-1.5"
+                                                                         placeholder="Nama bahan..."
+                                                                         value={item.nama || ''}
+                                                                         onChange={e => updateIngredientRow(rowIdx, 'nama', e.target.value)}
+                                                                         disabled={readOnly}
+                                                                     />
+                                                                 </td>
+                                                                 <td className="p-3.5">
+                                                                     <input
+                                                                         type="text"
+                                                                         className="glass-input text-xs w-full py-1.5"
+                                                                         placeholder="Produsen..."
+                                                                         value={item.produsen || ''}
+                                                                         onChange={e => updateIngredientRow(rowIdx, 'produsen', e.target.value)}
+                                                                         disabled={readOnly}
+                                                                     />
+                                                                 </td>
+                                                                 <td className="p-3.5">
+                                                                     <input
+                                                                         type="text"
+                                                                         className="glass-input text-xs w-full py-1.5"
+                                                                         placeholder="Penerbit..."
+                                                                         value={item.penerbit || ''}
+                                                                         onChange={e => updateIngredientRow(rowIdx, 'penerbit', e.target.value)}
+                                                                         disabled={readOnly}
+                                                                     />
+                                                                 </td>
+                                                                 <td className="p-3.5">
+                                                                     <input
+                                                                         type="text"
+                                                                         className="glass-input text-xs w-full py-1.5"
+                                                                         placeholder="No ID SH..."
+                                                                         value={item.no_id || ''}
+                                                                         onChange={e => updateIngredientRow(rowIdx, 'no_id', e.target.value)}
+                                                                         disabled={readOnly}
+                                                                     />
+                                                                 </td>
+                                                                 <td className="p-3.5">
+                                                                     <input
+                                                                         type="text"
+                                                                         className="glass-input text-xs w-full py-1.5"
+                                                                         placeholder="Tanggal terbit..."
+                                                                         value={item.tanggal || ''}
+                                                                         onChange={e => updateIngredientRow(rowIdx, 'tanggal', e.target.value)}
+                                                                         disabled={readOnly}
+                                                                     />
+                                                                 </td>
+                                                                 {!readOnly && (
+                                                                     <td className="p-3.5 text-center pt-5">
+                                                                         <button
+                                                                             type="button"
+                                                                             onClick={() => {
+                                                                                 const newIngredients = ingredients.filter((_, i) => i !== rowIdx);
+                                                                                 updateValue(cfg.id, 'text_value', JSON.stringify(newIngredients));
+                                                                             }}
+                                                                             className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                                         >
+                                                                             <Trash2 className="w-3.5 h-3.5" />
+                                                                         </button>
+                                                                     </td>
+                                                                 )}
+                                                             </tr>
+                                                         ))}
+                                                         {ingredients.length === 0 && (
+                                                             <tr>
+                                                                 <td colSpan={readOnly ? 6 : 7} className="p-6 text-center text-gray-400 italic font-medium bg-gray-50/25">Belum ada bahan ditambahkan.</td>
+                                                             </tr>
+                                                         )}
+                                                     </tbody>
+                                                 </table>
+                                             </div>
+                                             {!readOnly && (
+                                                 <div className="p-3 bg-gray-50/50 border-t border-gray-100">
+                                                     <button
+                                                         type="button"
+                                                         onClick={() => {
+                                                             const newIngredients = [...ingredients, { nama: '', produsen: '', penerbit: '', no_id: '', tanggal: '' }];
+                                                             updateValue(cfg.id, 'text_value', JSON.stringify(newIngredients));
+                                                         }}
+                                                         className="px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-xl shadow-sm transition-all"
+                                                     >
+                                                         + Tambah Bahan
+                                                     </button>
+                                                 </div>
+                                             )}
+                                         </div>
+                                     );
+                                 })()}
+                             </div>
+                         )}
+
+                         {cfg.input_type === 'INGREDIENT_MATRIX' && (
+                             <div className="space-y-4">
+                                 {(() => {
+                                     interface MatrixItem {
+                                         nama_produk: string;
+                                         bahan: string[];
+                                     }
+                                     let items: MatrixItem[] = [];
+                                     try {
+                                         items = values[cfg.id]?.text_value ? JSON.parse(values[cfg.id].text_value) : [];
+                                         if (!Array.isArray(items)) items = [];
+                                     } catch { items = []; }
+
+                                     const updateMatrixRow = (rowIdx: number, fieldKey: keyof MatrixItem, fieldValue: any) => {
+                                         const newItems = [...items];
+                                         newItems[rowIdx] = {
+                                             ...newItems[rowIdx],
+                                             [fieldKey]: fieldValue
+                                         };
+                                         updateValue(cfg.id, 'text_value', JSON.stringify(newItems));
+                                     };
+
+                                     return (
+                                         <div className="border border-gray-150 rounded-2xl overflow-hidden shadow-sm bg-white">
+                                             <div className="overflow-x-auto">
+                                                 <table className="w-full text-left border-collapse min-w-[600px]">
+                                                     <thead>
+                                                         <tr className="bg-gray-50/75 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                                                             <th className="p-3.5 w-12 text-center">No</th>
+                                                             <th className="p-3.5 w-1/3">Nama Produk</th>
+                                                             <th className="p-3.5">Bahan Yang Digunakan</th>
+                                                             {!readOnly && <th className="p-3.5 w-16 text-center">Aksi</th>}
+                                                         </tr>
+                                                     </thead>
+                                                     <tbody className="divide-y divide-gray-50 text-xs">
+                                                         {items.map((row, rowIdx) => (
+                                                             <tr key={rowIdx} className="hover:bg-gray-50/50 transition-colors align-top">
+                                                                 <td className="p-3.5 font-bold text-gray-400 text-center pt-5">{rowIdx + 1}</td>
+                                                                 <td className="p-3.5">
+                                                                     <input
+                                                                         type="text"
+                                                                         className="glass-input text-xs w-full py-1.5"
+                                                                         placeholder="Nama produk..."
+                                                                         value={row.nama_produk || ''}
+                                                                         onChange={e => updateMatrixRow(rowIdx, 'nama_produk', e.target.value)}
+                                                                         disabled={readOnly}
+                                                                     />
+                                                                 </td>
+                                                                 <td className="p-3.5">
+                                                                     <div className="flex flex-col gap-2">
+                                                                         <div className="flex flex-wrap gap-1.5">
+                                                                             {(row.bahan || []).map((b, bIdx) => (
+                                                                                 <span key={bIdx} className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold text-[9px] uppercase tracking-wider">
+                                                                                     {b}
+                                                                                     {!readOnly && (
+                                                                                         <button
+                                                                                             type="button"
+                                                                                             onClick={() => {
+                                                                                                 const newBahan = row.bahan.filter((_, i) => i !== bIdx);
+                                                                                                 updateMatrixRow(rowIdx, 'bahan', newBahan);
+                                                                                             }}
+                                                                                             className="text-red-500 hover:text-red-700 font-bold text-xs"
+                                                                                         >
+                                                                                             &times;
+                                                                                         </button>
+                                                                                     )}
+                                                                                 </span>
+                                                                             ))}
+                                                                         </div>
+                                                                         {!readOnly && (
+                                                                             <input
+                                                                                 type="text"
+                                                                                 className="glass-input text-[10px] w-full max-w-[250px] py-1"
+                                                                                 placeholder="Tambah bahan + Enter..."
+                                                                                 onKeyDown={e => {
+                                                                                     if (e.key === 'Enter') {
+                                                                                         e.preventDefault();
+                                                                                         const val = e.currentTarget.value.trim();
+                                                                                         if (val) {
+                                                                                             const newBahan = [...(row.bahan || []), val];
+                                                                                             updateMatrixRow(rowIdx, 'bahan', newBahan);
+                                                                                             e.currentTarget.value = '';
+                                                                                         }
+                                                                                     }
+                                                                                 }}
+                                                                             />
+                                                                         )}
+                                                                     </div>
+                                                                 </td>
+                                                                 {!readOnly && (
+                                                                     <td className="p-3.5 text-center pt-5">
+                                                                         <button
+                                                                             type="button"
+                                                                             onClick={() => {
+                                                                                 const newItems = items.filter((_, i) => i !== rowIdx);
+                                                                                 updateValue(cfg.id, 'text_value', JSON.stringify(newItems));
+                                                                             }}
+                                                                             className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                                         >
+                                                                             <Trash2 className="w-3.5 h-3.5" />
+                                                                         </button>
+                                                                     </td>
+                                                                 )}
+                                                             </tr>
+                                                         ))}
+                                                         {items.length === 0 && (
+                                                             <tr>
+                                                                 <td colSpan={readOnly ? 3 : 4} className="p-6 text-center text-gray-400 italic font-medium bg-gray-50/25">Belum ada data ditambahkan.</td>
+                                                             </tr>
+                                                         )}
+                                                     </tbody>
+                                                 </table>
+                                             </div>
+                                             {!readOnly && (
+                                                 <div className="p-3 bg-gray-50/50 border-t border-gray-100">
+                                                     <button
+                                                         type="button"
+                                                         onClick={() => {
+                                                             const newItems = [...items, { nama_produk: '', bahan: [] }];
+                                                             updateValue(cfg.id, 'text_value', JSON.stringify(newItems));
+                                                         }}
+                                                         className="px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-xl shadow-sm transition-all"
+                                                     >
+                                                         + Tambah Baris
+                                                     </button>
+                                                 </div>
+                                             )}
+                                         </div>
+                                     );
+                                 })()}
+                             </div>
+                         )}
+
+                         {cfg.input_type === 'ACTIVITY_PHOTOS' && (
+                             <div className="space-y-4">
+                                 {(() => {
+                                     interface ActivityItem {
+                                         nama_kegiatan: string;
+                                         fotos: string[];
+                                     }
+                                     let items: ActivityItem[] = [];
+                                     try {
+                                         items = values[cfg.id]?.text_value ? JSON.parse(values[cfg.id].text_value) : [];
+                                         if (!Array.isArray(items)) items = [];
+                                     } catch { items = []; }
+
+                                     const updateActivityRow = (rowIdx: number, fieldKey: keyof ActivityItem, fieldValue: any) => {
+                                         const newItems = [...items];
+                                         newItems[rowIdx] = {
+                                             ...newItems[rowIdx],
+                                             [fieldKey]: fieldValue
+                                         };
+                                         updateValue(cfg.id, 'text_value', JSON.stringify(newItems));
+                                     };
+
+                                     const handleActivityPhotoUpload = async (rowIdx: number, files: FileList) => {
+                                         const newPhotos = [...(items[rowIdx]?.fotos || [])];
+                                         for (let i = 0; i < files.length; i++) {
+                                             let file = files[i];
+                                             if (file.type.startsWith('image/')) {
+                                                 try { file = await compressImage(file); } catch {}
+                                             }
+                                             if (file.size > 2 * 1024 * 1024) {
+                                                 alert("Ukuran file tidak boleh lebih dari 2MB");
+                                                 continue;
+                                             }
+                                             try {
+                                                 const formData = new FormData();
+                                                 formData.append('file', file);
+                                                 const res = await api.post(`/media/upload?subfolder=submissions`, formData);
+                                                 newPhotos.push(res.data.url);
+                                             } catch {
+                                                 alert("Gagal mengunggah foto");
+                                             }
+                                         }
+                                         updateActivityRow(rowIdx, 'fotos', newPhotos);
+                                     };
+
+                                     return (
+                                         <div className="border border-gray-150 rounded-2xl overflow-hidden shadow-sm bg-white">
+                                             <div className="overflow-x-auto">
+                                                 <table className="w-full text-left border-collapse min-w-[600px]">
+                                                     <thead>
+                                                         <tr className="bg-gray-50/75 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                                                             <th className="p-3.5 w-12 text-center">No</th>
+                                                             <th className="p-3.5 w-1/3">Nama Kegiatan</th>
+                                                             <th className="p-3.5">Foto Kegiatan</th>
+                                                             {!readOnly && <th className="p-3.5 w-16 text-center">Aksi</th>}
+                                                         </tr>
+                                                     </thead>
+                                                     <tbody className="divide-y divide-gray-50 text-xs">
+                                                         {items.map((row, rowIdx) => (
+                                                             <tr key={rowIdx} className="hover:bg-gray-50/50 transition-colors align-top">
+                                                                 <td className="p-3.5 font-bold text-gray-400 text-center pt-5">{rowIdx + 1}</td>
+                                                                 <td className="p-3.5">
+                                                                     <input
+                                                                         type="text"
+                                                                         className="glass-input text-xs w-full py-1.5"
+                                                                         placeholder="Nama kegiatan..."
+                                                                         value={row.nama_kegiatan || ''}
+                                                                         onChange={e => updateActivityRow(rowIdx, 'nama_kegiatan', e.target.value)}
+                                                                         disabled={readOnly}
+                                                                     />
+                                                                 </td>
+                                                                 <td className="p-3.5">
+                                                                     <div className="flex flex-col gap-3">
+                                                                         <div className="flex flex-wrap gap-2.5">
+                                                                             {(row.fotos || []).map((fUrl, fIdx) => (
+                                                                                 <div key={fIdx} className="relative group/photo w-20 h-20 rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-gray-50">
+                                                                                     <img
+                                                                                         src={`${import.meta.env.VITE_API_URL}${fUrl}`}
+                                                                                         alt="Kegiatan"
+                                                                                         className="w-full h-full object-cover"
+                                                                                     />
+                                                                                     {!readOnly && (
+                                                                                         <button
+                                                                                             type="button"
+                                                                                             onClick={() => {
+                                                                                                 const newPhotos = row.fotos.filter((_, i) => i !== fIdx);
+                                                                                                 updateActivityRow(rowIdx, 'fotos', newPhotos);
+                                                                                             }}
+                                                                                             className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors opacity-90"
+                                                                                         >
+                                                                                             <Trash2 className="w-3 h-3" />
+                                                                                         </button>
+                                                                                     )}
+                                                                                 </div>
+                                                                             ))}
+                                                                         </div>
+                                                                         {!readOnly && (
+                                                                             <div className="flex items-center gap-2">
+                                                                                 <label className="flex items-center gap-1.5 px-3 py-2 border border-dashed border-brand-200 hover:border-brand-400 bg-brand-50/20 hover:bg-brand-50/40 rounded-xl cursor-pointer transition-all">
+                                                                                     <input
+                                                                                         type="file"
+                                                                                         className="hidden"
+                                                                                         multiple
+                                                                                         onChange={e => e.target.files && handleActivityPhotoUpload(rowIdx, e.target.files)}
+                                                                                         accept="image/*"
+                                                                                     />
+                                                                                     <Upload className="w-3.5 h-3.5 text-brand-600" />
+                                                                                     <span className="text-[10px] text-brand-700 font-bold uppercase tracking-wider">Pilih Foto / Ambil Gambar</span>
+                                                                                 </label>
+                                                                             </div>
+                                                                         )}
+                                                                     </div>
+                                                                 </td>
+                                                                 {!readOnly && (
+                                                                     <td className="p-3.5 text-center pt-5">
+                                                                         <button
+                                                                             type="button"
+                                                                             onClick={() => {
+                                                                                 const newItems = items.filter((_, i) => i !== rowIdx);
+                                                                                 updateValue(cfg.id, 'text_value', JSON.stringify(newItems));
+                                                                             }}
+                                                                             className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                                         >
+                                                                             <Trash2 className="w-3.5 h-3.5" />
+                                                                         </button>
+                                                                     </td>
+                                                                 )}
+                                                             </tr>
+                                                         ))}
+                                                         {items.length === 0 && (
+                                                             <tr>
+                                                                 <td colSpan={readOnly ? 3 : 4} className="p-6 text-center text-gray-400 italic font-medium bg-gray-50/25">Belum ada data ditambahkan.</td>
+                                                             </tr>
+                                                         )}
+                                                     </tbody>
+                                                 </table>
+                                             </div>
+                                             {!readOnly && (
+                                                 <div className="p-3 bg-gray-50/50 border-t border-gray-100">
+                                                     <button
+                                                         type="button"
+                                                         onClick={() => {
+                                                             const newItems = [...items, { nama_kegiatan: '', fotos: [] }];
+                                                             updateValue(cfg.id, 'text_value', JSON.stringify(newItems));
+                                                         }}
+                                                         className="px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-xl shadow-sm transition-all"
+                                                     >
+                                                         + Tambah Baris
+                                                     </button>
+                                                 </div>
+                                             )}
+                                         </div>
+                                     );
+                                 })()}
+                             </div>
+                         )}
+
+                         {cfg.input_type === 'HALAL_TEAM' && (
+                             <div className="space-y-4">
+                                 {(() => {
+                                     interface HalalTeamItem {
+                                         nama: string;
+                                         jabatan: string;
+                                         posisi_tim: string;
+                                         ttd_url: string;
+                                     }
+                                     let items: HalalTeamItem[] = [];
+                                     try {
+                                         items = values[cfg.id]?.text_value ? JSON.parse(values[cfg.id].text_value) : [];
+                                         if (!Array.isArray(items)) items = [];
+                                     } catch { items = []; }
+
+                                     const updateTeamRow = (rowIdx: number, fieldKey: keyof HalalTeamItem, fieldValue: any) => {
+                                         const newItems = [...items];
+                                         newItems[rowIdx] = {
+                                             ...newItems[rowIdx],
+                                             [fieldKey]: fieldValue
+                                         };
+                                         updateValue(cfg.id, 'text_value', JSON.stringify(newItems));
+                                     };
+
+                                     const handleSignatureUpload = async (rowIdx: number, file: File) => {
+                                         let finalFile = file;
+                                         if (finalFile.type.startsWith('image/')) {
+                                             try { finalFile = await compressImage(finalFile); } catch {}
+                                         }
+                                         if (finalFile.size > 2 * 1024 * 1024) {
+                                             alert("Ukuran file tidak boleh lebih dari 2MB");
+                                             return;
+                                         }
+                                         try {
+                                             const formData = new FormData();
+                                             formData.append('file', finalFile);
+                                             const res = await api.post(`/media/upload?subfolder=submissions`, formData);
+                                             updateTeamRow(rowIdx, 'ttd_url', res.data.url);
+                                         } catch {
+                                             alert("Gagal mengunggah tanda tangan");
+                                         }
+                                     };
+
+                                     return (
+                                         <div className="border border-gray-150 rounded-2xl overflow-hidden shadow-sm bg-white">
+                                             <div className="overflow-x-auto">
+                                                 <table className="w-full text-left border-collapse min-w-[650px]">
+                                                     <thead>
+                                                         <tr className="bg-gray-50/75 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                                                             <th className="p-3.5 w-12 text-center">No</th>
+                                                             <th className="p-3.5">Nama</th>
+                                                             <th className="p-3.5">Jabatan</th>
+                                                             <th className="p-3.5">Posisi Di Tim</th>
+                                                             <th className="p-3.5 w-48">Tanda Tangan</th>
+                                                             {!readOnly && <th className="p-3.5 w-16 text-center">Aksi</th>}
+                                                         </tr>
+                                                     </thead>
+                                                     <tbody className="divide-y divide-gray-50 text-xs">
+                                                         {items.map((row, rowIdx) => (
+                                                             <tr key={rowIdx} className="hover:bg-gray-50/50 transition-colors align-top">
+                                                                 <td className="p-3.5 font-bold text-gray-400 text-center pt-5">{rowIdx + 1}</td>
+                                                                 <td className="p-3.5">
+                                                                     <input
+                                                                         type="text"
+                                                                         className="glass-input text-xs w-full py-1.5"
+                                                                         placeholder="Nama..."
+                                                                         value={row.nama || ''}
+                                                                         onChange={e => updateTeamRow(rowIdx, 'nama', e.target.value)}
+                                                                         disabled={readOnly}
+                                                                     />
+                                                                 </td>
+                                                                 <td className="p-3.5">
+                                                                     <input
+                                                                         type="text"
+                                                                         className="glass-input text-xs w-full py-1.5"
+                                                                         placeholder="Jabatan..."
+                                                                         value={row.jabatan || ''}
+                                                                         onChange={e => updateTeamRow(rowIdx, 'jabatan', e.target.value)}
+                                                                         disabled={readOnly}
+                                                                     />
+                                                                 </td>
+                                                                 <td className="p-3.5">
+                                                                     <input
+                                                                         type="text"
+                                                                         className="glass-input text-xs w-full py-1.5"
+                                                                         placeholder="Posisi di tim..."
+                                                                         value={row.posisi_tim || ''}
+                                                                         onChange={e => updateTeamRow(rowIdx, 'posisi_tim', e.target.value)}
+                                                                         disabled={readOnly}
+                                                                     />
+                                                                 </td>
+                                                                 <td className="p-3.5">
+                                                                     <div className="flex flex-col gap-1.5">
+                                                                         {row.ttd_url ? (
+                                                                             <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 p-1 rounded-lg border border-emerald-100 max-w-[200px]">
+                                                                                 <img
+                                                                                     src={`${import.meta.env.VITE_API_URL}${row.ttd_url}`}
+                                                                                     alt="Ttd"
+                                                                                     className="w-10 h-10 object-contain rounded border border-emerald-200 shrink-0 bg-white"
+                                                                                 />
+                                                                                 <span className="truncate flex-1 text-[9px] font-bold">{row.ttd_url.split('/').pop()}</span>
+                                                                                 {!readOnly && (
+                                                                                     <button
+                                                                                         type="button"
+                                                                                         onClick={() => updateTeamRow(rowIdx, 'ttd_url', '')}
+                                                                                         className="p-0.5 hover:bg-emerald-100 text-red-500 rounded transition-colors shrink-0 font-bold"
+                                                                                     >
+                                                                                         &times;
+                                                                                     </button>
+                                                                                 )}
+                                                                             </div>
+                                                                         ) : (
+                                                                             !readOnly && (
+                                                                                 <label className="flex items-center gap-1 px-2.5 py-1.5 border border-dashed border-brand-200 hover:border-brand-400 bg-brand-50/20 hover:bg-brand-50/40 rounded-xl cursor-pointer transition-colors max-w-[150px] justify-center">
+                                                                                     <input
+                                                                                         type="file"
+                                                                                         className="hidden"
+                                                                                         onChange={e => e.target.files?.[0] && handleSignatureUpload(rowIdx, e.target.files[0])}
+                                                                                         accept="image/*"
+                                                                                     />
+                                                                                     <Upload className="w-3.5 h-3.5 text-brand-600" />
+                                                                                     <span className="text-[9px] text-brand-700 font-bold uppercase tracking-wider">Ttd / Kamera</span>
+                                                                                 </label>
+                                                                             )
+                                                                         )}
+                                                                     </div>
+                                                                 </td>
+                                                                 {!readOnly && (
+                                                                     <td className="p-3.5 text-center pt-5">
+                                                                         <button
+                                                                             type="button"
+                                                                             onClick={() => {
+                                                                                 const newItems = items.filter((_, i) => i !== rowIdx);
+                                                                                 updateValue(cfg.id, 'text_value', JSON.stringify(newItems));
+                                                                             }}
+                                                                             className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                                         >
+                                                                             <Trash2 className="w-3.5 h-3.5" />
+                                                                         </button>
+                                                                     </td>
+                                                                 )}
+                                                             </tr>
+                                                         ))}
+                                                         {items.length === 0 && (
+                                                             <tr>
+                                                                 <td colSpan={readOnly ? 5 : 6} className="p-6 text-center text-gray-400 italic font-medium bg-gray-50/25">Belum ada data ditambahkan.</td>
+                                                             </tr>
+                                                         )}
+                                                     </tbody>
+                                                 </table>
+                                             </div>
+                                             {!readOnly && (
+                                                 <div className="p-3 bg-gray-50/50 border-t border-gray-100">
+                                                     <button
+                                                         type="button"
+                                                         onClick={() => {
+                                                             const newItems = [...items, { nama: '', jabatan: '', posisi_tim: '', ttd_url: '' }];
+                                                             updateValue(cfg.id, 'text_value', JSON.stringify(newItems));
+                                                         }}
+                                                         className="px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-xl shadow-sm transition-all"
+                                                     >
+                                                         + Tambah Anggota
+                                                     </button>
+                                                 </div>
+                                             )}
+                                         </div>
+                                     );
+                                 })()}
+                             </div>
+                         )}
 
                         {/* Required field warning */}
                         {cfg.is_required && !readOnly && (
@@ -663,7 +1219,7 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
                                 const isEmpty = cfg.input_type === 'FILE_UPLOAD' ? !v?.file_url
                                     : cfg.input_type === 'LINK' ? !v?.link_value 
                                     : cfg.input_type === 'REPEATER' ? (!v?.text_value || v.text_value === '[]' || v.text_value === '[""]')
-                                    : cfg.input_type === 'PRODUCT_LIST' ? (!v?.text_value || v.text_value === '[]')
+                                    : (cfg.input_type === 'PRODUCT_LIST' || cfg.input_type === 'INGREDIENT_LIST' || cfg.input_type === 'INGREDIENT_MATRIX' || cfg.input_type === 'ACTIVITY_PHOTOS' || cfg.input_type === 'HALAL_TEAM') ? (!v?.text_value || v.text_value === '[]')
                                     : !v?.text_value;
                                 return isEmpty ? (
                                     <p className="flex items-center gap-1 text-xs text-amber-600 font-medium mt-1">
