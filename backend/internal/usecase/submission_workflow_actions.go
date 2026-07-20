@@ -105,7 +105,7 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 		if nextStatus == domain.StatusWaitingPayment {
 			users, _, _ := uc.UserRepo.FindAll(map[string]interface{}{}, 1, 100)
 			for _, u := range users {
-				if u.Role.Name == "FINANCE" || u.Role.Name == "ADMIN_KEUANGAN" {
+				if u.Role.Name == "ADMIN_KEUANGAN" {
 					_ = uc.NotifUC.SendWorkflowNotification("payment_needed_internal", map[string]string{
 						"business_name": sub.Client.BusinessName,
 						"service_type":  sub.Client.ServiceType,
@@ -201,10 +201,7 @@ func (uc *submissionWorkflowUsecase) Approve(id uuid.UUID, userID uuid.UUID, use
 		return errors.New("no approval action available for current status")
 	}
 
-	// Audit Manager can only approve REGULER submissions when QC_OFFICER is required
-	isAuditManagerAllowed := userRole == "AUDIT_MANAGER" && requiredRole == "QC_OFFICER" && sub.ServiceType == "REGULER"
-
-	if userRole != requiredRole && userRole != "ADMIN" && userRole != "DIRECTOR" && !isAuditManagerAllowed {
+	if userRole != requiredRole && userRole != "ADMIN" && userRole != "DIRECTOR" {
 		return fmt.Errorf("unauthorized: role %s cannot approve in status %s", userRole, sub.Status)
 	}
 
@@ -224,7 +221,7 @@ func (uc *submissionWorkflowUsecase) Approve(id uuid.UUID, userID uuid.UUID, use
 			// Notify Finance
 			financeUsers, _, _ := uc.UserRepo.FindAll(map[string]interface{}{}, 1, 100)
 			for _, u := range financeUsers {
-				if u.Role.Name == "FINANCE" || u.Role.Name == "ADMIN_KEUANGAN" {
+				if u.Role.Name == "ADMIN_KEUANGAN" {
 					_ = uc.NotifUC.SendWorkflowNotification("payment_needed_internal", map[string]string{
 						"business_name": sub.Client.BusinessName,
 						"service_type":  sub.Client.ServiceType,
@@ -252,7 +249,7 @@ func (uc *submissionWorkflowUsecase) ApproveWithDrafter(id uuid.UUID, userID uui
 		return errors.New("assign drafter only available when status is QC_OFFICER")
 	}
 
-	if userRole != "QC_OFFICER" && userRole != "ADMIN" && userRole != "DIRECTOR" && !(userRole == "AUDIT_MANAGER" && sub.ServiceType == "REGULER") {
+	if userRole != "QC_OFFICER" && userRole != "ADMIN" && userRole != "DIRECTOR" {
 		return fmt.Errorf("unauthorized: role %s cannot assign drafter", userRole)
 	}
 
@@ -280,8 +277,8 @@ func (uc *submissionWorkflowUsecase) ApproveWithDrafter(id uuid.UUID, userID uui
 }
 
 func (uc *submissionWorkflowUsecase) BulkApproveWithDrafter(ids []uuid.UUID, userID uuid.UUID, userRole string, drafterID uuid.UUID) error {
-	if userRole != "QC_OFFICER" && userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "AUDIT_MANAGER" {
-		return errors.New("unauthorized: only QC_OFFICER/AUDIT_MANAGER can distribute submissions")
+	if userRole != "QC_OFFICER" && userRole != "ADMIN" && userRole != "DIRECTOR" {
+		return errors.New("unauthorized: only QC_OFFICER can distribute submissions")
 	}
 
 	var errs []string
@@ -304,7 +301,7 @@ func (uc *submissionWorkflowUsecase) AssignConsultant(id uuid.UUID, userID uuid.
 		return err
 	}
 
-	if userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "HALAL_MANAGER" && userRole != "HALAL_DIRECTOR" && userRole != "QC_OFFICER" && userRole != "AUDIT_MANAGER" {
+	if userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "HALAL_MANAGER" && userRole != "HALAL_DIRECTOR" && userRole != "QC_OFFICER" {
 		return errors.New("unauthorized to assign consultant")
 	}
 
@@ -513,7 +510,7 @@ func (uc *submissionWorkflowUsecase) UpdateAuditInfo(id uuid.UUID, userID uuid.U
 		return err
 	}
 
-	if userRole != "AUDIT_MANAGER" && userRole != "ADMIN" && userRole != "DIRECTOR" {
+	if userRole != "BUSINESS_DEVELOPMENT" && userRole != "ADMIN" && userRole != "DIRECTOR" {
 		return errors.New("unauthorized to update audit info")
 	}
 
@@ -569,7 +566,7 @@ func (uc *submissionWorkflowUsecase) UpdateBusinessType(id uuid.UUID, userID uui
 	}
 
 	// Permission check (same as update client)
-	canUpdate := (userRole == "ADMIN" || userRole == "DIRECTOR" || userRole == "DRAFTER" || userRole == "QC_OFFICER" || userRole == "HALAL_MANAGER" || userRole == "HALAL_DIRECTOR" || userRole == "HALAL_ADVISOR" || (userRole == "AUDIT_MANAGER" && sub.ServiceType == "REGULER"))
+	canUpdate := (userRole == "ADMIN" || userRole == "DIRECTOR" || userRole == "DRAFTER" || userRole == "QC_OFFICER" || userRole == "HALAL_MANAGER" || userRole == "HALAL_DIRECTOR" || userRole == "HALAL_ADVISOR")
 	if !canUpdate {
 		return errors.New("unauthorized to update business type")
 	}

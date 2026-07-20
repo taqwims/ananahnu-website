@@ -27,6 +27,7 @@ import { useAuthStore } from '../../store/authStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { canAccess } from '../../config/rbac';
 import Logo from '../ui/Logo';
+import { formatRoleName } from '../../utils/format';
 
 interface SidebarLink {
     name: string;
@@ -60,8 +61,7 @@ const GROUPS: SidebarGroup[] = [
             { name: 'Monitoring Drafter',     pathKey: 'monitoring',            to: '/dashboard/monitoring',            icon: Monitor },
             { name: 'Ruang Kerja Drafter',    pathKey: 'drafter-workspace',     to: '/dashboard/drafter-workspace',     icon: ShieldCheck },
             { name: 'Ruang Kerja QC',         pathKey: 'qc-workspace',          to: '/dashboard/qc-workspace',          icon: ShieldCheck },
-            { name: 'Ruang Kerja Audit Manager',pathKey: 'audit-manager-workspace', to: '/dashboard/audit-manager-workspace', icon: ShieldCheck },
-            { name: 'Halal Advisor Geo',      pathKey: 'advisors',              to: '/dashboard/advisors',              icon: UsersRound },
+            { name: 'Jaringan Halal Advisor', pathKey: 'advisors',              to: '/dashboard/advisors',              icon: UsersRound },
             { name: 'Monitoring Draft',       pathKey: 'draft-monitoring',      to: '/dashboard/draft-monitoring',      icon: BarChart3 },
             { name: 'Profil Advisor',         pathKey: 'consultant-profile',    to: '/dashboard/consultant-profile',    icon: UserCheck },
             { name: 'Jenjang Karir',          pathKey: 'karir',                 to: '/dashboard/karir',                 icon: Award },
@@ -99,7 +99,7 @@ const GROUPS: SidebarGroup[] = [
         name: 'Keuangan',
         links: [
             { name: 'Dashboard Keuangan',  pathKey: 'finance',               to: '/dashboard/finance',               icon: Wallet },
-            { name: 'Pengaturan Fee',      pathKey: 'fee-config',            to: '/dashboard/fee-config',            icon: DollarSign },
+            { name: 'Pengaturan Komisi dan Insentif', pathKey: 'fee-config',  to: '/dashboard/fee-config',           icon: DollarSign },
         ],
     },
     {
@@ -110,43 +110,53 @@ const GROUPS: SidebarGroup[] = [
     },
 ];
 
-const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) => {
-    const logout = useAuthStore(state => state.logout);
-    const user = useAuthStore(state => state.user);
-    const role = user?.role ?? '';
+interface SidebarProps {
+    isOpen: boolean;
+    toggle: () => void;
+}
+
+const Sidebar = ({ isOpen, toggle }: SidebarProps) => {
+    const { user, logout } = useAuthStore();
+    const role = user?.role || '';
 
     const handleLogout = () => {
-        const isClient = role === 'CLIENT';
         logout();
-        if (isClient) {
-            const telemarketingUrl = window.location.hostname === 'localhost'
-                ? 'http://localhost:5174'
-                : 'https://telemarketing.halalcore.id';
-            window.location.replace(`${telemarketingUrl}/login`);
+    };
+
+    const getLinkName = (link: SidebarLink) => {
+        const isHalalAgency = role === 'HALAL_ADVISOR' || role === 'HALAL_MANAGER' || role === 'HALAL_DIRECTOR';
+        if (isHalalAgency) {
+            if (link.pathKey === 'advisors') return 'Jaringan Halal Advisor';
+            if (link.pathKey === 'referrals') return 'Insentif Saya';
         }
+        return link.name;
     };
 
     return (
         <>
-            {/* Mobile Overlay */}
+            {/* Overlay */}
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
                         initial={{ opacity: 0 }}
-                        animate={{ opacity: 0.5 }}
+                        animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={toggle}
-                        className="fixed inset-0 bg-black z-40 lg:hidden"
+                        className="fixed inset-0 z-40 bg-gray-900/30 backdrop-blur-sm lg:hidden"
                     />
                 )}
             </AnimatePresence>
 
-            {/* Sidebar Container */}
+            {/* Sidebar */}
             <motion.div
-                className={`fixed lg:static inset-y-0 left-0 z-50 w-64 glass-panel m-0 lg:m-4 lg:rounded-xl transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
-                style={{ borderRight: '1px solid rgba(255,255,255,0.4)' }}
+                className={`
+                    fixed inset-y-0 left-0 z-50 flex w-72 flex-col
+                    border-r border-glass-border bg-white/80 backdrop-blur-md transition-all duration-300
+                    lg:static lg:translate-x-0
+                    ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+                `}
             >
-                <div className="h-full flex flex-col">
+                <div className="flex h-full flex-col">
                     {/* Logo */}
                     <div className="p-6 border-b border-glass-border flex items-center justify-between">
                         <Logo size="sm" className="!items-start" />
@@ -171,7 +181,7 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
                             </div>
                             <div className="min-w-0">
                                 <p className="text-sm font-bold text-gray-800 truncate">{user.full_name}</p>
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">{role.replace(/_/g, ' ')}</p>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">{formatRoleName(role)}</p>
                             </div>
                         </div>
                     )}
@@ -202,7 +212,7 @@ const Sidebar = ({ isOpen, toggle }: { isOpen: boolean; toggle: () => void }) =>
                                                 `}
                                             >
                                                 <link.icon className="w-5 h-5" />
-                                                <span className="truncate">{link.name}</span>
+                                                <span className="truncate">{getLinkName(link)}</span>
                                             </NavLink>
                                         ))}
                                     </div>

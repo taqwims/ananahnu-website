@@ -33,7 +33,7 @@ func NewBillingHandler(r *gin.Engine, bUC usecase.BillingUsecase, pUC usecase.Pa
 		
 		// Admin/Finance access
 		adminOnly := g.Group("")
-		adminOnly.Use(middleware.RoleMiddleware("DIRECTOR", "FINANCE", "ADMIN_KEUANGAN"))
+		adminOnly.Use(middleware.RoleMiddleware("DIRECTOR", "ADMIN_KEUANGAN"))
 		{
 			adminOnly.GET("/all-invoices", handler.GetAllInvoices)
 			adminOnly.PUT("/:id/mark-paid", handler.MarkInvoicePaid)
@@ -46,7 +46,7 @@ func NewBillingHandler(r *gin.Engine, bUC usecase.BillingUsecase, pUC usecase.Pa
 		
 		// Admin/Finance only for configs
 		adminGroup := g.Group("/configs")
-		adminGroup.Use(middleware.RoleMiddleware("DIRECTOR", "FINANCE"))
+		adminGroup.Use(middleware.RoleMiddleware("DIRECTOR", "ADMIN_KEUANGAN"))
 		{
 			adminGroup.GET("", handler.GetPaymentConfigs)
 			adminGroup.POST("", handler.CreatePaymentConfig)

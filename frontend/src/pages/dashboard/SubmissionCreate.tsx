@@ -18,6 +18,11 @@ export default function SubmissionCreate() {
         handleFileUpload,
         handleSave,
         businessTypes,
+        productCategories,
+        businessScales,
+        provinces,
+        regencies,
+        districts,
         navigate
     } = useSubmissionCreate();
 
@@ -47,6 +52,11 @@ export default function SubmissionCreate() {
                         clientData={clientData}
                         setClientData={setClientData}
                         businessTypes={businessTypes}
+                        productCategories={productCategories}
+                        businessScales={businessScales}
+                        provinces={provinces}
+                        regencies={regencies}
+                        districts={districts}
                     />
 
                     <div className="block md:hidden">

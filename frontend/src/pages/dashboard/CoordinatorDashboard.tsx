@@ -1,4 +1,4 @@
-import { UsersRound, User as UserIcon } from 'lucide-react';
+import { UsersRound } from 'lucide-react';
 import { useCoordinatorDashboard } from '../../hooks/useCoordinatorDashboard';
 import { DashboardStats } from '../../components/dashboard/coordinator/DashboardStats';
 import { DashboardTabs } from '../../components/dashboard/coordinator/DashboardTabs';
@@ -60,9 +60,9 @@ export default function CoordinatorDashboard() {
                     transition={{ duration: 0.3 }}
                 >
                     {activeTab === 'team' && (
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                            <div className="lg:col-span-4 space-y-6">
-                                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Roster Advisor</h3>
+                        <div className="space-y-6">
+                            <div>
+                                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1 mb-4">Roster Advisor</h3>
                                 <TeamMemberList 
                                     members={teamMembers}
                                     profiles={profiles}
@@ -71,26 +71,14 @@ export default function CoordinatorDashboard() {
                                 />
                             </div>
 
-                            <div className="lg:col-span-8">
-                                {!selectedMember ? (
-                                    <div className="glass-panel h-[600px] flex flex-col items-center justify-center text-center p-12 bg-gray-50/30 border-dashed border-2 border-gray-200">
-                                        <div className="p-8 bg-white rounded-[2.5rem] shadow-sm mb-8">
-                                            <UserIcon className="w-16 h-16 text-gray-200" />
-                                        </div>
-                                        <h3 className="text-2xl font-black text-gray-800">Pilih Anggota Tim</h3>
-                                        <p className="text-gray-500 max-w-sm mt-3 font-medium">
-                                            Klik salah satu nama advisor di samping untuk melihat riwayat pelatihan, portofolio klien, dan dokumen administrasi.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <MemberDetails 
-                                        profile={getMemberProfile(selectedMember.id)}
-                                        trainings={memberTrainings}
-                                        clients={memberClients}
-                                        loadingDetail={loadingDetail}
-                                    />
-                                )}
-                            </div>
+                            {selectedMember && (
+                                <MemberDetails 
+                                    profile={getMemberProfile(selectedMember.id)}
+                                    trainings={memberTrainings}
+                                    clients={memberClients}
+                                    loadingDetail={loadingDetail}
+                                />
+                            )}
                         </div>
                     )}
 

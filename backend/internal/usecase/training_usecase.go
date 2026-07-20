@@ -85,6 +85,15 @@ func (uc *trainingUsecase) GetUserTrainings(userID uuid.UUID) ([]domain.Training
 }
 
 func (uc *trainingUsecase) AddParticipant(trainingID int64, userID uuid.UUID) error {
+	// Validate training is not expired
+	training, err := uc.TrainingRepo.FindByID(trainingID)
+	if err != nil {
+		return errors.New("pelatihan tidak ditemukan")
+	}
+	if time.Now().After(training.EndDate) {
+		return errors.New("pelatihan sudah kadaluarsa, tidak dapat menambah peserta")
+	}
+
 	p := &domain.TrainingParticipant{
 		TrainingID: trainingID,
 		UserID:     userID,

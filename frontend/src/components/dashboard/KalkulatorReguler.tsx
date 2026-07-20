@@ -49,7 +49,6 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     // Quantities
     const [branchCount, setBranchCount] = useState(1);
     const [productCount, setProductCount] = useState(1);
-    const [mandays, setMandays] = useState(1);
     const [optionalQuantities, setOptionalQuantities] = useState<Record<number, number>>({});
 
     // Optional costs
@@ -181,7 +180,6 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                     
                     setBranchCount(detailRes.data.branch_count || 1);
                     setProductCount(detailRes.data.product_count || 1);
-                    setMandays(detailRes.data.mandays || 1);
 
                     if (detailRes.data.cost_breakdown_data) {
                         try {
@@ -306,13 +304,8 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 multiplier = branchCount;
                 multiplierLabel = ` (${branchCount} Cabang)`;
             } else if (comp.type === 'PER_MANDAY') {
-                if (!comp.is_mandatory) {
-                    multiplier = optionalQuantities[comp.id] || 1;
-                    multiplierLabel = ` (${multiplier} Kuantitas)`;
-                } else {
-                    multiplier = mandays;
-                    multiplierLabel = ` (${mandays} Kuantitas)`;
-                }
+                multiplier = optionalQuantities[comp.id] || 1;
+                multiplierLabel = ` (${multiplier} Kuantitas)`;
             } else if (comp.type === 'PER_PRODUK') {
                 multiplier = productCount;
                 multiplierLabel = ` (${productCount} Produk)`;
@@ -506,7 +499,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         });
 
         return { total: currentTotal, breakdown: currentBreakdown };
-    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, mandays, optionalQuantities, productCount, selectedOptionalComponentIds, isFormFieldFilled]);
+    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, optionalQuantities, productCount, selectedOptionalComponentIds, isFormFieldFilled]);
 
     const handleSave = async () => {
         setSaving(true);
@@ -520,7 +513,6 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             district_id: parseInt(districtId) || null,
             product_count: productCount,
             branch_count: branchCount,
-            mandays: mandays,
             total_amount: total,
             cost_breakdown_data: JSON.stringify(breakdown)
         };
@@ -661,8 +653,8 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                         </div>
                     )}
 
-                    {/* Quantities (Branch, Manday, Product) */}
-                    <div className="grid grid-cols-3 gap-4 border-t border-gray-100 pt-5">
+                    {/* Quantities (Branch, Product) */}
+                    <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-5">
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Jumlah Cabang</label>
                             <input
@@ -682,17 +674,6 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                                 className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500/20"
                                 value={productCount}
                                 onChange={e => setProductCount(Math.max(1, parseInt(e.target.value) || 1))}
-                                disabled={!isEditable}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Kuantitas / Volume Utama</label>
-                            <input
-                                type="number"
-                                min="1"
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500/20"
-                                value={mandays}
-                                onChange={e => setMandays(Math.max(1, parseInt(e.target.value) || 1))}
                                 disabled={!isEditable}
                             />
                         </div>

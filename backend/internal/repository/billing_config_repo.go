@@ -226,7 +226,7 @@ func (r *billingConfigRepo) SaveSubmissionCostDetail(detail *domain.SubmissionCo
 		DoUpdates: clause.AssignmentColumns([]string{
 			"product_category_id", "business_type_id", "business_scale_id",
 			"province_id", "regency_id", "district_id",
-			"product_count", "branch_count", "mandays", "total_amount", "cost_breakdown_data", "updated_at",
+			"product_count", "branch_count", "total_amount", "cost_breakdown_data", "updated_at",
 		}),
 	}).Create(detail).Error
 }
@@ -243,4 +243,32 @@ func (r *billingConfigRepo) GetSubmissionCostDetail(submissionID uuid.UUID) (*do
 		return nil, err
 	}
 	return &detail, nil
+}
+
+// RoleSchemeMapping CRUD
+func (r *billingConfigRepo) FindAllRoleSchemeMappings() ([]domain.RoleSchemeMapping, error) {
+	var mappings []domain.RoleSchemeMapping
+	err := r.db.Preload("SalesScheme").Order("role_name").Find(&mappings).Error
+	return mappings, err
+}
+
+func (r *billingConfigRepo) FindRoleSchemeMappingByRole(roleName string) (*domain.RoleSchemeMapping, error) {
+	var mapping domain.RoleSchemeMapping
+	err := r.db.Preload("SalesScheme").Where("role_name = ?", roleName).First(&mapping).Error
+	if err != nil {
+		return nil, err
+	}
+	return &mapping, nil
+}
+
+func (r *billingConfigRepo) CreateRoleSchemeMapping(m *domain.RoleSchemeMapping) error {
+	return r.db.Create(m).Error
+}
+
+func (r *billingConfigRepo) UpdateRoleSchemeMapping(m *domain.RoleSchemeMapping) error {
+	return r.db.Save(m).Error
+}
+
+func (r *billingConfigRepo) DeleteRoleSchemeMapping(id int64) error {
+	return r.db.Delete(&domain.RoleSchemeMapping{}, id).Error
 }

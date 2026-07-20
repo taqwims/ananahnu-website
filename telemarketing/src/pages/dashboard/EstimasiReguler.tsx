@@ -46,7 +46,7 @@ export default function EstimasiReguler() {
     // Quantities
     const [branchCount, setBranchCount] = useState(1);
     const [productCount, setProductCount] = useState(1);
-    const [mandays, setMandays] = useState(1);
+    const [optionalQuantities, setOptionalQuantities] = useState<Record<number, number>>({});
 
     // Optional costs
     const [optionalCosts, setOptionalCosts] = useState<OptionalCost[]>([]);
@@ -279,8 +279,8 @@ export default function EstimasiReguler() {
                 multiplier = branchCount;
                 multiplierLabel = ` (${branchCount} Cabang)`;
             } else if (comp.type === 'PER_MANDAY') {
-                multiplier = mandays;
-                multiplierLabel = ` (${mandays} Manday)`;
+                multiplier = optionalQuantities[comp.id] || 1;
+                multiplierLabel = ` (${multiplier} Kuantitas)`;
             } else if (comp.type === 'PER_PRODUK') {
                 multiplier = productCount;
                 multiplierLabel = ` (${productCount} Produk)`;
@@ -332,8 +332,8 @@ export default function EstimasiReguler() {
                 multiplier = branchCount;
                 multiplierLabel = ` (${branchCount} Cabang)`;
             } else if (comp.type === 'PER_MANDAY') {
-                multiplier = mandays;
-                multiplierLabel = ` (${mandays} Manday)`;
+                multiplier = optionalQuantities[comp.id] || 1;
+                multiplierLabel = ` (${multiplier} Kuantitas)`;
             } else if (comp.type === 'PER_PRODUK') {
                 multiplier = productCount;
                 multiplierLabel = ` (${productCount} Produk)`;
@@ -372,7 +372,7 @@ export default function EstimasiReguler() {
         });
 
         return { total: currentTotal, breakdown: currentBreakdown };
-    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, mandays, productCount, selectedOptionalComponentIds]);
+    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, optionalQuantities, productCount, selectedOptionalComponentIds]);
 
     const handleDownloadPDF = () => {
         const printWindow = window.open('', '_blank');
@@ -447,7 +447,6 @@ export default function EstimasiReguler() {
                         <div class="details-row"><span>Sumber Data:</span><span>${dataSource === 'MARKETING' ? 'Marketing (Partner)' : 'Organik'}</span></div>
                         <div class="details-row"><span>Jumlah Cabang:</span><span>${branchCount}</span></div>
                         <div class="details-row"><span>Jumlah Produk:</span><span>${productCount}</span></div>
-                        <div class="details-row"><span>Jumlah Manday:</span><span>${mandays}</span></div>
                     </div>
                 </div>
 
@@ -635,8 +634,8 @@ export default function EstimasiReguler() {
                             </div>
                         )}
 
-                        {/* Quantities */}
-                        <div className="grid grid-cols-3 gap-3 border-t border-gray-100 pt-3.5">
+                        {/* Quantities (Branch, Product) */}
+                        <div className="grid grid-cols-2 gap-3 border-t border-gray-150 pt-3">
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Jumlah Cabang</label>
                                 <input
@@ -655,16 +654,6 @@ export default function EstimasiReguler() {
                                     className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
                                     value={productCount}
                                     onChange={e => setProductCount(Math.max(1, parseInt(e.target.value) || 1))}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Jumlah Manday</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
-                                    value={mandays}
-                                    onChange={e => setMandays(Math.max(1, parseInt(e.target.value) || 1))}
                                 />
                             </div>
                         </div>
@@ -693,6 +682,24 @@ export default function EstimasiReguler() {
                                                         className="w-3.5 h-3.5 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
                                                     />
                                                     <div className="flex-1 text-gray-700 font-medium text-[11px]">{comp.name}</div>
+                                                    {isChecked && comp.type === 'PER_MANDAY' && (
+                                                        <div className="flex items-center gap-1 mt-0.5 mb-0.5">
+                                                            <span className="text-[9px] text-gray-400 font-semibold">Qty:</span>
+                                                            <input
+                                                                type="number"
+                                                                min={1}
+                                                                className="w-10 px-1 py-0 border border-gray-200 rounded text-[10px] text-center font-bold outline-none"
+                                                                value={optionalQuantities[comp.id] || 1}
+                                                                onChange={e => {
+                                                                    const val = Math.max(1, parseInt(e.target.value) || 1);
+                                                                    setOptionalQuantities({
+                                                                        ...optionalQuantities,
+                                                                        [comp.id]: val
+                                                                    });
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    )}
                                                     <div className="text-[10px] text-gray-500 font-bold">{formatCurrency(comp.base_amount)}</div>
                                                 </label>
                                             );

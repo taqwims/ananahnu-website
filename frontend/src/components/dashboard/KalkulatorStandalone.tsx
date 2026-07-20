@@ -56,7 +56,6 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
     // Quantities
     const [branchCount, setBranchCount] = useState(1);
     const [productCount, setProductCount] = useState(1);
-    const [mandays, setMandays] = useState(1);
     const [optionalQuantities, setOptionalQuantities] = useState<Record<number, number>>({});
 
     // Optional costs
@@ -252,13 +251,8 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                 multiplier = branchCount;
                 multiplierLabel = ` (${branchCount} Cabang)`;
             } else if (comp.type === 'PER_MANDAY') {
-                if (!comp.is_mandatory) {
-                    multiplier = optionalQuantities[comp.id] || 1;
-                    multiplierLabel = ` (${multiplier} Kuantitas)`;
-                } else {
-                    multiplier = mandays;
-                    multiplierLabel = ` (${mandays} Kuantitas)`;
-                }
+                multiplier = optionalQuantities[comp.id] || 1;
+                multiplierLabel = ` (${multiplier} Kuantitas)`;
             } else if (comp.type === 'PER_PRODUK') {
                 multiplier = productCount;
                 multiplierLabel = ` (${productCount} Produk)`;
@@ -443,7 +437,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
         });
 
         return { total: currentTotal, breakdown: currentBreakdown };
-    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, mandays, optionalQuantities, productCount, selectedOptionalComponentIds]);
+    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, optionalQuantities, productCount, selectedOptionalComponentIds]);
 
     const handleDownloadPDF = () => {
         const printWindow = window.open('', '_blank');
@@ -522,7 +516,6 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                         <div class="details-row"><span>Sumber Data:</span><span>${dataSource === 'MARKETING' ? 'Marketing (Partner)' : 'Organik'}</span></div>
                         <div class="details-row"><span>Jumlah Cabang:</span><span>${branchCount}</span></div>
                         <div class="details-row"><span>Jumlah Produk:</span><span>${productCount}</span></div>
-                        ${!isAdvisorOrManager ? `<div class="details-row"><span>Jumlah Manday:</span><span>${mandays}</span></div>` : ''}
                     </div>
                 </div>
 
@@ -577,7 +570,6 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                 district_id: parseInt(districtId) || null,
                 product_count: productCount,
                 branch_count: branchCount,
-                mandays: mandays,
                 total_amount: total,
                 breakdown
             };
@@ -740,8 +732,8 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                         </div>
                     )}
 
-                    {/* Quantities */}
-                    <div className={`grid ${isAdvisorOrManager ? 'grid-cols-2' : 'grid-cols-3'} gap-3 border-t border-gray-100 pt-3.5`}>
+                    {/* Quantities (Branch, Product) */}
+                    <div className="grid grid-cols-2 gap-3 border-t border-gray-150 pt-3">
                         <div>
                             <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Jumlah Cabang</label>
                             <input
@@ -762,18 +754,6 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                                 onChange={e => setProductCount(Math.max(1, parseInt(e.target.value) || 1))}
                             />
                         </div>
-                        {!isAdvisorOrManager && (
-                            <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Kuantitas / Volume Utama</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
-                                    value={mandays}
-                                    onChange={e => setMandays(Math.max(1, parseInt(e.target.value) || 1))}
-                                />
-                            </div>
-                        )}
                     </div>
 
                     {/* Optional Components */}

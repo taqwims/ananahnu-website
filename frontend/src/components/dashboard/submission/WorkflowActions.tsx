@@ -48,11 +48,11 @@ export const WorkflowActions = ({
     });
 
     useEffect(() => {
-        if (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'AUDIT_MANAGER')) {
+        if (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) {
             submissionService.getDrafters().then(setDrafters).catch(() => toast.error('Gagal memuat data drafter'));
         }
         if ((submission.data_source === 'MARKETING' || submission.data_source === 'TELEMARKETING' || !submission.consultant_id) && 
-            (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER' || user?.role === 'AUDIT_MANAGER')) {
+            (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER')) {
             submissionService.getConsultants(submission.province_id || '', submission.regency_id || '')
                 .then(res => {
                     if (res && res.length > 0) {
@@ -145,13 +145,13 @@ export const WorkflowActions = ({
 
     const showApprove = ((submission.status === 'VERVAL_PENDAMPING' && (user?.role === 'HALAL_ADVISOR' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'WAITING_PAYMENT' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
-                        (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'AUDIT_MANAGER' && submission.service_type === 'REGULER'))) ||
+                        (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'DRAFTER' && (user?.role === 'DRAFTER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
-                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'AUDIT_MANAGER' && submission.service_type === 'REGULER'))));
+                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')));
 
-    const showReject = ((submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'AUDIT_MANAGER' && submission.service_type === 'REGULER'))) ||
+    const showReject = ((submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'DRAFTER' && user?.role === 'DRAFTER') ||
-                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'AUDIT_MANAGER' && submission.service_type === 'REGULER'))) ||
+                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'SIDANG_FATWA' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR')));
 
     const handleDownload = async (format: 'docx' | 'pdf') => {
@@ -204,8 +204,8 @@ export const WorkflowActions = ({
                     {(submission.status === 'DRAFTER' || submission.status === 'QC_REVIEW') && 
                         submission.service_type === 'REGULER' && (
                         <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 space-y-3">
-                                {/* Only show date inputs to AUDIT_MANAGER / ADMIN / DIRECTOR */}
-                                {(user?.role === 'AUDIT_MANAGER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
+                                {/* Only show date inputs to BUSINESS_DEVELOPMENT / ADMIN / DIRECTOR */}
+                                {(user?.role === 'BUSINESS_DEVELOPMENT' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
                                     <>
                                         <label className="flex items-center gap-2 text-sm font-black text-amber-800 tracking-tight">
                                             📅 Input Tanggal Audit
@@ -248,13 +248,13 @@ export const WorkflowActions = ({
                                     </div>
                                 ) : (
                                     <div className="mt-2 text-center text-xs font-bold text-amber-700 bg-amber-100/50 p-3 rounded-lg">
-                                        Jadwal audit belum ditetapkan oleh Audit Manager.
+                                        Jadwal audit belum ditetapkan oleh Marketing & BD Manager.
                                     </div>
                                 )}
                         </div>
                     )}
 
-                    {submission.status === 'QC_OFFICER' && !submission.consultant_id && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER' || (user?.role === 'AUDIT_MANAGER' && submission.service_type === 'REGULER')) && (
+                    {submission.status === 'QC_OFFICER' && !submission.consultant_id && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER') && (
                         <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 space-y-3">
                             <label className="flex items-center gap-2 text-sm font-black text-purple-800 tracking-tight">
                                 <UserCheck className="w-4 h-4" /> Penunjukan Advisor
@@ -279,7 +279,7 @@ export const WorkflowActions = ({
                         </div>
                     )}
 
-                    {submission.status === 'QC_OFFICER' && submission.consultant_id && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || (user?.role === 'AUDIT_MANAGER' && submission.service_type === 'REGULER')) && (
+                    {submission.status === 'QC_OFFICER' && submission.consultant_id && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
                         <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-2">
                             <label className="flex items-center gap-2 text-sm font-semibold text-blue-800">
                                 <UserCheck className="w-4 h-4" /> Pilih Drafter

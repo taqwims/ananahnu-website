@@ -1,5 +1,6 @@
 import { Edit, Trash2, Key, Users, Loader2 } from 'lucide-react';
 import type { User } from '../../../types';
+import { formatRoleName } from '../../../utils/format';
 
 interface UserTableProps {
     users: User[];
@@ -38,7 +39,6 @@ export const UserTable = ({
             DRAFTER: 'bg-indigo-100 text-indigo-700',
             ADMIN_PELATIHAN: 'bg-teal-100 text-teal-700',
             ADMIN_KEUANGAN: 'bg-yellow-100 text-yellow-700',
-            FINANCE: 'bg-yellow-100 text-yellow-700',
             CLIENT: 'bg-gray-100 text-gray-700',
         };
         return colors[name] || 'bg-gray-100 text-gray-700';
@@ -74,7 +74,7 @@ export const UserTable = ({
                                     <td className="p-4 text-gray-600 text-xs font-medium">{user.phone || '-'}</td>
                                     <td className="p-4">
                                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(user.role)}`}>
-                                            {getRoleName(user.role).replace(/_/g, ' ')}
+                                            {formatRoleName(getRoleName(user.role))}
                                         </span>
                                     </td>
                                     <td className="p-4 text-gray-500 text-xs">

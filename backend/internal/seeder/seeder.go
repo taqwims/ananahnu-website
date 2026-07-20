@@ -73,6 +73,7 @@ func PerformResetAndSeed(db *gorm.DB) error {
 		&domain.SystemSetting{},
 		&domain.Commission{},
 		&domain.PromotionRequest{},
+		&domain.RoleSchemeMapping{},
 	)
 	if err != nil {
 		return err
@@ -83,8 +84,8 @@ func PerformResetAndSeed(db *gorm.DB) error {
 	// 3. Seed Roles
 	roles := []string{
 		"DIRECTOR", "MANAGER", "QC_OFFICER", "DRAFTER",
-		"HALAL_ADVISOR", "MARKETING", "AUDIT_MANAGER",
-		"CLIENT", "FINANCE",
+		"HALAL_ADVISOR", "MARKETING",
+		"CLIENT",
 		"HALAL_MANAGER", "HALAL_DIRECTOR", "ADMIN_PELATIHAN", "ADMIN_KEUANGAN",
 		"BUSINESS_DEVELOPMENT", "DRAFT_MANAGER",
 		"TELEMARKETER", "VERIFIKATOR",
@@ -444,6 +445,16 @@ func seedKalkulatorData(db *gorm.DB) {
 		if err != nil {
 			db.Create(&prices[i])
 		}
+	}
+
+	// 8. Seed Role-Scheme Mappings
+	defaultMappings := []domain.RoleSchemeMapping{
+		{RoleName: "MARKETING", SalesSchemeID: 2},
+		{RoleName: "TELEMARKETING", SalesSchemeID: 2},
+		{RoleName: "HALAL_ADVISOR", SalesSchemeID: 1},
+	}
+	for _, m := range defaultMappings {
+		db.Where("role_name = ?", m.RoleName).FirstOrCreate(&m)
 	}
 }
 

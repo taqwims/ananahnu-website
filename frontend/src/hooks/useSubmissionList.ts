@@ -127,7 +127,9 @@ export const useSubmissionList = () => {
                 s.id.toLowerCase().includes(search.toLowerCase()) ||
                 s.client?.client_name?.toLowerCase().includes(search.toLowerCase()) ||
                 s.client?.facilitator?.full_name.toLowerCase().includes(search.toLowerCase()) ||
-                s.client?.facilitator?.leader?.full_name.toLowerCase().includes(search.toLowerCase());
+                s.client?.facilitator?.leader?.full_name.toLowerCase().includes(search.toLowerCase()) ||
+                s.service_type?.toLowerCase().includes(search.toLowerCase()) ||
+                s.business_type?.name?.toLowerCase().includes(search.toLowerCase());
             const matchStatus = statusFilter === '' || s.status === statusFilter;
             return matchSearch && matchStatus;
         });

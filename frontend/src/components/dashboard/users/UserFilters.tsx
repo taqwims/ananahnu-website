@@ -1,6 +1,8 @@
 import { Search, Filter } from 'lucide-react';
 import type { Role } from '../../../types';
 
+import { formatRoleName } from '../../../utils/format';
+
 interface UserFiltersProps {
     search: string;
     setSearch: (s: string) => void;
@@ -39,7 +41,7 @@ export const UserFilters = ({
                 >
                     <option value="">Semua Role</option>
                     {roles.map(r => (
-                        <option key={r.id} value={r.id}>{r.name.replace(/_/g, ' ')}</option>
+                        <option key={r.id} value={r.id}>{formatRoleName(r.name)}</option>
                     ))}
                 </select>
             </div>

@@ -6,7 +6,7 @@ import { BillingComponentForm } from '../../components/dashboard/billing/Billing
 import { BillingComponentTable } from '../../components/dashboard/billing/BillingComponentTable';
 import { MasterDataManagement } from '../../components/dashboard/billing/MasterDataManagement';
 import { SelfDeclareRates } from '../../components/dashboard/billing/SelfDeclareRates';
-import { SchemePricesPanel } from '../../components/dashboard/billing/SchemePricesPanel';
+import { RoleSchemePanel } from '../../components/dashboard/billing/RoleSchemePanel';
 import CoordinatorRates from './CoordinatorRates';
 
 export default function BillingConfigAdmin() {
@@ -131,12 +131,9 @@ export default function BillingConfigAdmin() {
                 />
             )}
 
-            {activeMainTab === 'scheme_prices' && (
-                <SchemePricesPanel
+            {activeMainTab === 'role_scheme' && (
+                <RoleSchemePanel
                     schemes={schemes}
-                    businessTypes={businessTypes}
-                    products={products}
-                    scales={scales}
                 />
             )}
 

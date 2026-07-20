@@ -3,7 +3,7 @@ import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { Target, Award, Briefcase, FileText, CheckCircle, Clock, XCircle, AlertCircle } from 'lucide-react';
-import { formatRupiah } from '../../utils/format';
+import { formatRupiah, formatRoleName } from '../../utils/format';
 
 interface PromotionRequest {
     id: number;
@@ -156,11 +156,11 @@ export default function KarirDashboard() {
                         <Award className="w-24 h-24 text-brand-600" />
                     </div>
                     <h3 className="text-brand-900 font-bold mb-1">Jabatan Saat Ini</h3>
-                    <div className="text-3xl font-black text-brand-600 mb-4">{user?.role?.replace(/_/g, ' ')}</div>
+                    <div className="text-3xl font-black text-brand-600 mb-4">{formatRoleName(user?.role || '')}</div>
                     <div className="space-y-2 mt-6">
                         <div className="flex justify-between text-sm">
                             <span className="text-brand-700 font-medium">Target Promosi Berikutnya:</span>
-                            <span className="font-bold text-brand-900">{(stats?.target_role ?? '—').replace(/_/g, ' ')}</span>
+                            <span className="font-bold text-brand-900">{formatRoleName(stats?.target_role ?? '—')}</span>
                         </div>
                     </div>
                 </div>
@@ -252,7 +252,7 @@ export default function KarirDashboard() {
                 <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
                     <h3 className="font-bold text-gray-900 mb-2 flex items-center gap-2">
                         <Briefcase className="w-5 h-5 text-gray-400" />
-                        Ajukan Promosi ke {(stats.target_role).replace(/_/g, ' ')}
+                        Ajukan Promosi ke {formatRoleName(stats.target_role)}
                     </h3>
                     <p className="text-sm text-gray-500 mb-6">
                         Selamat! Anda telah memenuhi semua persyaratan dasar. Silakan lengkapi formulir di bawah untuk mengajukan assessment pelatihan.
@@ -317,7 +317,7 @@ export default function KarirDashboard() {
                                 {requests.map(req => (
                                     <tr key={req.id}>
                                         <td className="px-6 py-4">{new Date(req.created_at).toLocaleDateString('id-ID')}</td>
-                                        <td className="px-6 py-4 font-bold text-gray-900">{req.target_role.replace(/_/g, ' ')}</td>
+                                        <td className="px-6 py-4 font-bold text-gray-900">{formatRoleName(req.target_role)}</td>
                                         <td className="px-6 py-4">{getStatusBadge(req.status)}</td>
                                         <td className="px-6 py-4">
                                             {req.certificate_url ? (

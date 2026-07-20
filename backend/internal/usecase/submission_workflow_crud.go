@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -149,9 +150,9 @@ func (uc *submissionWorkflowUsecase) CreateDraft(clientID *uuid.UUID, businessNa
 	var defaultSalesSchemeID int64 = 1
 	creator, err := uc.UserRepo.FindByID(facilitatorID)
 	if err == nil && creator != nil {
-		// If the user's role is MARKETING, assign Partnership/B2B (scheme ID 2)
-		if creator.Role.Name == "MARKETING" {
-			defaultSalesSchemeID = 2
+		mapping, mapErr := uc.BillingConfigRepo.FindRoleSchemeMappingByRole(creator.Role.Name)
+		if mapErr == nil && mapping != nil {
+			defaultSalesSchemeID = mapping.SalesSchemeID
 		}
 	}
 
@@ -227,26 +228,43 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 	}
 
 	var defaultSalesSchemeID int64 = 1
-	if userRole == "MARKETING" {
-		defaultSalesSchemeID = 2
+	{
+		mapping, mapErr := uc.BillingConfigRepo.FindRoleSchemeMappingByRole(userRole)
+		if mapErr == nil && mapping != nil {
+			defaultSalesSchemeID = mapping.SalesSchemeID
+		}
 	}
 
 	// 2. Create Submission
 	sub := &domain.Submission{
-		ID:             uuid.New(),
-		ClientID:       client.ID,
-		Status:         domain.StatusDraft,
-		ServiceType:    input.ClientData.ServiceType,
-		DataSource:     dataSource,
-		ConsultantID:   consultantIDPtr,
-		BusinessTypeID: input.ClientData.BusinessTypeID,
-		SalesSchemeID:  &defaultSalesSchemeID,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		ID:                uuid.New(),
+		ClientID:          client.ID,
+		Status:            domain.StatusDraft,
+		ServiceType:       input.ClientData.ServiceType,
+		DataSource:        dataSource,
+		ConsultantID:      consultantIDPtr,
+		BusinessTypeID:    input.ClientData.BusinessTypeID,
+		ProductCategoryID: input.ClientData.ProductCategoryID,
+		BusinessScaleID:   input.ClientData.BusinessScaleID,
+		ProvinceID:        input.ClientData.ProvinceID,
+		RegencyID:         input.ClientData.RegencyID,
+		DistrictID:        input.ClientData.DistrictID,
+		ProductCount:      input.ClientData.ProductCount,
+		BranchCount:       input.ClientData.BranchCount,
+		SalesSchemeID:     &defaultSalesSchemeID,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
 	}
 
 	if err := uc.SubmissionRepo.Create(sub); err != nil {
 		return nil, fmt.Errorf("failed to create submission: %w", err)
+	}
+
+	// Recalculate cost if REGULER or SELF_DECLARE_MANDIRI
+	if sub.ServiceType == "REGULER" || sub.ServiceType == "SELF_DECLARE_MANDIRI" {
+		if err := uc.recalculateAndSaveRegularCost(sub, nil, false); err != nil {
+			log.Printf("[CreateFull] failed to calculate regular cost: %v", err)
+		}
 	}
 
 	if userRole == "CLIENT" {
@@ -368,7 +386,6 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 	sub.DistrictID = input.DistrictID
 	sub.ProductCount = input.ProductCount
 	sub.BranchCount = input.BranchCount
-	sub.Mandays = input.Mandays
 	sub.SalesSchemeID = input.SalesSchemeID
 	if input.DataSource != "" {
 		sub.DataSource = input.DataSource
@@ -597,18 +614,13 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 			multiplierLabel = fmt.Sprintf(" (%d Produk)", sub.ProductCount)
 		}
 		if comp.Type == "PER_MANDAY" {
-			if !comp.IsMandatory {
-				prevMult := getMultiplierFromBreakdown(existingBreakdown, comp.Name)
-				if prevMult > 0 {
-					multiplier = prevMult
-				}
-				multiplierLabel = fmt.Sprintf(" (%d Kuantitas)", multiplier)
-				amount = amount * float64(multiplier)
-			} else if sub.Mandays > 1 {
-				amount = amount * float64(sub.Mandays)
-				multiplier = sub.Mandays
-				multiplierLabel = fmt.Sprintf(" (%d Kuantitas)", sub.Mandays)
+			// All PER_MANDAY components use per-component multiplier from breakdown
+			prevMult := getMultiplierFromBreakdown(existingBreakdown, comp.Name)
+			if prevMult > 0 {
+				multiplier = prevMult
 			}
+			multiplierLabel = fmt.Sprintf(" (%d Kuantitas)", multiplier)
+			amount = amount * float64(multiplier)
 		}
 
 		discountAmount := 0.0
@@ -691,7 +703,6 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 		DistrictID:        sub.DistrictID,
 		ProductCount:      sub.ProductCount,
 		BranchCount:       sub.BranchCount,
-		Mandays:           sub.Mandays,
 		TotalAmount:       total,
 		CostBreakdownData: string(jsonBreakdown),
 	}

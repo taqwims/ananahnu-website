@@ -16,7 +16,7 @@ type BillingConfigHandler struct {
 }
 
 // Role yang boleh mengelola konfigurasi billing
-var billingConfigAdminRoles = []string{"DIRECTOR", "MANAGER", "FINANCE", "ADMIN_KEUANGAN"}
+var billingConfigAdminRoles = []string{"DIRECTOR", "MANAGER", "ADMIN_KEUANGAN"}
 
 func NewBillingConfigHandler(r *gin.Engine, uc usecase.BillingConfigUsecase) {
 	handler := &BillingConfigHandler{uc: uc}
@@ -62,6 +62,12 @@ func NewBillingConfigHandler(r *gin.Engine, uc usecase.BillingConfigUsecase) {
 			adminOnly.DELETE("/scheme-prices/:id", handler.DeleteSalesSchemePrice)
 
 			adminOnly.POST("/coordinator-rates", handler.SaveCoordinatorRate)
+
+			// RoleSchemeMapping CRUD
+			g.GET("/role-scheme-mappings", handler.GetRoleSchemeMappings)
+			adminOnly.POST("/role-scheme-mappings", handler.CreateRoleSchemeMapping)
+			adminOnly.PUT("/role-scheme-mappings/:id", handler.UpdateRoleSchemeMapping)
+			adminOnly.DELETE("/role-scheme-mappings/:id", handler.DeleteRoleSchemeMapping)
 		}
 	}
 
@@ -422,7 +428,7 @@ func (h *BillingConfigHandler) SaveSubmissionCost(c *gin.Context) {
 	}
 	
 	role := middleware.GetUserRole(c)
-	if role != "FINANCE" && role != "ADMIN_KEUANGAN" && role != "ADMIN" && role != "DIRECTOR" && role != "HALAL_ADVISOR" && role != "MARKETING" && role != "HALAL_MANAGER" {
+	if role != "ADMIN_KEUANGAN" && role != "ADMIN" && role != "DIRECTOR" && role != "HALAL_ADVISOR" && role != "MARKETING" && role != "HALAL_MANAGER" {
 		c.JSON(http.StatusForbidden, gin.H{"error": "only authorized staff can set costs"})
 		return
 	}
@@ -538,3 +544,63 @@ func (h *BillingConfigHandler) DeleteSalesSchemePrice(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"deleted": true})
 }
+
+// --- RoleSchemeMapping Handlers ---
+
+func (h *BillingConfigHandler) GetRoleSchemeMappings(c *gin.Context) {
+	data, err := h.uc.GetRoleSchemeMappings()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func (h *BillingConfigHandler) CreateRoleSchemeMapping(c *gin.Context) {
+	var input domain.RoleSchemeMapping
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.uc.CreateRoleSchemeMapping(&input); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, input)
+}
+
+func (h *BillingConfigHandler) UpdateRoleSchemeMapping(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var input domain.RoleSchemeMapping
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	input.ID = id
+	if err := h.uc.UpdateRoleSchemeMapping(&input); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, input)
+}
+
+func (h *BillingConfigHandler) DeleteRoleSchemeMapping(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	if err := h.uc.DeleteRoleSchemeMapping(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"deleted": true})
+}
+

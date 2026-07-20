@@ -59,8 +59,17 @@ export const useReferralDashboard = () => {
         }
     }, [updateUser]);
 
-    const referralCommissions = useMemo(() => commissions.filter(c => c.type === 'REFERRAL' || !c.type), [commissions]);
-    const structuralCommissions = useMemo(() => commissions.filter(c => c.type === 'STRUCTURAL'), [commissions]);
+    const directSalesCommissions = useMemo(() => commissions.filter(c => c.type === 'DIRECT_SALES'), [commissions]);
+    const referralCommissions = useMemo(() => commissions.filter(c => c.type === 'REFERRAL'), [commissions]);
+    const overrideSelfDeclareCommissions = useMemo(() => commissions.filter(c => c.type === 'OVERRIDE' && (c.submission?.service_type === 'SELF_DECLARE' || c.submission?.service_type === 'SELF_DECLARE_MANDIRI')), [commissions]);
+    const overrideRegulerCommissions = useMemo(() => commissions.filter(c => c.type === 'OVERRIDE' && c.submission?.service_type !== 'SELF_DECLARE' && c.submission?.service_type !== 'SELF_DECLARE_MANDIRI'), [commissions]);
+
+    const directSalesStats = useMemo(() => {
+        const totalIncentive = directSalesCommissions.reduce((sum, c) => sum + c.amount, 0);
+        const paidCount = directSalesCommissions.filter(c => c.status === 'PAID').length;
+        const pendingCount = directSalesCommissions.filter(c => c.status === 'PENDING').length;
+        return { totalIncentive, paidCount, pendingCount };
+    }, [directSalesCommissions]);
 
     const referralStats = useMemo(() => {
         const totalIncentive = referralCommissions.reduce((sum, c) => sum + c.amount, 0);
@@ -75,29 +84,35 @@ export const useReferralDashboard = () => {
         };
     }, [referrals, referralCommissions]);
 
-    const structuralStats = useMemo(() => {
-        const totalIncentive = structuralCommissions.reduce((sum, c) => sum + c.amount, 0);
-        const paidCount = structuralCommissions.filter(c => c.status === 'PAID').length;
-        const pendingCount = structuralCommissions.filter(c => c.status === 'PENDING').length;
-        
-        return {
-            totalIncentive,
-            paidCount,
-            pendingCount
-        };
-    }, [structuralCommissions]);
+    const overrideSelfDeclareStats = useMemo(() => {
+        const totalIncentive = overrideSelfDeclareCommissions.reduce((sum, c) => sum + c.amount, 0);
+        const paidCount = overrideSelfDeclareCommissions.filter(c => c.status === 'PAID').length;
+        const pendingCount = overrideSelfDeclareCommissions.filter(c => c.status === 'PENDING').length;
+        return { totalIncentive, paidCount, pendingCount };
+    }, [overrideSelfDeclareCommissions]);
+
+    const overrideRegulerStats = useMemo(() => {
+        const totalIncentive = overrideRegulerCommissions.reduce((sum, c) => sum + c.amount, 0);
+        const paidCount = overrideRegulerCommissions.filter(c => c.status === 'PAID').length;
+        const pendingCount = overrideRegulerCommissions.filter(c => c.status === 'PENDING').length;
+        return { totalIncentive, paidCount, pendingCount };
+    }, [overrideRegulerCommissions]);
 
     return {
         user,
         referrals,
+        directSalesCommissions,
         referralCommissions,
-        structuralCommissions,
+        overrideSelfDeclareCommissions,
+        overrideRegulerCommissions,
         isLoading,
         copied,
         handleCopy,
         refreshReferralCode,
         isRefreshing,
+        directSalesStats,
         referralStats,
-        structuralStats
+        overrideSelfDeclareStats,
+        overrideRegulerStats
     };
 };

@@ -44,7 +44,6 @@ type Submission struct {
 	BusinessScaleID     *int64           `json:"business_scale_id,omitempty"`
 	ProductCount        int              `gorm:"default:1" json:"product_count"`
 	BranchCount         int              `gorm:"default:1" json:"branch_count"`
-	Mandays             int              `gorm:"default:1" json:"mandays"`
 	RejectNote          string           `json:"reject_note,omitempty"`
 	TrackingNumber      *string          `gorm:"uniqueIndex" json:"tracking_number,omitempty"`
 	ContractNumber      *string          `gorm:"uniqueIndex" json:"contract_number,omitempty"`

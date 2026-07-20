@@ -7,6 +7,7 @@ import FileUpload from '../../components/dashboard/FileUpload';
 import type { Province, Regency } from '../../types';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
+import { formatRoleName } from '../../utils/format';
 
 const DOCUMENTS = [
     { key: 'ktp_url', label: 'KTP', required: true },
@@ -411,7 +412,7 @@ export default function ProfilePage() {
                             </div>
                             <div>
                                 <h3 className="font-black text-gray-800">{user?.full_name}</h3>
-                                <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1">{user?.role?.replace(/_/g, ' ')}</p>
+                                <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1">{formatRoleName(user?.role || '')}</p>
                             </div>
                         </div>
 

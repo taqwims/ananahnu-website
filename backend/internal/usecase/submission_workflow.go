@@ -43,6 +43,14 @@ type CreateFullInput struct {
 		ContactPerson string `json:"contact_person"`
 		Phone          string `json:"phone"`
 		BusinessTypeID *int64 `json:"business_type_id"`
+		// Pricing fields
+		ProductCategoryID *int64 `json:"product_category_id"`
+		BusinessScaleID   *int64 `json:"business_scale_id"`
+		ProvinceID        *int64 `json:"province_id"`
+		RegencyID         *int64 `json:"regency_id"`
+		DistrictID        *int64 `json:"district_id"`
+		ProductCount      int    `json:"product_count"`
+		BranchCount       int    `json:"branch_count"`
 	} `json:"client_data"`
 	FieldValues []FieldValueInput `json:"field_values"`
 }
@@ -68,7 +76,6 @@ type UpdateClientInfoAndPricingInput struct {
 	DistrictID        *int64 `json:"district_id"`
 	ProductCount      int    `json:"product_count"`
 	BranchCount       int    `json:"branch_count"`
-	Mandays           int    `json:"mandays"`
 	SalesSchemeID     *int64 `json:"sales_scheme_id"`
 	DataSource        string `json:"data_source"`
 	SelectedOptionalComponentIDs *[]int64 `json:"selected_optional_component_ids"`

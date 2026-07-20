@@ -1,5 +1,6 @@
 import Modal from '../../ui/Modal';
 import type { Role, User } from '../../../types';
+import { formatRoleName } from '../../../utils/format';
 
 interface UserFormModalProps {
     isOpen: boolean;
@@ -29,17 +30,19 @@ export const UserFormModal = ({
             isOpen={isOpen} 
             onClose={onClose}
             title={editingUser ? 'Edit User' : 'Tambah User Baru'}
-            maxWidth="lg"
+            maxWidth="md"
         >
-            <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-6">
+                <p className="text-sm text-gray-500">Isi data akun berikut dengan lengkap</p>
+                <div className="grid grid-cols-1 gap-4">
                     <div>
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Nama Lengkap</label>
                         <input
                             className="glass-input w-full"
+                            type="text"
                             value={formData.full_name}
                             onChange={e => setFormData({ ...formData, full_name: e.target.value })}
-                            placeholder="Nama lengkap"
+                            placeholder="Contoh: Budi Santoso"
                         />
                     </div>
                     <div>
@@ -49,28 +52,20 @@ export const UserFormModal = ({
                             type="email"
                             value={formData.email}
                             onChange={e => setFormData({ ...formData, email: e.target.value })}
-                            placeholder="email@example.com"
+                            placeholder="Contoh: budi@mail.com"
                         />
                     </div>
                     <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Nomor WhatsApp</label>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">No. Telepon / WA</label>
                         <input
                             className="glass-input w-full"
+                            type="text"
                             value={formData.phone}
                             onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                            placeholder="0812xxxx"
+                            placeholder="Contoh: 08123456789"
                         />
                     </div>
                     <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Alamat Domisili</label>
-                        <input
-                            className="glass-input w-full"
-                            value={formData.address}
-                            onChange={e => setFormData({ ...formData, address: e.target.value })}
-                            placeholder="Kota, Provinsi"
-                        />
-                    </div>
-                    <div className="sm:col-span-2">
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
                             Password {editingUser && '(Kosongkan jika tidak ingin mengubah)'}
                         </label>
@@ -91,7 +86,7 @@ export const UserFormModal = ({
                         >
                             <option value="">-- Pilih Role --</option>
                             {roles.map(r => (
-                                <option key={r.id} value={r.name}>{r.name.replace(/_/g, ' ')}</option>
+                                <option key={r.id} value={r.name}>{formatRoleName(r.name)}</option>
                             ))}
                         </select>
                     </div>

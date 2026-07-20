@@ -19,7 +19,7 @@ func NewFinanceHandler(r *gin.Engine, uc usecase.FinanceUsecase) {
 	h := &financeHandler{uc: uc}
 
 	g := r.Group("/finance", middleware.AuthMiddleware(),
-		middleware.RoleMiddleware("DIRECTOR", "ADMIN_KEUANGAN", "FINANCE"),
+		middleware.RoleMiddleware("DIRECTOR", "ADMIN_KEUANGAN"),
 	)
 	{
 		g.GET("/dashboard", h.GetDashboard)

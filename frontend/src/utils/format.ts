@@ -35,3 +35,15 @@ export const formatDate = (dateStr: string) => {
         year: 'numeric'
     });
 };
+
+export const formatRoleName = (role: string): string => {
+    if (!role) return '';
+    const labels: Record<string, string> = {
+        'BUSINESS_DEVELOPMENT': 'Marketing & BD Manager',
+        'DRAFT_MANAGER': 'Operasional Manager',
+        'DRAFTER': 'HDO (Halal Documentation Officer)',
+        'ADMIN_KEUANGAN': 'Finance & Legal',
+        'ADMIN_PELATIHAN': 'Training & Recruitment',
+    };
+    return labels[role.toUpperCase()] || role.replace(/_/g, ' ');
+};

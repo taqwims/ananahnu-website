@@ -27,8 +27,8 @@ const ReferralFeeAdmin = () => {
         <div className="max-w-7xl mx-auto p-6 space-y-10 pb-20">
             <div className="flex justify-between items-start">
                 <div>
-                    <h1 className="text-3xl font-black text-gray-900 tracking-tight">Manajemen Fee Referral</h1>
-                    <p className="text-gray-500 font-medium mt-1">Konfigurasi besaran komisi dan audit pembayaran mitra referral</p>
+                    <h1 className="text-3xl font-black text-gray-900 tracking-tight">Pengaturan Komisi dan Insentif</h1>
+                    <p className="text-gray-500 font-medium mt-1">Konfigurasi besaran komisi, insentif, dan audit pembayaran mitra</p>
                 </div>
             </div>
 

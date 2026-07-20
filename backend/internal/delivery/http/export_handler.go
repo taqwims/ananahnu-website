@@ -15,10 +15,10 @@ type ExportHandler struct {
 func NewExportHandler(r *gin.Engine, uc usecase.ExportUsecase) {
 	handler := &ExportHandler{exportUC: uc}
 
-	// Fix: dilindungi auth, hanya DIRECTOR/MANAGER/FINANCE/ADMIN_KEUANGAN
+	// Fix: dilindungi auth, hanya DIRECTOR/MANAGER/ADMIN_KEUANGAN
 	r.GET("/reports/export",
 		middleware.AuthMiddleware(),
-		middleware.RoleMiddleware("DIRECTOR", "MANAGER", "FINANCE", "ADMIN_KEUANGAN"),
+		middleware.RoleMiddleware("DIRECTOR", "MANAGER", "ADMIN_KEUANGAN"),
 		handler.Export,
 	)
 }

@@ -61,10 +61,10 @@ export default function FeeConfigAdmin() {
             <div>
                 <h1 className="text-2xl font-black text-gray-800 flex items-center gap-3">
                     <Settings className="w-7 h-7 text-brand-500" />
-                    Pengaturan Fee & Komisi
+                    Pengaturan Komisi dan Insentif
                 </h1>
                 <p className="text-sm text-gray-500 mt-1">
-                    Atur persentase fee referral dan komisi. Perubahan berlaku untuk transaksi baru.
+                    Atur persentase komisi dan insentif. Perubahan berlaku untuk transaksi baru.
                 </p>
             </div>
 

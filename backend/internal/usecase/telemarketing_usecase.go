@@ -620,7 +620,6 @@ func (uc *telemarketingUsecase) GenerateClientAccount(formID uuid.UUID, telemark
 			ProvinceID:      &form.ProvinceID,
 			BranchCount:     form.BranchCount,
 			ProductCount:    1,
-			Mandays:         1,
 			CreatedAt:       time.Now(),
 			UpdatedAt:       time.Now(),
 		}

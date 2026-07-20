@@ -87,6 +87,7 @@ func main() {
 		&domain.PaymentConfig{},
 		// Dynamic Cost/Billing
 		&domain.SalesScheme{},
+		&domain.RoleSchemeMapping{},
 		&domain.BusinessType{},
 		&domain.ProductCategory{},
 		&domain.BusinessScale{},
@@ -115,8 +116,8 @@ func main() {
 	log.Println("Seeding Roles...")
 	roles := []string{
 		"DIRECTOR", "MANAGER", "QC_OFFICER", "DRAFTER",
-		"HALAL_ADVISOR", "MARKETING", "AUDIT_MANAGER",
-		"CLIENT", "FINANCE",
+		"HALAL_ADVISOR", "MARKETING",
+		"CLIENT",
 		"HALAL_MANAGER", "HALAL_DIRECTOR", "ADMIN_PELATIHAN", "ADMIN_KEUANGAN",
 		"BUSINESS_DEVELOPMENT", "DRAFT_MANAGER",
 		"TELEMARKETER",

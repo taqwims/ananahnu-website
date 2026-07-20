@@ -23,7 +23,7 @@ export const DocumentList = ({
     defaultCollapsed = false
 }: DocumentListProps) => {
     const serviceType = submission.service_type || submission.client?.service_type || '';
-    const canEdit = (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_ADVISOR' || user?.role === 'DRAFTER' || user?.role === 'QC_OFFICER' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'MARKETING' || (user?.role === 'AUDIT_MANAGER' && serviceType === 'REGULER') || (user?.role === 'CLIENT' && (submission.status === 'DRAFT' || submission.status === 'REVISION')));
+    const canEdit = (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_ADVISOR' || user?.role === 'DRAFTER' || user?.role === 'QC_OFFICER' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'MARKETING' || (user?.role === 'BUSINESS_DEVELOPMENT' && serviceType === 'REGULER') || (user?.role === 'CLIENT' && (submission.status === 'DRAFT' || submission.status === 'REVISION')));
 
     const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
     const [activeStepIdx, setActiveStepIdx] = useState(0);

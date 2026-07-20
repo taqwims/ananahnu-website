@@ -179,16 +179,32 @@ export default function MyInvoices() {
                             : 'Daftar tagihan sertifikasi (Self Declare Fasilitasi (Gratis)) yang perlu dilunasi.'}
                     </p>
                 </div>
-                {selectedIds.length > 0 && (
-                    <button
-                        onClick={handlePay}
-                        disabled={paying}
-                        className="glass-button bg-brand-600 text-white flex items-center gap-2 px-6 py-3 shadow-lg shadow-brand-200 hover:scale-105 active:scale-95 transition-all"
-                    >
-                        {paying ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
-                        Bayar Kolektif ({selectedIds.length} SH) - {formatRupiah(totalSelected)}
-                    </button>
-                )}
+                <div className="flex items-center gap-3">
+                    {invoices.length > 0 && (
+                        <button
+                            onClick={() => {
+                                setSelectedIds(invoices.map(i => i.id));
+                                // Small delay so state updates before paying
+                                setTimeout(() => handlePay(), 100);
+                            }}
+                            disabled={paying || invoices.length === 0}
+                            className="glass-button bg-emerald-600 text-white flex items-center gap-2 px-5 py-2.5 shadow-lg shadow-emerald-200 hover:scale-105 active:scale-95 transition-all text-sm font-bold disabled:opacity-50"
+                        >
+                            {paying ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                            Bayar Semua ({invoices.length}) - {formatRupiah(invoices.reduce((s, i) => s + i.amount, 0))}
+                        </button>
+                    )}
+                    {selectedIds.length > 0 && (
+                        <button
+                            onClick={handlePay}
+                            disabled={paying}
+                            className="glass-button bg-brand-600 text-white flex items-center gap-2 px-6 py-3 shadow-lg shadow-brand-200 hover:scale-105 active:scale-95 transition-all"
+                        >
+                            {paying ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
+                            Bayar Kolektif ({selectedIds.length} SH) - {formatRupiah(totalSelected)}
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="glass-panel overflow-hidden">

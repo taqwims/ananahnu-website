@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Logo from '../ui/Logo';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import { formatRoleName } from '../../utils/format';
 
 const TELEMARKETING_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:5174'
@@ -169,7 +170,7 @@ export default function PublicLayout() {
                                         </div>
                                         <div>
                                             <p className="text-sm font-bold text-gray-800 truncate">{user.full_name}</p>
-                                            <p className="text-xs text-gray-400 truncate">{user.role?.replace(/_/g, ' ')}</p>
+                                            <p className="text-xs text-gray-400 truncate">{formatRoleName(user.role || '')}</p>
                                         </div>
                                     </div>
                                     <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-600 hover:bg-brand-50">Dashboard</Link>

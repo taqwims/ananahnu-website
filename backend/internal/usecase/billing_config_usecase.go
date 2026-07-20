@@ -48,6 +48,12 @@ type BillingConfigUsecase interface {
 	// Coordinator Rates
 	GetCoordinatorRates() ([]domain.CoordinatorRate, error)
 	SetCoordinatorRate(rate *domain.CoordinatorRate) error
+
+	// RoleSchemeMapping CRUD
+	GetRoleSchemeMappings() ([]domain.RoleSchemeMapping, error)
+	CreateRoleSchemeMapping(m *domain.RoleSchemeMapping) error
+	UpdateRoleSchemeMapping(m *domain.RoleSchemeMapping) error
+	DeleteRoleSchemeMapping(id int64) error
 }
 
 type BillingConfigUsecaseDeps struct {
@@ -194,4 +200,18 @@ func (uc *billingConfigUsecase) GetCoordinatorRates() ([]domain.CoordinatorRate,
 
 func (uc *billingConfigUsecase) SetCoordinatorRate(rate *domain.CoordinatorRate) error {
 	return uc.RateRepo.Save(rate)
+}
+
+// RoleSchemeMapping
+func (uc *billingConfigUsecase) GetRoleSchemeMappings() ([]domain.RoleSchemeMapping, error) {
+	return uc.Repo.FindAllRoleSchemeMappings()
+}
+func (uc *billingConfigUsecase) CreateRoleSchemeMapping(m *domain.RoleSchemeMapping) error {
+	return uc.Repo.CreateRoleSchemeMapping(m)
+}
+func (uc *billingConfigUsecase) UpdateRoleSchemeMapping(m *domain.RoleSchemeMapping) error {
+	return uc.Repo.UpdateRoleSchemeMapping(m)
+}
+func (uc *billingConfigUsecase) DeleteRoleSchemeMapping(id int64) error {
+	return uc.Repo.DeleteRoleSchemeMapping(id)
 }

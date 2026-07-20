@@ -121,7 +121,7 @@ func (uc *financeUsecase) GetDashboard(month, year int) (*FinanceDashboardData, 
 				dashboard.IncomeReguler += inv.Amount
 			}
 			dashboard.CountReguler++
-		case "SELF_DECLARE":
+		case "SELF_DECLARE", "SELF_DECLARE_MANDIRI":
 			if inv.Amount > 0 {
 				if inv.Status == domain.InvoiceStatusPaid {
 					dashboard.IncomeSelfDeclarePaid += inv.Amount
@@ -244,10 +244,10 @@ func (uc *financeUsecase) GetFeeConfig() ([]FeeConfigItem, error) {
 		Label string
 		Default float64
 	}{
-		{"fee_referral_percent", "Fee Referral (%)", 1.0},
-		{"fee_override_percent", "Fee Override Halal Manager (%)", 5.0},
-		{"fee_direct_sales_percent", "Fee Insentif Pendampingan (%)", 25.0},
-		{"fee_structural_percent", "Fee Struktural Upline Advisor (%)", 1.0},
+		{"fee_direct_sales_percent", "Komisi Pendamping (%)", 25.0},
+		{"fee_referral_percent", "Insentif Referral (%)", 1.0},
+		{"fee_override_percent", "Insentif Override Reguler (%)", 5.0},
+		{"fee_override_self_declare", "Insentif Override Self Declare (Rp / Flat)", 15000.0},
 		{"fee_director_percent", "Fee Halal Director (%)", 2.5},
 	}
 
@@ -396,7 +396,9 @@ func (uc *financeUsecase) SendCommissionSlipWA(commissionID uuid.UUID) error {
 }
 
 func (uc *financeUsecase) GetAgentList(page, limit int) ([]domain.User, int64, error) {
-	return uc.UserRepo.FindAll(map[string]interface{}{"role_name": "HALAL_ADVISOR"}, page, limit)
+	return uc.UserRepo.FindAll(map[string]interface{}{
+		"roles": []string{"HALAL_ADVISOR", "HALAL_MANAGER", "HALAL_DIRECTOR"},
+	}, page, limit)
 }
 
 func (uc *financeUsecase) GetClientList(page, limit int) ([]domain.Client, int64, error) {

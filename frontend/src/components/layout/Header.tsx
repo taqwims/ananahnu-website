@@ -4,6 +4,8 @@ import NotificationDropdown from '../dashboard/NotificationDropdown';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { formatRoleName } from '../../utils/format';
+
 const Header = ({ toggleSidebar }: { toggleSidebar: () => void }) => {
     const logout = useAuthStore(state => state.logout);
     const user = useAuthStore(state => state.user);
@@ -46,7 +48,7 @@ const Header = ({ toggleSidebar }: { toggleSidebar: () => void }) => {
                     >
                         <div className="text-right hidden sm:block group-hover:opacity-80 transition-opacity">
                             <p className="text-sm font-medium text-gray-900">{user?.full_name || 'Guest'}</p>
-                            <p className="text-xs text-gray-500 uppercase">{user?.role?.replace(/_/g, ' ') || 'Visitor'}</p>
+                            <p className="text-xs text-gray-500 uppercase">{formatRoleName(user?.role || '') || 'Visitor'}</p>
                         </div>
                         <div className="w-10 h-10 bg-brand-600 rounded-full flex items-center justify-center border-2 border-white shadow-sm group-hover:scale-105 transition-transform overflow-hidden">
                             {user?.avatar_url ? (

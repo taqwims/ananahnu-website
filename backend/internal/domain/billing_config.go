@@ -120,7 +120,6 @@ type SubmissionCostDetail struct {
 	
 	ProductCount      int             `json:"product_count"`
 	BranchCount       int             `json:"branch_count"`
-	Mandays           int             `json:"mandays"`
 	TotalAmount       float64         `json:"total_amount"`
 	
 	// Storing a JSON blob of the detailed breakdown to freeze the cost calculation history
@@ -128,6 +127,17 @@ type SubmissionCostDetail struct {
 	
 	CreatedAt         time.Time       `json:"created_at"`
 	UpdatedAt         time.Time       `json:"updated_at"`
+}
+
+// RoleSchemeMapping maps a user role to a default sales scheme.
+// When a user with a given role creates a submission, the system auto-assigns the mapped scheme.
+type RoleSchemeMapping struct {
+	ID            int64       `gorm:"primaryKey" json:"id"`
+	RoleName      string      `gorm:"not null;uniqueIndex" json:"role_name"` // e.g. "HALAL_ADVISOR", "MARKETING"
+	SalesSchemeID int64       `gorm:"not null" json:"sales_scheme_id"`
+	SalesScheme   SalesScheme `gorm:"foreignKey:SalesSchemeID" json:"sales_scheme,omitempty"`
+	CreatedAt     time.Time   `json:"created_at"`
+	UpdatedAt     time.Time   `json:"updated_at"`
 }
 
 // BillingConfigRepository Interface
@@ -156,7 +166,6 @@ type BillingConfigRepository interface {
 	UpdateBusinessScale(bs *BusinessScale) error
 	DeleteBusinessScale(id int64) error
 
-
 	// BillingComponent CRUD (filter supports: type, category, business_type_id, product_category_id)
 	FindAllBillingComponents(filter map[string]interface{}) ([]BillingComponent, error)
 	CreateBillingComponent(bc *BillingComponent) error
@@ -168,6 +177,13 @@ type BillingConfigRepository interface {
 	CreateSalesSchemePrice(sp *SalesSchemePrice) error
 	UpdateSalesSchemePrice(sp *SalesSchemePrice) error
 	DeleteSalesSchemePrice(id int64) error
+
+	// RoleSchemeMapping CRUD
+	FindAllRoleSchemeMappings() ([]RoleSchemeMapping, error)
+	FindRoleSchemeMappingByRole(roleName string) (*RoleSchemeMapping, error)
+	CreateRoleSchemeMapping(m *RoleSchemeMapping) error
+	UpdateRoleSchemeMapping(m *RoleSchemeMapping) error
+	DeleteRoleSchemeMapping(id int64) error
 
 	// SubmissionCostDetail (For Drafter saving calculation)
 	SaveSubmissionCostDetail(detail *SubmissionCostDetail) error

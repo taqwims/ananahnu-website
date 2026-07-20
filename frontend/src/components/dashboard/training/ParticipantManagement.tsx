@@ -10,6 +10,7 @@ interface ParticipantManagementProps {
     onAdd: () => void;
     onUpdateStatus: (userId: string, status: string) => void;
     canGraduate?: boolean;
+    isExpired?: boolean;
 }
 
 export const ParticipantManagement = ({
@@ -20,7 +21,8 @@ export const ParticipantManagement = ({
     setNewUserId,
     onAdd,
     onUpdateStatus,
-    canGraduate
+    canGraduate,
+    isExpired
 }: ParticipantManagementProps) => {
     return (
         <div className="space-y-4">
@@ -29,29 +31,36 @@ export const ParticipantManagement = ({
             </h3>
 
             {/* Add Participant */}
-            <div className="flex flex-col sm:flex-row gap-2">
-                <div className="flex-1 relative">
-                    <select
-                        className="glass-input text-sm w-full"
-                        value={newUserId}
-                        onChange={e => setNewUserId(e.target.value)}
-                    >
-                        <option value="">-- Pilih Peserta --</option>
-                        {allUsers.map(u => (
-                            <option key={u.id} value={u.id}>
-                                {u.full_name} ({u.role?.name || u.role})
-                            </option>
-                        ))}
-                    </select>
+            {isExpired ? (
+                <div className="bg-amber-50 border border-amber-200 text-amber-700 p-4 rounded-xl text-sm font-medium flex items-center gap-2">
+                    <Clock className="w-4 h-4 shrink-0" />
+                    Pelatihan ini sudah kadaluarsa. Tidak dapat menambah peserta baru.
                 </div>
-                <button 
-                    onClick={onAdd} 
-                    disabled={!newUserId}
-                    className="glass-button text-sm flex items-center justify-center gap-1 bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50"
-                >
-                    <Plus className="w-4 h-4" /> Tambah Peserta
-                </button>
-            </div>
+            ) : (
+                <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex-1 relative">
+                        <select
+                            className="glass-input text-sm w-full"
+                            value={newUserId}
+                            onChange={e => setNewUserId(e.target.value)}
+                        >
+                            <option value="">-- Pilih Peserta --</option>
+                            {allUsers.map(u => (
+                                <option key={u.id} value={u.id}>
+                                    {u.full_name} ({u.role?.name || u.role})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <button 
+                        onClick={onAdd} 
+                        disabled={!newUserId}
+                        className="glass-button text-sm flex items-center justify-center gap-1 bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50"
+                    >
+                        <Plus className="w-4 h-4" /> Tambah Peserta
+                    </button>
+                </div>
+            )}
 
             {/* Participant List */}
             {loading ? (

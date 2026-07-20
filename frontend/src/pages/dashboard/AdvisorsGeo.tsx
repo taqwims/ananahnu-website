@@ -118,80 +118,86 @@ export default function AdvisorsGeo() {
         </div>
       </div>
 
-      {/* Grid List */}
+      {/* Table List */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
           <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Memuat data advisor...</span>
         </div>
+      ) : advisors.length === 0 ? (
+        <div className="bg-gray-50/50 border border-gray-200 border-dashed rounded-3xl p-12 text-center text-gray-400 italic font-semibold">
+          Tidak ada Halal Advisor terdaftar di wilayah yang dipilih.
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {advisors.map(c => {
-            const waLink = c.phone ? `https://wa.me/${c.phone.replace(/[^0-9]/g, '')}` : '';
-            return (
-              <div 
-                key={c.id} 
-                className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm hover:shadow-md hover:border-brand-200 transition-all flex flex-col justify-between group"
-              >
-                <div>
-                  {/* Badge Role */}
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-brand-50 text-brand-700 border border-brand-100">
-                      <Shield className="w-3 h-3" /> {c.role?.name || 'Advisor'}
-                    </span>
-                    <span className="text-[10px] text-gray-400 font-bold">
-                      {c.province_id ? 'Tingkat Wilayah' : 'Nasional'}
-                    </span>
-                  </div>
-
-                  {/* Name and Basic info */}
-                  <h3 className="font-extrabold text-sm text-gray-900 group-hover:text-brand-600 transition-colors">
-                    {c.full_name}
-                  </h3>
-                  <p className="text-[10px] text-gray-500 font-medium mt-1 truncate">{c.email}</p>
-                </div>
-
-                <div className="border-t border-gray-100 mt-4 pt-4 space-y-2">
-                  {/* Geographic region badge */}
-                  {(c.province || c.regency) && (
-                    <div className="flex items-center gap-1.5 text-[9px] text-brand-700 bg-brand-50/50 px-2.5 py-1 rounded-xl border border-brand-100/50 font-bold uppercase tracking-wider">
-                      <MapPin className="w-3.5 h-3.5 shrink-0 text-brand-600" />
-                      <span className="truncate">
-                        {c.regency?.name ? `${c.regency.name.replace('KABUPATEN ', 'KAB. ')}, ` : ''}
-                        {c.province?.name || ''}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Quick Action buttons */}
-                  <div className="flex items-center gap-2 pt-1">
-                    {c.phone && (
-                      <a 
-                        href={waLink} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold text-[10px] uppercase tracking-wider rounded-xl transition-all border border-emerald-100"
-                      >
-                        <Phone className="w-3 h-3" /> WhatsApp
-                      </a>
-                    )}
-                    <a 
-                      href={`mailto:${c.email}`}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gray-50 hover:bg-gray-100 text-gray-600 font-extrabold text-[10px] uppercase tracking-wider rounded-xl transition-all border border-gray-200"
-                    >
-                      <Mail className="w-3 h-3" /> Email
-                    </a>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
-          {advisors.length === 0 && (
-            <div className="col-span-full bg-gray-50/50 border border-gray-200 border-dashed rounded-3xl p-12 text-center text-gray-400 italic font-semibold">
-              Tidak ada Halal Advisor terdaftar di wilayah yang dipilih.
-            </div>
-          )}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50/50">
+                  <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Nama</th>
+                  <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Role</th>
+                  <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Wilayah</th>
+                  <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Email</th>
+                  <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Kontak</th>
+                </tr>
+              </thead>
+              <tbody>
+                {advisors.map(c => {
+                  const waLink = c.phone ? `https://wa.me/${c.phone.replace(/[^0-9]/g, '')}` : '';
+                  const locationParts: string[] = [];
+                  if (c.regency?.name) locationParts.push(c.regency.name.replace('KABUPATEN ', 'KAB. '));
+                  if (c.province?.name) locationParts.push(c.province.name);
+                  return (
+                    <tr key={c.id} className="border-b border-gray-50 hover:bg-brand-50/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <span className="font-bold text-sm text-gray-900">{c.full_name}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-brand-50 text-brand-700 border border-brand-100">
+                          <Shield className="w-3 h-3" /> {c.role?.name || 'Advisor'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {locationParts.length > 0 ? (
+                          <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium">
+                            <MapPin className="w-3.5 h-3.5 shrink-0 text-brand-500" />
+                            <span className="truncate max-w-[200px]">{locationParts.join(', ')}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">Nasional</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <a href={`mailto:${c.email}`} className="text-xs text-gray-600 hover:text-brand-600 transition-colors font-medium truncate">
+                          {c.email}
+                        </a>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          {c.phone && (
+                            <a
+                              href={waLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[10px] uppercase tracking-wider rounded-lg transition-all border border-emerald-100"
+                            >
+                              <Phone className="w-3 h-3" /> WA
+                            </a>
+                          )}
+                          <a
+                            href={`mailto:${c.email}`}
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold text-[10px] uppercase tracking-wider rounded-lg transition-all border border-gray-200"
+                          >
+                            <Mail className="w-3 h-3" /> Email
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

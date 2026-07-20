@@ -361,7 +361,7 @@ export interface ContentBlock {
 
 export interface Commission {
     id: string;
-    type: 'REFERRAL' | 'STRUCTURAL';
+    type: 'REFERRAL' | 'STRUCTURAL' | 'DIRECT_SALES' | 'OVERRIDE';
     
     // Referral specific
     referrer_id?: string;

@@ -19,7 +19,7 @@ export const BillingTabs = ({
             <div className="flex flex-wrap gap-2">
                 {[
                     { key: 'components', label: 'Komponen Biaya Reguler', icon: Plus },
-                    { key: 'scheme_prices', label: 'Tarif Skema Penjualan', icon: Tag },
+                    { key: 'role_scheme', label: 'Pemetaan Role-Skema', icon: Tag },
                     { key: 'self_declare', label: 'Tarif Self Declare Mandiri', icon: Tag },
                     { key: 'facilitation', label: 'Tarif SH Fasilitasi', icon: Tag },
                     { key: 'master_data', label: 'Klasifikasi & Master', icon: Tag },

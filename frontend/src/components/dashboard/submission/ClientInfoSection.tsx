@@ -80,7 +80,6 @@ export const ClientInfoSection = ({
         data_source: submission.data_source || 'ORGANIK',
         product_count: submission.product_count || submission.cost_detail?.product_count || 1,
         branch_count: submission.branch_count || submission.cost_detail?.branch_count || 1,
-        mandays: submission.mandays || submission.cost_detail?.mandays || 1,
     });
 
     useEffect(() => {
@@ -139,7 +138,6 @@ export const ClientInfoSection = ({
             ...clientForm,
             sales_scheme_id: user?.role === 'CLIENT' ? '1' : clientForm.sales_scheme_id,
             data_source: user?.role === 'CLIENT' ? 'ORGANIK' : clientForm.data_source,
-            mandays: user?.role === 'CLIENT' ? 1 : clientForm.mandays,
         };
 
         try {
@@ -168,7 +166,6 @@ export const ClientInfoSection = ({
                 sales_scheme_id: updatedClientForm.sales_scheme_id ? parseInt(updatedClientForm.sales_scheme_id) : null,
                 product_count: updatedClientForm.product_count,
                 branch_count: updatedClientForm.branch_count,
-                mandays: updatedClientForm.mandays,
                 selected_optional_component_ids: selectedOptionalComponentIds
             };
 
@@ -187,7 +184,7 @@ export const ClientInfoSection = ({
         }
     };
 
-    const canEdit = (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'DRAFTER' || user?.role === 'QC_OFFICER' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'HALAL_ADVISOR' || (user?.role === 'AUDIT_MANAGER' && submission.service_type === 'REGULER') || (user?.role === 'CLIENT' && (submission.status === 'DRAFT' || submission.status === 'REVISION')));
+    const canEdit = (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'DRAFTER' || user?.role === 'QC_OFFICER' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'HALAL_ADVISOR' || (user?.role === 'BUSINESS_DEVELOPMENT' && submission.service_type === 'REGULER') || (user?.role === 'CLIENT' && (submission.status === 'DRAFT' || submission.status === 'REVISION')));
 
     return (
         <div className="glass-panel p-6 shadow-xl border border-white/40">
@@ -434,19 +431,6 @@ export const ClientInfoSection = ({
                                         onChange={e => setClientForm({...clientForm, branch_count: parseInt(e.target.value) || 1})} 
                                     />
                                 </div>
-                                {user?.role !== 'CLIENT' && (
-                                    <div>
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Jumlah Manday</label>
-                                        <input 
-                                            type="number" 
-                                            min="1" 
-                                            className="glass-input w-full" 
-                                            value={clientForm.mandays} 
-                                            onChange={e => setClientForm({...clientForm, mandays: parseInt(e.target.value) || 1})} 
-                                        />
-                                    </div>
-                                )}
-
                                 {/* Optional Components */}
                                 {(() => {
                                     const availableOptionals = masterComponents.filter(comp => {
@@ -581,9 +565,6 @@ export const ClientInfoSection = ({
                             )}
                             <InfoItem label="Jumlah Produk" value={submission.product_count?.toString() || submission.cost_detail?.product_count?.toString() || '1'} />
                             <InfoItem label="Jumlah Cabang" value={submission.branch_count?.toString() || submission.cost_detail?.branch_count?.toString() || '1'} />
-                            {user?.role !== 'CLIENT' && (
-                                <InfoItem label="Jumlah Manday" value={submission.mandays?.toString() || submission.cost_detail?.mandays?.toString() || '1'} />
-                            )}
                         </>
                     )}
                     {submission.consultant_id && (

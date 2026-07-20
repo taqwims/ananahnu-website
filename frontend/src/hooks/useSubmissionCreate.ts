@@ -25,10 +25,22 @@ export const useSubmissionCreate = () => {
         service_type: initialType,
         business_type_id: '',
         contact_person: '',
-        phone: ''
+        phone: '',
+        product_category_id: '',
+        business_scale_id: '',
+        province_id: '',
+        regency_id: '',
+        district_id: '',
+        product_count: 0,
+        branch_count: 0
     });
 
     const [businessTypes, setBusinessTypes] = useState<any[]>([]);
+    const [productCategories, setProductCategories] = useState<any[]>([]);
+    const [businessScales, setBusinessScales] = useState<any[]>([]);
+    const [provinces, setProvinces] = useState<any[]>([]);
+    const [regencies, setRegencies] = useState<any[]>([]);
+    const [districts, setDistricts] = useState<any[]>([]);
 
     const [configs, setConfigs] = useState<FormFieldConfig[]>([]);
     const [fieldValues, setFieldValues] = useState<Record<number, { text_value: string; file_url: string; link_value: string }>>({});
@@ -81,16 +93,49 @@ export const useSubmissionCreate = () => {
     }, [clientData.service_type, clientData.business_type_id]);
 
     useEffect(() => {
-        const fetchBT = async () => {
+        const fetchInitialOptions = async () => {
             try {
-                const res = await api.get('/billing-config/business-types');
-                setBusinessTypes(res.data || []);
+                const [btRes, catRes, scaleRes, provRes] = await Promise.all([
+                    api.get('/billing-config/business-types'),
+                    api.get('/billing-config/product-categories'),
+                    api.get('/billing-config/business-scales'),
+                    api.get('/geography/provinces')
+                ]);
+                setBusinessTypes(btRes.data || []);
+                setProductCategories(catRes.data || []);
+                setBusinessScales(scaleRes.data || []);
+                setProvinces(provRes.data || []);
             } catch (err) {
-                console.error("Gagal memuat bidang usaha", err);
+                console.error("Gagal memuat opsi form", err);
             }
         };
-        fetchBT();
+        fetchInitialOptions();
     }, []);
+
+    // Cascading Regency fetch
+    useEffect(() => {
+        if (!clientData.province_id) {
+            setRegencies([]);
+            setDistricts([]);
+            setClientData(prev => ({ ...prev, regency_id: '', district_id: '' }));
+            return;
+        }
+        api.get(`/geography/regencies/${clientData.province_id}`)
+            .then(res => setRegencies(res.data || []))
+            .catch(err => console.error("Gagal memuat kota/kab", err));
+    }, [clientData.province_id]);
+
+    // Cascading District fetch
+    useEffect(() => {
+        if (!clientData.regency_id) {
+            setDistricts([]);
+            setClientData(prev => ({ ...prev, district_id: '' }));
+            return;
+        }
+        api.get(`/geography/districts/${clientData.regency_id}`)
+            .then(res => setDistricts(res.data || []))
+            .catch(err => console.error("Gagal memuat kecamatan", err));
+    }, [clientData.regency_id]);
 
     useEffect(() => {
         checkVerification();
@@ -146,7 +191,14 @@ export const useSubmissionCreate = () => {
                 id: submissionId,
                 client_data: {
                     ...clientData,
-                    business_type_id: clientData.business_type_id ? parseInt(clientData.business_type_id) : null
+                    business_type_id: clientData.business_type_id ? parseInt(clientData.business_type_id) : null,
+                    product_category_id: clientData.product_category_id ? parseInt(clientData.product_category_id) : null,
+                    business_scale_id: clientData.business_scale_id ? parseInt(clientData.business_scale_id) : null,
+                    province_id: clientData.province_id ? parseInt(clientData.province_id) : null,
+                    regency_id: clientData.regency_id ? parseInt(clientData.regency_id) : null,
+                    district_id: clientData.district_id ? parseInt(clientData.district_id) : null,
+                    product_count: Number(clientData.product_count || 0),
+                    branch_count: Number(clientData.branch_count || 0)
                 },
                 field_values: configs.map(cfg => ({
                     form_field_id: cfg.id,
@@ -177,6 +229,11 @@ export const useSubmissionCreate = () => {
         handleFileUpload,
         handleSave,
         businessTypes,
+        productCategories,
+        businessScales,
+        provinces,
+        regencies,
+        districts,
         navigate
     };
 };

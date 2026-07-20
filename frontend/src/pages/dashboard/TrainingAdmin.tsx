@@ -120,6 +120,7 @@ export default function TrainingAdmin() {
                                         onAdd={addParticipant}
                                         onUpdateStatus={updateStatus}
                                         canGraduate={canGraduate}
+                                        isExpired={selectedTraining.end_date ? new Date(selectedTraining.end_date) < new Date() : false}
                                     />
                                 ) : (
                                     <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
