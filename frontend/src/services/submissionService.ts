@@ -175,7 +175,7 @@ class SubmissionService extends BaseService {
         }
     }
 
-    async downloadContract(id: string, format: string = 'docx'): Promise<void> {
+    async downloadContract(id: string, format: string = 'pdf'): Promise<void> {
         try {
             const response = await this.api.get(`/documents/submissions/${id}/contract?format=${format}`, {
                 responseType: 'blob'

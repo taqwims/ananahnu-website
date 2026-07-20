@@ -69,61 +69,145 @@ func (uc *documentUsecase) GenerateContract(submissionID uuid.UUID, format strin
 	vars := make(map[string]string)
 
 	// Contract Info
-	trackingNum := "DRAFT"
+	if submission.ContractNumber == nil || *submission.ContractNumber == "" {
+		count, err := uc.SubmissionRepo.CountSubmissionsWithContractInYear(now.Year())
+		if err == nil {
+			contractNum := fmt.Sprintf("HC/PK-SH/%d/%05d", now.Year(), count+1)
+			submission.ContractNumber = &contractNum
+			_ = uc.SubmissionRepo.Update(submission)
+		}
+	}
+
+	contractNum := "DRAFT"
+	if submission.ContractNumber != nil {
+		contractNum = *submission.ContractNumber
+	}
+	vars["{{contract_number}}"] = contractNum
+
+	trackingNum := "-"
 	if submission.TrackingNumber != nil {
 		trackingNum = *submission.TrackingNumber
 	}
-	vars["[Nomor Kontrak]"] = fmt.Sprintf("KONTRAK/%s/%s", now.Format("20060102"), trackingNum)
-	vars["[hari]"] = days[now.Weekday()]
-	vars["[tanggal]"] = fmt.Sprintf("%d %s %d", now.Day(), months[now.Month()], now.Year())
-	vars["[kota]"] = uc.getSetting(settingMap, "COMPANY_CITY", "Ciamis")
-	vars["[60]"] = uc.getSetting(settingMap, "CONTRACT_DURATION", "60")
+	vars["{{application_number}}"] = trackingNum
 
-	// Consultant Info (PT Ana Nahnu)
-	vars["[Nama Perusahaan]"] = uc.getSetting(settingMap, "COMPANY_NAME", "PT Ana Nahnu Indonesia")
-	vars["[Alamat Perusahaan]"] = uc.getSetting(settingMap, "COMPANY_ADDRESS", "Dusun Cikohkol, Desa Sukasari, Kecamatan Banjarsari, Kabupaten Ciamis, Jawa Barat 46383")
-	vars["[Nomor NIB]"] = uc.getSetting(settingMap, "COMPANY_NIB", "1234567890")
-
-	// Person signing for Consultant (Now using the assigned Consultant name)
-	if submission.Consultant != nil {
-		vars["[Nama Penandatangan]"] = submission.Consultant.FullName
-		vars["[Jabatan]"] = "Advisor Halal"
-	} else {
-		// Fallback to Director if no consultant assigned
-		vars["[Nama Penandatangan]"] = uc.getSetting(settingMap, "COMPANY_DIRECTOR_NAME", "Direktur Ana Nahnu")
-		vars["[Jabatan]"] = uc.getSetting(settingMap, "COMPANY_DIRECTOR_POSITION", "Direktur Utama")
+	status := "DRAFT"
+	if submission.Status == "READY_FOR_SIGNATURE" {
+		status = "READY FOR SIGNATURE"
+	} else if submission.Status == "SIGNED" {
+		status = "SIGNED"
 	}
+	vars["{{contract_status}}"] = status
+	vars["{{service_scheme}}"] = submission.ServiceType
 
 	// Client Info
 	client := submission.Client
-	vars["[Nama Klien / Perusahaan]"] = client.BusinessName
-	if vars["[Nama Klien / Perusahaan]"] == "" {
-		vars["[Nama Klien / Perusahaan]"] = client.ClientName
+	clientPartyName := client.BusinessName
+	if clientPartyName == "" {
+		clientPartyName = client.ClientName
 	}
-	vars["[Alamat Lengkap]"] = client.Address
-	idDisplay := client.NIB
-	if strings.HasPrefix(idDisplay, "DRAFT-") {
-		idDisplay = ""
+	vars["{{client_party_name}}"] = clientPartyName
+
+	clientPartyDesc := "Pelaku Usaha"
+	if client.BusinessName != "" {
+		clientPartyDesc = "Badan Usaha"
+	}
+	vars["{{client_party_description}}"] = clientPartyDesc
+
+	// Mask identity
+	identity := client.NIB
+	if strings.HasPrefix(identity, "DRAFT-") {
+		identity = ""
 	}
 	if client.NIK != "" {
-		if idDisplay != "" {
-			idDisplay = fmt.Sprintf("%s / %s", client.NIK, idDisplay)
+		if identity != "" {
+			identity = fmt.Sprintf("%s / %s", client.NIK, identity)
 		} else {
-			idDisplay = client.NIK
+			identity = client.NIK
 		}
 	}
-	vars["[Nomor Identitas]"] = idDisplay
-	vars["[Perusahaan jika ada]"] = client.BusinessName
+	vars["{{client_identity_number_masked}}"] = identity
+	vars["{{client_address}}"] = client.Address
+	vars["{{client_signatory_name}}"] = client.ClientName
+	vars["{{client_signatory_capacity}}"] = "Pemohon"
 
-	// Billing Info
-	amount := 0.0
-	if submission.CostDetail != nil {
-		amount = submission.CostDetail.TotalAmount
+	vars["{{client_nib}}"] = client.NIB
+	vars["{{business_scale}}"] = "-"
+	if submission.CostDetail != nil && submission.CostDetail.BusinessScaleID != nil {
+		vars["{{business_scale}}"] = submission.CostDetail.BusinessScale.Name
 	}
-	vars["[Nominal]"] = uc.formatIDR(amount)
-	vars["[Terbilang]"] = utils.TerbilangRupiah(amount)
+	vars["{{business_address}}"] = client.Address
+	vars["{{client_contact_name}}"] = client.ClientName
+	vars["{{client_phone}}"] = client.Phone
 
-	// Verification URL for client agreement
+	// Extract email and brand name from FormFieldValues
+	clientEmail := "-"
+	brandName := "-"
+	for _, fv := range submission.FieldValues {
+		if fv.FormField.FieldKey == "email" {
+			clientEmail = fv.TextValue
+		}
+		if fv.FormField.FieldKey == "brand_name" || fv.FormField.FieldKey == "nama_merk" || fv.FormField.FieldKey == "merk" {
+			brandName = fv.TextValue
+		}
+	}
+	if brandName == "-" && client.BusinessName != "" {
+		brandName = client.BusinessName
+	}
+	vars["{{client_email}}"] = clientEmail
+	vars["{{service_package}}"] = brandName
+
+	// Dates & Location
+	vars["{{contract_day}}"] = days[now.Weekday()]
+	vars["{{contract_date_text}}"] = fmt.Sprintf("%d %s %d", now.Day(), months[now.Month()], now.Year())
+	vars["{{contract_city}}"] = uc.getSetting(settingMap, "COMPANY_CITY", "Ciamis")
+	vars["{{company_address}}"] = uc.getSetting(settingMap, "COMPANY_ADDRESS", "Dusun Cikohkol, Desa Sukasari, Kecamatan Banjarsari, Kabupaten Ciamis, Jawa Barat 46383")
+	vars["{{generated_at_local}}"] = fmt.Sprintf("%d %s %d", now.Day(), months[now.Month()], now.Year())
+
+	// Advisor
+	advisorName := "-"
+	advisorID := "-"
+	advisorPhone := "-"
+	advisorEmail := "-"
+	if submission.Consultant != nil {
+		advisorName = submission.Consultant.FullName
+		advisorID = submission.Consultant.ID.String()[:8]
+		advisorPhone = submission.Consultant.Phone
+		advisorEmail = submission.Consultant.Email
+	} else {
+		advisorName = uc.getSetting(settingMap, "COMPANY_DIRECTOR_NAME", "Direktur Ana Nahnu")
+	}
+	vars["{{advisor_name}}"] = advisorName
+	vars["{{advisor_id}}"] = advisorID
+	vars["{{advisor_phone}}"] = advisorPhone
+	vars["{{advisor_email}}"] = advisorEmail
+
+	// Ruang Lingkup
+	vars["{{product_category}}"] = "-"
+	if submission.CostDetail != nil && submission.CostDetail.ProductCategoryID != nil {
+		vars["{{product_category}}"] = submission.CostDetail.ProductCategory.Name
+	}
+	vars["{{product_count}}"] = fmt.Sprintf("%d", submission.ProductCount)
+	vars["{{product_summary}}"] = brandName
+	vars["{{facility_count}}"] = fmt.Sprintf("%d", submission.BranchCount)
+	vars["{{facility_summary}}"] = "Lokasi Fasilitas Utama"
+	vars["{{special_terms_or_dash}}"] = "-"
+
+	// Cost details
+	totalAmount := 0.0
+	if submission.CostDetail != nil {
+		totalAmount = submission.CostDetail.TotalAmount
+		vars["[CostBreakdownJSON]"] = submission.CostDetail.CostBreakdownData
+	}
+	vars["{{total_contract_amount_formatted}}"] = uc.formatIDR(totalAmount)
+	vars["{{total_contract_amount_words}}"] = utils.TerbilangRupiah(totalAmount)
+
+	// Support info
+	vars["{{customer_service_contact}}"] = "cs@halalcore.id"
+	vars["{{complaint_channel}}"] = "complaint@halalcore.id"
+	vars["{{privacy_contact}}"] = "privasi@halalcore.id"
+	vars["{{refund_processing_days}}"] = uc.getSetting(settingMap, "REFUND_PROCESSING_DAYS", "14")
+
+	// Verification URL
 	frontendURL := os.Getenv("FRONTEND_URL")
 	if frontendURL == "" {
 		frontendURL = os.Getenv("APP_FRONTEND_URL")
@@ -131,28 +215,19 @@ func (uc *documentUsecase) GenerateContract(submissionID uuid.UUID, format strin
 	if frontendURL == "" {
 		frontendURL = uc.getSetting(settingMap, "FRONTEND_URL", "https://halalcore.id")
 	}
-	// We can use the submission ID as the agreement validation ID for public checks
 	vars["[Verification URL]"] = fmt.Sprintf("%s/verify-agreement/%s", frontendURL, submission.ID.String())
 
-	// 2. Generate File
-	filename := fmt.Sprintf("Kontrak_%s", strings.ReplaceAll(vars["[Nama Klien / Perusahaan]"], " ", "_"))
-
-	switch format {
-	case "docx":
-		buf, err := uc.generateDocx(vars)
-		if err != nil {
-			return nil, "", err
-		}
-		return buf, filename + ".docx", nil
-	case "pdf":
-		buf, err := uc.generatePDF(vars)
-		if err != nil {
-			return nil, "", err
-		}
-		return buf, filename + ".pdf", nil
+	// Generate PDF
+	filename := fmt.Sprintf("Kontrak_%s", strings.ReplaceAll(clientPartyName, " ", "_"))
+	if format != "pdf" {
+		return nil, "", fmt.Errorf("only pdf format is supported")
 	}
 
-	return nil, "", fmt.Errorf("unsupported format: %s", format)
+	buf, err := uc.generatePDF(vars)
+	if err != nil {
+		return nil, "", err
+	}
+	return buf, filename + ".pdf", nil
 }
 
 func (uc *documentUsecase) getSetting(m map[string]string, key, fallback string) string {
@@ -236,274 +311,477 @@ func (uc *documentUsecase) generateDocx(vars map[string]string) ([]byte, error) 
 
 func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 	pdf := fpdf.New("P", "mm", "A4", "")
+	pdf.SetAutoPageBreak(true, 25)
 	
 	// Define header with logo on all pages
 	pdf.SetHeaderFunc(func() {
 		logoPath := "templates/logo_halalcore_header.png"
 		if _, err := os.Stat(logoPath); err == nil {
-			// X: 20, Y: 10, W: 50.6, H: 17.6
-			pdf.ImageOptions(logoPath, 20, 10, 50.6, 17.6, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+			pdf.ImageOptions(logoPath, 20, 12, 45, 12, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
 		}
 	})
 
-	// Set Margins: Left: 20mm, Top: 32mm (to prevent text overlap with header), Right: 20mm
+	// Define footer with page numbers matching screenshot (bottom right)
+	pdf.SetFooterFunc(func() {
+		pdf.SetY(-15)
+		pdf.SetFont("Times", "", 8)
+		pdf.SetTextColor(100, 116, 139) // slate-500
+		pdf.CellFormat(0, 10, fmt.Sprintf("Kontrak %s  |  Halaman %d", vars["{{contract_number}}"], pdf.PageNo()), "", 0, "R", false, 0, "")
+	})
+
 	pdf.SetMargins(20, 32, 20)
+	pdf.AddPage()
+
+	// Title
+	pdf.SetXY(20, 32)
+	pdf.SetFont("Times", "B", 10)
+	pdf.SetTextColor(194, 65, 12) // amber-700 / orange-700
+	pdf.CellFormat(0, 6, "PERJANJIAN LAYANAN", "", 1, "L", false, 0, "")
 	
-	// Add Page 1
-	pdf.AddPage()
+	pdf.SetFont("Times", "B", 18)
+	pdf.SetTextColor(12, 74, 110) // sky-900
+	pdf.CellFormat(0, 8, "KONTRAK PENDAMPINGAN", "", 1, "L", false, 0, "")
+	pdf.CellFormat(0, 8, "SERTIFIKASI HALAL", "", 1, "L", false, 0, "")
+	
+	pdf.SetFont("Times", "B", 11)
+	pdf.SetTextColor(51, 65, 85) // slate-700
+	pdf.CellFormat(0, 6, "Nomor: "+vars["{{contract_number}}"], "", 1, "L", false, 0, "")
+	pdf.Ln(4)
 
-	// Helper to add centered bold text
-	pasalTitle := func(title string) {
-		pdf.SetFont("Times", "B", 12)
-		pdf.CellFormat(0, 6, title, "", 1, "C", false, 0, "")
+	// Summary Table
+	pdf.SetDrawColor(226, 232, 240) // slate-200
+	pdf.SetLineWidth(0.3)
+	
+	drawTableObj := func(label, val string) {
+		pdf.SetFillColor(240, 249, 255) // sky-50
+		pdf.SetFont("Times", "B", 10)
+		pdf.SetTextColor(12, 74, 110) // sky-900
+		pdf.CellFormat(50, 7.5, "  "+label, "1", 0, "L", true, 0, "")
+		
+		pdf.SetFillColor(255, 255, 255)
+		pdf.SetFont("Times", "", 10)
+		pdf.SetTextColor(51, 65, 85)
+		pdf.CellFormat(120, 7.5, "  "+val, "1", 1, "L", true, 0, "")
 	}
+	
+	drawTableObj("Nomor Pengajuan", vars["{{application_number}}"])
+	drawTableObj("Status Dokumen", vars["{{contract_status}}"])
+	drawTableObj("Skema / Paket", vars["{{service_scheme}}"]+" / "+vars["{{service_package}}"])
+	drawTableObj("Tanggal Dibuat", vars["{{generated_at_local}}"])
+	pdf.Ln(4)
 
-	pasalContent := func(content string) {
-		pdf.SetFont("Times", "", 12)
-		pdf.MultiCell(0, 5.5, content, "", "J", false)
-		pdf.Ln(3)
-	}
-
-	// === PAGE 1 ===
-	pdf.SetFont("Times", "B", 12)
-	pdf.CellFormat(0, 6, "PERJANJIAN LAYANAN PENDAMPINGAN SERTIFIKASI HALAL SECARA", "", 1, "C", false, 0, "")
-	pdf.CellFormat(0, 6, "ELEKTRONIK", "", 1, "C", false, 0, "")
-	pdf.CellFormat(0, 6, "Nomor: "+vars["[Nomor Kontrak]"], "", 1, "C", false, 0, "")
+	// Notice Block
+	yNotice := pdf.GetY()
+	pdf.SetFillColor(248, 250, 252) // slate-50
+	pdf.SetDrawColor(226, 232, 240) // slate-200
+	pdf.Rect(20, yNotice, 170, 16, "DF")
+	
+	pdf.SetXY(22, yNotice + 2.5)
+	pdf.SetFont("Times", "B", 9.5)
+	pdf.SetTextColor(194, 65, 12) // amber-700
+	pdf.Write(5, "PENTING. ")
+	pdf.SetFont("Times", "", 9.5)
+	pdf.SetTextColor(71, 85, 105) // slate-600
+	pdf.Write(5, "Dokumen berstatus DRAFT belum mengikat Para Pihak. Perjanjian menjadi efektif setelah\nditandatangani oleh kedua pihak dan persyaratan mulai layanan pada Pasal 6 terpenuhi.")
+	pdf.SetXY(20, yNotice + 16)
 	pdf.Ln(6)
 
-	// Intro
-	pdf.SetFont("Times", "", 12)
-	pdf.MultiCell(0, 5.5, "Perjanjian ini merupakan perjanjian elektronik yang dibuat dan disepakati melalui Platform HalalCore antara:", "", "J", false)
-	pdf.Ln(4)
+	// Intro Text
+	pdf.SetFont("Times", "", 10)
+	pdf.SetTextColor(51, 65, 85)
+	introText := fmt.Sprintf("Pada hari ini, %s, tanggal %s, bertempat di %s, Para Pihak menerangkan dan menyepakati Perjanjian Layanan Pendampingan Sertifikasi Halal (selanjutnya disebut \"Perjanjian\") sebagai berikut:", vars["{{contract_day}}"], vars["{{contract_date_text}}"], vars["{{contract_city}}"])
+	pdf.MultiCell(0, 5.5, introText, "", "J", false)
+	pdf.Ln(3)
 
-	// Parties
-	p1Text := "PT Ana Nahnu Indonesia selaku penyedia layanan pendampingan sertifikasi halal, selanjutnya disebut \"HALALCORE\"; dan"
-	pdf.MultiCell(0, 5.5, p1Text, "", "J", false)
-	pdf.Ln(4)
+	// Pihak Pertama
+	pdf.SetFont("Times", "B", 10)
+	pdf.SetTextColor(12, 74, 110)
+	pdf.CellFormat(0, 5, "PIHAK PERTAMA — PENYEDIA LAYANAN", "", 1, "L", false, 0, "")
+	pdf.SetFont("Times", "", 10)
+	pdf.SetTextColor(51, 65, 85)
+	p1Details := fmt.Sprintf("PT ANA NAHNU INDONESIA, badan hukum Indonesia dengan NIB 0411230033734 dan alamat di %s, pemilik dan pengelola platform Halalcore, dalam Perjanjian ini diwakili oleh %s, ID Halal Advisor %s, yang bertindak untuk dan atas nama PT Ana Nahnu Indonesia, selanjutnya disebut \"PIHAK PERTAMA\".", vars["{{company_address}}"], vars["{{advisor_name}}"], vars["{{advisor_id}}"])
+	pdf.MultiCell(0, 5.5, p1Details, "", "J", false)
+	pdf.Ln(3)
 
-	p2Text := fmt.Sprintf("%s yang telah melakukan registrasi akun, mengisi data usaha, menyetujui syarat dan ketentuan layanan, serta melakukan pembayaran melalui Platform HalalCore, selanjutnya disebut \"KLIEN\".", vars["[Nama Klien / Perusahaan]"])
-	pdf.MultiCell(0, 5.5, p2Text, "", "J", false)
-	pdf.Ln(4)
+	// Pihak Kedua
+	pdf.SetFont("Times", "B", 10)
+	pdf.SetTextColor(12, 74, 110)
+	pdf.CellFormat(0, 5, "PIHAK KEDUA — KLIEN/PELAKU USAHA", "", 1, "L", false, 0, "")
+	pdf.SetFont("Times", "", 10)
+	pdf.SetTextColor(51, 65, 85)
+	p2Details := fmt.Sprintf("%s, %s, NIK/NIB/nomor identitas %s, beralamat di %s, dalam hal merupakan badan usaha diwakili secara sah oleh %s selaku Pemohon, selanjutnya disebut \"PIHAK KEDUA\".", vars["{{client_party_name}}"], vars["{{client_party_description}}"], vars["{{client_identity_number_masked}}"], vars["{{client_address}}"], vars["{{client_signatory_name}}"])
+	pdf.MultiCell(0, 5.5, p2Details, "", "J", false)
+	pdf.Ln(3)
 
-	p3Text := "Kedua belah pihak sepakat untuk terikat pada seluruh ketentuan dalam Perjanjian Elektronik ini."
+	p3Text := "PIHAK PERTAMA dan PIHAK KEDUA secara bersama-sama disebut \"Para Pihak\" dan masing-masing disebut \"Pihak\"."
 	pdf.MultiCell(0, 5.5, p3Text, "", "J", false)
+	pdf.Ln(3)
+
+	p4Text := "Para Pihak terlebih dahulu menerangkan bahwa PIHAK PERTAMA menyediakan jasa konsultasi dan pendampingan administratif sertifikasi halal; PIHAK KEDUA bermaksud mengajukan sertifikasi halal atas produk/usaha sebagaimana Ringkasan Pengajuan; dan keputusan penerbitan sertifikat halal sepenuhnya berada pada lembaga yang berwenang sesuai peraturan perundang-undangan."
+	pdf.MultiCell(0, 5.5, p4Text, "", "J", false)
 	pdf.Ln(6)
 
-	// Pasal 1
-	pasalTitle("PASAL 1")
-	pasalTitle("MAKSUD DAN TUJUAN")
-	pasalContent("Perjanjian ini dibuat untuk mengatur kerja sama dalam layanan pendampingan proses sertifikasi halal produk KLIEN sesuai ketentuan peraturan perundang-undangan yang berlaku di Indonesia.")
+	pasalHeader := func(num, name string) {
+		pdf.Ln(4)
+		pdf.SetFont("Times", "B", 11)
+		pdf.SetTextColor(12, 74, 110)
+		pdf.CellFormat(0, 6, num, "", 1, "C", false, 0, "")
+		pdf.CellFormat(0, 6, name, "", 1, "C", false, 0, "")
+		pdf.Ln(2)
+	}
 
-	// Pasal 2
-	pasalTitle("PASAL 2")
-	pasalTitle("PERSETUJUAN ELEKTRONIK")
-	pasalContent("1. KLIEN menyatakan telah membaca, memahami, dan menyetujui seluruh isi Perjanjian ini sebelum melakukan pembayaran.\n" +
-		"2. Persetujuan KLIEN diberikan secara elektronik melalui:\n" +
-		"   a. pembuatan akun pada Platform HalalCore;\n" +
-		"   b. pengisian data usaha;\n" +
-		"   c. pemberian tanda persetujuan (checkbox) pada syarat dan ketentuan layanan;\n" +
-		"   d. verifikasi akun melalui sarana elektronik yang disediakan sistem; dan\n" +
-		"   e. pembayaran biaya layanan.\n" +
-		"3. Persetujuan sebagaimana dimaksud pada ayat (2) memiliki kekuatan hukum yang sama dengan tanda tangan konvensional sesuai ketentuan peraturan perundang-undangan yang berlaku.\n" +
-		"4. Catatan elektronik yang tersimpan dalam sistem HalalCore merupakan alat bukti yang sah dan mengikat para pihak.")
+	pasalBody := func(text string) {
+		pdf.SetFont("Times", "", 10)
+		pdf.SetTextColor(51, 65, 85)
+		pdf.MultiCell(0, 5.5, text, "", "J", false)
+		pdf.Ln(2)
+	}
 
-	// === PAGE 2 ===
-	pdf.AddPage()
+	// PASAL 1
+	pasalHeader("PASAL 1", "DEFINISI")
+	pasalBody("    (1)  \"Halalcore\" adalah platform dan merek layanan milik PT Ana Nahnu Indonesia yang digunakan untuk pengelolaan data, dokumen, komunikasi, pembayaran, dan status pendampingan.\n" +
+		"    (2)  \"Halal Advisor\" adalah personel yang ditunjuk PIHAK PERTAMA sebagai penghubung dan pelaksana pendampingan. Halal Advisor bukan BPJPH, auditor halal, LPH, Pendamping Proses Produk Halal, Penyelia Halal, maupun lembaga penetap kehalalan, kecuali memiliki penunjukan terpisah yang sah untuk fungsi tersebut.\n" +
+		"    (3)  \"Ringkasan Pengajuan\" adalah Lampiran 1 yang memuat data klien, skema layanan, ruang lingkup, produk/fasilitas, biaya, dan ketentuan khusus yang menjadi satu kesatuan dengan Perjanjian.\n" +
+		"    (4)  \"Hari Kerja\" adalah Senin sampai Jumat, selain hari libur nasional dan hari yang ditetapkan sebagai hari libur oleh Pemerintah Republik Indonesia.\n" +
+		"    (5)  \"Pihak Berwenang\" adalah BPJPH dan/atau lembaga lain yang secara hukum menjalankan pemeriksaan, pendampingan proses produk halal, penetapan kehalalan, penerbitan sertifikat, atau fungsi lain dalam penyelenggaraan jaminan produk halal.")
 
-	// Pasal 3
-	pasalTitle("PASAL 3")
-	pasalTitle("RUANG LINGKUP LAYANAN")
-	pasalContent("HalalCore memberikan layanan meliputi:\n" +
-		"1. Analisis kesiapan sertifikasi halal;\n" +
-		"2. Penyusunan dan/atau review dokumen Sistem Jaminan Produk Halal (SJPH);\n" +
-		"3. Pendampingan pendaftaran melalui sistem SIHALAL;\n" +
-		"4. Pendampingan pemenuhan dokumen persyaratan;\n" +
-		"5. Simulasi audit halal (pre-audit);\n" +
-		"6. Koordinasi administratif dengan lembaga terkait;\n" +
-		"7. Monitoring proses hingga terbit keputusan dari pihak berwenang.")
+	// PASAL 2
+	pasalHeader("PASAL 2", "OBJEK DAN RUANG LINGKUP LAYANAN")
+	pasalBody(fmt.Sprintf("    (1)  PIHAK KEDUA menunjuk PIHAK PERTAMA untuk memberikan pendampingan sertifikasi halal dengan skema %s dan paket %s atas ruang lingkup sebagaimana Lampiran 1.\n"+
+		"    (2)  Layanan dapat meliputi penilaian awal kelayakan skema; penyampaian daftar kebutuhan data; pemeriksaan kelengkapan administratif; pendampingan penyusunan dokumen Sistem Jaminan Produk Halal; pendampingan input atau pengajuan pada sistem resmi; koordinasi proses verifikasi, pemeriksaan, audit, atau pendampingan yang relevan; tindak lanjut koreksi administratif; pemantauan status; dan penyerahan salinan sertifikat apabila terbit.\n"+
+		"    (3)  Komponen yang secara tegas ditandai \"Termasuk\" dalam Lampiran 1 merupakan kewajiban PIHAK PERTAMA. Komponen yang ditandai \"Tidak Termasuk\" atau tidak dicantumkan bukan bagian dari harga Perjanjian.\n"+
+		"    (4)  Untuk skema pernyataan pelaku usaha/self declare, pernyataan kehalalan dan dokumen yang menurut sistem wajib disetujui pelaku usaha tetap harus ditandatangani atau diafirmasi sendiri oleh PIHAK KEDUA. Halal Advisor tidak berwenang menggantikan pernyataan faktual PIHAK KEDUA.", vars["{{service_scheme}}"], vars["{{service_package}}"]))
 
-	// Pasal 4
-	pasalTitle("PASAL 4")
-	pasalTitle("BATAS TANGGUNG JAWAB")
-	pasalContent("1. HalalCore bertanggung jawab pada proses pendampingan administrasi dan teknis.\n" +
-		"2. Keputusan penerbitan sertifikat halal sepenuhnya merupakan kewenangan:\n" +
-		"   a) BPJPH;\n" +
-		"   b) MUI;\n" +
-		"   c) LPH;\n" +
-		"3. HalalCore tidak bertanggung jawab atas:\n" +
-		"   a. penolakan akibat data tidak benar dari KLIEN;\n" +
-		"   b. ketidaklengkapan dokumen;\n" +
-		"   c. perubahan regulasi;\n" +
-		"   d. keterlambatan pihak ketiga.")
+	// PASAL 3
+	pasalHeader("PASAL 3", "LAYANAN YANG DIKECUALIKAN DAN PERUBAHAN RUANG LINGKUP")
+	pasalBody("    (1)  Kecuali dinyatakan termasuk dalam Lampiran 1, layanan ini tidak mencakup pengurusan NIB atau perizinan usaha lain; pengujian laboratorium; pengadaan atau penggantian bahan; renovasi fasilitas; biaya perjalanan di luar wilayah layanan; biaya resmi BPJPH/LPH/lembaga fatwa; pelatihan Penyelia Halal; penerjemahan; legalisasi dokumen; perubahan sertifikat setelah terbit; dan layanan pemeliharaan pascasertifikasi.\n" +
+		"    (2)  Penambahan merek, produk, varian, gerai, fasilitas, lokasi produksi, bahan berisiko, atau perubahan skema setelah Perjanjian efektif merupakan perubahan ruang lingkup dan harus memperoleh persetujuan tertulis Para Pihak mengenai tambahan biaya dan waktu.\n" +
+		"    (3)  PIHAK PERTAMA tidak boleh menagihkan biaya tambahan tanpa persetujuan PIHAK KEDUA. Perubahan tarif pihak ketiga hanya dapat diteruskan kepada PIHAK KEDUA setelah disertai penjelasan dan persetujuan tertulis.")
 
-	// Pasal 5
-	pasalTitle("PASAL 5")
-	pasalTitle("KEWAJIBAN KLIEN")
-	pdf.SetFont("Times", "", 12)
-	pdf.MultiCell(0, 5.5, "KLIEN wajib:\n" +
-		"1. Menyediakan data dan dokumen yang benar dan lengkap;\n" +
-		"2. Menjamin kehalalan bahan dan proses produksi;\n" +
-		"3. Menunjuk PIC selama proses pendampingan;", "", "J", false)
-	pdf.Ln(3)
+	// PASAL 4
+	pasalHeader("PASAL 4", "HAK DAN KEWAJIBAN PIHAK PERTAMA")
+	pasalBody("    (1)  Memberikan layanan secara profesional, transparan, beritikad baik, dan sesuai ruang lingkup yang disepakati.\n" +
+		"    (2)  Menunjuk Halal Advisor sebagai narahubung dan, bila diperlukan, menggantinya dengan personel lain yang setara dengan pemberitahuan kepada PIHAK KEDUA.\n" +
+		"    (3)  Menyampaikan daftar kebutuhan, kekurangan dokumen, status penting, serta permintaan perbaikan melalui dashboard dan/atau kanal komunikasi resmi.\n" +
+		"    (4)  Menjaga kerahasiaan data PIHAK KEDUA dan menggunakannya hanya untuk pelaksanaan layanan, pemenuhan kewajiban hukum, pengendalian mutu, dan kepentingan lain yang telah disetujui.\n" +
+		"    (5)  Memperbaiki tanpa biaya jasa tambahan apabila pengajuan dikembalikan semata-mata karena kesalahan administratif PIHAK PERTAMA, sepanjang data sumber dari PIHAK KEDUA benar dan tidak berubah.\n" +
+		"    (6)  Menerbitkan invoice/kuitansi resmi dan menerima pembayaran hanya melalui metode pembayaran resmi yang tercantum pada invoice atau dashboard.")
 
-	// === PAGE 3 ===
-	pdf.AddPage()
+	// PASAL 5
+	pasalHeader("PASAL 5", "HAK DAN KEWAJIBAN PIHAK KEDUA")
+	pasalBody("    (1)  Memberikan data, dokumen, keterangan bahan, produk, proses, fasilitas, dan kondisi usaha yang benar, lengkap, mutakhir, serta dapat dipertanggungjawabkan.\n" +
+		"    (2)  Menunjuk personel yang berwenang, memberikan akses yang wajar untuk pemeriksaan/pengambilan bukti, menghadiri audit atau pendampingan, dan merespons permintaan perbaikan paling lambat 3 (Tiga) Hari Kerja atau dalam batas waktu pihak berwenang.\n" +
+		"    (3)  Menjaga kesesuaian bahan dan proses dengan data yang diajukan, menerapkan kewajiban Sistem Jaminan Produk Halal, serta memberitahukan perubahan bahan, pemasok, produk, proses, lokasi, atau personel terkait.\n" +
+		"    (4)  Memastikan telah memperoleh hak penggunaan merek, dokumen, foto, sertifikat bahan, dan informasi pihak ketiga yang diserahkan kepada PIHAK PERTAMA.\n" +
+		"    (5)  Membayar biaya sesuai Lampiran 1 dan tidak melakukan pembayaran pribadi kepada Halal Advisor. Pembayaran kepada rekening pribadi atau tanpa kuitansi resmi tidak dianggap sebagai pembayaran kepada PIHAK PERTAMA, kecuali dikonfirmasi tertulis oleh perusahaan.\n" +
+		"    (6)  Memeriksa draf sebelum diajukan. Persetujuan PIHAK KEDUA melalui dashboard, tanda tangan, OTP, atau mekanisme afirmasi lain merupakan konfirmasi bahwa data yang diajukan telah diperiksa.")
 
-	pdf.SetFont("Times", "", 12)
-	pdf.MultiCell(0, 5.5, "4. Memberikan akses yang diperlukan untuk proses verifikasi;\n" +
-		"5. Melakukan pembayaran sesuai ketentuan.", "", "J", false)
+	// PASAL 6
+	pasalHeader("PASAL 6", "MULAI LAYANAN, JANGKA WAKTU, DAN PENUNDAAN")
+	pasalBody("    (1)  Perjanjian efektif pada tanggal ditandatangani oleh Para Pihak. Pekerjaan mulai dihitung setelah PIHAK PERTAMA menerima pembayaran tahap pertama dan dokumen minimum yang ditandai wajib pada Lampiran 1.\n" +
+		"    (2)  Target penyelesaian pekerjaan yang berada dalam kendali PIHAK PERTAMA adalah 6 (Enam) Hari Kerja, dengan rincian tahap pada Lampiran 1. Target ini bukan jaminan tanggal terbit sertifikat.\n" +
+		"    (3)  Waktu tunggu akibat jadwal atau sistem pihak berwenang; proses pemeriksaan/audit; sidang/penetapan kehalalan; penerbitan sertifikat; permintaan tambahan dari pihak berwenang; gangguan sistem nasional; atau keterlambatan PIHAK KEDUA tidak dihitung sebagai keterlambatan PIHAK PERTAMA.\n" +
+		"    (4)  Jika PIHAK KEDUA tidak merespons atau tidak melengkapi persyaratan selama 3 (Tiga) hari kalender sejak pengingat terakhir, pengajuan dapat berstatus Ditunda. Setelah 15 (Lima Belas) hari kalender, PIHAK PERTAMA dapat menutup layanan dengan pemberitahuan, tanpa menghapus hak PIHAK KEDUA atas rekonsiliasi pembayaran menurut Pasal 8.")
+
+	// PASAL 7
+	pasalHeader("PASAL 7", "BIAYA, DAN PEMBAYARAN")
+	pasalBody(fmt.Sprintf("    (1)  Nilai Perjanjian adalah sebesar %s (%s), dengan rincian pada Lampiran 1.\n"+
+		"    (2)  Pembayaran dilakukan 100%% ketika tanda tangan kontrak.\n"+
+		"    (3)  Setiap perubahan nilai Perjanjian wajib tercatat dalam dashboard, invoice, atau addendum yang disetujui Para Pihak.", vars["{{total_contract_amount_formatted}}"], vars["{{total_contract_amount_words}}"]))
+
+	// PASAL 8
+	pasalHeader("PASAL 8", "PEMBATALAN, PENGAKHIRAN, DAN PENGEMBALIAN DANA")
+	pasalBody(fmt.Sprintf("    (1)  Sebelum pekerjaan dimulai, PIHAK KEDUA dapat membatalkan layanan dan menerima pengembalian pembayaran setelah dikurangi biaya pihak ketiga yang telah dibayarkan dan biaya administrasi yang telah diinformasikan dalam Lampiran 1.\n"+
+		"    (2)  Setelah pekerjaan dimulai, pembatalan oleh PIHAK KEDUA diselesaikan melalui rekonsiliasi berdasarkan pekerjaan yang telah dilaksanakan, biaya pihak ketiga yang tidak dapat ditarik kembali, serta kewajiban yang telah timbul. Kelebihan pembayaran, jika ada, dikembalikan paling lambat %s Hari Kerja setelah rekonsiliasi disepakati.\n"+
+		"    (3)  PIHAK PERTAMA dapat menangguhkan atau mengakhiri layanan apabila terdapat data palsu, ketidaksesuaian substansial, kegiatan yang melanggar hukum, penolakan memenuhi kewajiban penting, atau tunggakan pembayaran; dengan pemberitahuan dan kesempatan perbaikan yang wajar, kecuali pelanggaran tidak dapat diperbaiki.\n"+
+		"    (4)  Apabila PIHAK PERTAMA menghentikan layanan tanpa kesalahan PIHAK KEDUA, PIHAK PERTAMA mengembalikan bagian biaya jasa untuk pekerjaan yang belum dilaksanakan, tidak termasuk biaya pihak ketiga yang sah dan tidak dapat ditarik kembali.", vars["{{refund_processing_days}}"]))
+
+	// PASAL 9
+	pasalHeader("PASAL 9", "KEPUTUSAN SERTIFIKASI DAN BATAS TANGGUNG JAWAB")
+	pasalBody("    (1)  PIHAK PERTAMA tidak menjanjikan atau menjamin diterbitkannya sertifikat halal, karena verifikasi, pemeriksaan, penetapan kehalalan, dan penerbitan sertifikat merupakan kewenangan pihak berwenang.\n" +
+		"    (2)  PIHAK PERTAMA bertanggung jawab atas mutu jasa pendampingan sesuai Perjanjian, tetapi tidak bertanggung jawab atas penolakan, pengembalian, penundaan, pembekuan, atau pencabutan yang timbul karena data/kondisi PIHAK KEDUA; ketidaksesuaian bahan atau proses; perubahan kebijakan; keputusan pihak berwenang; atau keadaan di luar kendali wajar PIHAK PERTAMA.\n" +
+		"    (3)  Tidak ada ketentuan dalam Perjanjian ini yang membatasi hak PIHAK KEDUA berdasarkan peraturan perlindungan konsumen atau mengecualikan tanggung jawab yang menurut hukum tidak dapat dikesampingkan.")
+
+	// PASAL 10
+	pasalHeader("PASAL 10", "KERAHASIAAN DAN PELINDUNGAN DATA PRIBADI")
+	pasalBody(fmt.Sprintf("    (1)  PIHAK KEDUA memberikan persetujuan kepada PIHAK PERTAMA untuk mengumpulkan, menggunakan, menyimpan, memperbaiki, mengirimkan, dan mengungkapkan data yang relevan sejauh diperlukan untuk pelaksanaan layanan, termasuk kepada BPJPH, LPH, LP3H/P3H, lembaga/komite fatwa, laboratorium, penyedia tanda tangan elektronik, penyedia sistem, dan mitra operasional yang berwenang.\n"+
+		"    (2)  PIHAK PERTAMA wajib menerapkan pengamanan yang wajar, pembatasan akses, pencatatan aktivitas, dan retensi data sesuai tujuan pemrosesan serta ketentuan hukum. Data tidak digunakan untuk pemasaran di luar layanan tanpa persetujuan terpisah.\n"+
+		"    (3)  PIHAK KEDUA dapat mengajukan permintaan akses, koreksi, atau hak lain atas data pribadi melalui %s, sepanjang tidak bertentangan dengan kewajiban retensi, pembuktian transaksi, atau kewajiban hukum PIHAK PERTAMA.\n"+
+		"    (4)  Kewajiban kerahasiaan tetap berlaku setelah Perjanjian berakhir, kecuali informasi telah tersedia untuk umum secara sah, diterima secara sah dari pihak lain, atau wajib diungkap berdasarkan hukum.", vars["{{privacy_contact}}"]))
+
+	// PASAL 11
+	pasalHeader("PASAL 11", "KONTRAK DAN TANDA TANGAN ELEKTRONIK")
+	pasalBody("    (1)  Para Pihak setuju bahwa Perjanjian, persetujuan, invoice, bukti pembayaran, notifikasi, dan rekaman aktivitas dalam dashboard dapat berbentuk Informasi Elektronik atau Dokumen Elektronik dan dapat digunakan sebagai alat bukti sesuai hukum.\n" +
+		"    (2)  Penandatanganan dapat dilakukan secara basah atau elektronik. Untuk penandatanganan elektronik, sistem wajib merekam identitas penanda tangan, versi dokumen, tanggal dan waktu, metode autentikasi, serta jejak audit yang dapat digunakan untuk memverifikasi persetujuan dan mendeteksi perubahan setelah penandatanganan.\n" +
+		"    (3)  Setiap perubahan substansi setelah salah satu pihak menandatangani membatalkan status tanda tangan sebelumnya dan mengharuskan penandatanganan ulang oleh kedua pihak.")
+
+	// PASAL 12
+	pasalHeader("PASAL 12", "KEADAAN KAHAR")
+	pasalBody("    (1)  Keadaan Kahar adalah peristiwa di luar kendali wajar Pihak yang terdampak, termasuk bencana, kebakaran besar, wabah, perang, kerusuhan, gangguan luas sistem pemerintah/telekomunikasi, kebijakan pemerintah yang langsung menghambat pelaksanaan, atau peristiwa lain yang sejenis.\n" +
+		"    (2)  Pihak yang terdampak wajib memberitahukan keadaan tersebut secepatnya disertai penjelasan yang wajar. Kewajiban yang terdampak ditunda selama Keadaan Kahar dan Para Pihak bermusyawarah untuk menyesuaikan jadwal atau mengakhiri bagian layanan yang tidak dapat dilaksanakan.")
+
+	// PASAL 13
+	pasalHeader("PASAL 13", "KOMUNIKASI, PENGADUAN, DAN PENYELESAIAN PERSELISIHAN")
+	pasalBody(fmt.Sprintf("    (1)  Komunikasi resmi dilakukan melalui dashboard Halalcore dan/atau kontak Para Pihak pada Lampiran 1. Perubahan kontak wajib diberitahukan.\n"+
+		"    (2)  Pengaduan layanan disampaikan melalui %s dan ditanggapi paling lambat 1 Hari Kerja.\n"+
+		"    (3)  Perselisihan diselesaikan terlebih dahulu melalui musyawarah selama paling lama 30 (tiga puluh) hari kalender sejak pemberitahuan tertulis. Jika tidak tercapai kesepakatan, Para Pihak dapat menggunakan mekanisme penyelesaian sengketa konsumen apabila berlaku atau mengajukan sengketa kepada pengadilan yang berwenang menurut ketentuan hukum acara.", vars["{{complaint_channel}}"]))
+
+	// PASAL 14
+	pasalHeader("PASAL 14", "KETENTUAN LAIN-LAIN")
+	pasalBody("    (1)  Lampiran, persetujuan perubahan ruang lingkup, dan addendum yang ditandatangani atau diafirmasi Para Pihak merupakan bagian yang tidak terpisahkan dari Perjanjian.\n" +
+		"    (2)  Jika terdapat pertentangan, urutan keberlakuan adalah addendum terbaru, naskah Perjanjian, Lampiran 1, kemudian komunikasi operasional; kecuali secara tegas disepakati lain.\n" +
+		"    (3)  Ketidakberlakuan satu ketentuan tidak membatalkan ketentuan lainnya. Ketentuan yang tidak berlaku diganti dengan ketentuan sah yang paling mendekati maksud awal Para Pihak.\n" +
+		"    (4)  PIHAK KEDUA tidak boleh mengalihkan Perjanjian tanpa persetujuan tertulis PIHAK PERTAMA. PIHAK PERTAMA dapat menggunakan personel atau mitra pelaksana dengan tetap bertanggung jawab atas koordinasi layanan dan pelindungan data sesuai Perjanjian.\n" +
+		"    (5)  Perjanjian tidak diperpanjang secara otomatis. Layanan pascasertifikasi atau pengajuan baru memerlukan pesanan layanan baru atau addendum.")
+
+	// PASAL 15
+	pasalHeader("PASAL 15", "PENUTUP")
+	pasalBody("Para Pihak menyatakan telah membaca, memahami, memiliki kewenangan untuk menandatangani, memperoleh kesempatan yang cukup untuk bertanya, dan menyetujui seluruh isi Perjanjian tanpa paksaan, kekhilafan, atau penipuan. Perjanjian dibuat dalam Bahasa Indonesia dan berlaku sejak tanggal efektif sebagaimana Pasal 6.")
+
 	pdf.Ln(4)
 
-	// Pasal 6
-	pasalTitle("PASAL 6")
-	pasalTitle("NILAI KONTRAK DAN PEMBAYARAN")
-	pasalContent(fmt.Sprintf("1. Nilai jasa sebesar:\n   Rp. %s (%s)\n   Termasuk biaya yang harus dibayarkan ke BPJPH, MUI, LPH dan biaya pelatihan (jika ada) sesuai rincian invoice yang terlampir.\n"+
-		"2. Skema pembayaran:\n"+
-		"   a. 70%% dibayarkan di awal sebelum pekerjaan dimulai;\n"+
-		"   b. 30%% dibayarkan sebelum pengajuan final ke sistem SIHALAL.\n"+
-		"3. Pembayaran dilakukan ke:\n"+
-		"   Bank: BNI\n"+
-		"   No. Rekening: 1825073247\n"+
-		"   Atas Nama: PT Ana Nahnu Indonesia\n"+
-		"4. Pembayaran dianggap sah setelah dana diterima pada rekening HalalCore.\n"+
-		"5. Pembayaran yang berhasil diverifikasi oleh sistem HalalCore dianggap sebagai penerimaan dan persetujuan KLIEN terhadap seluruh isi Perjanjian ini.", vars["[Nominal]"], vars["[Terbilang]"]))
-
-	// Pasal 7
-	pasalTitle("PASAL 7")
-	pasalTitle("JANGKA WAKTU")
-	pasalContent(fmt.Sprintf("1. Perjanjian berlaku sejak sistem HalalCore mengonfirmasi pembayaran KLIEN dan tetap berlaku sampai seluruh layanan selesai dilaksanakan.\n"+
-		"2. Estimasi penyelesaian maksimal: %s hari kerja sejak dokumen dinyatakan lengkap.\n"+
-		"3. Keterlambatan dari pihak KLIEN memperpanjang jangka waktu secara otomatis.", vars["[60]"]))
-
-	// === PAGE 4 ===
-	pdf.AddPage()
-
-	// Pasal 8
-	pasalTitle("PASAL 8")
-	pasalTitle("KERAHASIAAN")
-	pasalContent("Kedua pihak wajib menjaga kerahasiaan seluruh informasi yang diperoleh selama pelaksanaan Perjanjian ini, termasuk namun tidak terbatas pada data usaha, formula produk, dan dokumen internal.")
-
-	// Pasal 9
-	pasalTitle("PASAL 9")
-	pasalTitle("WANPRESTASI")
-	pdf.SetFont("Times", "", 12)
-	pdf.MultiCell(0, 5.5, "KLIEN dinyatakan wanprestasi apabila:\n" +
-		"1. Tidak melakukan pembayaran sesuai ketentuan;\n" +
-		"2. Memberikan data tidak benar;\n" +
-		"3. Tidak kooperatif dalam proses pendampingan.\n" +
-		"Dalam hal wanprestasi:\n" +
-		"- HalalCore berhak menghentikan layanan;\n" +
-		"- Pembayaran yang telah dilakukan tidak dapat diminta kembali.", "", "J", false)
-	pdf.Ln(4)
-
-	// Pasal 10
-	pasalTitle("PASAL 10")
-	pasalTitle("PEMBATALAN")
-	pasalContent("1. Pembatalan oleh KLIEN setelah kontrak berjalan dikenakan biaya minimal 50% dari nilai kontrak.\n" +
-		"2. Pembayaran yang telah dilakukan bersifat non-refundable.")
-
-	// Pasal 11
-	pasalTitle("PASAL 11")
-	pasalTitle("FORCE MAJEURE")
-	pdf.SetFont("Times", "", 12)
-	pdf.MultiCell(0, 5.5, "Yang dimaksud force majeure meliputi:\n" +
-		"- bencana alam;\n" +
-		"- gangguan sistem nasional;\n" +
-		"- kebijakan pemerintah;\n" +
-		"- kondisi di luar kendali para pihak.\n" +
-		"Dalam kondisi tersebut, kewajiban para pihak ditangguhkan sementara.", "", "J", false)
-	pdf.Ln(3)
-
-	// === PAGE 5 ===
-	pdf.AddPage()
-
-	// Pasal 12
-	pasalTitle("PASAL 12")
-	pasalTitle("PENYELASAIAN SENGKETA")
-	pasalContent("1. Diselesaikan secara musyawarah terlebih dahulu;\n" +
-		"2. Jika tidak tercapai, diselesaikan melalui Pengadilan Negeri Ciamis.")
-
-	// Pasal 13 - Rekam Jejak
-	pasalTitle("PASAL 13")
-	pasalTitle("REKAM JEJAK ELEKTRONIK")
-	pasalContent("1. HalalCore menyimpan seluruh rekam jejak elektronik yang berkaitan dengan transaksi dan pelaksanaan layanan, termasuk namun tidak terbatas pada:\n" +
-		"   a. identitas akun pengguna;\n" +
-		"   b. waktu registrasi;\n" +
-		"   c. waktu persetujuan perjanjian;\n" +
-		"   d. alamat IP perangkat;\n" +
-		"   e. riwayat komunikasi;\n" +
-		"   f. bukti pembayaran;\n" +
-		"   g. dokumen yang diunggah KLIEN.\n" +
-		"2. Rekam jejak elektronik tersebut merupakan bagian yang tidak terpisahkan dari Perjanjian ini dan dapat digunakan sebagai alat bukti yang sah apabila terjadi sengketa.")
-
-	// Pasal 13 - Penutup
-	pasalTitle("PASAL 13")
-	pasalTitle("PENUTUP")
-	pasalContent("Perjanjian Elektronik ini dibuat, disetujui, dan disimpan secara digital melalui Platform HalalCore. Dengan melakukan registrasi, menyetujui syarat dan ketentuan, serta melakukan pembayaran layanan, KLIEN menyatakan setuju dan terikat secara hukum terhadap seluruh ketentuan dalam Perjanjian ini. Perjanjian ini memiliki kekuatan hukum yang sama dengan perjanjian tertulis yang ditandatangani secara manual sesuai peraturan perundang-undangan yang berlaku.")
-
-	// Add Signatures with Verification QR Code if possible
-	pdf.Ln(5)
-	yPos := pdf.GetY()
-
-	// Ensure signature block isn't orphans on a new page without headers
-	if yPos > 240 {
+	// Signature Section
+	yPosSig := pdf.GetY()
+	if yPosSig > 210 {
 		pdf.AddPage()
-		yPos = pdf.GetY()
+		yPosSig = pdf.GetY()
 	}
 
-	// PIHAK PERTAMA
-	pdf.SetXY(20, yPos)
-	pdf.SetFont("Times", "B", 12)
-	pdf.CellFormat(80, 5.5, "HALALCORE", "0", 1, "L", false, 0, "")
-	pdf.CellFormat(80, 5.5, "PT Ana Nahnu Indonesia", "0", 1, "L", false, 0, "")
-	pdf.Ln(15)
-	pdf.CellFormat(80, 5.5, "( ____________________ )", "0", 1, "L", false, 0, "")
-	pdf.SetFont("Times", "", 12)
-	pdf.CellFormat(80, 5.5, "Nama: "+vars["[Nama Penandatangan]"], "0", 1, "L", false, 0, "")
+	pdf.SetFont("Times", "B", 10.5)
+	pdf.SetTextColor(12, 74, 110)
+	pdf.CellFormat(0, 6, "TANDA TANGAN PARA PIHAK", "", 1, "C", false, 0, "")
+	pdf.Ln(2)
 
-	// PIHAK KEDUA (Client) with verification QR Code if we can construct the link
-	pdf.SetXY(110, yPos)
-	pdf.SetFont("Times", "B", 12)
-	pdf.CellFormat(80, 5.5, "KLIEN", "0", 1, "L", false, 0, "")
-	pdf.CellFormat(80, 5.5, vars["[Nama Klien / Perusahaan]"], "0", 1, "L", false, 0, "")
+	// Table Headers
+	pdf.SetFillColor(12, 74, 110)
+	pdf.SetTextColor(255, 255, 255)
+	pdf.SetFont("Times", "B", 9.5)
+	pdf.CellFormat(85, 7.5, "PIHAK PERTAMA", "1", 0, "C", true, 0, "")
+	pdf.CellFormat(85, 7.5, "PIHAK KEDUA", "1", 1, "C", true, 0, "")
 
-	// Get base URL for verification link
-	settings, _ := uc.SettingRepo.GetAllSettings()
-	settingMap := make(map[string]string)
-	for _, s := range settings {
-		settingMap[s.Key] = s.Value
-	}
-	frontendURL := os.Getenv("FRONTEND_URL")
-	if frontendURL == "" {
-		frontendURL = os.Getenv("APP_FRONTEND_URL")
-	}
-	if frontendURL == "" {
-		frontendURL = uc.getSetting(settingMap, "FRONTEND_URL", "https://halalcore.id")
-	}
+	// Row 1: Multiline names
+	yRow1 := pdf.GetY()
+	pdf.SetTextColor(51, 65, 85)
+	pdf.SetFont("Times", "B", 9)
+	pdf.Rect(20, yRow1, 85, 12, "D")
+	pdf.SetXY(20, yRow1 + 1.5)
+	pdf.MultiCell(85, 4.5, "PT ANA NAHNU INDONESIA\nmelalui Halal Advisor yang berwenang", "", "C", false)
+
+	pdf.SetXY(105, yRow1)
+	pdf.Rect(105, yRow1, 85, 12, "D")
+	pdf.SetXY(105, yRow1 + 3.5)
+	pdf.MultiCell(85, 4.5, vars["{{client_party_name}}"], "", "C", false)
+	pdf.SetXY(20, yRow1 + 12)
+
+	// Row 2: Signatures QR Code space (Height 25mm)
+	sigY := pdf.GetY()
+	pdf.CellFormat(85, 25, "", "1", 0, "C", false, 0, "")
+	pdf.CellFormat(85, 25, "", "1", 1, "C", false, 0, "")
 
 	verifyURL := vars["[Verification URL]"]
-	if verifyURL == "" {
-		verifyURL = frontendURL
-	}
-
 	qrPNG, err := uc.generateQRImageWithLogo(verifyURL, "templates/logo_halalcore.png")
 	if err == nil {
-		pdf.RegisterImageOptionsReader("contract_qr", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(qrPNG))
-		pdf.ImageOptions("contract_qr", 110, yPos+12, 25, 25, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
-		
-		pdf.SetY(yPos + 38)
-	} else {
-		pdf.Ln(15)
-		pdf.CellFormat(80, 5.5, "( ____________________ )", "0", 1, "L", false, 0, "")
+		pdf.RegisterImageOptionsReader("qr_p1", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(qrPNG))
+		pdf.ImageOptions("qr_p1", 52.5, sigY + 2.5, 20, 20, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+
+		pdf.RegisterImageOptionsReader("qr_p2", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(qrPNG))
+		pdf.ImageOptions("qr_p2", 137.5, sigY + 2.5, 20, 20, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
 	}
 
-	pdf.SetX(110)
-	pdf.SetFont("Times", "", 12)
-	pdf.CellFormat(80, 5.5, "Ditandatangani secara elektronik", "0", 1, "L", false, 0, "")
-	
-	pdf.Ln(10)
+	// Row 3: Signatory names
+	pdf.SetFont("Times", "B", 9.5)
+	pdf.CellFormat(85, 7.5, vars["{{advisor_name}}"], "1", 0, "C", false, 0, "")
+	pdf.CellFormat(85, 7.5, vars["{{client_signatory_name}}"], "1", 1, "C", false, 0, "")
+
+	// Row 4: Signatory roles
+	pdf.SetFont("Times", "", 8.5)
+	pdf.CellFormat(85, 6, "ID Advisor: "+vars["{{advisor_id}}"], "1", 0, "C", false, 0, "")
+	pdf.CellFormat(85, 6, vars["{{client_signatory_capacity}}"], "1", 1, "C", false, 0, "")
+
+	// Row 5: Metadata (Grey background)
+	yRow5 := pdf.GetY()
+	pdf.SetFillColor(248, 250, 252)
+	pdf.Rect(20, yRow5, 85, 12, "DF")
+	pdf.SetXY(20, yRow5 + 1.5)
+	pdf.MultiCell(85, 4.5, "Ditandatangani: "+vars["{{generated_at_local}}"]+"\nMetode: Tanda Tangan Elektronik (OTP)", "", "C", false)
+
+	pdf.SetXY(105, yRow5)
+	pdf.Rect(105, yRow5, 85, 12, "DF")
+	pdf.SetXY(105, yRow5 + 1.5)
+	pdf.MultiCell(85, 4.5, "Ditandatangani: "+vars["{{generated_at_local}}"]+"\nMetode: Tanda Tangan Elektronik (OTP)", "", "C", false)
+	pdf.SetXY(20, yRow5 + 12)
+
+	// === PAGE LAMPIRAN 1 ===
+	pdf.AddPage()
+	pdf.SetFont("Times", "B", 12)
+	pdf.SetTextColor(12, 74, 110)
+	pdf.CellFormat(0, 6, "LAMPIRAN 1", "", 1, "L", false, 0, "")
+	pdf.CellFormat(0, 6, "RINGKASAN PENGAJUAN DAN PESANAN LAYANAN", "", 1, "L", false, 0, "")
 	pdf.SetFont("Times", "I", 9)
-	pdf.CellFormat(0, 5.5, "Catatan: Dokumen ini dihasilkan secara otomatis dan sah secara hukum tanpa tanda tangan basah.", "0", 1, "C", false, 0, "")
+	pdf.SetTextColor(100, 116, 139)
+	pdf.CellFormat(0, 5, fmt.Sprintf("Lampiran Perjanjian Nomor %s | Pengajuan %s", vars["{{contract_number}}"], vars["{{application_number}}"]), "", 1, "L", false, 0, "")
+	pdf.Ln(4)
+
+	drawRow := func(label, value string) {
+		pdf.SetFillColor(240, 249, 255)
+		pdf.SetFont("Times", "B", 9.5)
+		pdf.SetTextColor(12, 74, 110)
+		pdf.CellFormat(50, 7, "  "+label, "1", 0, "L", true, 0, "")
+		
+		pdf.SetFillColor(255, 255, 255)
+		pdf.SetFont("Times", "", 9.5)
+		pdf.SetTextColor(51, 65, 85)
+		pdf.CellFormat(120, 7, "  "+value, "1", 1, "L", true, 0, "")
+	}
+
+	// Identitas Pengaju Table
+	pdf.SetFont("Times", "B", 10)
+	pdf.SetFillColor(12, 74, 110)
+	pdf.SetTextColor(255, 255, 255)
+	pdf.CellFormat(0, 7.5, " A. IDENTITAS PENGAJU", "1", 1, "L", true, 0, "")
+	
+	pdf.SetTextColor(0, 0, 0)
+	drawRow("Nama Pelaku Usaha", vars["{{client_party_name}}"])
+	drawRow("Nama Usaha/Merek", vars["{{client_party_name}}"]+" / "+vars["{{service_package}}"])
+	drawRow("NIB", vars["{{client_nib}}"]+" jika ada")
+	drawRow("Skala Usaha", vars["{{business_scale}}"])
+	drawRow("Alamat Usaha", vars["{{business_address}}"])
+	drawRow("Narahubung", fmt.Sprintf("%s | %s | %s", vars["{{client_contact_name}}"], vars["{{client_phone}}"], vars["{{client_email}}"]))
+	pdf.Ln(4)
+
+	// Ruang Lingkup Table
+	pdf.SetFont("Times", "B", 10)
+	pdf.SetFillColor(12, 74, 110)
+	pdf.SetTextColor(255, 255, 255)
+	pdf.CellFormat(0, 7.5, " B. RUANG LINGKUP PENGAJUAN", "1", 1, "L", true, 0, "")
+	
+	pdf.SetTextColor(0, 0, 0)
+	drawRow("Skema", vars["{{service_scheme}}"])
+	drawRow("Paket", vars["{{service_package}}"])
+	drawRow("Kategori Produk", vars["{{product_category}}"])
+	drawRow("Produk/Varian", vars["{{product_count}}"]+" produk/varian — "+vars["{{product_summary}}"])
+	drawRow("Pabrik/Cabang", vars["{{facility_count}}"]+" lokasi — "+vars["{{facility_summary}}"])
+	drawRow("Ketentuan Khusus", vars["{{special_terms_or_dash}}"]+" / dikosongkan")
+	pdf.Ln(4)
+
+	// Rincian Biaya Table
+	pdf.SetFont("Times", "B", 10)
+	pdf.SetFillColor(12, 74, 110)
+	pdf.SetTextColor(255, 255, 255)
+	pdf.CellFormat(0, 7.5, " C. RINCIAN BIAYA", "1", 1, "L", true, 0, "")
+	
+	pdf.CellFormat(120, 7.5, "  Komponen Biaya", "1", 0, "L", true, 0, "")
+	pdf.CellFormat(50, 7.5, "Jumlah  ", "1", 1, "R", true, 0, "")
+
+	pdf.SetTextColor(51, 65, 85)
+	pdf.SetFont("Times", "", 9.5)
+
+	var breakdown []struct {
+		Name     string  `json:"name"`
+		Category string  `json:"category"`
+		Price    float64 `json:"price"`
+		Quantity float64 `json:"quantity"`
+		Total    float64 `json:"total"`
+	}
+
+	if vars["[CostBreakdownJSON]"] != "" {
+		if err := json.Unmarshal([]byte(vars["[CostBreakdownJSON]"]), &breakdown); err == nil {
+			for _, item := range breakdown {
+				pdf.SetFillColor(255, 255, 255)
+				pdf.CellFormat(120, 7, "  "+item.Name, "1", 0, "L", true, 0, "")
+				
+				formattedVal := uc.formatIDR(item.Total)
+				if item.Total < 0 || strings.ToUpper(item.Category) == "DISKON" {
+					formattedVal = "(" + uc.formatIDR(-item.Total) + ")"
+				}
+				pdf.CellFormat(50, 7, formattedVal+"  ", "1", 1, "R", true, 0, "")
+			}
+		}
+	}
+
+	if len(breakdown) == 0 {
+		pdf.CellFormat(120, 7, "  Jasa Pendampingan", "1", 0, "L", true, 0, "")
+		pdf.CellFormat(50, 7, vars["[Jasa Pendampingan]"]+"  ", "1", 1, "R", true, 0, "")
+		pdf.CellFormat(120, 7, "  Biaya Pihak Ketiga", "1", 0, "L", true, 0, "")
+		pdf.CellFormat(50, 7, vars["[Biaya Pihak Ketiga]"]+"  ", "1", 1, "R", true, 0, "")
+		pdf.CellFormat(120, 7, "  Diskon", "1", 0, "L", true, 0, "")
+		pdf.CellFormat(50, 7, "("+vars["[Diskon]"]+")  ", "1", 1, "R", true, 0, "")
+	}
+
+	// Total Row
+	pdf.SetFillColor(240, 249, 255)
+	pdf.SetFont("Times", "B", 9.5)
+	pdf.SetTextColor(12, 74, 110)
+	pdf.CellFormat(120, 8, "  TOTAL", "1", 0, "L", true, 0, "")
+	pdf.CellFormat(50, 8, vars["{{total_contract_amount_formatted}}"]+"  ", "1", 1, "R", true, 0, "")
+	pdf.Ln(4)
+
+	// Kontak Resmi Info Box
+	yPosD := pdf.GetY()
+	pdf.SetFillColor(248, 250, 252)
+	pdf.SetDrawColor(226, 232, 240)
+	pdf.Rect(20, yPosD, 170, 15, "DF")
+	
+	pdf.SetXY(22, yPosD + 2.5)
+	pdf.SetFont("Times", "B", 9.5)
+	pdf.SetTextColor(12, 74, 110)
+	pdf.Write(4.5, "D. KONTAK RESMI. ")
+	pdf.SetFont("Times", "", 9)
+	pdf.SetTextColor(71, 85, 105)
+	contactText := fmt.Sprintf("Halal Advisor: %s (ID %s), %s, %s | Layanan pelanggan: %s | Pengaduan: %s | Privasi: %s.",
+		vars["{{advisor_name}}"], vars["{{advisor_id}}"], vars["{{advisor_phone}}"], vars["{{advisor_email}}"],
+		vars["{{customer_service_contact}}"], vars["{{complaint_channel}}"], vars["{{privacy_contact}}"])
+	pdf.Write(4.5, contactText)
+	pdf.SetXY(20, yPosD + 15)
+	pdf.Ln(6)
+
+	// Footer note
+	pdf.SetFont("Times", "I", 8.5)
+	pdf.SetTextColor(100, 116, 139)
+	pdf.MultiCell(0, 4.5, "Lampiran ini dibuat otomatis dari data pengajuan dan disetujui bersamaan dengan Perjanjian. Perubahan setelah finalisasi harus tercatat sebagai revisi atau addendum dan ditandatangani ulang bila mengubah substansi hak atau kewajiban Para Pihak.", "", "L", false)
+
+	// === PAGE LAMPIRAN 2 ===
+	pdf.AddPage()
+	pdf.SetFont("Times", "B", 12)
+	pdf.SetTextColor(12, 74, 110)
+	pdf.CellFormat(0, 6, "LAMPIRAN 2", "", 1, "L", false, 0, "")
+	pdf.CellFormat(0, 6, "PERSETUJUAN PENGAJUAN DAN KUASA TERBATAS", "", 1, "L", false, 0, "")
+	pdf.Ln(4)
+
+	pdf.SetFont("Times", "", 10)
+	pdf.SetTextColor(51, 65, 85)
+	pdf.MultiCell(0, 5.5, "PIHAK KEDUA dengan ini:\n" +
+		"    (1)  menyatakan seluruh data, dokumen, foto, daftar bahan, daftar produk, dan uraian proses yang diberikan adalah benar, lengkap, dan sesuai kondisi usaha pada saat diajukan;\n" +
+		"    (2)  memberikan kuasa terbatas kepada PT Ana Nahnu Indonesia melalui Halal Advisor yang ditunjuk untuk menyiapkan, memasukkan, mengunggah, mengoreksi, memantau, dan mengomunikasikan data pengajuan pada sistem resmi, sejauh diizinkan oleh sistem dan hukum;\n" +
+		"    (3)  memahami bahwa kuasa terbatas ini tidak mencakup kewenangan untuk membuat pernyataan palsu, mengubah fakta usaha, menandatangani pernyataan kehalalan yang wajib dilakukan pelaku usaha, menerima dana atas nama PIHAK KEDUA, atau melakukan tindakan lain di luar pengurusan administratif pengajuan;\n" +
+		"    (4)  menyetujui penyampaian data kepada pihak berwenang dan mitra pemrosesan yang diperlukan sebagaimana Pasal 10; dan\n" +
+		"    (5)  wajib segera mencabut atau memperbarui kuasa apabila terjadi perubahan wakil, kontak, produk, bahan, proses, fasilitas, atau keadaan lain yang memengaruhi pengajuan.\n\n" +
+		"Persetujuan ini berlaku sejak Perjanjian efektif sampai pengajuan selesai, dihentikan, atau kuasa dicabut secara tertulis. Pencabutan tidak memengaruhi tindakan sah yang telah dilakukan sebelum pemberitahuan diterima.", "", "J", false)
+	pdf.Ln(6)
+
+	// Konfirmasi Table
+	pdf.SetFont("Times", "B", 10.5)
+	pdf.SetTextColor(12, 74, 110)
+	pdf.CellFormat(0, 6, "KONFIRMASI PIHAK KEDUA", "", 1, "C", false, 0, "")
+	pdf.Ln(2)
+
+	drawRow("Nama Penanda Tangan", vars["{{client_signatory_name}}"])
+	drawRow("Kapasitas", "Pemohon")
+	drawRow("Tanggal/Waktu", vars["{{generated_at_local}}"])
+	
+	// Signature row
+	yRowSign := pdf.GetY()
+	pdf.SetFillColor(240, 249, 255)
+	pdf.SetFont("Times", "B", 9.5)
+	pdf.CellFormat(50, 15, "  Tanda Tangan/Afirmasi", "1", 0, "L", true, 0, "")
+	
+	pdf.SetFillColor(255, 255, 255)
+	pdf.CellFormat(120, 15, "", "1", 1, "L", true, 0, "")
+	
+	// Draw a small QR Code inside the signature cell
+	if err == nil {
+		pdf.ImageOptions("qr_p2", 85, yRowSign + 1.5, 12, 12, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+	}
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
@@ -513,7 +791,6 @@ func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 }
 
 func (uc *documentUsecase) cleanXml(xml string) string {
-	// 1. Remove spell check tags that often split placeholders
 	reSpell := regexp.MustCompile(`<w:proofErr w:type="(spellStart|spellEnd)"/>`)
 	xml = reSpell.ReplaceAllString(xml, "")
 

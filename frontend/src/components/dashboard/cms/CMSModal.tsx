@@ -98,8 +98,8 @@ export const CMSModal = ({
                     {activeTab === 'products' && (
                         <>
                             <div className="space-y-1">
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Nama Produk</label>
-                                <input className="glass-input w-full" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Nama produk..." />
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Jenis Produk</label>
+                                <input className="glass-input w-full" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Jenis produk..." />
                             </div>
                             <div className="space-y-1">
                                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Nama Perusahaan/Produsen</label>

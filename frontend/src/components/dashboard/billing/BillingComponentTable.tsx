@@ -30,6 +30,7 @@ export const BillingComponentTable = ({
                         <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nama & Tipe</th>
                         <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Kategori</th>
                         <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nominal</th>
+                        <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Diskon</th>
                         <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Sifat</th>
                         <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Batasan Wilayah / Klasifikasi</th>
                         <th className="px-6 py-4 text-right">Aksi</th>
@@ -37,27 +38,32 @@ export const BillingComponentTable = ({
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                     {components.length === 0 ? (
-                        <tr><td colSpan={6} className="py-12 text-center text-gray-400">Belum ada komponen biaya.</td></tr>
+                        <tr><td colSpan={7} className="py-12 text-center text-gray-400">Belum ada komponen biaya.</td></tr>
                     ) : components.map(c => (
                         <tr key={c.id} className="hover:bg-brand-50/20 transition-colors">
                             <td className="px-6 py-4">
                                 <div className="font-bold text-gray-800">{c.name}</div>
-                                <div className="mt-1"><span className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-[10px] font-semibold text-gray-600">{c.type}</span></div>
+                                <div className="mt-1">
+                                    <span className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-[10px] font-semibold text-gray-600">
+                                        {c.type === 'PER_MANDAY' ? 'PER KUANTITAS' : c.type}
+                                    </span>
+                                </div>
                             </td>
                             <td className="px-6 py-4">
                                 <span className={`px-2.5 py-1 rounded-md text-xs font-bold tracking-wide uppercase shadow-sm ${
-                                    c.category === 'REGISTRASI' ? 'bg-blue-100 text-blue-700' :
-                                    c.category === 'PENETAPAN' ? 'bg-purple-100 text-purple-700' :
                                     c.category === 'PENDAMPINGAN' ? 'bg-green-100 text-green-700' :
                                     c.category === 'BPJPH' ? 'bg-indigo-100 text-indigo-700' :
                                     c.category === 'MUI' ? 'bg-amber-100 text-amber-700' :
                                     'bg-gray-100 text-gray-700'
                                 }`}>
-                                    {c.category}
+                                    {c.category === 'PERSYARATAN_LAIN' ? 'Persyaratan Lain' : c.category}
                                 </span>
                             </td>
                             <td className="px-6 py-4">
                                 <div className="font-black text-gray-900">{formatRupiah(c.base_amount)}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                                <div className="font-semibold text-gray-700">{c.discount_percent ? `${c.discount_percent}%` : '-'}</div>
                             </td>
                             <td className="px-6 py-4">
                                 {c.is_mandatory ? (
@@ -67,7 +73,7 @@ export const BillingComponentTable = ({
                                 ) : (
                                     <div className="flex flex-col gap-1">
                                         <div className="flex items-center gap-1 text-[11px] font-bold text-gray-500 bg-gray-50 px-2.5 py-1 rounded-md w-fit border border-gray-200">
-                                            OPSIONAL
+                                            PERSYARATAN LAIN
                                         </div>
                                         {c.form_field_config && (
                                             <span className="text-[9px] text-blue-600 font-extrabold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-md mt-1 block w-fit truncate max-w-[150px]" title={`Dihubungkan dengan form field: ${c.form_field_config.field_label}`}>

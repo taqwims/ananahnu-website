@@ -47,6 +47,7 @@ type Submission struct {
 	Mandays             int              `gorm:"default:1" json:"mandays"`
 	RejectNote          string           `json:"reject_note,omitempty"`
 	TrackingNumber      *string          `gorm:"uniqueIndex" json:"tracking_number,omitempty"`
+	ContractNumber      *string          `gorm:"uniqueIndex" json:"contract_number,omitempty"`
 	AuditDate           *time.Time       `json:"audit_date,omitempty"`
 	AuditResult1URL     string           `gorm:"column:audit_result_1_url" json:"audit_result_1_url,omitempty"`
 	AuditResult2URL     string           `gorm:"column:audit_result_2_url" json:"audit_result_2_url,omitempty"`
@@ -91,4 +92,5 @@ type SubmissionRepository interface {
 	UpdateBPJPHPayment(id uuid.UUID, status string, amount float64, paidAt *time.Time) error
 	UpdateBPJPHPaymentBulk(ids []uuid.UUID, status string, amount float64, paidAt *time.Time) error
 	Update(submission *Submission) error
+	CountSubmissionsWithContractInYear(year int) (int64, error)
 }

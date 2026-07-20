@@ -15,6 +15,7 @@ import { SubmissionInvoice } from '../../components/dashboard/submission/Submiss
 import { SubmissionHistory } from '../../components/dashboard/submission/SubmissionHistory';
 import api from '../../services/api';
 import type { BusinessType } from '../../types';
+import ContractTextPreview from '../../components/dashboard/submission/ContractTextPreview';
 import Modal from '../../components/ui/Modal';
 import { submissionService } from '../../services/submissionService';
 import toast from 'react-hot-toast';
@@ -316,6 +317,21 @@ return (
                         businessTypes={businessTypes}
                         processing={processing} 
                     />
+
+                    {submission.service_type === 'REGULER' && (
+                        <div className="bg-white p-6 rounded-2xl border border-gray-150 shadow-sm space-y-4">
+                            <h3 className="text-sm font-black text-gray-850 flex items-center gap-2 uppercase tracking-wider">
+                                <FileText className="w-5 h-5 text-indigo-600" />
+                                Perjanjian Kontrak Layanan Pendampingan
+                            </h3>
+                            <p className="text-xs text-gray-505">
+                                Berikut adalah draf kontrak perjanjian layanan pendampingan sertifikasi halal Anda. Silakan pelajari seluruh pasal di bawah ini.
+                            </p>
+                            <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 max-h-[500px] overflow-y-auto p-2">
+                                <ContractTextPreview submission={submission} />
+                            </div>
+                        </div>
+                    )}
 
                     <div className="space-y-6">
                         {submission.status === 'WAITING_PAYMENT' && (

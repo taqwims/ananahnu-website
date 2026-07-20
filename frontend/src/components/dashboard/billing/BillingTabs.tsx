@@ -48,7 +48,7 @@ export const BillingTabs = ({
                         { key: 'business_types', label: 'Bidang' },
                         { key: 'products', label: 'Produk' },
                         { key: 'scales', label: 'Skala Usaha' },
-                        { key: 'schemes', label: 'Skema' },
+                        { key: 'schemes', label: 'Skema Penjualan' },
                     ].map(sub => (
                         <button
                             key={sub.key}

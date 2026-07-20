@@ -18,7 +18,7 @@ interface BillingComponentFormProps {
     formFields: any[];
 }
 
-const COMPONENT_CATEGORIES = ['REGISTRASI', 'LPH', 'PENETAPAN', 'PENDAMPINGAN', 'BPJPH', 'MUI', 'OPSIONAL'] as const;
+const COMPONENT_CATEGORIES = ['LPH', 'PENDAMPINGAN', 'BPJPH', 'MUI', 'PERSYARATAN_LAIN'] as const;
 const COMPONENT_TYPES = ['FIXED', 'PER_MANDAY', 'PER_CABANG', 'PER_PRODUK'] as const;
 
 export const BillingComponentForm = ({
@@ -70,13 +70,23 @@ export const BillingComponentForm = ({
                             <div>
                                 <label className="block text-xs font-bold text-gray-700 mb-1.5">Tipe Kalkulasi</label>
                                 <select className="w-full bg-white border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })}>
-                                    {COMPONENT_TYPES.map(t => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
+                                    {COMPONENT_TYPES.map(t => (
+                                        <option key={t} value={t}>
+                                            {t === 'PER_MANDAY' ? 'PER KUANTITAS' : t.replace(/_/g, ' ')}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-700 mb-1.5">Nominal (Rp) *</label>
                             <input type="number" placeholder="0" value={formData.amount} onChange={e => setFormData({ ...formData, amount: e.target.value })} className="w-full bg-white border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-semibold" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1.5">Diskon (%)</label>
+                                <input type="number" placeholder="0" value={(formData as any).discountPercent || ''} onChange={e => setFormData({ ...formData, discountPercent: e.target.value })} className="w-full bg-white border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" />
+                            </div>
                         </div>
                     </div>
                 </div>

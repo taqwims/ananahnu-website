@@ -31,7 +31,9 @@ export const useQCWorkspace = (initialSubId: string | null) => {
         nib: '',
         nik: '',
         product_name: '',
-        address: ''
+        address: '',
+        contact_person: '',
+        phone: ''
     });
 
     // Details for active submission
@@ -98,7 +100,9 @@ export const useQCWorkspace = (initialSubId: string | null) => {
                     nib: sub.client.nib || '',
                     nik: sub.client.nik || '',
                     product_name: sub.client.product_name || '',
-                    address: sub.client.address || ''
+                    address: sub.client.address || '',
+                    contact_person: sub.client.contact_person || '',
+                    phone: sub.client.phone || ''
                 });
             }
             

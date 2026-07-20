@@ -62,6 +62,8 @@ export const QCReferencePanel = ({
                             <EditField label="NIB" value={clientForm.nib} onChange={v => setClientForm({...clientForm, nib: v})} />
                             <EditField label="NIK" value={clientForm.nik} onChange={v => setClientForm({...clientForm, nik: v})} />
                             <EditField label="Produk" value={clientForm.product_name} onChange={v => setClientForm({...clientForm, product_name: v})} />
+                            <EditField label="Kontak Person" value={clientForm.contact_person} onChange={v => setClientForm({...clientForm, contact_person: v})} />
+                            <EditField label="No. Telepon" value={clientForm.phone} onChange={v => setClientForm({...clientForm, phone: v})} />
                             <div className="col-span-2">
                                 <EditField label="Alamat Lengkap" value={clientForm.address} onChange={v => setClientForm({...clientForm, address: v})} isTextArea />
                             </div>
@@ -83,6 +85,8 @@ export const QCReferencePanel = ({
                             <InfoBox label="NIB" value={submission.client?.nib} icon={Building2} mono />
                             <InfoBox label="NIK" value={submission.client?.nik} icon={Building2} mono />
                             <InfoBox label="Produk" value={submission.client?.product_name} icon={FileText} />
+                            <InfoBox label="Kontak Person" value={submission.client?.contact_person} icon={UserIcon} />
+                            <InfoBox label="No. Telepon" value={submission.client?.phone} icon={FileText} />
                             <div className="col-span-2 p-4 bg-gray-50/50 rounded-2xl border border-gray-100">
                                 <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-1">Alamat Lengkap</span>
                                 <p className="text-xs text-gray-700 leading-relaxed font-medium">{submission.client?.address}</p>

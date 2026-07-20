@@ -49,6 +49,14 @@ export default function SubmissionCreate() {
                         businessTypes={businessTypes}
                     />
 
+                    <div className="block md:hidden">
+                        <SubmissionActions 
+                            onSave={handleSave}
+                            saving={saving}
+                            isVerified={isVerified}
+                        />
+                    </div>
+
                     <SubmissionConfigForm 
                         configs={configs}
                         fieldValues={fieldValues}
@@ -59,7 +67,7 @@ export default function SubmissionCreate() {
                 </div>
 
                 {/* Sidebar Actions */}
-                <div className="space-y-6">
+                <div className="hidden md:block space-y-6">
                     <SubmissionActions 
                         onSave={handleSave}
                         saving={saving}

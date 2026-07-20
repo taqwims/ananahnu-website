@@ -40,12 +40,10 @@ const formatIDR = (n: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
 
 const CATEGORY_LABELS: Record<string, string> = {
-    REGISTRASI: 'Biaya Registrasi',
-    PENETAPAN: 'Biaya Penetapan',
     PENDAMPINGAN: 'Biaya Pendampingan',
     BPJPH: 'Biaya BPJPH',
     MUI: 'Biaya MUI',
-    OPSIONAL: 'Biaya Opsional',
+    PERSYARATAN_LAIN: 'Biaya Persyaratan Lain',
     SKEMA: 'Biaya Skema',
 };
 

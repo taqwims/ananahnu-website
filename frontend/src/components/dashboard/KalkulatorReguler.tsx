@@ -50,6 +50,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     const [branchCount, setBranchCount] = useState(1);
     const [productCount, setProductCount] = useState(1);
     const [mandays, setMandays] = useState(1);
+    const [optionalQuantities, setOptionalQuantities] = useState<Record<number, number>>({});
 
     // Optional costs
     const [optionalCosts, setOptionalCosts] = useState<OptionalCost[]>([]);
@@ -210,6 +211,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
 
         const selectedIds: number[] = [];
         const customOptionals: any[] = [];
+        const optQuants: Record<number, number> = {};
 
         initialBreakdown.forEach((item: any) => {
             if (!item.is_optional) return;
@@ -223,12 +225,16 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
 
             if (matchingComp) {
                 selectedIds.push(matchingComp.id);
+                if (item.multiplier) {
+                    optQuants[matchingComp.id] = item.multiplier;
+                }
             } else {
                 customOptionals.push({ name: item.name, amount: item.total });
             }
         });
 
         setSelectedOptionalComponentIds(selectedIds);
+        setOptionalQuantities(optQuants);
         setOptionalCosts(customOptionals);
         setHasInitializedOptionalComponents(true);
     }, [masterComponents, initialBreakdown, hasInitializedOptionalComponents]);
@@ -300,23 +306,45 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 multiplier = branchCount;
                 multiplierLabel = ` (${branchCount} Cabang)`;
             } else if (comp.type === 'PER_MANDAY') {
-                multiplier = mandays;
-                multiplierLabel = ` (${mandays} Manday)`;
+                if (!comp.is_mandatory) {
+                    multiplier = optionalQuantities[comp.id] || 1;
+                    multiplierLabel = ` (${multiplier} Kuantitas)`;
+                } else {
+                    multiplier = mandays;
+                    multiplierLabel = ` (${mandays} Kuantitas)`;
+                }
             } else if (comp.type === 'PER_PRODUK') {
                 multiplier = productCount;
                 multiplierLabel = ` (${productCount} Produk)`;
             }
 
-            const itemTotal = comp.base_amount * multiplier;
+            const baseAmount = comp.base_amount * multiplier;
+            let itemTotal = baseAmount;
+            let discountAmount = 0;
+            if (comp.discount_percent && comp.discount_percent > 0) {
+                discountAmount = baseAmount * (comp.discount_percent / 100);
+                itemTotal = baseAmount - discountAmount;
+            }
 
             currentBreakdown.push({
                 name: comp.name + nameTag + multiplierLabel,
                 category: comp.category.toUpperCase(),
                 unit_cost: comp.base_amount,
                 multiplier: multiplier > 1 ? multiplier : null,
-                total: itemTotal,
+                total: baseAmount,
                 is_optional: false
             });
+
+            if (discountAmount > 0) {
+                currentBreakdown.push({
+                    name: `Diskon ${comp.name} (${comp.discount_percent}%)`,
+                    category: 'DISKON',
+                    unit_cost: -(discountAmount / multiplier),
+                    multiplier: multiplier > 1 ? multiplier : null,
+                    total: -discountAmount,
+                    is_optional: false
+                });
+            }
             currentTotal += itemTotal;
         });
 
@@ -420,14 +448,21 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 multiplier = branchCount;
                 multiplierLabel = ` (${branchCount} Cabang)`;
             } else if (comp.type === 'PER_MANDAY') {
-                multiplier = mandays;
-                multiplierLabel = ` (${mandays} Manday)`;
+                multiplier = optionalQuantities[comp.id] || 1;
+                multiplierLabel = ` (${multiplier} Kuantitas)`;
             } else if (comp.type === 'PER_PRODUK') {
                 multiplier = productCount;
                 multiplierLabel = ` (${productCount} Produk)`;
             }
 
-            const itemTotal = comp.base_amount * multiplier;
+            const baseAmount = comp.base_amount * multiplier;
+            let itemTotal = baseAmount;
+            let discountAmount = 0;
+            if (comp.discount_percent && comp.discount_percent > 0) {
+                discountAmount = baseAmount * (comp.discount_percent / 100);
+                itemTotal = baseAmount - discountAmount;
+            }
+
             let nameTag = '';
             if (comp.district_id) nameTag = ' [Khusus Kecamatan]';
             else if (comp.regency_id) nameTag = ' [Khusus Kabupaten]';
@@ -440,9 +475,20 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 category: comp.category.toUpperCase(),
                 unit_cost: comp.base_amount,
                 multiplier: multiplier > 1 ? multiplier : null,
-                total: itemTotal,
+                total: baseAmount,
                 is_optional: true
             });
+
+            if (discountAmount > 0) {
+                currentBreakdown.push({
+                    name: `Diskon ${comp.name} (${comp.discount_percent}%)`,
+                    category: 'DISKON',
+                    unit_cost: -(discountAmount / multiplier),
+                    multiplier: multiplier > 1 ? multiplier : null,
+                    total: -discountAmount,
+                    is_optional: true
+                });
+            }
             currentTotal += itemTotal;
         });
 
@@ -460,7 +506,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         });
 
         return { total: currentTotal, breakdown: currentBreakdown };
-    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, mandays, productCount, selectedOptionalComponentIds, isFormFieldFilled]);
+    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, mandays, optionalQuantities, productCount, selectedOptionalComponentIds, isFormFieldFilled]);
 
     const handleSave = async () => {
         setSaving(true);
@@ -558,7 +604,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                     {/* Bidang + Produk */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Jenis Bidang</label>
+                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Bidang Usaha</label>
                             <select
                                 className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
                                 value={businessTypeId}
@@ -640,7 +686,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Jumlah Manday</label>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Kuantitas / Volume Utama</label>
                             <input
                                 type="number"
                                 min="1"
@@ -674,33 +720,58 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                                         }
 
                                         return (
-                                            <label key={comp.id} className="flex items-center gap-3 cursor-pointer select-none">
-                                                <input
-                                                    type="checkbox"
-                                                    disabled={!isEditable || isConnected}
-                                                    checked={isChecked}
-                                                    onChange={() => {
-                                                        if (isConnected) return;
-                                                        if (isChecked) {
-                                                            setSelectedOptionalComponentIds(selectedOptionalComponentIds.filter(id => id !== comp.id));
-                                                        } else {
-                                                            setSelectedOptionalComponentIds([...selectedOptionalComponentIds, comp.id]);
-                                                        }
-                                                    }}
-                                                    className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500 disabled:opacity-50"
-                                                />
-                                                <div className="flex-1 text-sm text-gray-700 font-medium">
-                                                    {comp.name}
-                                                    {isConnected && (
-                                                        <span className={`text-[10px] ml-2 px-2 py-0.5 rounded-full font-bold ${
-                                                            !isChecked ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
-                                                        }`}>
-                                                            Form: {comp.form_field_config?.field_label || 'Field'} {statusText}
+                                            <div key={comp.id} className="flex items-center justify-between gap-3 bg-white p-2.5 rounded-lg border border-gray-150 shadow-sm">
+                                                <label className="flex items-center gap-3 cursor-pointer select-none flex-1">
+                                                    <input
+                                                        type="checkbox"
+                                                        disabled={!isEditable || isConnected}
+                                                        checked={isChecked}
+                                                        onChange={() => {
+                                                            if (isConnected) return;
+                                                            if (isChecked) {
+                                                                setSelectedOptionalComponentIds(selectedOptionalComponentIds.filter(id => id !== comp.id));
+                                                            } else {
+                                                                setSelectedOptionalComponentIds([...selectedOptionalComponentIds, comp.id]);
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500 disabled:opacity-50"
+                                                    />
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm text-gray-800 font-bold">{comp.name}</span>
+                                                        <span className="text-xs text-gray-400 font-medium">
+                                                            {formatRupiah(comp.base_amount)} 
+                                                            {comp.type === 'PER_MANDAY' ? ' / kuantitas' : ` / ${comp.type.toLowerCase().replace('per_', '')}`}
+                                                            {comp.discount_percent ? ` (Diskon ${comp.discount_percent}%)` : ''}
                                                         </span>
-                                                    )}
-                                                </div>
-                                                <div className="text-xs text-gray-500 font-bold">{formatRupiah(comp.base_amount)}</div>
-                                            </label>
+                                                        {isConnected && (
+                                                            <span className={`text-[9px] mt-1 px-2 py-0.5 rounded-full font-bold w-fit ${
+                                                                !isChecked ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
+                                                            }`}>
+                                                                Form: {comp.form_field_config?.field_label || 'Field'} {statusText}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </label>
+                                                {isChecked && comp.type === 'PER_MANDAY' && (
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs text-gray-500 font-semibold">Kuantitas:</span>
+                                                        <input
+                                                            type="number"
+                                                            disabled={!isEditable}
+                                                            min={1}
+                                                            className="w-16 px-2 py-1 border border-gray-200 rounded-lg text-xs font-bold text-center outline-none focus:ring-2 focus:ring-brand-500/20"
+                                                            value={optionalQuantities[comp.id] || 1}
+                                                            onChange={e => {
+                                                                const val = Math.max(1, parseInt(e.target.value) || 1);
+                                                                setOptionalQuantities({
+                                                                    ...optionalQuantities,
+                                                                    [comp.id]: val
+                                                                });
+                                                            }}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
                                         );
                                     })}
                             </div>
@@ -775,7 +846,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 {!loadingComponents && breakdown.length === 0 && (
                     <div className="flex-1 flex items-center justify-center">
                         <div className="text-center py-16 text-gray-400">
-                            <p className="text-sm italic">Pilih Jenis Bidang, Produk, dan Skala Usaha untuk melihat rincian biaya.</p>
+                            <p className="text-sm italic">Pilih Bidang Usaha, Produk, dan Skala Usaha untuk melihat rincian biaya.</p>
                         </div>
                     </div>
                 )}

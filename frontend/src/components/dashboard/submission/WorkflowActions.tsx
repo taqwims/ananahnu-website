@@ -176,22 +176,13 @@ export const WorkflowActions = ({
                             <label className="flex items-center gap-2 text-xs font-black text-indigo-800 uppercase tracking-widest">
                                 📄 Download Kontrak Layanan
                             </label>
-                            <div className="grid grid-cols-2 gap-2">
-                                <button 
-                                    onClick={() => handleDownload('docx')}
-                                    disabled={processing}
-                                    className="py-2.5 bg-white text-indigo-600 border border-indigo-200 rounded-xl font-black text-[10px] hover:bg-indigo-600 hover:text-white transition-all shadow-sm flex items-center justify-center gap-1"
-                                >
-                                    DOCX
-                                </button>
-                                <button 
-                                    onClick={() => handleDownload('pdf')}
-                                    disabled={processing}
-                                    className="py-2.5 bg-white text-red-600 border border-red-200 rounded-xl font-black text-[10px] hover:bg-red-600 hover:text-white transition-all shadow-sm flex items-center justify-center gap-1"
-                                >
-                                    PDF
-                                </button>
-                            </div>
+                            <button 
+                                onClick={() => handleDownload('pdf')}
+                                disabled={processing}
+                                className="w-full py-2.5 bg-white text-red-600 border border-red-200 rounded-xl font-black text-[10px] hover:bg-red-600 hover:text-white transition-all shadow-sm flex items-center justify-center gap-1"
+                            >
+                                Unduh Kontrak Kerja (PDF)
+                            </button>
                         </div>
                     )}
 

@@ -90,6 +90,7 @@ export interface Submission {
     cost_detail?: SubmissionCostDetail;
     sh_url?: string;
     tracking_number?: string;
+    contract_number?: string;
     audit_date?: string;
     audit_result_1_url?: string;
     audit_result_2_url?: string;
@@ -321,10 +322,11 @@ export interface SubmissionCostDetail {
 export interface BillingComponent {
     id: number;
     name: string;
-    category: 'REGISTRASI' | 'PENETAPAN' | 'PENDAMPINGAN' | 'BPJPH' | 'MUI' | 'OPSIONAL' | 'LPH';
+    category: 'PENDAMPINGAN' | 'BPJPH' | 'MUI' | 'PERSYARATAN_LAIN' | 'LPH';
     type: 'FIXED' | 'PER_MANDAY' | 'PER_CABANG' | 'PER_PRODUK';
     base_amount: number;
     is_mandatory: boolean;
+    discount_percent?: number;
     business_scale_id?: number;
     province_id?: number;
     regency_id?: number;

@@ -36,9 +36,9 @@ func (h *DocumentHandler) GenerateContract(c *gin.Context) {
 		return
 	}
 
-	format := c.DefaultQuery("format", "docx")
-	if format != "docx" && format != "pdf" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported format, use docx or pdf"})
+	format := c.DefaultQuery("format", "pdf")
+	if format != "pdf" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported format, only pdf is supported"})
 		return
 	}
 

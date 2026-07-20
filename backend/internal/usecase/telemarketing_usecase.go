@@ -969,16 +969,29 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 
 		// Modifier untuk produk
 		if comp.Type == "PER_PRODUK" && input.ProductCount > 0 {
-			// Misalnya ada free produk, ini bisa dilanjut logicnya. Untuk sederhananya:
 			amount = amount * float64(input.ProductCount)
+		}
+
+		discountAmount := 0.0
+		if comp.DiscountPercent > 0 {
+			discountAmount = amount * (comp.DiscountPercent / 100.0)
+			amount -= discountAmount
 		}
 
 		total += amount
 		breakdown = append(breakdown, BreakdownItem{
 			Name:     comp.Name,
 			Category: comp.Category,
-			Amount:   amount,
+			Amount:   amount + discountAmount,
 		})
+
+		if discountAmount > 0 {
+			breakdown = append(breakdown, BreakdownItem{
+				Name:     fmt.Sprintf("Diskon %s (%.0f%%)", comp.Name, comp.DiscountPercent),
+				Category: "DISKON",
+				Amount:   -discountAmount,
+			})
+		}
 	}
 
 	// Skema DP (70% - 30%)

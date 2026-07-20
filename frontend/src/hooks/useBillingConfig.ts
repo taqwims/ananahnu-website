@@ -30,7 +30,7 @@ export const useBillingConfig = () => {
         description: '',
         amount: '',
         type: 'FIXED',
-        category: 'OPSIONAL',
+        category: 'PERSYARATAN_LAIN',
         mandatory: false,
         businessTypeId: '',
         productCategoryId: '',
@@ -40,7 +40,8 @@ export const useBillingConfig = () => {
         provinceId: '',
         regencyId: '',
         districtId: '',
-        formFieldConfigId: ''
+        formFieldConfigId: '',
+        discountPercent: ''
     });
 
     const fetchData = useCallback(async () => {
@@ -101,7 +102,7 @@ export const useBillingConfig = () => {
             description: '',
             amount: '',
             type: 'FIXED',
-            category: 'OPSIONAL',
+            category: 'PERSYARATAN_LAIN',
             mandatory: false,
             businessTypeId: '',
             productCategoryId: '',
@@ -111,7 +112,8 @@ export const useBillingConfig = () => {
             provinceId: '',
             regencyId: '',
             districtId: '',
-            formFieldConfigId: ''
+            formFieldConfigId: '',
+            discountPercent: ''
         });
         setEditingId(null);
     };
@@ -174,6 +176,7 @@ export const useBillingConfig = () => {
                     payload.data_source = formData.dataSource;
                     payload.business_scale_id = formData.businessScaleId ? parseInt(formData.businessScaleId) : null;
                     payload.form_field_config_id = formData.formFieldConfigId ? parseInt(formData.formFieldConfigId) : null;
+                    payload.discount_percent = parseFloat(formData.discountPercent) || 0;
                 }
 
                 if (editingId) {
@@ -208,7 +211,7 @@ export const useBillingConfig = () => {
             description: item.description || '',
             amount: item.base_amount?.toString() || '',
             type: item.type || 'FIXED',
-            category: item.category || 'OPSIONAL',
+            category: item.category || 'PERSYARATAN_LAIN',
             mandatory: item.is_mandatory || false,
             businessTypeId: item.business_type_id?.toString() || '',
             productCategoryId: item.product_category_id?.toString() || '',
@@ -218,7 +221,8 @@ export const useBillingConfig = () => {
             provinceId: item.province_id?.toString() || '',
             regencyId: item.regency_id?.toString() || '',
             districtId: item.district_id?.toString() || '',
-            formFieldConfigId: item.form_field_config_id?.toString() || ''
+            formFieldConfigId: item.form_field_config_id?.toString() || '',
+            discountPercent: item.discount_percent?.toString() || ''
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };

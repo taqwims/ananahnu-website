@@ -35,6 +35,8 @@ func (r *submissionRepository) FindByID(id uuid.UUID) (*domain.Submission, error
 		Preload("AssignedDrafter").
 		Preload("Consultant").
 		Preload("BusinessType").
+		Preload("FieldValues").
+		Preload("FieldValues.FormField").
 		First(&submission, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
@@ -180,4 +182,14 @@ func (r *submissionRepository) UpdateBPJPHPaymentBulk(ids []uuid.UUID, status st
 
 func (r *submissionRepository) Update(submission *domain.Submission) error {
 	return r.db.Model(submission).Updates(submission).Error
+}
+
+func (r *submissionRepository) CountSubmissionsWithContractInYear(year int) (int64, error) {
+	var count int64
+	startDate := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
+	endDate := time.Date(year+1, 1, 1, 0, 0, 0, 0, time.UTC)
+	err := r.db.Model(&domain.Submission{}).
+		Where("contract_number IS NOT NULL AND contract_number != '' AND created_at >= ? AND created_at < ?", startDate, endDate).
+		Count(&count).Error
+	return count, err
 }

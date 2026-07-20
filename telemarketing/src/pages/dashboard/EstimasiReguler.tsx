@@ -437,7 +437,7 @@ export default function EstimasiReguler() {
                         <div class="details-row"><span>Provinsi:</span><span>${selectedProv}</span></div>
                         <div class="details-row"><span>Kabupaten:</span><span>${selectedReg}</span></div>
                         <div class="details-row"><span>Kecamatan:</span><span>${selectedDist}</span></div>
-                        <div class="details-row"><span>Jenis Bidang:</span><span>${selectedType}</span></div>
+                        <div class="details-row"><span>Bidang Usaha:</span><span>${selectedType}</span></div>
                         <div class="details-row"><span>Jenis Produk:</span><span>${selectedProd}</span></div>
                     </div>
                     <div class="details-box">
@@ -581,7 +581,7 @@ export default function EstimasiReguler() {
                         {/* Bidang + Produk */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-xs font-semibold text-gray-700 mb-1">Jenis Bidang</label>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">Bidang Usaha</label>
                                 <select
                                     className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
                                     value={businessTypeId}
@@ -763,7 +763,7 @@ export default function EstimasiReguler() {
                         {/* Empty state */}
                         {!loadingComponents && breakdown.length === 0 && (
                             <div className="text-center py-12 text-gray-400 italic text-xs">
-                                Pilih Jenis Bidang, Produk, dan Skala Usaha untuk melihat rincian biaya.
+                                Pilih Bidang Usaha, Produk, dan Skala Usaha untuk melihat rincian biaya.
                             </div>
                         )}
 

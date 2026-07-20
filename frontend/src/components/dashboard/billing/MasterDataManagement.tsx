@@ -123,7 +123,7 @@ export const MasterDataManagement = ({
                                                 {index + 1}
                                             </div>
                                             <div className="flex-1">
-                                                <input type="text" placeholder="Nama produk..." value={row.name} onChange={e => {
+                                                <input type="text" placeholder="Jenis produk..." value={row.name} onChange={e => {
                                                     const newRows = [...productRows];
                                                     newRows[index].name = e.target.value;
                                                     setProductRows(newRows);
@@ -198,7 +198,7 @@ export const MasterDataManagement = ({
                                     <thead className="bg-gray-50 border-b border-gray-100">
                                         <tr>
                                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-16">No</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-1/3">Nama Produk</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-1/3">Jenis Produk</th>
                                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Detail / Deskripsi</th>
                                             <th className="px-6 py-4 text-right">Aksi</th>
                                         </tr>

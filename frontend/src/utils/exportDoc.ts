@@ -129,7 +129,7 @@ export const exportSubmissionToDoc = (submission: Submission, fieldValues: FormF
                             <thead>
                                 <tr>
                                     <th style="width: 50px; text-align: center;">No</th>
-                                    <th>Nama Produk</th>
+                                    <th>Jenis Produk</th>
                                     <th style="width: 150px;">Foto Produk</th>
                                 </tr>
                             </thead>
@@ -217,7 +217,7 @@ export const exportSubmissionToDoc = (submission: Submission, fieldValues: FormF
                             <thead>
                                 <tr>
                                     <th style="width: 50px; text-align: center;">No</th>
-                                    <th>Nama Produk</th>
+                                    <th>Jenis Produk</th>
                                     <th>Bahan Yang Digunakan</th>
                                 </tr>
                             </thead>

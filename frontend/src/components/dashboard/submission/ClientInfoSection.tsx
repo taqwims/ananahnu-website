@@ -298,9 +298,17 @@ export const ClientInfoSection = ({
                                 }}
                             >
                                 <option value="">Pilih Bidang Usaha</option>
-                                {businessTypes.map(bt => (
-                                    <option key={bt.id} value={bt.id}>{bt.name}</option>
-                                ))}
+                                {businessTypes
+                                    .filter(bt => {
+                                        if (submission.service_type === 'SELF_DECLARE' || submission.service_type === 'SELF_DECLARE_MANDIRI') {
+                                            return bt.name.toLowerCase().includes('makanan') || bt.name.toLowerCase().includes('minuman');
+                                        }
+                                        return true;
+                                    })
+                                    .map(bt => (
+                                        <option key={bt.id} value={bt.id}>{bt.name}</option>
+                                    ))
+                                }
                             </select>
                         </div>
                         <div className="sm:col-span-2">
@@ -369,7 +377,15 @@ export const ClientInfoSection = ({
                                         onChange={e => setClientForm({...clientForm, business_scale_id: e.target.value})}
                                     >
                                         <option value="">Pilih Skala Usaha</option>
-                                        {scales.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                        {scales
+                                            .filter(s => {
+                                                if (submission.service_type === 'SELF_DECLARE' || submission.service_type === 'SELF_DECLARE_MANDIRI') {
+                                                    return s.name.toLowerCase().includes('mikro') || s.name.toLowerCase().includes('kecil');
+                                                }
+                                                return true;
+                                            })
+                                            .map(s => <option key={s.id} value={s.id}>{s.name}</option>)
+                                        }
                                     </select>
                                 </div>
                                 {user?.role !== 'CLIENT' && (
@@ -612,7 +628,7 @@ export const ClientInfoSection = ({
                         onClick={async () => {
                             try {
                                 toast.loading('Mengunduh Kontrak...', { id: 'download-contract' });
-                                await submissionService.downloadContract(submission.id);
+                                await submissionService.downloadContract(submission.id, 'pdf');
                                 toast.success('Kontrak berhasil diunduh', { id: 'download-contract' });
                             } catch (e: any) {
                                 toast.error(e.message || 'Gagal mengunduh kontrak', { id: 'download-contract' });
@@ -620,7 +636,7 @@ export const ClientInfoSection = ({
                         }}
                         className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-blue-700 transition-all text-center shadow-lg shadow-blue-100"
                     >
-                        Unduh Kontrak Kerja
+                        Unduh Kontrak Kerja (PDF)
                     </button>
                 </div>
             )}

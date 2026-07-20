@@ -97,40 +97,10 @@ func (uc *formConfigUsecase) SubmitFieldValues(submissionID uuid.UUID, uploaderI
 		submittedMap[input.FormFieldID] = input
 	}
 
-	// Validate required fields — we need to know the form type from any field
 	if len(inputs) > 0 {
-		firstField, err := uc.ConfigRepo.FindByID(inputs[0].FormFieldID)
+		_, err := uc.ConfigRepo.FindByID(inputs[0].FormFieldID)
 		if err != nil {
 			return fmt.Errorf("invalid form_field_id: %w", err)
-		}
-
-		configs, err := uc.ConfigRepo.FindByFormType(firstField.FormType)
-		if err != nil {
-			return err
-		}
-
-		for _, cfg := range configs {
-			if cfg.IsRequired {
-				input, ok := submittedMap[cfg.ID]
-				if !ok {
-					return fmt.Errorf("field '%s' is required", cfg.FieldLabel)
-				}
-				// Check that the value is non-empty based on input type
-				switch cfg.InputType {
-				case "FILE_UPLOAD":
-					if input.FileURL == "" {
-						return fmt.Errorf("file upload for '%s' is required", cfg.FieldLabel)
-					}
-				case "LINK":
-					if input.LinkValue == "" {
-						return fmt.Errorf("link for '%s' is required", cfg.FieldLabel)
-					}
-				case "TEXT":
-					if input.TextValue == "" {
-						return fmt.Errorf("text value for '%s' is required", cfg.FieldLabel)
-					}
-				}
-			}
 		}
 	}
 

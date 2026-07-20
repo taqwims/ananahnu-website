@@ -54,6 +54,7 @@ type BillingComponent struct {
 	Type            string    `gorm:"not null" json:"type"` // FIXED, PER_MANDAY, PER_CABANG, PER_PRODUK
 	BaseAmount      float64   `gorm:"not null" json:"base_amount"`
 	IsMandatory     bool      `gorm:"default:false" json:"is_mandatory"`
+	DiscountPercent float64   `gorm:"default:0" json:"discount_percent"`
 	
 	// Scoping: which business type + product category this component applies to
 	BusinessScaleID   *int64    `json:"business_scale_id,omitempty"`

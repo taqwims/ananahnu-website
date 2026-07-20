@@ -200,7 +200,7 @@ export const DocumentList = ({
                                                                                 <thead>
                                                                                     <tr className="bg-gray-50/75 border-b border-gray-100 text-[9px] font-black uppercase text-gray-400 tracking-wider">
                                                                                         <th className="p-2 w-10 text-center">No</th>
-                                                                                        <th className="p-2">Nama Produk</th>
+                                                                                        <th className="p-2">Jenis Produk</th>
                                                                                         <th className="p-2 w-40">Foto</th>
                                                                                     </tr>
                                                                                 </thead>
@@ -292,7 +292,7 @@ export const DocumentList = ({
                                                                                  <thead>
                                                                                      <tr className="bg-gray-50/75 border-b border-gray-100 text-[9px] font-black uppercase text-gray-400 tracking-wider">
                                                                                          <th className="p-2 w-10 text-center">No</th>
-                                                                                         <th className="p-2 w-1/3">Nama Produk</th>
+                                                                                         <th className="p-2 w-1/3">Jenis Produk</th>
                                                                                          <th className="p-2">Bahan Yang Digunakan</th>
                                                                                      </tr>
                                                                                  </thead>

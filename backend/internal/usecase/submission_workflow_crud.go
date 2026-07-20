@@ -146,13 +146,23 @@ func (uc *submissionWorkflowUsecase) CreateDraft(clientID *uuid.UUID, businessNa
 		return nil, errors.New("either client_id or business_name is required")
 	}
 
+	var defaultSalesSchemeID int64 = 1
+	creator, err := uc.UserRepo.FindByID(facilitatorID)
+	if err == nil && creator != nil {
+		// If the user's role is MARKETING, assign Partnership/B2B (scheme ID 2)
+		if creator.Role.Name == "MARKETING" {
+			defaultSalesSchemeID = 2
+		}
+	}
+
 	sub := &domain.Submission{
-		ID:           uuid.New(),
-		ClientID:     actualClientID,
-		ServiceType:  serviceType,
-		Status:       domain.StatusDraft,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		ID:            uuid.New(),
+		ClientID:      actualClientID,
+		ServiceType:   serviceType,
+		Status:        domain.StatusDraft,
+		SalesSchemeID: &defaultSalesSchemeID,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
 
 	if err := uc.SubmissionRepo.Create(sub); err != nil {
@@ -216,6 +226,11 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 		}
 	}
 
+	var defaultSalesSchemeID int64 = 1
+	if userRole == "MARKETING" {
+		defaultSalesSchemeID = 2
+	}
+
 	// 2. Create Submission
 	sub := &domain.Submission{
 		ID:             uuid.New(),
@@ -225,6 +240,7 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 		DataSource:     dataSource,
 		ConsultantID:   consultantIDPtr,
 		BusinessTypeID: input.ClientData.BusinessTypeID,
+		SalesSchemeID:  &defaultSalesSchemeID,
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
 	}
@@ -580,10 +596,25 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 			multiplier = sub.ProductCount
 			multiplierLabel = fmt.Sprintf(" (%d Produk)", sub.ProductCount)
 		}
-		if comp.Type == "PER_MANDAY" && sub.Mandays > 1 {
-			amount = amount * float64(sub.Mandays)
-			multiplier = sub.Mandays
-			multiplierLabel = fmt.Sprintf(" (%d Manday)", sub.Mandays)
+		if comp.Type == "PER_MANDAY" {
+			if !comp.IsMandatory {
+				prevMult := getMultiplierFromBreakdown(existingBreakdown, comp.Name)
+				if prevMult > 0 {
+					multiplier = prevMult
+				}
+				multiplierLabel = fmt.Sprintf(" (%d Kuantitas)", multiplier)
+				amount = amount * float64(multiplier)
+			} else if sub.Mandays > 1 {
+				amount = amount * float64(sub.Mandays)
+				multiplier = sub.Mandays
+				multiplierLabel = fmt.Sprintf(" (%d Kuantitas)", sub.Mandays)
+			}
+		}
+
+		discountAmount := 0.0
+		if comp.DiscountPercent > 0 {
+			discountAmount = amount * (comp.DiscountPercent / 100.0)
+			amount -= discountAmount
 		}
 
 		total += amount
@@ -604,8 +635,24 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 			"category":   comp.Category,
 			"unit_cost":  comp.BaseAmount,
 			"multiplier": multiplier,
-			"total":      amount,
+			"total":      amount + discountAmount,
 		})
+
+		if discountAmount > 0 {
+			var unitDisc float64
+			if multiplier > 0 {
+				unitDisc = -(discountAmount / float64(multiplier))
+			} else {
+				unitDisc = -discountAmount
+			}
+			breakdown = append(breakdown, map[string]interface{}{
+				"name":       fmt.Sprintf("Diskon %s (%.0f%%)", comp.Name, comp.DiscountPercent),
+				"category":   "DISKON",
+				"unit_cost":  unitDisc,
+				"multiplier": multiplier,
+				"total":      -discountAmount,
+			})
+		}
 	}
 
 	// Partnership discount
@@ -691,5 +738,25 @@ func isComponentInBreakdown(breakdown []map[string]interface{}, name string) boo
 		}
 	}
 	return false
+}
+
+func getMultiplierFromBreakdown(breakdown []map[string]interface{}, name string) int {
+	for _, item := range breakdown {
+		if itemName, ok := item["name"].(string); ok {
+			if strings.HasPrefix(itemName, name) {
+				if multVal, ok := item["multiplier"]; ok {
+					switch v := multVal.(type) {
+					case float64:
+						return int(v)
+					case int:
+						return v
+					case int64:
+						return int(v)
+					}
+				}
+			}
+		}
+	}
+	return 1
 }
 

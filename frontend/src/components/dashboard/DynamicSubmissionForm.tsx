@@ -514,7 +514,7 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
                                                      <thead>
                                                          <tr className="bg-gray-50/75 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
                                                              <th className="p-3.5 w-12 text-center">No</th>
-                                                             <th className="p-3.5">Nama Produk</th>
+                                                             <th className="p-3.5">Jenis Produk</th>
                                                              <th className="p-3.5 w-60">Foto Produk</th>
                                                              {!readOnly && <th className="p-3.5 w-16 text-center">Aksi</th>}
                                                          </tr>
@@ -780,7 +780,7 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
                                                      <thead>
                                                          <tr className="bg-gray-50/75 border-b border-gray-100 text-[10px] font-black uppercase text-gray-400 tracking-wider">
                                                              <th className="p-3.5 w-12 text-center">No</th>
-                                                             <th className="p-3.5 w-1/3">Nama Produk</th>
+                                                             <th className="p-3.5 w-1/3">Jenis Produk</th>
                                                              <th className="p-3.5">Bahan Yang Digunakan</th>
                                                              {!readOnly && <th className="p-3.5 w-16 text-center">Aksi</th>}
                                                          </tr>
@@ -793,7 +793,7 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
                                                                      <input
                                                                          type="text"
                                                                          className="glass-input text-xs w-full py-1.5"
-                                                                         placeholder="Nama produk..."
+                                                                         placeholder="Jenis produk..."
                                                                          value={row.nama_produk || ''}
                                                                          onChange={e => updateMatrixRow(rowIdx, 'nama_produk', e.target.value)}
                                                                          disabled={readOnly}

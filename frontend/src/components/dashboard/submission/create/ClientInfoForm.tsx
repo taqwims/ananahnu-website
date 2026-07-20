@@ -35,9 +35,17 @@ export const ClientInfoForm = ({ clientData, setClientData, businessTypes }: Cli
                         onChange={e => setClientData({...clientData, business_type_id: e.target.value})}
                     >
                         <option value="">Pilih Bidang Usaha</option>
-                        {businessTypes.map(bt => (
-                            <option key={bt.id} value={bt.id}>{bt.name}</option>
-                        ))}
+                        {businessTypes
+                            .filter(bt => {
+                                if (clientData.service_type === 'SELF_DECLARE' || clientData.service_type === 'SELF_DECLARE_MANDIRI') {
+                                    return bt.name.toLowerCase().includes('makanan') || bt.name.toLowerCase().includes('minuman');
+                                }
+                                return true;
+                            })
+                            .map(bt => (
+                                <option key={bt.id} value={bt.id}>{bt.name}</option>
+                            ))
+                        }
                     </select>
                 </div>
                 <div>
@@ -59,7 +67,7 @@ export const ClientInfoForm = ({ clientData, setClientData, businessTypes }: Cli
                     />
                 </div>
                 <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Nama Produk</label>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Jenis Produk</label>
                     <input 
                         className="glass-input w-full" 
                         value={clientData.product_name} 

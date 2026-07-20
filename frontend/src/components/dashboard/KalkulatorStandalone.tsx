@@ -57,6 +57,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
     const [branchCount, setBranchCount] = useState(1);
     const [productCount, setProductCount] = useState(1);
     const [mandays, setMandays] = useState(1);
+    const [optionalQuantities, setOptionalQuantities] = useState<Record<number, number>>({});
 
     // Optional costs
     const [optionalCosts, setOptionalCosts] = useState<OptionalCost[]>([]);
@@ -251,23 +252,45 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                 multiplier = branchCount;
                 multiplierLabel = ` (${branchCount} Cabang)`;
             } else if (comp.type === 'PER_MANDAY') {
-                multiplier = mandays;
-                multiplierLabel = ` (${mandays} Manday)`;
+                if (!comp.is_mandatory) {
+                    multiplier = optionalQuantities[comp.id] || 1;
+                    multiplierLabel = ` (${multiplier} Kuantitas)`;
+                } else {
+                    multiplier = mandays;
+                    multiplierLabel = ` (${mandays} Kuantitas)`;
+                }
             } else if (comp.type === 'PER_PRODUK') {
                 multiplier = productCount;
                 multiplierLabel = ` (${productCount} Produk)`;
             }
 
-            const itemTotal = comp.base_amount * multiplier;
+            const baseAmount = comp.base_amount * multiplier;
+            let itemTotal = baseAmount;
+            let discountAmount = 0;
+            if (comp.discount_percent && comp.discount_percent > 0) {
+                discountAmount = baseAmount * (comp.discount_percent / 100);
+                itemTotal = baseAmount - discountAmount;
+            }
 
             currentBreakdown.push({
                 name: comp.name + nameTag + multiplierLabel,
                 category: comp.category.toUpperCase(),
                 unit_cost: comp.base_amount,
                 multiplier: multiplier > 1 ? multiplier : null,
-                total: itemTotal,
+                total: baseAmount,
                 is_optional: false
             });
+
+            if (discountAmount > 0) {
+                currentBreakdown.push({
+                    name: `Diskon ${comp.name} (${comp.discount_percent}%)`,
+                    category: 'DISKON',
+                    unit_cost: -(discountAmount / multiplier),
+                    multiplier: multiplier > 1 ? multiplier : null,
+                    total: -discountAmount,
+                    is_optional: false
+                });
+            }
             currentTotal += itemTotal;
         });
 
@@ -362,14 +385,21 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                 multiplier = branchCount;
                 multiplierLabel = ` (${branchCount} Cabang)`;
             } else if (comp.type === 'PER_MANDAY') {
-                multiplier = mandays;
-                multiplierLabel = ` (${mandays} Manday)`;
+                multiplier = optionalQuantities[comp.id] || 1;
+                multiplierLabel = ` (${multiplier} Kuantitas)`;
             } else if (comp.type === 'PER_PRODUK') {
                 multiplier = productCount;
                 multiplierLabel = ` (${productCount} Produk)`;
             }
 
-            const itemTotal = comp.base_amount * multiplier;
+            const baseAmount = comp.base_amount * multiplier;
+            let itemTotal = baseAmount;
+            let discountAmount = 0;
+            if (comp.discount_percent && comp.discount_percent > 0) {
+                discountAmount = baseAmount * (comp.discount_percent / 100);
+                itemTotal = baseAmount - discountAmount;
+            }
+
             let nameTag = '';
             if (comp.district_id) nameTag = ' [Khusus Kecamatan]';
             else if (comp.regency_id) nameTag = ' [Khusus Kabupaten]';
@@ -382,9 +412,20 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                 category: comp.category.toUpperCase(),
                 unit_cost: comp.base_amount,
                 multiplier: multiplier > 1 ? multiplier : null,
-                total: itemTotal,
+                total: baseAmount,
                 is_optional: true
             });
+
+            if (discountAmount > 0) {
+                currentBreakdown.push({
+                    name: `Diskon ${comp.name} (${comp.discount_percent}%)`,
+                    category: 'DISKON',
+                    unit_cost: -(discountAmount / multiplier),
+                    multiplier: multiplier > 1 ? multiplier : null,
+                    total: -discountAmount,
+                    is_optional: true
+                });
+            }
             currentTotal += itemTotal;
         });
 
@@ -402,7 +443,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
         });
 
         return { total: currentTotal, breakdown: currentBreakdown };
-    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, mandays, productCount, selectedOptionalComponentIds]);
+    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, mandays, optionalQuantities, productCount, selectedOptionalComponentIds]);
 
     const handleDownloadPDF = () => {
         const printWindow = window.open('', '_blank');
@@ -471,7 +512,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                         <div class="details-row"><span>Provinsi:</span><span>${selectedProv}</span></div>
                         <div class="details-row"><span>Kabupaten:</span><span>${selectedReg}</span></div>
                         <div class="details-row"><span>Kecamatan:</span><span>${selectedDist}</span></div>
-                        <div class="details-row"><span>Jenis Bidang:</span><span>${selectedType}</span></div>
+                        <div class="details-row"><span>Bidang Usaha:</span><span>${selectedType}</span></div>
                         <div class="details-row"><span>Jenis Produk:</span><span>${selectedProd}</span></div>
                     </div>
                     <div class="details-box">
@@ -645,7 +686,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                     {/* Bidang + Produk */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1">Jenis Bidang</label>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">Bidang Usaha</label>
                             <select
                                 className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
                                 value={businessTypeId}
@@ -723,7 +764,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                         </div>
                         {!isAdvisorOrManager && (
                             <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Jumlah Manday</label>
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Kuantitas / Volume Utama</label>
                                 <input
                                     type="number"
                                     min="1"
@@ -745,22 +786,48 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                                     .map(comp => {
                                         const isChecked = selectedOptionalComponentIds.includes(comp.id);
                                         return (
-                                            <label key={comp.id} className="flex items-center gap-2 cursor-pointer select-none text-xs">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isChecked}
-                                                    onChange={() => {
-                                                        if (isChecked) {
-                                                            setSelectedOptionalComponentIds(selectedOptionalComponentIds.filter(id => id !== comp.id));
-                                                        } else {
-                                                            setSelectedOptionalComponentIds([...selectedOptionalComponentIds, comp.id]);
-                                                        }
-                                                    }}
-                                                    className="w-3.5 h-3.5 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
-                                                />
-                                                <div className="flex-1 text-gray-700 font-medium text-[11px]">{comp.name}</div>
-                                                <div className="text-[10px] text-gray-500 font-bold">{formatCurrency(comp.base_amount)}</div>
-                                            </label>
+                                            <div key={comp.id} className="flex items-center justify-between gap-3 bg-white p-2 rounded-lg border border-gray-150 shadow-sm">
+                                                <label className="flex items-center gap-2 cursor-pointer select-none flex-1 text-xs">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isChecked}
+                                                        onChange={() => {
+                                                            if (isChecked) {
+                                                                setSelectedOptionalComponentIds(selectedOptionalComponentIds.filter(id => id !== comp.id));
+                                                            } else {
+                                                                setSelectedOptionalComponentIds([...selectedOptionalComponentIds, comp.id]);
+                                                            }
+                                                        }}
+                                                        className="w-3.5 h-3.5 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
+                                                    />
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[11px] text-gray-800 font-bold">{comp.name}</span>
+                                                        <span className="text-[10px] text-gray-400 font-medium">
+                                                            {formatCurrency(comp.base_amount)}
+                                                            {comp.type === 'PER_MANDAY' ? ' / kuantitas' : ` / ${comp.type.toLowerCase().replace('per_', '')}`}
+                                                            {comp.discount_percent ? ` (Diskon ${comp.discount_percent}%)` : ''}
+                                                        </span>
+                                                    </div>
+                                                </label>
+                                                {isChecked && comp.type === 'PER_MANDAY' && (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-[10px] text-gray-500 font-semibold">Kuantitas:</span>
+                                                        <input
+                                                            type="number"
+                                                            min={1}
+                                                            className="w-14 px-1.5 py-0.5 border border-gray-200 rounded-md text-[10px] font-bold text-center outline-none focus:ring-2 focus:ring-brand-500/20"
+                                                            value={optionalQuantities[comp.id] || 1}
+                                                            onChange={e => {
+                                                                const val = Math.max(1, parseInt(e.target.value) || 1);
+                                                                setOptionalQuantities({
+                                                                    ...optionalQuantities,
+                                                                    [comp.id]: val
+                                                                });
+                                                            }}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
                                         );
                                     })}
                             </div>
@@ -829,7 +896,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                     {/* Empty state */}
                     {!loadingComponents && breakdown.length === 0 && (
                         <div className="text-center py-12 text-gray-400 italic text-xs">
-                            Pilih Jenis Bidang, Produk, dan Skala Usaha untuk melihat rincian biaya.
+                             Pilih Bidang Usaha, Produk, dan Skala Usaha untuk melihat rincian biaya.
                         </div>
                     )}
 

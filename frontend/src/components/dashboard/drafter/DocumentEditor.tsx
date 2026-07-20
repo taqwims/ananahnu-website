@@ -227,7 +227,7 @@ export const DocumentEditor = ({
                                                                                 <input
                                                                                     type="text"
                                                                                     className="w-full px-2.5 py-1.5 bg-gray-50 border-none rounded-lg text-xs focus:ring-2 focus:ring-blue-500/10 font-medium"
-                                                                                    placeholder="Nama produk..."
+                                                                                    placeholder="Jenis produk..."
                                                                                     value={p.nama || ''}
                                                                                     onChange={e => updateProductRow(rowIdx, 'nama', e.target.value)}
                                                                                 />
@@ -458,7 +458,7 @@ export const DocumentEditor = ({
                                                                  <thead>
                                                                      <tr className="bg-gray-50/75 border-b border-gray-100 text-[9px] font-black uppercase text-gray-400 tracking-wider">
                                                                          <th className="p-2 w-10 text-center">No</th>
-                                                                         <th className="p-2 w-1/3">Nama Produk</th>
+                                                                         <th className="p-2 w-1/3">Jenis Produk</th>
                                                                          <th className="p-2">Bahan Yang Digunakan</th>
                                                                          <th className="p-2 w-12 text-center">Aksi</th>
                                                                      </tr>
@@ -471,7 +471,7 @@ export const DocumentEditor = ({
                                                                                  <input
                                                                                      type="text"
                                                                                      className="w-full px-2.5 py-1.5 bg-gray-50 border-none rounded-lg text-xs focus:ring-2 focus:ring-blue-500/10 font-medium"
-                                                                                     placeholder="Nama produk..."
+                                                                                     placeholder="Jenis produk..."
                                                                                      value={row.nama_produk || ''}
                                                                                      onChange={e => updateMatrixRow(rowIdx, 'nama_produk', e.target.value)}
                                                                                  />
@@ -1008,7 +1008,7 @@ export const DocumentEditor = ({
                                                             <thead>
                                                                 <tr className="bg-gray-100 border-b border-gray-100 text-[8px] font-black uppercase text-gray-400 tracking-wider">
                                                                     <th className="p-2 w-10 text-center">No</th>
-                                                                    <th className="p-2 w-1/3">Nama Produk</th>
+                                                                    <th className="p-2 w-1/3">Jenis Produk</th>
                                                                     <th className="p-2">Bahan Yang Digunakan</th>
                                                                 </tr>
                                                             </thead>

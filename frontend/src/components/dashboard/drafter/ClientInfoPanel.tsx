@@ -131,6 +131,24 @@ export const ClientInfoPanel = ({
                                 onChange={e => setClientForm({ ...clientForm, address: e.target.value })}
                             />
                         </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Kontak Person</label>
+                                <input
+                                    className="w-full px-3 py-2 bg-white border border-gray-100 rounded-xl text-xs focus:ring-4 focus:ring-brand-500/10 outline-none transition-all font-medium"
+                                    value={clientForm.contact_person}
+                                    onChange={e => setClientForm({ ...clientForm, contact_person: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 block">No. Telepon</label>
+                                <input
+                                    className="w-full px-3 py-2 bg-white border border-gray-100 rounded-xl text-xs focus:ring-4 focus:ring-brand-500/10 outline-none transition-all font-medium"
+                                    value={clientForm.phone}
+                                    onChange={e => setClientForm({ ...clientForm, phone: e.target.value })}
+                                />
+                            </div>
+                        </div>
                     </div>
                 ) : (
                     <div className="space-y-6">
@@ -150,6 +168,16 @@ export const ClientInfoPanel = ({
                             <div>
                                 <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Penanggung Jawab</p>
                                 <p className="text-sm font-bold text-gray-700">{submission.client?.client_name}</p>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-gray-50/50 p-3 rounded-2xl border border-gray-100">
+                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Kontak Person</p>
+                                <p className="text-xs font-bold text-gray-700">{submission.client?.contact_person || '-'}</p>
+                            </div>
+                            <div className="bg-gray-50/50 p-3 rounded-2xl border border-gray-100">
+                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">No. Telepon / WA</p>
+                                <p className="text-xs font-bold text-gray-700">{submission.client?.phone || '-'}</p>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
