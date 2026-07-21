@@ -6,6 +6,7 @@ const INPUT_TYPES = ['FILE_UPLOAD', 'LINK', 'TEXT', 'DATE', 'REPEATER', 'PRODUCT
 interface FieldItemProps {
     field: FormFieldConfig;
     businessTypes: {id: number; name: string}[];
+    productCategories?: {id: number; name: string; business_type_id?: number}[];
     onUpdateState: (id: number, key: string, value: any) => void;
     onHandleUpdate: (field: FormFieldConfig) => void;
     onDelete: (id: number) => void;
@@ -16,6 +17,7 @@ interface FieldItemProps {
 export const FieldItem = ({
     field,
     businessTypes,
+    productCategories = [],
     onUpdateState,
     onHandleUpdate,
     onDelete,
@@ -117,6 +119,24 @@ export const FieldItem = ({
                     >
                         <option value="">Semua Bidang</option>
                         {businessTypes.map(bt => <option key={bt.id} value={bt.id}>{bt.name}</option>)}
+                    </select>
+                </div>
+
+                <div className="md:col-span-1 space-y-1">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Scope Produk</label>
+                    <select
+                        className="glass-input text-[10px] font-bold uppercase tracking-wider w-full"
+                        value={field.product_category_id || ''}
+                        onChange={e => {
+                            const val = e.target.value ? parseInt(e.target.value) : undefined;
+                            onUpdateState(field.id, 'product_category_id', val);
+                            onHandleUpdate({ ...field, product_category_id: val });
+                        }}
+                    >
+                        <option value="">Semua Produk</option>
+                        {productCategories
+                            .filter(pc => !field.business_type_id || pc.business_type_id === field.business_type_id)
+                            .map(pc => <option key={pc.id} value={pc.id}>{pc.name}</option>)}
                     </select>
                 </div>
 

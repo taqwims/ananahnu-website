@@ -10,9 +10,11 @@ export const useFormConfigAdmin = () => {
     const [saving, setSaving] = useState(false);
     const [showAdd, setShowAdd] = useState(false);
     const [businessTypes, setBusinessTypes] = useState<{id: number; name: string}[]>([]);
+    const [productCategories, setProductCategories] = useState<{id: number; name: string; business_type_id?: number}[]>([]);
     const [newField, setNewField] = useState({
         field_key: '', field_label: '', input_type: 'TEXT' as string,
         is_required: false, sort_order: 0, description: '', business_type_id: '' as string,
+        product_category_id: '' as string,
         step_number: 1, step_name: 'Step 1'
     });
 
@@ -37,8 +39,17 @@ export const useFormConfigAdmin = () => {
         }
     }, []);
 
+    const loadProductCategories = useCallback(async () => {
+        try {
+            const res = await api.get('/billing-config/product-categories');
+            setProductCategories(res.data || []);
+        } catch {
+            setProductCategories([]);
+        }
+    }, []);
+
     useEffect(() => { loadFields(activeTab); }, [activeTab, loadFields]);
-    useEffect(() => { loadBusinessTypes(); }, [loadBusinessTypes]);
+    useEffect(() => { loadBusinessTypes(); loadProductCategories(); }, [loadBusinessTypes, loadProductCategories]);
 
     const handleAdd = async () => {
         setSaving(true);
@@ -48,10 +59,11 @@ export const useFormConfigAdmin = () => {
                 form_type: activeTab,
                 sort_order: fields.length + 1,
                 business_type_id: newField.business_type_id ? parseInt(newField.business_type_id) : null,
+                product_category_id: newField.product_category_id ? parseInt(newField.product_category_id) : null,
                 step_number: parseInt(newField.step_number as any) || 1,
             });
             setShowAdd(false);
-            setNewField({ field_key: '', field_label: '', input_type: 'TEXT', is_required: false, sort_order: 0, description: '', business_type_id: '', step_number: 1, step_name: 'Step 1' });
+            setNewField({ field_key: '', field_label: '', input_type: 'TEXT', is_required: false, sort_order: 0, description: '', business_type_id: '', product_category_id: '', step_number: 1, step_name: 'Step 1' });
             loadFields(activeTab);
             toast.success('Field berhasil ditambahkan');
         } catch (err: any) {
@@ -127,7 +139,7 @@ export const useFormConfigAdmin = () => {
         activeTab, setActiveTab,
         fields, loading,
         saving, showAdd, setShowAdd,
-        businessTypes,
+        businessTypes, productCategories,
         newField, setNewField,
         handleAdd, handleUpdate, handleDelete, updateFieldState,
         loadFields, handleReorder

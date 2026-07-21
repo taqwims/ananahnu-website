@@ -1,5 +1,6 @@
 import { Mail, Phone, MapPin, CheckCircle, Clock, XCircle, Loader2, FileText, ExternalLink, AlertCircle } from 'lucide-react';
 import type { ConsultantProfile } from '../../../types';
+import { useAuthStore } from '../../../store/authStore';
 
 interface ConsultantVerificationDetailsProps {
     profile: ConsultantProfile;
@@ -26,6 +27,9 @@ export const ConsultantVerificationDetails = ({
     onVerify,
     verifying
 }: ConsultantVerificationDetailsProps) => {
+    const user = useAuthStore(state => state.user);
+    const isHalalManager = user?.role === 'HALAL_MANAGER';
+
     return (
         <div className="space-y-8">
             <div className="flex flex-col sm:flex-row justify-between items-start gap-6">
@@ -59,7 +63,7 @@ export const ConsultantVerificationDetails = ({
                 </div>
 
                 <div className="flex flex-col gap-3 w-full sm:w-auto">
-                    {!profile.is_verified && (
+                    {!profile.is_verified && !isHalalManager && (
                         <div className="flex flex-col gap-1">
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pilih Halal Manager</label>
                             <select 

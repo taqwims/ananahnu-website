@@ -28,6 +28,16 @@ type SubmissionWorkflowUsecase interface {
 	HandlePaymentSuccess(id uuid.UUID, amount float64) error
 	IsAuthorized(userID uuid.UUID, role string, submissionID uuid.UUID) bool
 	UpdateClientInfoAndPricing(id uuid.UUID, input UpdateClientInfoAndPricingInput, userID uuid.UUID, userRole string) error
+	GetDrafterMonthlyAnalytics() ([]DrafterMonthlyStat, error)
+}
+
+type DrafterMonthlyStat struct {
+	Month                   string `json:"month"`
+	DrafterID               string `json:"drafter_id"`
+	DrafterName             string `json:"drafter_name"`
+	NewSubmissionsCount     int64  `json:"new_submissions_count"`
+	ReturnedSubmissionsCount int64  `json:"returned_submissions_count"`
+	TotalProcessed          int64  `json:"total_processed"`
 }
 
 type CreateFullInput struct {

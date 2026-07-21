@@ -191,10 +191,13 @@ func (uc *submissionWorkflowUsecase) Approve(id uuid.UUID, userID uuid.UUID, use
 		}
 	case domain.StatusQCReview:
 		requiredRole = "QC_OFFICER"
-		nextStatus = domain.StatusSidangFatwa
+		nextStatus = domain.StatusSubmittedBPJPH
 		if sub.Client.NIB == "" || strings.HasPrefix(sub.Client.NIB, "DRAFT-") {
-			return errors.New("NIB wajib diisi sebelum melanjutkan ke Sidang Fatwa")
+			return errors.New("NIB wajib diisi sebelum dikirim ke BPJPH")
 		}
+	case domain.StatusSubmittedBPJPH:
+		requiredRole = "ADMIN_KEUANGAN"
+		nextStatus = domain.StatusSHTerbit
 	case domain.StatusSidangFatwa:
 		return errors.New("terbit SH harus menyertakan file sertifikat. Gunakan fitur 'Terbitkan SH'")
 	default:
@@ -354,6 +357,7 @@ func (uc *submissionWorkflowUsecase) Reject(id uuid.UUID, userID uuid.UUID, user
 
 	err = uc.SubmissionRepo.UpdateStatus(id, nextStatus, 0)
 	if err == nil {
+		_ = uc.SubmissionRepo.UpdateHasBeenReturned(id, true)
 		uc.logChange(id, userID, "REJECT", sub.Status, nextStatus, note)
 		_ = uc.SubmissionRepo.UpdateRejectNote(id, note)
 
@@ -575,6 +579,54 @@ func (uc *submissionWorkflowUsecase) UpdateBusinessType(id uuid.UUID, userID uui
 		return err
 	}
 
-	uc.logChange(id, userID, "UPDATE_BUSINESS_TYPE", sub.Status, sub.Status, fmt.Sprintf("Business type updated to ID %d", businessTypeID))
+	uc.logChange(id, userID, "UPDATE_BUSINESS_TYPE", sub.Status, sub.Status, "Business type updated")
 	return nil
+}
+
+func (uc *submissionWorkflowUsecase) GetDrafterMonthlyAnalytics() ([]DrafterMonthlyStat, error) {
+	subs, err := uc.SubmissionRepo.FindAll(map[string]interface{}{})
+	if err != nil {
+		return nil, err
+	}
+
+	statsMap := make(map[string]*DrafterMonthlyStat)
+
+	for _, s := range subs {
+		if s.AssignedDrafterID == nil {
+			continue
+		}
+		monthStr := s.CreatedAt.Format("2006-01")
+		key := monthStr + "_" + s.AssignedDrafterID.String()
+
+		if _, exists := statsMap[key]; !exists {
+			drafterName := "Unknown Drafter"
+			if s.AssignedDrafter != nil && s.AssignedDrafter.FullName != "" {
+				drafterName = s.AssignedDrafter.FullName
+			} else {
+				u, err := uc.UserRepo.FindByID(*s.AssignedDrafterID)
+				if err == nil && u != nil {
+					drafterName = u.FullName
+				}
+			}
+			statsMap[key] = &DrafterMonthlyStat{
+				Month:       monthStr,
+				DrafterID:   s.AssignedDrafterID.String(),
+				DrafterName: drafterName,
+			}
+		}
+
+		stat := statsMap[key]
+		if s.HasBeenReturned {
+			stat.ReturnedSubmissionsCount++
+		} else {
+			stat.NewSubmissionsCount++
+		}
+		stat.TotalProcessed++
+	}
+
+	var result []DrafterMonthlyStat
+	for _, stat := range statsMap {
+		result = append(result, *stat)
+	}
+	return result, nil
 }

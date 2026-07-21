@@ -17,12 +17,10 @@ export const useConsultantVerification = () => {
         try {
             const [profilesRes, usersRes] = await Promise.all([
                 api.get('/consultant/profiles'),
-                api.get('/admin/users', { params: { limit: 200 } })
+                api.get('/admin/users/coordinators').catch(() => ({ data: [] }))
             ]);
             setProfiles(profilesRes.data || []);
-            setCoordinators((usersRes.data.data || []).filter((u: any) => 
-                (typeof u.role === 'string' ? u.role : u.role?.name) === 'HALAL_MANAGER'
-            ));
+            setCoordinators(usersRes.data || []);
         } catch (err) {
             console.error("Failed to load verification data", err);
             setProfiles([]);

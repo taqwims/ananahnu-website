@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/authStore';
 import { formatRupiah } from '../../utils/format';
 import { toast } from 'react-hot-toast';
 import type { BillingComponent } from '../../types';
-
+import FileUpload from './FileUpload';
 type Props = {
     submissionId: string;
     onSaved?: () => void;
@@ -45,6 +45,18 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     const [provinceId, setProvinceId] = useState('');
     const [regencyId, setRegencyId] = useState('');
     const [districtId, setDistrictId] = useState('');
+
+    // Client Info Fields (Merged from ClientInfoSection)
+    const [activeSubTab, setActiveSubTab] = useState<'client_info' | 'pricing_params'>('client_info');
+    const [businessName, setBusinessName] = useState('');
+    const [clientName, setClientName] = useState('');
+    const [nib, setNib] = useState('');
+    const [nibFileURL, setNibFileURL] = useState('');
+    const [nik, setNik] = useState('');
+    const [phone, setPhone] = useState('');
+    const [address, setAddress] = useState('');
+    const [salesSchemeVal, setSalesSchemeVal] = useState('');
+    const [dataSourceVal, setDataSourceVal] = useState('ORGANIK');
 
     // Quantities
     const [branchCount, setBranchCount] = useState(1);
@@ -153,14 +165,15 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     useEffect(() => {
         const fetchMasterData = async () => {
             try {
-                const [btRes, pRes, bsRes, provRes, scRes, detailRes, formValsRes] = await Promise.all([
+                const [btRes, pRes, bsRes, provRes, scRes, detailRes, formValsRes, subRes] = await Promise.all([
                     api.get('/billing-config/business-types').catch(() => ({ data: [] })),
                     api.get('/billing-config/product-categories').catch(() => ({ data: [] })),
                     api.get('/billing-config/business-scales').catch(() => ({ data: [] })),
                     api.get('/geography/provinces').catch(() => ({ data: [] })),
                     api.get('/billing-config/sales-schemes').catch(() => ({ data: [] })),
                     api.get(`/submissions/${submissionId}/cost-detail`).catch(() => ({ data: null })),
-                    api.get(`/submission-fields/${submissionId}`).catch(() => ({ data: [] }))
+                    api.get(`/submission-fields/${submissionId}`).catch(() => ({ data: [] })),
+                    api.get(`/submissions/${submissionId}`).catch(() => ({ data: null }))
                 ]);
 
                 setBusinessTypes(btRes.data || []);
@@ -169,6 +182,19 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 setProvinces(provRes.data || []);
                 setSchemes(scRes.data || []);
                 setSubmissionFieldValues(formValsRes.data || []);
+
+                if (subRes.data && subRes.data.client) {
+                    const c = subRes.data.client;
+                    setBusinessName(c.business_name || '');
+                    setClientName(c.client_name || '');
+                    setNib(c.nib || '');
+                    setNibFileURL(c.nib_file_url || '');
+                    setNik(c.nik || '');
+                    setPhone(c.phone || '');
+                    setAddress(c.address || '');
+                    setSalesSchemeVal(subRes.data.sales_scheme_id?.toString() || '');
+                    setDataSourceVal(subRes.data.data_source || 'ORGANIK');
+                }
 
                 if (detailRes.data && detailRes.data.id) {
                     setBusinessTypeId(detailRes.data.business_type_id?.toString() || '');
@@ -504,26 +530,38 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     const handleSave = async () => {
         setSaving(true);
 
-        const payload = {
-            business_type_id: parseInt(businessTypeId) || null,
-            product_category_id: parseInt(productId) || null,
-            business_scale_id: parseInt(businessScaleId) || null,
-            province_id: parseInt(provinceId) || null,
-            regency_id: parseInt(regencyId) || null,
-            district_id: parseInt(districtId) || null,
-            product_count: productCount,
-            branch_count: branchCount,
-            total_amount: total,
-            cost_breakdown_data: JSON.stringify(breakdown)
-        };
-
         try {
-            await api.post(`/submissions/${submissionId}/cost-detail`, payload);
-            toast.success("Rincian biaya berhasil disimpan!");
+            const payload = {
+                // Client fields
+                business_name: businessName,
+                client_name: clientName,
+                nib: nib,
+                nib_file_url: nibFileURL,
+                nik: nik,
+                product_name: products.find(p => p.id?.toString() === productId)?.name || '',
+                address: address,
+                phone: phone,
+
+                // Pricing fields
+                business_type_id: parseInt(businessTypeId) || null,
+                product_category_id: parseInt(productId) || null,
+                business_scale_id: parseInt(businessScaleId) || null,
+                province_id: parseInt(provinceId) || null,
+                regency_id: parseInt(regencyId) || null,
+                district_id: parseInt(districtId) || null,
+                product_count: productCount,
+                branch_count: branchCount,
+                sales_scheme_id: salesSchemeVal ? parseInt(salesSchemeVal) : null,
+                data_source: dataSourceVal || 'ORGANIK',
+                selected_optional_component_ids: selectedOptionalComponentIds
+            };
+
+            await api.put(`/submissions/${submissionId}/client-info`, payload);
+            toast.success("Rincian biaya dan data klien berhasil disimpan!");
             if (onSaved) onSaved();
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            toast.error("Gagal menyimpan data");
+            toast.error(err.response?.data?.error || "Gagal menyimpan data");
         } finally {
             setSaving(false);
         }
@@ -536,7 +574,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     const canEditOptional = isEditable && (user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR');
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 bg-white p-8 rounded-2xl border border-gray-100 shadow-xl mt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 bg-white p-4 sm:p-6 md:p-8 rounded-2xl border border-gray-100 shadow-xl mt-8">
             {/* Left Column: Form */}
             <div className="space-y-6">
                 <h3 className="text-2xl font-bold text-brand-700">Form Perhitungan Biaya</h3>
@@ -564,255 +602,408 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                     </div>
                 </div>
 
+                {/* Tab switchers */}
+                <div className="flex border-b border-gray-100 mb-6 bg-gray-50/50 p-1 rounded-xl">
+                    <button
+                        type="button"
+                        onClick={() => setActiveSubTab('client_info')}
+                        className={`flex-1 py-2.5 text-xs font-black rounded-lg uppercase tracking-wider transition-all ${
+                            activeSubTab === 'client_info' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-750'
+                        }`}
+                    >
+                        Data Identitas Klien
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveSubTab('pricing_params')}
+                        className={`flex-1 py-2.5 text-xs font-black rounded-lg uppercase tracking-wider transition-all ${
+                            activeSubTab === 'pricing_params' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-750'
+                        }`}
+                    >
+                        Parameter & Rincian Biaya
+                    </button>
+                </div>
+
                 <div className="space-y-5">
-                    {/* Provinsi */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Provinsi Fasilitas Produksi</label>
-                        <select
-                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
-                            value={provinceId}
-                            onChange={e => setProvinceId(e.target.value)}
-                            disabled={!isEditable}
-                        >
-                            <option value="">Pilih Provinsi...</option>
-                            {provinces.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
-                    </div>
-
-                    {/* Kabupaten */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Kabupaten / Kota Fasilitas Produksi</label>
-                        <select
-                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 transition-all disabled:opacity-50"
-                            value={regencyId}
-                            onChange={e => setRegencyId(e.target.value)}
-                            disabled={!isEditable || !provinceId}
-                        >
-                            <option value="">Pilih Kabupaten...</option>
-                            {regencies.map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                        </select>
-                    </div>
-
-                    {/* Bidang + Produk */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Bidang Usaha</label>
-                            <select
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
-                                value={businessTypeId}
-                                onChange={e => { setBusinessTypeId(e.target.value); setProductId(''); }}
-                                disabled={!isEditable}
-                            >
-                                <option value="">Pilih Bidang...</option>
-                                {businessTypes.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Jenis Produk</label>
-                            <select
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
-                                value={productId}
-                                onChange={e => setProductId(e.target.value)}
-                                disabled={!isEditable}
-                            >
-                                <option value="">Pilih Produk...</option>
-                                {products
-                                    .filter((p: any) => !businessTypeId || p.business_type_id === parseInt(businessTypeId))
-                                    .map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Skala Usaha */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Skala Usaha</label>
-                        <select
-                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 transition-all"
-                            value={businessScaleId}
-                            onChange={e => setBusinessScaleId(e.target.value)}
-                            disabled={!isEditable}
-                        >
-                            <option value="">Pilih Skala...</option>
-                            {scales.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                    </div>
-
-                    {/* Kecamatan (opsional) */}
-                    {provinceId && regencyId && (
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Kecamatan (Opsional)</label>
-                            <select
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 transition-all disabled:opacity-50"
-                                value={districtId}
-                                onChange={e => setDistrictId(e.target.value)}
-                                disabled={!isEditable || !regencyId}
-                            >
-                                <option value="">Pilih Kecamatan...</option>
-                                {districts.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                            </select>
-                        </div>
-                    )}
-
-                    {/* Quantities (Branch, Product) */}
-                    <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-5">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Jumlah Cabang</label>
-                            <input
-                                type="number"
-                                min="1"
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500/20"
-                                value={branchCount}
-                                onChange={e => setBranchCount(Math.max(1, parseInt(e.target.value) || 1))}
-                                disabled={!isEditable}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Jumlah Produk</label>
-                            <input
-                                type="number"
-                                min="1"
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500/20"
-                                value={productCount}
-                                onChange={e => setProductCount(Math.max(1, parseInt(e.target.value) || 1))}
-                                disabled={!isEditable}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Optional Components from Master Biaya */}
-                    {masterComponents.filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN').length > 0 && (
-                        <div className="border-t border-gray-100 pt-4">
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Biaya Tambahan</label>
-                            <div className="space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                                {masterComponents
-                                    .filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN')
-                                    .map(comp => {
-                                        const isConnected = !!comp.form_field_config_id;
-                                        let isChecked = false;
-                                        let statusText = '';
-                                        if (isConnected && comp.form_field_config_id) {
-                                            const isFilled = isFormFieldFilled(comp.form_field_config_id);
-                                            isChecked = !isFilled;
-                                            statusText = isFilled 
-                                                ? ' (Form Terisi - Biaya Dikecualikan)' 
-                                                : ' (Form Kosong - Biaya Dikenakan)';
-                                        } else {
-                                            isChecked = selectedOptionalComponentIds.includes(comp.id);
-                                        }
-
-                                        return (
-                                            <div key={comp.id} className="flex items-center justify-between gap-3 bg-white p-2.5 rounded-lg border border-gray-150 shadow-sm">
-                                                <label className="flex items-center gap-3 cursor-pointer select-none flex-1">
-                                                    <input
-                                                        type="checkbox"
-                                                        disabled={!isEditable || isConnected}
-                                                        checked={isChecked}
-                                                        onChange={() => {
-                                                            if (isConnected) return;
-                                                            if (isChecked) {
-                                                                setSelectedOptionalComponentIds(selectedOptionalComponentIds.filter(id => id !== comp.id));
-                                                            } else {
-                                                                setSelectedOptionalComponentIds([...selectedOptionalComponentIds, comp.id]);
-                                                            }
-                                                        }}
-                                                        className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500 disabled:opacity-50"
-                                                    />
-                                                    <div className="flex flex-col">
-                                                        <span className="text-sm text-gray-800 font-bold">{comp.name}</span>
-                                                        <span className="text-xs text-gray-400 font-medium">
-                                                            {formatRupiah(comp.base_amount)} 
-                                                            {comp.type === 'PER_MANDAY' ? ' / kuantitas' : ` / ${comp.type.toLowerCase().replace('per_', '')}`}
-                                                            {comp.discount_percent ? ` (Diskon ${comp.discount_percent}%)` : ''}
-                                                        </span>
-                                                        {isConnected && (
-                                                            <span className={`text-[9px] mt-1 px-2 py-0.5 rounded-full font-bold w-fit ${
-                                                                !isChecked ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
-                                                            }`}>
-                                                                Form: {comp.form_field_config?.field_label || 'Field'} {statusText}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </label>
-                                                {isChecked && comp.type === 'PER_MANDAY' && (
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xs text-gray-500 font-semibold">Kuantitas:</span>
-                                                        <input
-                                                            type="number"
-                                                            disabled={!isEditable}
-                                                            min={1}
-                                                            className="w-16 px-2 py-1 border border-gray-200 rounded-lg text-xs font-bold text-center outline-none focus:ring-2 focus:ring-brand-500/20"
-                                                            value={optionalQuantities[comp.id] || 1}
-                                                            onChange={e => {
-                                                                const val = Math.max(1, parseInt(e.target.value) || 1);
-                                                                setOptionalQuantities({
-                                                                    ...optionalQuantities,
-                                                                    [comp.id]: val
-                                                                });
-                                                            }}
-                                                        />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Biaya Tambahan Lainnya */}
-                    <div className="border-t border-gray-100 pt-4">
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Biaya Tambahan Lainnya</label>
-                        {optionalCosts.map((opt, idx) => (
-                            <div key={idx} className="flex gap-2 items-center mb-2">
-                                <span className="flex-1 text-sm bg-gray-50 p-2.5 rounded-lg border border-gray-100">{opt.name}</span>
-                                <span className="w-1/3 text-sm bg-gray-50 p-2.5 rounded-lg border border-gray-100 text-right font-medium">{formatRupiah(opt.amount)}</span>
-                                {canEditOptional && (
-                                    <button onClick={() => removeOptionalCost(idx)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                                        <Trash className="w-4 h-4" />
-                                    </button>
-                                )}
-                            </div>
-                        ))}
-
-                        {canEditOptional && (
-                            <div className="flex gap-2 mt-2">
+                    {activeSubTab === 'client_info' ? (
+                        <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-150 space-y-4 animate-in fade-in">
+                            <h4 className="text-xs font-bold text-brand-700 uppercase tracking-wider flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 bg-brand-500 rounded-full"></span> Informasi Identitas Client
+                            </h4>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1.5">Nama Usaha *</label>
                                 <input
                                     type="text"
-                                    placeholder="Nama Biaya..."
-                                    className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500/20"
-                                    value={newOptName}
-                                    onChange={e => setNewOptName(e.target.value)}
+                                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500/20 font-semibold"
+                                    value={businessName}
+                                    onChange={e => setBusinessName(e.target.value)}
+                                    disabled={!isEditable}
+                                    placeholder="Contoh: UD Jaya Abadi"
                                 />
-                                <input
-                                    type="number"
-                                    placeholder="Nominal..."
-                                    className="w-1/3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500/20"
-                                    value={newOptAmount}
-                                    onChange={e => setNewOptAmount(e.target.value)}
-                                />
-                                <button onClick={addOptionalCost} className="bg-gray-800 text-white p-2.5 rounded-xl hover:bg-gray-900 transition-colors">
-                                    <Plus className="w-4 h-4" />
-                                </button>
                             </div>
-                        )}
-                    </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1.5">Nama Pemilik (Klien) *</label>
+                                <input
+                                    type="text"
+                                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500/20 font-semibold"
+                                    value={clientName}
+                                    onChange={e => setClientName(e.target.value)}
+                                    disabled={!isEditable}
+                                    placeholder="Nama Lengkap Pemilik"
+                                />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 mb-1.5">NIB *</label>
+                                    <input
+                                        type="text"
+                                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500/20 font-mono font-semibold"
+                                        value={nib}
+                                        onChange={e => setNib(e.target.value)}
+                                        disabled={!isEditable}
+                                        placeholder="Nomor Induk Berusaha"
+                                    />
+                                    {user?.role !== 'CLIENT' && isEditable && (
+                                        <div className="mt-2">
+                                            <FileUpload
+                                                subfolder="media"
+                                                label="Upload File NIB (PDF/Gambar)"
+                                                onUploadSuccess={(url) => setNibFileURL(url)}
+                                            />
+                                        </div>
+                                    )}
+                                    {nibFileURL && (
+                                        <div className="flex items-center gap-2 mt-1.5">
+                                            <a href={nibFileURL.startsWith('http') ? nibFileURL : `${import.meta.env.VITE_API_URL}${nibFileURL}`} target="_blank" rel="noreferrer" className="text-[10px] font-bold text-brand-650 hover:underline">
+                                                Lihat NIB terunggah
+                                            </a>
+                                            {isEditable && (
+                                                <button type="button" onClick={() => setNibFileURL('')} className="text-[9px] font-bold text-red-650 bg-red-50 px-2 py-0.5 rounded-lg border border-red-100">
+                                                    Hapus
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 mb-1.5">NIK *</label>
+                                    <input
+                                        type="text"
+                                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500/20 font-mono font-semibold"
+                                        value={nik}
+                                        onChange={e => setNik(e.target.value)}
+                                        disabled={!isEditable}
+                                        placeholder="Nomor Induk Kependudukan"
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Telepon / CP *</label>
+                                    <input
+                                        type="text"
+                                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500/20 font-semibold"
+                                        value={phone}
+                                        onChange={e => setPhone(e.target.value)}
+                                        disabled={!isEditable}
+                                        placeholder="08..."
+                                    />
+                                </div>
+                                {user?.role !== 'CLIENT' && (
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-700 mb-1.5">Skema Penjualan *</label>
+                                        <select
+                                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500/20 font-semibold"
+                                            value={salesSchemeVal}
+                                            onChange={e => setSalesSchemeVal(e.target.value)}
+                                            disabled={!isEditable}
+                                        >
+                                            <option value="">Pilih Skema...</option>
+                                            {schemes.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+                            {user?.role !== 'CLIENT' && (
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Sumber Data *</label>
+                                    <select
+                                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500/20 font-semibold"
+                                        value={dataSourceVal === 'TELEMARKETING' ? 'ORGANIK' : dataSourceVal}
+                                        onChange={e => setDataSourceVal(e.target.value)}
+                                        disabled={!isEditable}
+                                    >
+                                        <option value="ORGANIK">Organik / Telemarketing</option>
+                                        <option value="MARKETING">Marketing (Partner)</option>
+                                    </select>
+                                </div>
+                            )}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1.5">Alamat Lengkap *</label>
+                                <textarea
+                                    rows={3}
+                                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500/20 font-semibold"
+                                    value={address}
+                                    onChange={e => setAddress(e.target.value)}
+                                    disabled={!isEditable}
+                                    placeholder="Alamat lengkap lokasi usaha"
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-150 space-y-4 animate-in fade-in">
+                            <h4 className="text-xs font-bold text-brand-700 uppercase tracking-wider flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 bg-brand-500 rounded-full"></span> Perhitungan Biaya
+                            </h4>
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Provinsi Fasilitas Produksi</label>
+                                <select
+                                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 transition-all font-semibold"
+                                    value={provinceId}
+                                    onChange={e => setProvinceId(e.target.value)}
+                                    disabled={!isEditable}
+                                >
+                                    <option value="">Pilih Provinsi...</option>
+                                    {provinces.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                </select>
+                            </div>
 
-                    {/* Save Button */}
-                    {isEditable && (
-                        <button
-                            onClick={handleSave}
-                            disabled={saving}
-                            className="w-full bg-brand-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-brand-200 hover:bg-brand-800 transition-all flex items-center justify-center gap-2"
-                        >
-                            {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                            Simpan Perhitungan
-                        </button>
+                            {/* Kabupaten */}
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Kabupaten / Kota Fasilitas Produksi</label>
+                                <select
+                                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 transition-all disabled:opacity-50 font-semibold"
+                                    value={regencyId}
+                                    onChange={e => setRegencyId(e.target.value)}
+                                    disabled={!isEditable || !provinceId}
+                                >
+                                    <option value="">Pilih Kabupaten...</option>
+                                    {regencies.map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                </select>
+                            </div>
+
+                            {/* Bidang + Produk */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Bidang Usaha</label>
+                                    <select
+                                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 transition-all font-semibold"
+                                        value={businessTypeId}
+                                        onChange={e => { setBusinessTypeId(e.target.value); setProductId(''); }}
+                                        disabled={!isEditable}
+                                    >
+                                        <option value="">Pilih Bidang...</option>
+                                        {businessTypes.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Jenis Produk</label>
+                                    <select
+                                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 transition-all font-semibold"
+                                        value={productId}
+                                        onChange={e => setProductId(e.target.value)}
+                                        disabled={!isEditable}
+                                    >
+                                        <option value="">Pilih Produk...</option>
+                                        {products
+                                            .filter((p: any) => !businessTypeId || p.business_type_id === parseInt(businessTypeId))
+                                            .map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Skala Usaha */}
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Skala Usaha</label>
+                                <select
+                                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 transition-all font-semibold"
+                                    value={businessScaleId}
+                                    onChange={e => setBusinessScaleId(e.target.value)}
+                                    disabled={!isEditable}
+                                >
+                                    <option value="">Pilih Skala...</option>
+                                    {scales.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                            </div>
+
+                            {/* Kecamatan (opsional) */}
+                            {provinceId && regencyId && (
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Kecamatan (Opsional)</label>
+                                    <select
+                                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-brand-500/20 transition-all disabled:opacity-50 font-semibold"
+                                        value={districtId}
+                                        onChange={e => setDistrictId(e.target.value)}
+                                        disabled={!isEditable || !regencyId}
+                                    >
+                                        <option value="">Pilih Kecamatan...</option>
+                                        {districts.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                    </select>
+                                </div>
+                            )}
+
+                            {/* Quantities (Branch, Product) */}
+                            <div className="grid grid-cols-2 gap-4 border-t border-gray-150 pt-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Jumlah Cabang</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        className="w-full bg-white border border-gray-205 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500/20 font-bold"
+                                        value={branchCount}
+                                        onChange={e => setBranchCount(Math.max(1, parseInt(e.target.value) || 1))}
+                                        disabled={!isEditable}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Jumlah Produk</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        className="w-full bg-white border border-gray-205 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500/20 font-bold"
+                                        value={productCount}
+                                        onChange={e => setProductCount(Math.max(1, parseInt(e.target.value) || 1))}
+                                        disabled={!isEditable}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Optional Components from Master Biaya */}
+                            {masterComponents.filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN').length > 0 && (
+                                <div className="border-t border-gray-150 pt-4">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Biaya Tambahan</label>
+                                    <div className="space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                        {masterComponents
+                                            .filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN')
+                                            .map(comp => {
+                                                const isConnected = !!comp.form_field_config_id;
+                                                let isChecked = false;
+                                                let statusText = '';
+                                                if (isConnected && comp.form_field_config_id) {
+                                                    const isFilled = isFormFieldFilled(comp.form_field_config_id);
+                                                    isChecked = !isFilled;
+                                                    statusText = isFilled 
+                                                        ? ' (Form Terisi - Biaya Dikecualikan)' 
+                                                        : ' (Form Kosong - Biaya Dikenakan)';
+                                                } else {
+                                                    isChecked = selectedOptionalComponentIds.includes(comp.id);
+                                                }
+
+                                                return (
+                                                    <div key={comp.id} className="flex items-center justify-between gap-3 bg-white p-2.5 rounded-lg border border-gray-150 shadow-sm">
+                                                        <label className="flex items-center gap-3 cursor-pointer select-none flex-1">
+                                                            <input
+                                                                type="checkbox"
+                                                                disabled={!isEditable || isConnected}
+                                                                checked={isChecked}
+                                                                onChange={() => {
+                                                                    if (isConnected) return;
+                                                                    if (isChecked) {
+                                                                        setSelectedOptionalComponentIds(selectedOptionalComponentIds.filter(id => id !== comp.id));
+                                                                    } else {
+                                                                        setSelectedOptionalComponentIds([...selectedOptionalComponentIds, comp.id]);
+                                                                    }
+                                                                }}
+                                                                className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500 disabled:opacity-50"
+                                                            />
+                                                            <div className="flex flex-col">
+                                                                <span className="text-sm text-gray-800 font-bold">{comp.name}</span>
+                                                                <span className="text-xs text-gray-400 font-medium">
+                                                                    {formatRupiah(comp.base_amount)} 
+                                                                    {comp.type === 'PER_MANDAY' ? ' / kuantitas' : ` / ${comp.type.toLowerCase().replace('per_', '')}`}
+                                                                    {comp.discount_percent ? ` (Diskon ${comp.discount_percent}%)` : ''}
+                                                                </span>
+                                                                {isConnected && (
+                                                                    <span className={`text-[9px] mt-1 px-2 py-0.5 rounded-full font-bold w-fit ${
+                                                                        !isChecked ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
+                                                                    }`}>
+                                                                        Form: {comp.form_field_config?.field_label || 'Field'} {statusText}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </label>
+                                                        {isChecked && comp.type === 'PER_MANDAY' && (
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs text-gray-505 font-semibold">Kuantitas:</span>
+                                                                <input
+                                                                    type="number"
+                                                                    disabled={!isEditable}
+                                                                    min={1}
+                                                                    className="w-16 px-2 py-1 border border-gray-200 rounded-lg text-xs font-bold text-center outline-none focus:ring-2 focus:ring-brand-500/20"
+                                                                    value={optionalQuantities[comp.id] || 1}
+                                                                    onChange={e => {
+                                                                        const val = Math.max(1, parseInt(e.target.value) || 1);
+                                                                        setOptionalQuantities({
+                                                                            ...optionalQuantities,
+                                                                            [comp.id]: val
+                                                                        });
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Biaya Tambahan Lainnya */}
+                            <div className="border-t border-gray-150 pt-4">
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Biaya Tambahan Lainnya</label>
+                                {optionalCosts.map((opt, idx) => (
+                                    <div key={idx} className="flex gap-2 items-center mb-2">
+                                        <span className="flex-1 text-sm bg-gray-50 p-2.5 rounded-lg border border-gray-100">{opt.name}</span>
+                                        <span className="w-1/3 text-sm bg-gray-50 p-2.5 rounded-lg border border-gray-100 text-right font-medium">{formatRupiah(opt.amount)}</span>
+                                        {canEditOptional && (
+                                            <button onClick={() => removeOptionalCost(idx)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                                <Trash className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {canEditOptional && (
+                                    <div className="flex gap-2 mt-2">
+                                        <input
+                                            type="text"
+                                            placeholder="Nama Biaya..."
+                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500/20 font-semibold"
+                                            value={newOptName}
+                                            onChange={e => setNewOptName(e.target.value)}
+                                        />
+                                        <input
+                                            type="number"
+                                            placeholder="Nominal..."
+                                            className="w-1/3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500/20 font-semibold"
+                                            value={newOptAmount}
+                                            onChange={e => setNewOptAmount(e.target.value)}
+                                        />
+                                        <button onClick={addOptionalCost} className="bg-gray-800 text-white p-2.5 rounded-xl hover:bg-gray-900 transition-colors">
+                                            <Plus className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     )}
                 </div>
+
+                {/* Save Button */}
+                {isEditable && (
+                    <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="w-full bg-brand-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-brand-200 hover:bg-brand-800 transition-all flex items-center justify-center gap-2 mt-4"
+                    >
+                        {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                        Simpan Perubahan & Perhitungan
+                    </button>
+                )}
             </div>
 
             {/* Right Column: Breakdown */}
-            <div className="bg-gray-50/50 p-8 rounded-3xl border border-gray-100 flex flex-col">
+            <div className="bg-gray-50/50 p-4 sm:p-6 md:p-8 rounded-3xl border border-gray-100 flex flex-col">
                 <h3 className="text-2xl font-bold text-brand-700 mb-6">Detail Hasil Perhitungan</h3>
 
                 {/* Loading state */}

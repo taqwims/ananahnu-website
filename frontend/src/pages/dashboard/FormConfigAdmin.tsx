@@ -13,7 +13,7 @@ export default function FormConfigAdmin() {
         activeTab, setActiveTab,
         fields, loading,
         saving, showAdd, setShowAdd,
-        businessTypes,
+        businessTypes, productCategories,
         newField, setNewField,
         handleAdd, handleUpdate, handleDelete, updateFieldState,
         loadFields, handleReorder
@@ -236,6 +236,7 @@ export default function FormConfigAdmin() {
                                 key={field.id}
                                 field={field}
                                 businessTypes={businessTypes}
+                                productCategories={productCategories}
                                 onUpdateState={updateFieldState}
                                 onHandleUpdate={handleUpdate}
                                 onDelete={handleDelete}

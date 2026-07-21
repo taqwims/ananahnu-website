@@ -17,8 +17,9 @@ type FormFieldConfig struct {
 	IsRequired     bool      `json:"is_required"`
 	SortOrder      int       `json:"sort_order"`
 	Description    string    `json:"description"`
-	BusinessTypeID *int64    `json:"business_type_id,omitempty"`         // Optional: scoping per jenis bidang
-	StepNumber     int       `gorm:"default:1" json:"step_number"`
+	BusinessTypeID    *int64    `json:"business_type_id,omitempty"`         // Optional: scoping per jenis bidang
+	ProductCategoryID *int64    `json:"product_category_id,omitempty"`      // Optional: scoping per jenis produk
+	StepNumber        int       `gorm:"default:1" json:"step_number"`
 	StepName       string    `gorm:"default:'Step 1'" json:"step_name"`
 	IsActive       bool      `gorm:"default:true" json:"is_active"`
 	CreatedAt      time.Time `json:"created_at"`

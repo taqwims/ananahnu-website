@@ -126,20 +126,21 @@ export const WorkflowActions = ({
         switch (submission.status) {
             case 'WAITING_PAYMENT': return 'Konfirmasi Pembayaran & Lanjutkan';
             case 'VERVAL_PENDAMPING': return 'Selesaikan Verifikasi';
-            case 'QC_OFFICER': return 'Distribute to Drafter';
-            case 'DRAFTER': return 'Submit to QC Review';
-            case 'QC_REVIEW': return 'Submit to Sidang Fatwa';
-            default: return 'Approve / Advance';
+            case 'QC_OFFICER': return 'Distribusi ke Drafter';
+            case 'DRAFTER': return 'Kirim ke Verifikator';
+            case 'QC_REVIEW': return 'Kirim ke BPJPH';
+            case 'SUBMITTED_TO_BPJPH': return 'Proses Keuangan & Terbitkan SH';
+            default: return 'Disetujui / Lanjutkan';
         }
     };
 
     const getRejectLabel = () => {
         switch (submission.status) {
-            case 'QC_OFFICER': return 'Return to Halal Manager';
-            case 'DRAFTER': return 'Return to QC Officer';
-            case 'QC_REVIEW': return 'Return to Drafter';
-            case 'SIDANG_FATWA': return 'Return to Drafter';
-            default: return 'Reject / Revision';
+            case 'QC_OFFICER': return 'Kembalikan ke Advisor';
+            case 'DRAFTER': return 'Kembalikan ke QC Officer';
+            case 'QC_REVIEW': return 'Kembalikan Berkas (Revisi)';
+            case 'SUBMITTED_TO_BPJPH': return 'Kembalikan Berkas (Revisi)';
+            default: return 'Kembalikan / Revisi';
         }
     };
 
@@ -147,11 +148,13 @@ export const WorkflowActions = ({
                         (submission.status === 'WAITING_PAYMENT' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'DRAFTER' && (user?.role === 'DRAFTER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
-                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')));
+                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+                        (submission.status === 'SUBMITTED_TO_BPJPH' && (user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')));
 
     const showReject = ((submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'DRAFTER' && user?.role === 'DRAFTER') ||
                         (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+                        (submission.status === 'SUBMITTED_TO_BPJPH' && (user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'SIDANG_FATWA' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR')));
 
     const handleDownload = async (format: 'docx' | 'pdf') => {

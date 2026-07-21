@@ -33,6 +33,7 @@ func NewSubmissionHandler(r *gin.Engine, uc usecase.SubmissionWorkflowUsecase) {
 		g.POST("/:id/business-type", handler.UpdateBusinessType)
 		g.PUT("/:id/client-info", handler.UpdateClientInfoAndPricing)
 		g.POST("/bulk-assign-drafter", handler.BulkAssignDrafter)
+		g.GET("/analytics/drafter-monthly", handler.GetDrafterMonthlyAnalytics)
 		g.GET("", handler.GetList)
 		g.GET("/:id", handler.GetDetail)
 		g.GET("/:id/history", handler.GetHistory)
@@ -540,5 +541,14 @@ func (h *SubmissionHandler) VerifyInvoice(c *gin.Context) {
 		"updated_at":     sub.UpdatedAt,
 		"created_at":     sub.CreatedAt,
 	})
+}
+
+func (h *SubmissionHandler) GetDrafterMonthlyAnalytics(c *gin.Context) {
+	stats, err := h.workflowUC.GetDrafterMonthlyAnalytics()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, stats)
 }
 

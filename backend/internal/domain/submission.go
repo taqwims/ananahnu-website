@@ -15,10 +15,13 @@ const (
 	StatusQCOfficer        SubmissionStatus = "QC_OFFICER"
 	StatusDrafter          SubmissionStatus = "DRAFTER"
 	StatusQCReview         SubmissionStatus = "QC_REVIEW"
+	StatusSubmittedBPJPH   SubmissionStatus = "SUBMITTED_TO_BPJPH"
 	StatusSidangFatwa      SubmissionStatus = "SIDANG_FATWA"
 	StatusSHTerbit         SubmissionStatus = "SH_TERBIT"
 	StatusRejected         SubmissionStatus = "REJECTED"
 	StatusRevision         SubmissionStatus = "REVISION"
+	StatusRevisionAdvisor  SubmissionStatus = "REVISION_ADVISOR"
+	StatusRevisionDrafter  SubmissionStatus = "REVISION_DRAFTER"
 )
 
 type Submission struct {
@@ -60,6 +63,7 @@ type Submission struct {
 	BPJPHPaymentStatus  string           `gorm:"default:'UNPAID'" json:"bpjph_payment_status"` // UNPAID, PAID
 	BPJPHAmount         float64          `gorm:"default:0" json:"bpjph_amount"`
 	BPJPHPaidAt         *time.Time       `json:"bpjph_paid_at,omitempty"`
+	HasBeenReturned     bool             `gorm:"default:false" json:"has_been_returned"`
 	CreatedAt           time.Time        `json:"created_at"`
 	UpdatedAt           time.Time        `json:"updated_at"`
 }
@@ -80,6 +84,7 @@ type SubmissionRepository interface {
 	UpdateAssignee(id uuid.UUID, drafterID *uuid.UUID) error
 	UpdateConsultant(id uuid.UUID, consultantID *uuid.UUID) error
 	UpdateRejectNote(id uuid.UUID, note string) error
+	UpdateHasBeenReturned(id uuid.UUID, returned bool) error
 	UpdateSH(id uuid.UUID, shURL string) error
 	UpdateAuditInfo(id uuid.UUID, auditDate *time.Time) error
 	UpdateAuditResult(id uuid.UUID, url1, url2 string) error

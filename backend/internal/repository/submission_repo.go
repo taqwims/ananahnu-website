@@ -107,6 +107,10 @@ func (r *submissionRepository) UpdateRejectNote(id uuid.UUID, note string) error
 	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("reject_note", note).Error
 }
 
+func (r *submissionRepository) UpdateHasBeenReturned(id uuid.UUID, returned bool) error {
+	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("has_been_returned", returned).Error
+}
+
 func (r *submissionRepository) UpdateSH(id uuid.UUID, shURL string) error {
 	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("sh_url", shURL).Error
 }

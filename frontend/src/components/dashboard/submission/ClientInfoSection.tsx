@@ -269,18 +269,6 @@ export const ClientInfoSection = ({
                                 </div>
                             )}
                         </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">NIK <span className="text-red-500">*</span></label>
-                            <input className="glass-input w-full font-mono" value={clientForm.nik} onChange={e => setClientForm({...clientForm, nik: e.target.value})} placeholder="Nomor Induk Kependudukan" />
-                        </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Produk</label>
-                            <input className="glass-input w-full" value={clientForm.product_name} onChange={e => setClientForm({...clientForm, product_name: e.target.value})} placeholder="Contoh: Keripik Singkong" />
-                        </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">CP / Telepon</label>
-                            <input className="glass-input w-full" value={clientForm.phone} onChange={e => setClientForm({...clientForm, phone: e.target.value})} placeholder="08..." />
-                        </div>
                         <div className="sm:col-span-2">
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Bidang Usaha <span className="text-red-500">*</span></label>
                             <select 
@@ -290,7 +278,8 @@ export const ClientInfoSection = ({
                                     setClientForm(prev => ({
                                         ...prev,
                                         business_type_id: e.target.value,
-                                        product_category_id: '' // reset product category on business type change
+                                        product_category_id: '', // reset product category
+                                        product_name: '' // reset product name
                                     }));
                                 }}
                             >
@@ -307,6 +296,36 @@ export const ClientInfoSection = ({
                                     ))
                                 }
                             </select>
+                        </div>
+                        <div className="sm:col-span-2">
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Jenis Produk <span className="text-red-500">*</span></label>
+                            <select 
+                                className="glass-input w-full" 
+                                value={clientForm.product_category_id} 
+                                onChange={e => {
+                                    const selectedId = e.target.value;
+                                    const selectedCat = productCategories.find(pc => pc.id?.toString() === selectedId);
+                                    setClientForm(prev => ({
+                                        ...prev,
+                                        product_category_id: selectedId,
+                                        product_name: selectedCat ? selectedCat.name : ''
+                                    }));
+                                }}
+                                disabled={!clientForm.business_type_id}
+                            >
+                                <option value="">Pilih Jenis Produk</option>
+                                {productCategories
+                                    .filter(pc => !clientForm.business_type_id || pc.business_type_id?.toString() === clientForm.business_type_id.toString())
+                                    .map(pc => <option key={pc.id} value={pc.id}>{pc.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">NIK <span className="text-red-500">*</span></label>
+                            <input className="glass-input w-full font-mono" value={clientForm.nik} onChange={e => setClientForm({...clientForm, nik: e.target.value})} placeholder="Nomor Induk Kependudukan" />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">CP / Telepon</label>
+                            <input className="glass-input w-full" value={clientForm.phone} onChange={e => setClientForm({...clientForm, phone: e.target.value})} placeholder="08..." />
                         </div>
                         <div className="sm:col-span-2">
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Alamat Lengkap</label>

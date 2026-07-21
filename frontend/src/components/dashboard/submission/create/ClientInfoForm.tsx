@@ -50,9 +50,14 @@ export const ClientInfoForm = ({
                 <div className="sm:col-span-2">
                     <label className="block text-xs font-medium text-gray-500 mb-1">Bidang Usaha <span className="text-red-500">*</span></label>
                     <select 
-                        className="glass-input w-full"
+                        className="glass-input w-full font-semibold"
                         value={clientData.business_type_id}
-                        onChange={e => setClientData({...clientData, business_type_id: e.target.value})}
+                        onChange={e => setClientData({
+                            ...clientData, 
+                            business_type_id: e.target.value,
+                            product_category_id: '', // reset product category
+                            product_name: '' // reset product name
+                        })}
                     >
                         <option value="">Pilih Bidang Usaha</option>
                         {businessTypes
@@ -64,6 +69,31 @@ export const ClientInfoForm = ({
                             })
                             .map(bt => (
                                 <option key={bt.id} value={bt.id}>{bt.name}</option>
+                            ))
+                        }
+                    </select>
+                </div>
+                <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Jenis Produk <span className="text-red-500">*</span></label>
+                    <select 
+                        className="glass-input w-full font-semibold"
+                        value={clientData.product_category_id || ''}
+                        disabled={!clientData.business_type_id}
+                        onChange={e => {
+                            const selectedId = e.target.value;
+                            const selectedCat = productCategories.find(pc => pc.id?.toString() === selectedId);
+                            setClientData({
+                                ...clientData,
+                                product_category_id: selectedId,
+                                product_name: selectedCat ? selectedCat.name : ''
+                            });
+                        }}
+                    >
+                        <option value="">Pilih Jenis Produk</option>
+                        {productCategories
+                            .filter(pc => !clientData.business_type_id || pc.business_type_id?.toString() === clientData.business_type_id.toString())
+                            .map(pc => (
+                                <option key={pc.id} value={pc.id}>{pc.name}</option>
                             ))
                         }
                     </select>
@@ -183,15 +213,7 @@ export const ClientInfoForm = ({
                         placeholder="Nomor Induk Kependudukan (16 Digit)"
                     />
                 </div>
-                <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Jenis Produk</label>
-                    <input 
-                        className="glass-input w-full" 
-                        value={clientData.product_name} 
-                        onChange={e => setClientData({...clientData, product_name: e.target.value})} 
-                        placeholder="Contoh: Keripik Singkong"
-                    />
-                </div>
+
                 <div className="sm:col-span-2">
                     <label className="block text-xs font-medium text-gray-500 mb-1">Alamat Lengkap</label>
                     <textarea 

@@ -546,6 +546,19 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
             {/* Manual payment: file upload */}
             {method === 'MANUAL' && (
                 <div className="space-y-3">
+                    <div className="bg-brand-50/50 border border-brand-100 p-4 rounded-2xl space-y-2 text-brand-900 text-sm">
+                        <p className="font-black text-xs uppercase tracking-wider text-brand-750">Rekening Tujuan Transfer</p>
+                        <div className="grid grid-cols-3 gap-2 text-xs font-semibold">
+                            <span className="text-brand-600">Bank:</span>
+                            <span className="col-span-2 text-gray-850">BNI</span>
+                            
+                            <span className="text-brand-600">Nomor Rekening:</span>
+                            <span className="col-span-2 text-gray-850 font-mono font-bold select-all">1825073247</span>
+                            
+                            <span className="text-brand-600">Atas Nama:</span>
+                            <span className="col-span-2 text-gray-850">PT. Ana Nahnu Indonesia</span>
+                        </div>
+                    </div>
                     <label className="block text-sm font-medium text-gray-700">Bukti Pembayaran (Transfer)</label>
                     <div className="flex flex-col gap-2">
                         <FileUpload

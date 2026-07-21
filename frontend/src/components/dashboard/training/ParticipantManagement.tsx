@@ -86,12 +86,20 @@ export const ParticipantManagement = ({
                                     <Clock className="w-3.5 h-3.5" /> Peserta
                                 </span>
                                 {canGraduate && (
-                                    <button
-                                        onClick={() => onUpdateStatus(p.user_id, 'LULUS')}
-                                        className="px-4 py-1 bg-brand-600 text-white rounded-lg text-xs font-bold hover:bg-brand-700 transition shadow-lg shadow-brand-100"
-                                    >
-                                        Luluskan
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => onUpdateStatus(p.user_id, 'LULUS')}
+                                            className="px-4 py-1.5 bg-brand-600 text-white rounded-xl text-xs font-bold hover:bg-brand-700 transition shadow-md shadow-brand-100"
+                                        >
+                                            Luluskan
+                                        </button>
+                                        <button
+                                            onClick={() => onUpdateStatus(p.user_id, 'TIDAK_LULUS')}
+                                            className="px-4 py-1.5 bg-rose-50 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold hover:bg-rose-100 transition"
+                                        >
+                                            Tidak Lulus
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         </div>

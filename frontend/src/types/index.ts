@@ -47,7 +47,7 @@ export interface Client {
     updated_at?: string;
 }
 
-export type SubmissionStatus = 'DRAFT' | 'WAITING_PAYMENT' | 'VERVAL_PENDAMPING' | 'QC_OFFICER' | 'DRAFTER' | 'QC_REVIEW' | 'SIDANG_FATWA' | 'SH_TERBIT' | 'REJECTED' | 'REVISION';
+export type SubmissionStatus = 'DRAFT' | 'WAITING_PAYMENT' | 'VERVAL_PENDAMPING' | 'QC_OFFICER' | 'DRAFTER' | 'QC_REVIEW' | 'SUBMITTED_TO_BPJPH' | 'SIDANG_FATWA' | 'SH_TERBIT' | 'REJECTED' | 'REVISION' | 'REVISION_ADVISOR' | 'REVISION_DRAFTER';
 
 export interface Payment {
     id: number;
@@ -158,6 +158,7 @@ export interface FormFieldConfig {
     sort_order: number;
     description: string;
     business_type_id?: number;
+    product_category_id?: number;
     step_number: number;
     step_name: string;
 }

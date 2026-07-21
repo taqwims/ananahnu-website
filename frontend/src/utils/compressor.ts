@@ -14,68 +14,64 @@ export function compressImage(
       return resolve(file);
     }
 
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.src = objectUrl;
 
-        // Hitung dimensi baru dengan mempertahankan aspek rasio
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      // Hitung dimensi baru dengan mempertahankan aspek rasio
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
         }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          return resolve(file); // Fallback ke file asli jika tidak bisa mendapatkan context 2d
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
         }
+      }
 
-        ctx.drawImage(img, 0, 0, width, height);
+      canvas.width = width;
+      canvas.height = height;
 
-        // Pertahankan mimeType asli jika JPEG/PNG/WEBP, fallback ke image/jpeg
-        const mimeType = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
-          ? file.type
-          : 'image/jpeg';
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        return resolve(file); // Fallback ke file asli jika tidak bisa mendapatkan context 2d
+      }
 
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              return resolve(file);
-            }
-            // Buat File baru dari blob hasil kompresi
-            const compressedFile = new File([blob], file.name, {
-              type: mimeType,
-              lastModified: Date.now(),
-            });
-            resolve(compressedFile);
-          },
-          mimeType,
-          quality
-        );
-      };
-      
-      img.onerror = () => {
-        resolve(file); // Fallback ke file asli jika load gambar gagal
-      };
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Pertahankan mimeType asli jika JPEG/PNG/WEBP, fallback ke image/jpeg
+      const mimeType = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+        ? file.type
+        : 'image/jpeg';
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            return resolve(file);
+          }
+          // Buat File baru dari blob hasil kompresi
+          const compressedFile = new File([blob], file.name, {
+            type: mimeType,
+            lastModified: Date.now(),
+          });
+          resolve(compressedFile);
+        },
+        mimeType,
+        quality
+      );
     };
 
-    reader.onerror = () => {
-      resolve(file); // Fallback ke file asli jika pembacaan file gagal
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file); // Fallback ke file asli jika load gambar gagal
     };
   });
 }

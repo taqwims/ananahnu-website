@@ -182,7 +182,7 @@ export default function SubmissionDetail() {
                 )}
 
                 {invoice && (
-                    <SubmissionInvoice invoice={invoice} />
+                    <SubmissionInvoice invoice={invoice} submissionId={submission.id} />
                 )}
 
                 <Modal 
@@ -308,15 +308,27 @@ return (
                         </div>
                     )}
 
-                    <ClientInfoSection 
-                        submission={submission} 
-                        user={user} 
-                        onUpdateClient={updateClient} 
-                        onUpdateClientInfoAndPricing={updateClientInfoAndPricing}
-                        onUpdateBusinessType={updateBusinessType}
-                        businessTypes={businessTypes}
-                        processing={processing} 
-                    />
+                    {serviceType === 'REGULER' ? (
+                        <div className="overflow-x-auto pb-4">
+                            <KalkulatorReguler 
+                                submissionId={submission.id} 
+                                readOnly={user?.role === 'CLIENT'} 
+                                onSaved={refresh}
+                                salesSchemeId={submission.sales_scheme_id || undefined}
+                                dataSource={submission.data_source}
+                            />
+                        </div>
+                    ) : (
+                        <ClientInfoSection 
+                            submission={submission} 
+                            user={user} 
+                            onUpdateClient={updateClient} 
+                            onUpdateClientInfoAndPricing={updateClientInfoAndPricing}
+                            onUpdateBusinessType={updateBusinessType}
+                            businessTypes={businessTypes}
+                            processing={processing} 
+                        />
+                    )}
 
                     {submission.service_type === 'REGULER' && (
                         <div className="bg-white p-6 rounded-2xl border border-gray-150 shadow-sm space-y-4">
@@ -353,15 +365,7 @@ return (
                     </div>
 
                     <div className="overflow-x-auto pb-4">
-                        {serviceType === 'REGULER' ? (
-                            <KalkulatorReguler 
-                                submissionId={submission.id} 
-                                readOnly={true} 
-                                onSaved={refresh}
-                                salesSchemeId={submission.sales_scheme_id || undefined}
-                                dataSource={submission.data_source}
-                            />
-                        ) : serviceType !== 'SELF_DECLARE' ? (
+                        {(serviceType !== 'REGULER' && serviceType !== 'SELF_DECLARE') ? (
                             <CostCalculator 
                                 submissionId={submission.id} 
                                 readOnly={user?.role !== 'FINANCE' && user?.role !== 'ADMIN_KEUANGAN' && user?.role !== 'ADMIN'} 
@@ -395,7 +399,7 @@ return (
                     )}
 
                     {invoice && (
-                        <SubmissionInvoice invoice={invoice} />
+                        <SubmissionInvoice invoice={invoice} submissionId={submission.id} />
                     )}
                 </div>
 
