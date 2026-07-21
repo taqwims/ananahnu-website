@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -122,6 +123,11 @@ func (uc *submissionWorkflowUsecase) CreateDraft(clientID *uuid.UUID, businessNa
 	if err := uc.checkVerification(facilitatorID); err != nil {
 		return nil, err
 	}
+	if serviceType == "SELF_DECLARE" {
+		if err := uc.checkFacilitationQuota(); err != nil {
+			return nil, err
+		}
+	}
 	if err := uc.checkUnpaidInvoices(facilitatorID, serviceType); err != nil {
 		return nil, err
 	}
@@ -169,6 +175,9 @@ func (uc *submissionWorkflowUsecase) CreateDraft(clientID *uuid.UUID, businessNa
 	if err := uc.SubmissionRepo.Create(sub); err != nil {
 		return nil, err
 	}
+	if sub.ServiceType == "SELF_DECLARE" {
+		uc.incrementFacilitationQuotaUsed()
+	}
 
 	uc.logChange(sub.ID, facilitatorID, "CREATE_DRAFT", "", domain.StatusDraft, "Initial draft created")
 	return sub, nil
@@ -177,6 +186,11 @@ func (uc *submissionWorkflowUsecase) CreateDraft(clientID *uuid.UUID, businessNa
 func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uuid.UUID, userRole string) (*domain.Submission, error) {
 	if err := uc.checkVerification(userID); err != nil {
 		return nil, err
+	}
+	if input.ClientData.ServiceType == "SELF_DECLARE" {
+		if err := uc.checkFacilitationQuota(); err != nil {
+			return nil, err
+		}
 	}
 	if err := uc.checkUnpaidInvoices(userID, input.ClientData.ServiceType); err != nil {
 		return nil, err
@@ -258,6 +272,9 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 
 	if err := uc.SubmissionRepo.Create(sub); err != nil {
 		return nil, fmt.Errorf("failed to create submission: %w", err)
+	}
+	if sub.ServiceType == "SELF_DECLARE" {
+		uc.incrementFacilitationQuotaUsed()
 	}
 
 	// Recalculate cost if REGULER or SELF_DECLARE_MANDIRI
@@ -770,4 +787,42 @@ func getMultiplierFromBreakdown(breakdown []map[string]interface{}, name string)
 	}
 	return 1
 }
+
+func (uc *submissionWorkflowUsecase) checkFacilitationQuota() error {
+	limitStr := "1000"
+	usedStr := "0"
+	
+	limitSetting, err := uc.SettingRepo.GetSetting("facilitation_quota_limit")
+	if err == nil && limitSetting != nil {
+		limitStr = limitSetting.Value
+	}
+	usedSetting, err := uc.SettingRepo.GetSetting("facilitation_quota_used")
+	if err == nil && usedSetting != nil {
+		usedStr = usedSetting.Value
+	}
+	
+	limit, _ := strconv.Atoi(limitStr)
+	used, _ := strconv.Atoi(usedStr)
+	
+	if limit - used <= 0 {
+		return errors.New("tidak ada fasilitasi pembiayaan. Silahkan ajukan melalui skema self declare mandiri")
+	}
+	return nil
+}
+
+func (uc *submissionWorkflowUsecase) incrementFacilitationQuotaUsed() {
+	usedStr := "0"
+	usedSetting, err := uc.SettingRepo.GetSetting("facilitation_quota_used")
+	if err == nil && usedSetting != nil {
+		usedStr = usedSetting.Value
+	}
+	used, _ := strconv.Atoi(usedStr)
+	used++
+	
+	_ = uc.SettingRepo.UpdateSetting(&domain.SystemSetting{
+		Key:   "facilitation_quota_used",
+		Value: strconv.Itoa(used),
+	})
+}
+
 

@@ -102,9 +102,7 @@ func (uc *dashboardUsecase) GetStats(userID uuid.UUID, role string) (map[string]
 	} else if len(facilitatorIDs) > 0 {
 		filter["facilitator_ids"] = facilitatorIDs
 	}
-	if role == "AUDIT_MANAGER" {
-		filter["service_type"] = "REGULER"
-	}
+
 
 	// 1. Get total clients
 	_, totalClients, _ := uc.ClientRepo.FindAll(filter, 1, 0)
@@ -144,10 +142,7 @@ func (uc *dashboardUsecase) GetStats(userID uuid.UUID, role string) (map[string]
 		"pending":       pending,
 	}
 
-	if role == "AUDIT_MANAGER" {
-		stats["audited"] = audited
-		stats["not_audited"] = notAudited
-	}
+
 
 	return stats, nil
 }

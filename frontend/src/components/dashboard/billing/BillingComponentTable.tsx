@@ -47,6 +47,9 @@ export const BillingComponentTable = ({
                                     <span className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-[10px] font-semibold text-gray-600">
                                         {c.type === 'PER_MANDAY' ? 'PER KUANTITAS' : c.type}
                                     </span>
+                                    <span className="ml-1.5 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-[10px] font-semibold text-blue-600">
+                                        {c.service_type || 'REGULER'}
+                                    </span>
                                 </div>
                             </td>
                             <td className="px-6 py-4">

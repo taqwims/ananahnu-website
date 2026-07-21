@@ -85,10 +85,12 @@ func (h *SystemSettingHandler) GetPublicSettings(c *gin.Context) {
 	}
 	
 	allowedKeys := map[string]bool{
-		"COMPANY_NAME":    true,
-		"COMPANY_ADDRESS": true,
-		"COMPANY_PHONE":   true,
-		"COMPANY_EMAIL":   true,
+		"COMPANY_NAME":               true,
+		"COMPANY_ADDRESS":            true,
+		"COMPANY_PHONE":              true,
+		"COMPANY_EMAIL":              true,
+		"facilitation_quota_limit":   true,
+		"facilitation_quota_used":    true,
 	}
 
 	settingMap := make(map[string]string)

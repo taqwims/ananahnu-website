@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react';
 import Modal from '../../../ui/Modal';
+import api from '../../../../services/api';
 
 interface SubmissionCreateModalProps {
     isOpen: boolean;
@@ -15,6 +17,25 @@ export const SubmissionCreateModal = ({
     setFormData,
     onCreate
 }: SubmissionCreateModalProps) => {
+    const [quotaExhausted, setQuotaExhausted] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            api.get('/system-settings/public')
+                .then(res => {
+                    const limit = parseInt(res.data.facilitation_quota_limit || '0', 10);
+                    const used = parseInt(res.data.facilitation_quota_used || '0', 10);
+                    if (limit - used <= 0) {
+                        setQuotaExhausted(true);
+                        // If current selection is SELF_DECLARE, auto-switch to SELF_DECLARE_MANDIRI
+                        if (formData.serviceType === 'SELF_DECLARE') {
+                            setFormData((p: any) => ({ ...p, serviceType: 'SELF_DECLARE_MANDIRI' }));
+                        }
+                    }
+                })
+                .catch(console.error);
+        }
+    }, [isOpen]);
     return (
         <Modal 
             isOpen={isOpen} 
@@ -43,10 +64,17 @@ export const SubmissionCreateModal = ({
                         value={formData.serviceType}
                         onChange={e => setFormData({ ...formData, serviceType: e.target.value })}
                     >
-                        <option value="SELF_DECLARE">Self Declare Fasilitasi (Gratis)</option>
+                        <option value="SELF_DECLARE" disabled={quotaExhausted}>
+                            Self Declare Fasilitasi (Gratis) {quotaExhausted ? '(Kuota Habis)' : ''}
+                        </option>
                         <option value="SELF_DECLARE_MANDIRI">Self Declare Mandiri</option>
                         <option value="REGULER">Reguler</option>
                     </select>
+                    {quotaExhausted && (
+                        <p className="text-red-500 text-xs mt-2 font-bold bg-red-50 border border-red-100 rounded-xl p-3">
+                            Tidak ada fasilitasi pembiayaan. Silahkan ajukan melalui skema self declare mandiri.
+                        </p>
+                    )}
                 </div>
 
                 <div className="flex gap-3 pt-4">

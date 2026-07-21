@@ -8,11 +8,12 @@ import (
 
 // SalesScheme represents "Skema Penjualan" (e.g., Direct Sale, Partnership)
 type SalesScheme struct {
-	ID          int64     `gorm:"primaryKey" json:"id"`
-	Name        string    `gorm:"not null" json:"name"`
-	Description string    `json:"description"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID              int64     `gorm:"primaryKey" json:"id"`
+	Name            string    `gorm:"not null" json:"name"`
+	Description     string    `json:"description"`
+	DiscountPercent float64   `gorm:"default:0" json:"discount_percent"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 // BusinessType represents "Jenis Bidang"
@@ -55,6 +56,7 @@ type BillingComponent struct {
 	BaseAmount      float64   `gorm:"not null" json:"base_amount"`
 	IsMandatory     bool      `gorm:"default:false" json:"is_mandatory"`
 	DiscountPercent float64   `gorm:"default:0" json:"discount_percent"`
+	ServiceType     string    `gorm:"not null;default:'REGULER'" json:"service_type"`
 	
 	// Scoping: which business type + product category this component applies to
 	BusinessScaleID   *int64    `json:"business_scale_id,omitempty"`

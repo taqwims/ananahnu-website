@@ -30,14 +30,28 @@ export default function ClientForm() {
     const [isVerified, setIsVerified] = useState<boolean | null>(null);
     const [verStatus, setVerStatus] = useState<{ profile: boolean; training: boolean } | null>(null);
     const { user } = useAuthStore();
+    const [quotaExhausted, setQuotaExhausted] = useState(false);
 
-
-    const { register, handleSubmit, formState: { errors }, reset } = useForm<ClientFormValues>({
+    const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<ClientFormValues>({
         resolver: zodResolver(clientSchema),
         defaultValues: {
             service_type: "REGULER"
         }
     });
+
+
+
+    useEffect(() => {
+        api.get('/system-settings/public')
+            .then(res => {
+                const limit = parseInt(res.data.facilitation_quota_limit || '0', 10);
+                const used = parseInt(res.data.facilitation_quota_used || '0', 10);
+                if (limit - used <= 0) {
+                    setQuotaExhausted(true);
+                }
+            })
+            .catch(console.error);
+    }, []);
 
     useEffect(() => {
         const checkVerification = async () => {
@@ -190,11 +204,28 @@ export default function ClientForm() {
 
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Tipe Sertifikasi <span className="text-red-500">*</span></label>
-                            <select {...register('service_type')} className="w-full px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-brand-500/20 transition-all outline-none appearance-none font-bold">
+                            <select 
+                                {...register('service_type')} 
+                                onChange={e => {
+                                    if (quotaExhausted && e.target.value === "SELF_DECLARE") {
+                                        setValue("service_type", "SELF_DECLARE_MANDIRI");
+                                    } else {
+                                        register('service_type').onChange(e);
+                                    }
+                                }}
+                                className="w-full px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-brand-500/20 transition-all outline-none appearance-none font-bold"
+                            >
                                 <option value="REGULER">Reguler (LPH)</option>
-                                <option value="SELF_DECLARE">Self Declare Fasilitasi (Gratis)</option>
+                                <option value="SELF_DECLARE" disabled={quotaExhausted}>
+                                    Self Declare Fasilitasi (Gratis) {quotaExhausted ? "(Kuota Habis)" : ""}
+                                </option>
                                 <option value="SELF_DECLARE_MANDIRI">Self Declare Mandiri</option>
                             </select>
+                            {quotaExhausted && (
+                                <p className="text-amber-600 text-[10px] font-bold mt-1.5 ml-2 bg-amber-50 p-2 rounded-lg border border-amber-100">
+                                    Tidak ada fasilitasi pembiayaan. Silahkan ajukan melalui skema self declare mandiri.
+                                </p>
+                            )}
                         </div>
 
                         <div className="md:col-span-2">

@@ -5,7 +5,8 @@ import { GlobalSettingsPanel } from '../../components/dashboard/billing/GlobalSe
 import { BillingComponentForm } from '../../components/dashboard/billing/BillingComponentForm';
 import { BillingComponentTable } from '../../components/dashboard/billing/BillingComponentTable';
 import { MasterDataManagement } from '../../components/dashboard/billing/MasterDataManagement';
-import { SelfDeclareRates } from '../../components/dashboard/billing/SelfDeclareRates';
+import { QuotaSettings } from '../../components/dashboard/billing/QuotaSettings';
+import { DiscountPanel } from '../../components/dashboard/billing/DiscountPanel';
 import { RoleSchemePanel } from '../../components/dashboard/billing/RoleSchemePanel';
 import CoordinatorRates from './CoordinatorRates';
 
@@ -123,11 +124,17 @@ export default function BillingConfigAdmin() {
                 />
             )}
 
-            {activeMainTab === 'self_declare' && (
-                <SelfDeclareRates
+            {activeMainTab === 'quota' && (
+                <QuotaSettings
                     systemSettings={systemSettings}
                     setSystemSettings={setSystemSettings}
                     onUpdate={handleUpdateSystemSetting}
+                />
+            )}
+
+            {activeMainTab === 'discounts' && (
+                <DiscountPanel
+                    schemes={schemes}
                 />
             )}
 

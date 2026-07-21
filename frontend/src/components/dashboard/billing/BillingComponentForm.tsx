@@ -87,6 +87,14 @@ export const BillingComponentForm = ({
                                 <label className="block text-xs font-bold text-gray-700 mb-1.5">Diskon (%)</label>
                                 <input type="number" placeholder="0" value={(formData as any).discountPercent || ''} onChange={e => setFormData({ ...formData, discountPercent: e.target.value })} className="w-full bg-white border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" />
                             </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1.5">Jenis Layanan</label>
+                                <select className="w-full bg-white border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-semibold" value={formData.serviceType || 'REGULER'} onChange={e => setFormData({ ...formData, serviceType: e.target.value })}>
+                                    <option value="REGULER">Reguler</option>
+                                    <option value="SELF_DECLARE">Self Declare Fasilitasi (Gratis)</option>
+                                    <option value="SELF_DECLARE_MANDIRI">Self Declare Mandiri</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
