@@ -19,7 +19,7 @@ func NewFormConfigRepository(db *gorm.DB) domain.FormConfigRepository {
 
 func (r *formConfigRepository) FindByFormType(formType string) ([]domain.FormFieldConfig, error) {
 	var configs []domain.FormFieldConfig
-	if err := r.db.Where("form_type = ? AND is_active = ?", formType, true).Order("sort_order ASC").Find(&configs).Error; err != nil {
+	if err := r.db.Where("form_type = ? AND is_active = ?", formType, true).Order("step_number ASC, sort_order ASC").Find(&configs).Error; err != nil {
 		return nil, err
 	}
 	return configs, nil
@@ -27,8 +27,9 @@ func (r *formConfigRepository) FindByFormType(formType string) ([]domain.FormFie
 
 func (r *formConfigRepository) FindByFormTypeAndBusinessType(formType string, businessTypeID *int64, productCategoryID *int64, showAll bool) ([]domain.FormFieldConfig, error) {
 	var configs []domain.FormFieldConfig
-	query := r.db.Where("form_type = ? AND is_active = ?", formType, true)
+	query := r.db.Where("form_type = ?", formType)
 	if !showAll {
+		query = query.Where("is_active = ?", true)
 		if businessTypeID != nil && *businessTypeID > 0 {
 			query = query.Where("business_type_id = ? OR business_type_id IS NULL", *businessTypeID)
 		} else {
@@ -40,7 +41,7 @@ func (r *formConfigRepository) FindByFormTypeAndBusinessType(formType string, bu
 			query = query.Where("product_category_id IS NULL")
 		}
 	}
-	if err := query.Order("sort_order ASC").Find(&configs).Error; err != nil {
+	if err := query.Order("step_number ASC, sort_order ASC").Find(&configs).Error; err != nil {
 		return nil, err
 	}
 	return configs, nil

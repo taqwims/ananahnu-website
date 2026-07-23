@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react';
 import { Mail, Phone, MapPin, CheckCircle, Clock, XCircle, Loader2, FileText, ExternalLink, AlertCircle } from 'lucide-react';
-import type { ConsultantProfile } from '../../../types';
+import type { ConsultantProfile, FormFieldConfig } from '../../../types';
 import { useAuthStore } from '../../../store/authStore';
+import api from '../../../services/api';
 
 interface ConsultantVerificationDetailsProps {
     profile: ConsultantProfile;
@@ -11,12 +13,12 @@ interface ConsultantVerificationDetailsProps {
     verifying: string | null;
 }
 
-const DOCUMENTS = [
-    { key: 'ktp_url', label: 'KTP' },
-    { key: 'photo_3x4_url', label: 'Foto 3x4' },
-    { key: 'ijazah_sta_url', label: 'Ijazah STA' },
-    { key: 'bank_account_url', label: 'Buku Rekening' },
-    { key: 'npwp_url', label: 'NPWP' },
+const DEFAULT_DOCUMENTS = [
+    { key: 'ktp', label: 'KTP', legacyKey: 'ktp_url' },
+    { key: 'foto_3x4', label: 'Foto 3x4', legacyKey: 'photo_3x4_url' },
+    { key: 'ijazah_sta', label: 'Ijazah STA', legacyKey: 'ijazah_sta_url' },
+    { key: 'buku_rekening', label: 'Buku Rekening', legacyKey: 'bank_account_url' },
+    { key: 'npwp', label: 'NPWP', legacyKey: 'npwp_url' },
 ] as const;
 
 export const ConsultantVerificationDetails = ({
@@ -29,6 +31,35 @@ export const ConsultantVerificationDetails = ({
 }: ConsultantVerificationDetailsProps) => {
     const user = useAuthStore(state => state.user);
     const isHalalManager = user?.role === 'HALAL_MANAGER';
+
+    const [configs, setConfigs] = useState<FormFieldConfig[]>([]);
+
+    useEffect(() => {
+        api.get('/form-config/RECRUITMENT')
+            .then(res => setConfigs(res.data || []))
+            .catch(() => setConfigs([]));
+    }, []);
+
+    // Parse dynamic_data from profile
+    let dynData: Record<string, string> = {};
+    if (profile?.dynamic_data) {
+        try {
+            dynData = JSON.parse(profile.dynamic_data);
+        } catch (e) {
+            console.error('Failed to parse profile dynamic_data:', e);
+        }
+    }
+
+    const getItemValue = (key: string, legacyKey?: string) => {
+        if (dynData[key] !== undefined && dynData[key] !== '') return dynData[key];
+        if (legacyKey && (profile as any)[legacyKey]) return (profile as any)[legacyKey];
+        if (key === 'ktp') return profile.ktp_url;
+        if (key === 'foto_3x4') return profile.photo_3x4_url;
+        if (key === 'ijazah_sta') return profile.ijazah_sta_url;
+        if (key === 'buku_rekening') return profile.bank_account_url;
+        if (key === 'npwp') return profile.npwp_url;
+        return '';
+    };
 
     return (
         <div className="space-y-8">
@@ -109,35 +140,77 @@ export const ConsultantVerificationDetails = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-gray-100">
                 <div className="space-y-4">
-                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Dokumen Rekrutmen</h4>
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Dokumen & Data Rekrutmen</h4>
                     <div className="space-y-3">
-                        {DOCUMENTS.map(doc => {
-                            const url = profile[doc.key as keyof ConsultantProfile];
-                            return (
-                                <div key={doc.key} className="p-4 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-between group/doc hover:bg-white hover:border-indigo-200 transition-all">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-gray-400 group-hover/doc:text-indigo-600 transition-colors shadow-sm">
-                                            <FileText className="w-5 h-5" />
+                        {configs.length > 0 ? (
+                            configs.map(cfg => {
+                                const val = getItemValue(cfg.field_key);
+                                const isUrl = val && (val.startsWith('http') || val.startsWith('/uploads') || val.startsWith('/media'));
+                                return (
+                                    <div key={cfg.id} className="p-4 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-between group/doc hover:bg-white hover:border-indigo-200 transition-all">
+                                        <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
+                                            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-gray-400 group-hover/doc:text-indigo-600 transition-colors shadow-sm flex-shrink-0">
+                                                <FileText className="w-5 h-5" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="text-sm font-bold text-gray-700 truncate">{cfg.field_label}</div>
+                                                {!isUrl && val && (
+                                                    <div className="text-xs text-gray-500 font-medium truncate">{val}</div>
+                                                )}
+                                            </div>
                                         </div>
-                                        <span className="text-sm font-bold text-gray-700">{doc.label}</span>
+                                        {val ? (
+                                            isUrl ? (
+                                                <a 
+                                                    href={val.startsWith('http') ? val : `${import.meta.env.VITE_API_URL}${val}`} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="p-2 rounded-lg bg-white text-indigo-600 shadow-sm hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-1 text-xs font-semibold flex-shrink-0"
+                                                >
+                                                    <ExternalLink className="w-4 h-4" /> Lihat
+                                                </a>
+                                            ) : (
+                                                <div className="flex items-center gap-1.5 text-[10px] font-bold text-green-600 px-2 py-1 bg-green-50 rounded-lg flex-shrink-0">
+                                                    <CheckCircle className="w-3 h-3" /> TERISI
+                                                </div>
+                                            )
+                                        ) : (
+                                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-600 px-2 py-1 bg-amber-50 rounded-lg flex-shrink-0">
+                                                <AlertCircle className="w-3 h-3" /> {cfg.is_required ? 'BELUM UNGGAH' : 'KOSONG'}
+                                            </div>
+                                        )}
                                     </div>
-                                    {url ? (
-                                        <a 
-                                            href={typeof url === 'string' && url.startsWith('http') ? url : `${import.meta.env.VITE_API_URL}${url}`} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="p-2 rounded-lg bg-white text-indigo-600 shadow-sm hover:bg-indigo-600 hover:text-white transition-all"
-                                        >
-                                            <ExternalLink className="w-4 h-4" />
-                                        </a>
-                                    ) : (
-                                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-600 px-2 py-1 bg-amber-50 rounded-lg">
-                                            <AlertCircle className="w-3 h-3" /> BELUM UNGGAH
+                                );
+                            })
+                        ) : (
+                            DEFAULT_DOCUMENTS.map(doc => {
+                                const val = getItemValue(doc.key, doc.legacyKey);
+                                return (
+                                    <div key={doc.key} className="p-4 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-between group/doc hover:bg-white hover:border-indigo-200 transition-all">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-gray-400 group-hover/doc:text-indigo-600 transition-colors shadow-sm">
+                                                <FileText className="w-5 h-5" />
+                                            </div>
+                                            <span className="text-sm font-bold text-gray-700">{doc.label}</span>
                                         </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                        {val ? (
+                                            <a 
+                                                href={val.startsWith('http') ? val : `${import.meta.env.VITE_API_URL}${val}`} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="p-2 rounded-lg bg-white text-indigo-600 shadow-sm hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-1 text-xs font-semibold"
+                                            >
+                                                <ExternalLink className="w-4 h-4" /> Lihat
+                                            </a>
+                                        ) : (
+                                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-600 px-2 py-1 bg-amber-50 rounded-lg">
+                                                <AlertCircle className="w-3 h-3" /> BELUM UNGGAH
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
                 </div>
 

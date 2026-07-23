@@ -1,21 +1,15 @@
 import { useState, useEffect } from 'react';
-import { User, Phone, MapPin, Loader2, Save, Lock, UserCircle, Eye, EyeOff, UserCheck, Upload, CheckCircle, Shield } from 'lucide-react';
+import { User, Phone, MapPin, Loader2, Save, Lock, UserCircle, Eye, EyeOff, UserCheck, Upload, CheckCircle, Shield, FileText, Calendar, Link as LinkIcon, Hash } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { userService } from '../../services/userService';
 import { geographyService } from '../../services/geographyService';
 import FileUpload from '../../components/dashboard/FileUpload';
-import type { Province, Regency } from '../../types';
+import type { Province, Regency, FormFieldConfig } from '../../types';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import { formatRoleName } from '../../utils/format';
 
-const DOCUMENTS = [
-    { key: 'ktp_url', label: 'KTP', required: true },
-    { key: 'photo_3x4_url', label: 'Foto 3x4 Latar Merah', required: true },
-    { key: 'ijazah_sta_url', label: 'Ijazah STA', required: true },
-    { key: 'bank_account_url', label: 'Buku Rekening', required: true },
-    { key: 'npwp_url', label: 'NPWP', required: false },
-] as const;
+
 
 export default function ProfilePage() {
     const { user, updateUser } = useAuthStore();
@@ -27,12 +21,9 @@ export default function ProfilePage() {
     const [regencies, setRegencies] = useState<Regency[]>([]);
     
     const [consultantProfile, setConsultantProfile] = useState<any | null>(null);
-    const [consultantForm, setConsultantForm] = useState({
-        ktp_url: '', photo_3x4_url: '', ijazah_sta_url: '',
-        bank_account_url: '', npwp_url: '',
-    });
-
-    const docKey = (key: string) => key as 'ktp_url' | 'photo_3x4_url' | 'ijazah_sta_url' | 'bank_account_url' | 'npwp_url';
+    // State dinamis untuk dokumen advisor — diisi dari /form-config/RECRUITMENT
+    const [recruitmentConfigs, setRecruitmentConfigs] = useState<FormFieldConfig[]>([]);
+    const [consultantValues, setConsultantValues] = useState<Record<string, string>>({});
 
     const [form, setForm] = useState({
         full_name: '',
@@ -72,15 +63,42 @@ export default function ProfilePage() {
 
                 if (user?.id && (user?.role === 'HALAL_ADVISOR' || user?.role === 'HALAL_MANAGER')) {
                     try {
-                        const cpRes = await api.get(`/consultant/profile/${user.id}`);
-                        setConsultantProfile(cpRes.data);
-                        setConsultantForm({
-                            ktp_url: cpRes.data.ktp_url || '',
-                            photo_3x4_url: cpRes.data.photo_3x4_url || '',
-                            ijazah_sta_url: cpRes.data.ijazah_sta_url || '',
-                            bank_account_url: cpRes.data.bank_account_url || '',
-                            npwp_url: cpRes.data.npwp_url || '',
+                        const [cpRes, configRes] = await Promise.all([
+                            api.get(`/consultant/profile/${user.id}`),
+                            api.get('/form-config/RECRUITMENT').catch(() => ({ data: [] }))
+                        ]);
+
+                        const cp = cpRes.data;
+                        setConsultantProfile(cp);
+
+                        const cfgs: FormFieldConfig[] = configRes.data || [];
+                        setRecruitmentConfigs(cfgs);
+
+                        // Parse dynamic_data dari backend
+                        let dynData: Record<string, string> = {};
+                        if (cp?.dynamic_data) {
+                            try { dynData = JSON.parse(cp.dynamic_data); } catch {}
+                        }
+
+                        // Isi nilai awal per field_key
+                        const valMap: Record<string, string> = {};
+                        cfgs.forEach(cfg => {
+                            const k = cfg.field_key;
+                            if (dynData[k]) {
+                                valMap[k] = dynData[k];
+                            } else {
+                                // Fallback ke legacy fields untuk kompatibilitas data lama
+                                switch (k) {
+                                    case 'ktp':           valMap[k] = cp?.ktp_url || ''; break;
+                                    case 'foto_3x4':      valMap[k] = cp?.photo_3x4_url || ''; break;
+                                    case 'ijazah_sta':    valMap[k] = cp?.ijazah_sta_url || ''; break;
+                                    case 'buku_rekening': valMap[k] = cp?.bank_account_url || ''; break;
+                                    case 'npwp':          valMap[k] = cp?.npwp_url || ''; break;
+                                    default:              valMap[k] = '';
+                                }
+                            }
                         });
+                        setConsultantValues(valMap);
                     } catch (e) {
                         console.error("No consultant profile found", e);
                     }
@@ -146,7 +164,19 @@ export default function ProfilePage() {
 
             // Save consultant profile details if advisor/manager
             if (user?.role === 'HALAL_ADVISOR' || user?.role === 'HALAL_MANAGER') {
-                await api.put('/consultant/profile', { ...consultantForm, user_id: user.id });
+                // Semua nilai disimpan secara dinamis ke dynamic_data
+                const dynamicObj: Record<string, string> = { ...consultantValues };
+
+                await api.put('/consultant/profile', {
+                    user_id: user.id,
+                    // Legacy fields untuk kompatibilitas mundur
+                    ktp_url: dynamicObj['ktp'] || consultantProfile?.ktp_url || '',
+                    photo_3x4_url: dynamicObj['foto_3x4'] || consultantProfile?.photo_3x4_url || '',
+                    ijazah_sta_url: dynamicObj['ijazah_sta'] || consultantProfile?.ijazah_sta_url || '',
+                    bank_account_url: dynamicObj['buku_rekening'] || consultantProfile?.bank_account_url || '',
+                    npwp_url: dynamicObj['npwp'] || consultantProfile?.npwp_url || '',
+                    dynamic_data: JSON.stringify(dynamicObj)
+                });
                 const cpRes = await api.get(`/consultant/profile/${user.id}`);
                 setConsultantProfile(cpRes.data);
             }
@@ -335,55 +365,82 @@ export default function ProfilePage() {
                                     <>
                                         <Shield className="w-5 h-5 text-yellow-600" />
                                         <span className="text-sm font-medium text-yellow-800">
-                                            Menunggu Verifikasi — {DOCUMENTS.filter(d => consultantForm[docKey(d.key)]).length}/{DOCUMENTS.length} dokumen terisi
+                                            Menunggu Verifikasi —{' '}
+                                            {recruitmentConfigs.filter(c => consultantValues[c.field_key]?.trim()).length}/{recruitmentConfigs.length} dokumen terisi
                                         </span>
                                     </>
                                 )}
                             </div>
 
-                            {/* Document Upload Form */}
+                            {/* Dynamic Document Upload Form */}
                             <div className="space-y-5">
-                                {DOCUMENTS.map(doc => (
-                                    <div key={doc.key} className="space-y-1">
-                                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                                            <Upload className="w-4 h-4 text-brand-500" />
-                                            {doc.label}
-                                            {doc.required ? (
-                                                <span className="text-red-500 text-xs">*wajib</span>
-                                            ) : (
-                                                <span className="text-gray-400 text-xs">(opsional)</span>
-                                            )}
-                                            {consultantForm[docKey(doc.key)] && (
-                                                <CheckCircle className="w-4 h-4 text-green-500 ml-auto" />
-                                            )}
-                                        </label>
-                                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                                            <div className="flex-1">
-                                                <input
-                                                    type="text"
-                                                    className="glass-input text-sm"
-                                                    placeholder="URL dokumen atau upload file"
-                                                    value={consultantForm[docKey(doc.key)]}
-                                                    onChange={e => setConsultantForm(p => ({ ...p, [doc.key]: e.target.value }))}
-                                                />
+                                {recruitmentConfigs.length === 0 ? (
+                                    <p className="text-sm text-gray-400 italic text-center py-4">
+                                        Belum ada konfigurasi form rekrutmen. Hubungi admin untuk mengatur dokumen yang diperlukan.
+                                    </p>
+                                ) : (
+                                    recruitmentConfigs.map(cfg => {
+                                        const val = consultantValues[cfg.field_key] || '';
+                                        const isUpload = cfg.input_type === 'FILE_UPLOAD';
+                                        const isLink = cfg.input_type === 'LINK';
+                                        const isDate = cfg.input_type === 'DATE';
+                                        const isNumber = cfg.input_type === 'NUMBER';
+                                        return (
+                                            <div key={cfg.id} className="space-y-1">
+                                                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                                    {isUpload ? <Upload className="w-4 h-4 text-brand-500" />
+                                                     : isLink ? <LinkIcon className="w-4 h-4 text-blue-500" />
+                                                     : isDate ? <Calendar className="w-4 h-4 text-emerald-500" />
+                                                     : isNumber ? <Hash className="w-4 h-4 text-amber-500" />
+                                                     : <FileText className="w-4 h-4 text-indigo-500" />}
+                                                    {cfg.field_label}
+                                                    {cfg.is_required ? (
+                                                        <span className="text-red-500 text-xs">*wajib</span>
+                                                    ) : (
+                                                        <span className="text-gray-400 text-xs">(opsional)</span>
+                                                    )}
+                                                    {val && (
+                                                        <CheckCircle className="w-4 h-4 text-green-500 ml-auto" />
+                                                    )}
+                                                </label>
+                                                {cfg.description && (
+                                                    <p className="text-xs text-gray-400">{cfg.description}</p>
+                                                )}
+                                                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                                    <div className="flex-1">
+                                                        <input
+                                                            type={isDate ? 'date' : isNumber ? 'number' : isLink ? 'url' : 'text'}
+                                                            className="glass-input text-sm w-full"
+                                                            placeholder={isUpload ? 'URL dokumen atau upload file' : isLink ? 'https://...' : `Masukkan ${cfg.field_label.toLowerCase()}`}
+                                                            value={val}
+                                                            onChange={e => setConsultantValues(p => ({ ...p, [cfg.field_key]: e.target.value }))}
+                                                        />
+                                                    </div>
+                                                    {isUpload && (
+                                                        <div className="sm:w-48">
+                                                            <FileUpload
+                                                                subfolder="consultant"
+                                                                label={`Upload ${cfg.field_label}`}
+                                                                onUploadSuccess={(url) => setConsultantValues(p => ({ ...p, [cfg.field_key]: url }))}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {val && (val.startsWith('http') || val.startsWith('/uploads') || val.startsWith('/media')) && (
+                                                    <a
+                                                        href={val.startsWith('http') ? val : `${import.meta.env.VITE_API_URL}${val}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-xs text-brand-600 hover:underline flex items-center gap-1"
+                                                    >
+                                                        <CheckCircle className="w-3 h-3 text-green-500" />
+                                                        Lihat {cfg.field_label} →
+                                                    </a>
+                                                )}
                                             </div>
-                                            <div className="sm:w-48">
-                                                <FileUpload 
-                                                    subfolder="consultant" 
-                                                    label={`Upload ${doc.label}`}
-                                                    onUploadSuccess={(url) => setConsultantForm(p => ({ ...p, [doc.key]: url }))}
-                                                />
-                                            </div>
-                                        </div>
-                                        {consultantForm[docKey(doc.key)] && (
-                                            <a href={consultantForm[docKey(doc.key)].startsWith('http') ? consultantForm[docKey(doc.key)] : `${import.meta.env.VITE_API_URL}${consultantForm[docKey(doc.key)]}`} target="_blank" rel="noopener noreferrer"
-                                                className="text-xs text-brand-600 hover:underline flex items-center gap-1">
-                                                <CheckCircle className="w-3 h-3 text-green-500" />
-                                                Lihat dokumen →
-                                            </a>
-                                        )}
-                                    </div>
-                                ))}
+                                        );
+                                    })
+                                )}
                             </div>
                         </div>
                     )}

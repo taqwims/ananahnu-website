@@ -16,6 +16,7 @@ type ConsultantProfile struct {
 	IjazahSTAURL   string    `json:"ijazah_sta_url"`
 	BankAccountURL string    `json:"bank_account_url"`
 	NPWPURL        string    `json:"npwp_url,omitempty"` // Opsional
+	DynamicData    string    `gorm:"type:text" json:"dynamic_data,omitempty"`
 	IsVerified     bool      `gorm:"default:false" json:"is_verified"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`

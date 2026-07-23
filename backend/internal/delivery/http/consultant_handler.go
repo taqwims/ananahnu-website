@@ -47,7 +47,10 @@ func (h *ConsultantHandler) GetProfile(c *gin.Context) {
 
 	profile, err := h.consultantUC.GetProfile(userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "profile not found"})
+		c.JSON(http.StatusOK, &domain.ConsultantProfile{
+			UserID:     userID,
+			IsVerified: false,
+		})
 		return
 	}
 

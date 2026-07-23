@@ -46,6 +46,7 @@ func (uc *consultantUsecase) UpdateProfile(profile *domain.ConsultantProfile) er
 	existing.IjazahSTAURL = profile.IjazahSTAURL
 	existing.BankAccountURL = profile.BankAccountURL
 	existing.NPWPURL = profile.NPWPURL
+	existing.DynamicData = profile.DynamicData
 
 	return uc.ProfileRepo.Update(existing)
 }

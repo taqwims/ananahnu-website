@@ -45,6 +45,13 @@ func NewFormConfigUsecase(deps FormConfigUsecaseDeps) FormConfigUsecase {
 }
 
 func (uc *formConfigUsecase) GetFormConfig(formType string, businessTypeID *int64, productCategoryID *int64, showAll bool) ([]domain.FormFieldConfig, error) {
+	// Untuk form type yang tidak menggunakan business_type/product_category filtering
+	// (RECRUITMENT, dan form lain tanpa scope), gunakan FindByFormType langsung
+	// agar semua field aktif muncul tanpa terganggu filter business_type_id IS NULL
+	if formType == "RECRUITMENT" && !showAll {
+		return uc.ConfigRepo.FindByFormType(formType)
+	}
+
 	configs, err := uc.ConfigRepo.FindByFormTypeAndBusinessType(formType, businessTypeID, productCategoryID, showAll)
 	if err == nil && len(configs) > 0 {
 		return configs, nil
@@ -82,6 +89,9 @@ func (uc *formConfigUsecase) UpdateField(config *domain.FormFieldConfig) error {
 	existing.Description = config.Description
 	existing.BusinessTypeID = config.BusinessTypeID
 	existing.ProductCategoryID = config.ProductCategoryID
+	existing.StepNumber = config.StepNumber
+	existing.StepName = config.StepName
+	existing.IsActive = config.IsActive
 
 	return uc.ConfigRepo.Update(existing)
 }

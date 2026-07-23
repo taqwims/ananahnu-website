@@ -155,7 +155,7 @@ export interface FormFieldConfig {
     form_type: string;
     field_key: string;
     field_label: string;
-    input_type: 'FILE_UPLOAD' | 'LINK' | 'TEXT' | 'DATE' | 'REPEATER' | 'PRODUCT_LIST' | 'INGREDIENT_LIST' | 'INGREDIENT_MATRIX' | 'ACTIVITY_PHOTOS' | 'HALAL_TEAM';
+    input_type: 'FILE_UPLOAD' | 'LINK' | 'TEXT' | 'DATE' | 'NUMBER' | 'REPEATER' | 'PRODUCT_LIST' | 'INGREDIENT_LIST' | 'INGREDIENT_MATRIX' | 'ACTIVITY_PHOTOS' | 'HALAL_TEAM';
     is_required: boolean;
     sort_order: number;
     description: string;
@@ -211,6 +211,7 @@ export interface ConsultantProfile {
     ijazah_sta_url: string;
     bank_account_url: string;
     npwp_url?: string;
+    dynamic_data?: string;
     is_verified: boolean;
     created_at: string;
 }
