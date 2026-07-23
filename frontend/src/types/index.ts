@@ -197,7 +197,7 @@ export interface TrainingParticipant {
     training_id: number;
     user_id: string;
     user?: User;
-    status: 'PESERTA' | 'LULUS';
+    status: 'PESERTA' | 'LULUS' | 'TIDAK_LULUS';
 }
 
 // --- Consultant Recruitment ---

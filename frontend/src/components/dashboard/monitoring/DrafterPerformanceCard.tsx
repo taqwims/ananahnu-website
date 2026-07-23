@@ -68,14 +68,20 @@ export const DrafterPerformanceCard = ({
                          className="overflow-hidden"
                      >
                          <div className="pt-6 space-y-4">
-                             <div className="grid grid-cols-3 gap-2 pb-4 border-b border-gray-50">
+                             <div className="grid grid-cols-4 gap-2 pb-4 border-b border-gray-50">
+                                 <DrafterStat label="Bulan Ini" value={group.analytics.thisMonthCount} color="text-indigo-600" bg="bg-indigo-50" />
+                                 <DrafterStat label="Bulan Lalu" value={group.analytics.lastMonthCount} color="text-amber-600" bg="bg-amber-50" />
                                  <DrafterStat label="Reguler" value={group.analytics.reguler} color="text-blue-600" bg="bg-blue-50" />
-                                 <DrafterStat label="SD Mandiri" value={group.analytics.sd_mandiri} color="text-purple-600" bg="bg-purple-50" />
-                                 <DrafterStat label="SD Gratis" value={group.analytics.sd_gratis} color="text-emerald-600" bg="bg-emerald-50" />
+                                 <DrafterStat label="Self Declare" value={group.analytics.sd_mandiri + group.analytics.sd_gratis} color="text-purple-600" bg="bg-purple-50" />
                              </div>
                             {group.submissions.map((sub: Submission) => {
                                 const progress = STATUS_PROGRESS[sub.status] || { label: sub.status, color: 'bg-gray-400', percent: 0 };
                                 const isReguler = sub.service_type === 'REGULER';
+
+                                const subDate = new Date(sub.created_at || (sub as any).updated_at);
+                                const now = new Date();
+                                const isThisMonth = subDate.getMonth() === now.getMonth() && subDate.getFullYear() === now.getFullYear();
+
                                 return (
                                     <div key={sub.id} className="p-4 rounded-2xl bg-white border border-gray-100 hover:border-brand-200 hover:shadow-lg transition-all group/item relative overflow-hidden">
                                         <div className={`absolute top-0 right-0 w-1 h-full ${isReguler ? 'bg-blue-500' : 'bg-purple-500'}`} />
@@ -85,13 +91,20 @@ export const DrafterPerformanceCard = ({
                                                      <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest ${isReguler ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
                                                          {formatServiceType(sub.service_type)}
                                                      </span>
+                                                     <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest ${
+                                                         isThisMonth
+                                                             ? 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                                                             : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                                     }`}>
+                                                         {isThisMonth ? '📌 DATA BULAN INI' : '⏮️ PEKERJAAN BULAN LALU'}
+                                                     </span>
                                                      {sub.has_been_returned || sub.reject_note ? (
-                                                         <span className="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-amber-100 text-amber-900 border border-amber-300">
+                                                         <span className="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-rose-100 text-rose-900 border border-rose-300">
                                                              ⚡ REVISI
                                                          </span>
                                                      ) : (
                                                          <span className="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-emerald-100 text-emerald-900 border border-emerald-300">
-                                                             ✨ PEKERJAAN BARU
+                                                             ✨ BARU
                                                          </span>
                                                      )}
                                                      <span className="text-[8px] font-bold text-gray-400">#{sub.id.split('-')[0]}</span>

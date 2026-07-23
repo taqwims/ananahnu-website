@@ -4,9 +4,9 @@
  */
 export function compressImage(
   file: File,
-  maxWidth: number = 1200,
-  maxHeight: number = 1200,
-  quality: number = 0.75
+  maxWidth: number = 1000,
+  maxHeight: number = 1000,
+  quality: number = 0.70
 ): Promise<File> {
   return new Promise((resolve) => {
     // Hanya kompres jika file adalah gambar
@@ -40,24 +40,26 @@ export function compressImage(
       canvas.width = width;
       canvas.height = height;
 
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d', { alpha: false });
       if (!ctx) {
-        return resolve(file); // Fallback ke file asli jika tidak bisa mendapatkan context 2d
+        return resolve(file);
       }
 
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Pertahankan mimeType asli jika JPEG/PNG/WEBP, fallback ke image/jpeg
       const mimeType = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
         ? file.type
         : 'image/jpeg';
 
       canvas.toBlob(
         (blob) => {
+          // Bersihkan canvas dari RAM GPU HP
+          canvas.width = 0;
+          canvas.height = 0;
+
           if (!blob) {
             return resolve(file);
           }
-          // Buat File baru dari blob hasil kompresi
           const compressedFile = new File([blob], file.name, {
             type: mimeType,
             lastModified: Date.now(),
@@ -71,7 +73,7 @@ export function compressImage(
 
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      resolve(file); // Fallback ke file asli jika load gambar gagal
+      resolve(file);
     };
   });
 }

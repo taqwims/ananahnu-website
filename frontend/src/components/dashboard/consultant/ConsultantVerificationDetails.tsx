@@ -145,7 +145,7 @@ export const ConsultantVerificationDetails = ({
                         {configs.length > 0 ? (
                             configs.map(cfg => {
                                 const val = getItemValue(cfg.field_key);
-                                const isUrl = val && (val.startsWith('http') || val.startsWith('/uploads') || val.startsWith('/media'));
+                                const isUrl = Boolean(val && (val.startsWith('http') || val.startsWith('/') || cfg.input_type === 'FILE_UPLOAD' || cfg.input_type === 'LINK'));
                                 return (
                                     <div key={cfg.id} className="p-4 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-between group/doc hover:bg-white hover:border-indigo-200 transition-all">
                                         <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">

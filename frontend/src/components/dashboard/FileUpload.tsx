@@ -25,6 +25,9 @@ export default function FileUpload({
         let file = e.target.files?.[0];
         if (!file) return;
 
+        // Reset input value agar browser melepaskan referensi memori file mentah dari RAM HP
+        e.target.value = '';
+
         setUploading(true);
         setError(null);
 

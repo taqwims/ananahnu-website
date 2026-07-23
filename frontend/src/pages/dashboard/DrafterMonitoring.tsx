@@ -10,6 +10,8 @@ export default function DrafterMonitoring() {
         loading, search, setSearch,
         activeTab, setActiveTab,
         serviceFilter, setServiceFilter,
+        selectedMonth, setSelectedMonth,
+        selectedYear, setSelectedYear,
         expandedDrafters, toggleDrafter,
         stats, groupedByDrafter
     } = useDrafterMonitoring();
@@ -36,6 +38,10 @@ export default function DrafterMonitoring() {
                 setSearch={setSearch}
                 serviceFilter={serviceFilter}
                 setServiceFilter={setServiceFilter}
+                selectedMonth={selectedMonth}
+                setSelectedMonth={setSelectedMonth}
+                selectedYear={selectedYear}
+                setSelectedYear={setSelectedYear}
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

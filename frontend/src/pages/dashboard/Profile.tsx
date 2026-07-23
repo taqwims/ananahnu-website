@@ -408,35 +408,43 @@ export default function ProfilePage() {
                                                 )}
                                                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                                                     <div className="flex-1">
-                                                        <input
-                                                            type={isDate ? 'date' : isNumber ? 'number' : isLink ? 'url' : 'text'}
-                                                            className="glass-input text-sm w-full"
-                                                            placeholder={isUpload ? 'URL dokumen atau upload file' : isLink ? 'https://...' : `Masukkan ${cfg.field_label.toLowerCase()}`}
-                                                            value={val}
-                                                            onChange={e => setConsultantValues(p => ({ ...p, [cfg.field_key]: e.target.value }))}
-                                                        />
+                                                        {isUpload ? (
+                                                            <div className="flex items-center gap-2 px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm">
+                                                                <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                                                <span className="truncate text-gray-600 font-medium">
+                                                                    {val ? 'Dokumen telah diunggah' : 'Belum ada dokumen'}
+                                                                </span>
+                                                                {val && (
+                                                                    <a
+                                                                        href={val.startsWith('http') ? val : `${import.meta.env.VITE_API_URL}${val}`}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="ml-auto text-xs text-brand-600 hover:underline flex items-center gap-1 font-semibold flex-shrink-0"
+                                                                    >
+                                                                        <CheckCircle className="w-3.5 h-3.5 text-green-500" /> Lihat
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <input
+                                                                type={isDate ? 'date' : isNumber ? 'number' : isLink ? 'url' : 'text'}
+                                                                className="glass-input text-sm w-full"
+                                                                placeholder={isLink ? 'https://...' : `Masukkan ${cfg.field_label.toLowerCase()}`}
+                                                                value={val}
+                                                                onChange={e => setConsultantValues(p => ({ ...p, [cfg.field_key]: e.target.value }))}
+                                                            />
+                                                        )}
                                                     </div>
                                                     {isUpload && (
                                                         <div className="sm:w-48">
                                                             <FileUpload
                                                                 subfolder="consultant"
-                                                                label={`Upload ${cfg.field_label}`}
+                                                                label={val ? `Ganti ${cfg.field_label}` : `Upload ${cfg.field_label}`}
                                                                 onUploadSuccess={(url) => setConsultantValues(p => ({ ...p, [cfg.field_key]: url }))}
                                                             />
                                                         </div>
                                                     )}
                                                 </div>
-                                                {val && (val.startsWith('http') || val.startsWith('/uploads') || val.startsWith('/media')) && (
-                                                    <a
-                                                        href={val.startsWith('http') ? val : `${import.meta.env.VITE_API_URL}${val}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-xs text-brand-600 hover:underline flex items-center gap-1"
-                                                    >
-                                                        <CheckCircle className="w-3 h-3 text-green-500" />
-                                                        Lihat {cfg.field_label} →
-                                                    </a>
-                                                )}
                                             </div>
                                         );
                                     })

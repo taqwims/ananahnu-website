@@ -116,8 +116,8 @@ func (uc *trainingUsecase) AddParticipant(trainingID int64, targetUserID uuid.UU
 }
 
 func (uc *trainingUsecase) UpdateParticipantStatus(trainingID int64, userID uuid.UUID, status string) error {
-	if status != "PESERTA" && status != "LULUS" {
-		return errors.New("status must be PESERTA or LULUS")
+	if status != "PESERTA" && status != "LULUS" && status != "TIDAK_LULUS" {
+		return errors.New("status must be PESERTA, LULUS, or TIDAK_LULUS")
 	}
 	if err := uc.ParticipantRepo.UpdateStatus(trainingID, userID, status); err != nil {
 		return err
