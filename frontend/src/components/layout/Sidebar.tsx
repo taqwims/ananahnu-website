@@ -61,6 +61,7 @@ const GROUPS: SidebarGroup[] = [
             { name: 'Monitoring Drafter',     pathKey: 'monitoring',            to: '/dashboard/monitoring',            icon: Monitor },
             { name: 'Ruang Kerja Drafter',    pathKey: 'drafter-workspace',     to: '/dashboard/drafter-workspace',     icon: ShieldCheck },
             { name: 'Ruang Kerja QC',         pathKey: 'qc-workspace',          to: '/dashboard/qc-workspace',          icon: ShieldCheck },
+            { name: 'Penerbitan SH (Finance & Legal)', pathKey: 'sh-workspace', to: '/dashboard/sh-workspace',          icon: Award },
             { name: 'Jaringan Halal Advisor', pathKey: 'advisors',              to: '/dashboard/advisors',              icon: UsersRound },
             { name: 'Monitoring Draft',       pathKey: 'draft-monitoring',      to: '/dashboard/draft-monitoring',      icon: BarChart3 },
             { name: 'Profil Advisor',         pathKey: 'consultant-profile',    to: '/dashboard/consultant-profile',    icon: UserCheck },

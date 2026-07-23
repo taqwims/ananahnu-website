@@ -21,7 +21,7 @@ export const useFormConfigAdmin = () => {
     const loadFields = useCallback(async (formType: string) => {
         setLoading(true);
         try {
-            const res = await api.get(`/form-config/${formType}`);
+            const res = await api.get(`/form-config/${formType}?all=true`);
             setFields(res.data || []);
         } catch {
             setFields([]);

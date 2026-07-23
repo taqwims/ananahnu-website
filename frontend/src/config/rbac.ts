@@ -17,6 +17,7 @@ export type AppRole =
   | 'DIRECTOR'
   | 'MANAGER'
   | 'QC_OFFICER'
+  | 'VERIFIKATOR'
   | 'DRAFTER'
   | 'HALAL_ADVISOR'
   | 'MARKETING'
@@ -26,14 +27,16 @@ export type AppRole =
   | 'ADMIN_PELATIHAN'
   | 'ADMIN_KEUANGAN'
   | 'BUSINESS_DEVELOPMENT'
-  | 'DRAFT_MANAGER';
+  | 'DRAFT_MANAGER'
+  | 'FINANCE'
+  | 'LEGAL';
 
 /** Semua role yang ada — dipakai untuk "semua role bisa akses" */
 export const ALL_ROLES: AppRole[] = [
-  'DIRECTOR', 'MANAGER', 'QC_OFFICER', 'DRAFTER', 'HALAL_ADVISOR',
+  'DIRECTOR', 'MANAGER', 'QC_OFFICER', 'VERIFIKATOR', 'DRAFTER', 'HALAL_ADVISOR',
   'MARKETING', 'CLIENT',
   'HALAL_MANAGER', 'HALAL_DIRECTOR', 'ADMIN_PELATIHAN', 'ADMIN_KEUANGAN',
-  'BUSINESS_DEVELOPMENT', 'DRAFT_MANAGER',
+  'BUSINESS_DEVELOPMENT', 'DRAFT_MANAGER', 'FINANCE', 'LEGAL',
 ];
 
 /**
@@ -54,7 +57,7 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   // ── Klien & Pengajuan ─────────────────────────────────────────────
   'clients': [
     'DIRECTOR', 'MANAGER', 'HALAL_DIRECTOR',
-    'DRAFTER', 'QC_OFFICER', 'MARKETING',
+    'DRAFTER', 'QC_OFFICER', 'VERIFIKATOR', 'MARKETING',
   ],
   'clients/new': [
     'DIRECTOR', 'MANAGER', 'HALAL_DIRECTOR', 'MARKETING',
@@ -62,7 +65,7 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   // clients/:id  → sama dengan clients/new (edit)
   'submissions': [
     'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR',
-    'QC_OFFICER', 'DRAFTER', 'MARKETING', 'CLIENT',
+    'QC_OFFICER', 'VERIFIKATOR', 'DRAFTER', 'MARKETING', 'CLIENT',
   ],
   'submissions/new': [
     'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'MARKETING',
@@ -76,15 +79,16 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
 
   // ── Workflow ──────────────────────────────────────────────────────
   'distribution': [
-    'QC_OFFICER', 'DIRECTOR', 'MANAGER',
+    'QC_OFFICER', 'VERIFIKATOR', 'DIRECTOR', 'MANAGER',
   ],
   'monitoring': [
-    'QC_OFFICER', 'DIRECTOR', 'MANAGER',
+    'QC_OFFICER', 'VERIFIKATOR', 'DIRECTOR', 'MANAGER',
   ],
+  'sh-workspace':      ['FINANCE', 'ADMIN_KEUANGAN', 'LEGAL', 'DIRECTOR', 'MANAGER'],
   'drafter-workspace': ['DRAFTER'],
-  'qc-workspace':      ['QC_OFFICER', 'DIRECTOR'],
+  'qc-workspace':      ['QC_OFFICER', 'VERIFIKATOR', 'DIRECTOR'],
   'draft-monitoring':  ['DRAFT_MANAGER', 'DIRECTOR'],
-  'advisors':          ['QC_OFFICER', 'DIRECTOR', 'MANAGER', 'HALAL_MANAGER', 'HALAL_DIRECTOR'],
+  'advisors':          ['QC_OFFICER', 'VERIFIKATOR', 'DIRECTOR', 'MANAGER', 'HALAL_MANAGER', 'HALAL_DIRECTOR'],
 
   // ── Profil Advisor & Karir ────────────────────────────────────────
   'consultant-profile': ['HALAL_DIRECTOR'],

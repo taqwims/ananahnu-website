@@ -413,15 +413,45 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 		return fmt.Errorf("failed to update submission: %w", err)
 	}
 
-	// 5. Trigger automatic pricing calculation
-	var selectedIDs []int64
-	hasExplicit := false
-	if input.SelectedOptionalComponentIDs != nil {
-		selectedIDs = *input.SelectedOptionalComponentIDs
-		hasExplicit = true
-	}
-	if err := uc.recalculateAndSaveRegularCost(sub, selectedIDs, hasExplicit); err != nil {
-		return fmt.Errorf("failed to calculate and sync pricing: %w", err)
+	// 5. Trigger automatic pricing calculation or save explicit cost
+	if input.TotalAmount != nil && input.CostBreakdownData != nil && *input.TotalAmount > 0 {
+		costDetail := &domain.SubmissionCostDetail{
+			SubmissionID:      sub.ID,
+			ProductCategoryID: sub.ProductCategoryID,
+			BusinessTypeID:    sub.BusinessTypeID,
+			BusinessScaleID:   sub.BusinessScaleID,
+			ProvinceID:        sub.ProvinceID,
+			RegencyID:         sub.RegencyID,
+			DistrictID:        sub.DistrictID,
+			ProductCount:      sub.ProductCount,
+			BranchCount:       sub.BranchCount,
+			TotalAmount:       *input.TotalAmount,
+			CostBreakdownData: *input.CostBreakdownData,
+		}
+		if err := uc.BillingConfigRepo.SaveSubmissionCostDetail(costDetail); err != nil {
+			return fmt.Errorf("failed to save cost detail: %w", err)
+		}
+		// Sync or create invoice
+		invoice, err := uc.InvoiceRepo.FindBySubmissionID(sub.ID)
+		if err == nil && invoice != nil {
+			if invoice.Type == domain.InvoiceTypeDP {
+				invoice.Amount = *input.TotalAmount * 0.70
+			} else {
+				invoice.Amount = *input.TotalAmount
+			}
+			invoice.PricingSource = "COST_DETAIL"
+			_ = uc.InvoiceRepo.Update(invoice)
+		}
+	} else {
+		var selectedIDs []int64
+		hasExplicit := false
+		if input.SelectedOptionalComponentIDs != nil {
+			selectedIDs = *input.SelectedOptionalComponentIDs
+			hasExplicit = true
+		}
+		if err := uc.recalculateAndSaveRegularCost(sub, selectedIDs, hasExplicit); err != nil {
+			return fmt.Errorf("failed to calculate and sync pricing: %w", err)
+		}
 	}
 
 	uc.logChange(sub.ID, userID, "UPDATE_CLIENT_INFO_PRICING", "", sub.Status, "Client info and pricing details updated")

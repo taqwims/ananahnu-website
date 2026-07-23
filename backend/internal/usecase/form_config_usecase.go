@@ -10,7 +10,7 @@ import (
 
 type FormConfigUsecase interface {
 	// Config CRUD (admin)
-	GetFormConfig(formType string, businessTypeID *int64, productCategoryID *int64) ([]domain.FormFieldConfig, error)
+	GetFormConfig(formType string, businessTypeID *int64, productCategoryID *int64, showAll bool) ([]domain.FormFieldConfig, error)
 	CreateField(config *domain.FormFieldConfig) error
 	UpdateField(config *domain.FormFieldConfig) error
 	DeleteField(id int64) error
@@ -29,8 +29,9 @@ type FieldValueInput struct {
 }
 
 type FormConfigUsecaseDeps struct {
-	ConfigRepo domain.FormConfigRepository
-	ValueRepo  domain.FormFieldValueRepository
+	ConfigRepo     domain.FormConfigRepository
+	ValueRepo      domain.FormFieldValueRepository
+	SubmissionRepo domain.SubmissionRepository
 }
 
 type formConfigUsecase struct {
@@ -43,15 +44,15 @@ func NewFormConfigUsecase(deps FormConfigUsecaseDeps) FormConfigUsecase {
 	}
 }
 
-func (uc *formConfigUsecase) GetFormConfig(formType string, businessTypeID *int64, productCategoryID *int64) ([]domain.FormFieldConfig, error) {
-	configs, err := uc.ConfigRepo.FindByFormTypeAndBusinessType(formType, businessTypeID, productCategoryID)
+func (uc *formConfigUsecase) GetFormConfig(formType string, businessTypeID *int64, productCategoryID *int64, showAll bool) ([]domain.FormFieldConfig, error) {
+	configs, err := uc.ConfigRepo.FindByFormTypeAndBusinessType(formType, businessTypeID, productCategoryID, showAll)
 	if err == nil && len(configs) > 0 {
 		return configs, nil
 	}
 
 	// Fallback for SELF_DECLARE_MANDIRI to use regular SELF_DECLARE form
 	if formType == "SELF_DECLARE_MANDIRI" {
-		return uc.ConfigRepo.FindByFormTypeAndBusinessType("SELF_DECLARE", businessTypeID, productCategoryID)
+		return uc.ConfigRepo.FindByFormTypeAndBusinessType("SELF_DECLARE", businessTypeID, productCategoryID, showAll)
 	}
 
 	return configs, err
@@ -126,5 +127,50 @@ func (uc *formConfigUsecase) SubmitFieldValues(submissionID uuid.UUID, uploaderI
 }
 
 func (uc *formConfigUsecase) GetFieldValues(submissionID uuid.UUID) ([]domain.FormFieldValue, error) {
-	return uc.ValueRepo.FindBySubmissionID(submissionID)
+	values, err := uc.ValueRepo.FindBySubmissionID(submissionID)
+	if err != nil {
+		return nil, err
+	}
+
+	if uc.SubmissionRepo == nil {
+		return values, nil
+	}
+
+	sub, err := uc.SubmissionRepo.FindByID(submissionID)
+	if err != nil || sub == nil {
+		return values, nil
+	}
+
+	var subBtID *int64 = sub.BusinessTypeID
+	var subPcID *int64 = sub.ProductCategoryID
+
+	if subBtID == nil && sub.CostDetail != nil {
+		subBtID = sub.CostDetail.BusinessTypeID
+	}
+	if subPcID == nil && sub.CostDetail != nil {
+		subPcID = sub.CostDetail.ProductCategoryID
+	}
+
+	var scopedValues []domain.FormFieldValue
+	for _, fv := range values {
+		cfg := fv.FormField
+		if cfg.ID == 0 {
+			scopedValues = append(scopedValues, fv)
+			continue
+		}
+
+		if cfg.BusinessTypeID != nil && *cfg.BusinessTypeID > 0 {
+			if subBtID == nil || *cfg.BusinessTypeID != *subBtID {
+				continue
+			}
+		}
+		if cfg.ProductCategoryID != nil && *cfg.ProductCategoryID > 0 {
+			if subPcID == nil || *cfg.ProductCategoryID != *subPcID {
+				continue
+			}
+		}
+		scopedValues = append(scopedValues, fv)
+	}
+
+	return scopedValues, nil
 }

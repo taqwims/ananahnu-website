@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Send, Loader2, UserCheck, CheckCircle, XCircle } from 'lucide-react';
+import { Send, Loader2, UserCheck, CheckCircle, RotateCcw } from 'lucide-react';
 import type { Submission, User } from '../../../types';
 import { submissionService } from '../../../services/submissionService';
 import FileUpload from '../FileUpload';
@@ -12,10 +12,11 @@ interface WorkflowActionsProps {
     submission: Submission;
     user: User | null;
     processing: boolean;
-    onAction: (action: 'submit' | 'approve' | 'reject' | 'assign_consultant', payload?: Record<string, string>) => Promise<void>;
+    onAction: (action: 'submit' | 'approve' | 'reject' | 'assign_consultant', payload?: any) => Promise<void>;
     onSaveAuditInfo: (date: string) => Promise<void>;
     onSaveAuditResult: (url1: string, url2: string) => Promise<void>;
     onIssueSH: (shUrl: string) => Promise<void>;
+    onRevokeSH?: () => Promise<void>;
 }
 
 export const WorkflowActions = ({ 
@@ -25,7 +26,8 @@ export const WorkflowActions = ({
     onAction, 
     onSaveAuditInfo, 
     onSaveAuditResult,
-    onIssueSH
+    onIssueSH,
+    onRevokeSH
 }: WorkflowActionsProps) => {
     const [auditDate, setAuditDate] = useState(submission.audit_date ? new Date(submission.audit_date).toISOString().split('T')[0] : '');
     const [selectedConsultantId, setSelectedConsultantId] = useState('');
@@ -33,8 +35,13 @@ export const WorkflowActions = ({
     const [selectedDrafterId, setSelectedDrafterId] = useState('');
     const [drafters, setDrafters] = useState<{id: string; full_name: string}[]>([]);
     const [shFile, setShFile] = useState<File | null>(null);
+    
+    // Enhanced Reject Modal states
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [rejectNote, setRejectNote] = useState('');
+    const [targetStatus, setTargetStatus] = useState<string>('DRAFTER');
+    const [selectedInvalidFields, setSelectedInvalidFields] = useState<string[]>([]);
+
     const [confirmState, setConfirmState] = useState<{
         isOpen: boolean;
         title: string;
@@ -46,6 +53,8 @@ export const WorkflowActions = ({
         message: '',
         onConfirm: () => {}
     });
+
+    const effectiveDrafterId = selectedDrafterId || submission.assigned_drafter_id || '';
 
     useEffect(() => {
         if (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) {
@@ -76,11 +85,23 @@ export const WorkflowActions = ({
         }
     }, [submission.status, submission.data_source, submission.consultant_id, submission.province_id, submission.regency_id, user?.role]);
 
+    // Set default target status when modal opens
+    useEffect(() => {
+        if (showRejectModal) {
+            if (submission.assigned_drafter_id) {
+                setTargetStatus('DRAFTER');
+            } else if (submission.consultant_id) {
+                setTargetStatus('VERVAL_PENDAMPING');
+            } else {
+                setTargetStatus('REVISION');
+            }
+        }
+    }, [showRejectModal, submission.assigned_drafter_id, submission.consultant_id]);
+
     const handleIssueSH = async () => {
         if (!shFile) return;
         
         let finalFile = shFile;
-        // Kompres jika file adalah gambar
         if (finalFile.type.startsWith('image/')) {
             try {
                 finalFile = await compressImage(finalFile);
@@ -89,8 +110,8 @@ export const WorkflowActions = ({
             }
         }
 
-        if (finalFile.size > 2 * 1024 * 1024) {
-            toast.error("Ukuran file sertifikat tidak boleh lebih dari 2MB");
+        if (finalFile.size > 5 * 1024 * 1024) {
+            toast.error("Ukuran file sertifikat tidak boleh lebih dari 5MB");
             return;
         }
         try {
@@ -105,9 +126,20 @@ export const WorkflowActions = ({
     };
 
     const handleReject = async () => {
-        await onAction('reject', { note: rejectNote });
+        await onAction('reject', { 
+            note: rejectNote, 
+            target_status: targetStatus,
+            invalid_fields: selectedInvalidFields
+        });
         setShowRejectModal(false);
         setRejectNote('');
+        setSelectedInvalidFields([]);
+    };
+
+    const toggleInvalidField = (field: string) => {
+        setSelectedInvalidFields(prev => 
+            prev.includes(field) ? prev.filter(f => f !== field) : [...prev, field]
+        );
     };
 
     const triggerConfirm = (title: string, message: string, onConfirm: () => void) => {
@@ -136,7 +168,7 @@ export const WorkflowActions = ({
 
     const getRejectLabel = () => {
         switch (submission.status) {
-            case 'QC_OFFICER': return 'Kembalikan ke Advisor';
+            case 'QC_OFFICER': return 'Kembalikan Data / Revisi';
             case 'DRAFTER': return 'Kembalikan ke QC Officer';
             case 'QC_REVIEW': return 'Kembalikan Berkas (Revisi)';
             case 'SUBMITTED_TO_BPJPH': return 'Kembalikan Berkas (Revisi)';
@@ -146,16 +178,19 @@ export const WorkflowActions = ({
 
     const showApprove = ((submission.status === 'VERVAL_PENDAMPING' && (user?.role === 'HALAL_ADVISOR' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'WAITING_PAYMENT' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
-                        (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+                        (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'DRAFTER' && (user?.role === 'DRAFTER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
-                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
-                        (submission.status === 'SUBMITTED_TO_BPJPH' && (user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')));
+                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+                        (submission.status === 'SUBMITTED_TO_BPJPH' && (user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'LEGAL' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')));
 
-    const showReject = ((submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+    const showReject = ((submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'DRAFTER' && user?.role === 'DRAFTER') ||
-                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
-                        (submission.status === 'SUBMITTED_TO_BPJPH' && (user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
-                        (submission.status === 'SIDANG_FATWA' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR')));
+                        (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+                        (submission.status === 'SUBMITTED_TO_BPJPH' && (user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'LEGAL' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+                        (submission.status === 'SIDANG_FATWA' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'LEGAL')));
+
+    const canIssueSHDirect = (submission.status === 'SIDANG_FATWA' || submission.status === 'SUBMITTED_TO_BPJPH') && 
+                            (user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'LEGAL' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR');
 
     const handleDownload = async (format: 'docx' | 'pdf') => {
         try {
@@ -166,9 +201,17 @@ export const WorkflowActions = ({
         }
     };
 
+    const invalidFieldOptions = [
+        'Informasi Klien & Data Usaha',
+        'Dokumen & Data Isian Form',
+        'Data Bahan & Matriks Produk',
+        'Laporan Hasil Audit',
+        'Kontrak / SPH / Pembayaran'
+    ];
+
     return (
         <>
-            <div className="glass-panel p-6 shadow-2xl border border-white/40 lg:sticky lg:top-6 z-20 bg-white max-h-[calc(100vh-3rem)] overflow-y-auto custom-scrollbar overflow-hidden">
+            <div className="glass-panel p-6 shadow-2xl border border-white/40 lg:sticky lg:top-6 z-20 bg-white max-h-[calc(100vh-3rem)] overflow-y-auto custom-scrollbar">
                 <h3 className="text-lg font-black text-gray-800 tracking-tight mb-6 flex items-center gap-2">
                     <div className="w-1.5 h-6 bg-brand-600 rounded-full"></div>
                     Workflow Actions
@@ -207,7 +250,6 @@ export const WorkflowActions = ({
                     {(submission.status === 'DRAFTER' || submission.status === 'QC_REVIEW') && 
                         submission.service_type === 'REGULER' && (
                         <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 space-y-3">
-                                {/* Only show date inputs to BUSINESS_DEVELOPMENT / ADMIN / DIRECTOR */}
                                 {(user?.role === 'BUSINESS_DEVELOPMENT' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
                                     <>
                                         <label className="flex items-center gap-2 text-sm font-black text-amber-800 tracking-tight">
@@ -229,7 +271,6 @@ export const WorkflowActions = ({
                                     </>
                                 )}
 
-                                {/* If audit date is set, show file uploads for DRAFTER, ADMIN, etc. */}
                                 {submission.audit_date ? (
                                     <div className="mt-4 pt-4 border-t border-amber-200 space-y-4">
                                         <div className="space-y-2">
@@ -257,7 +298,7 @@ export const WorkflowActions = ({
                         </div>
                     )}
 
-                    {submission.status === 'QC_OFFICER' && !submission.consultant_id && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER') && (
+                    {submission.status === 'QC_OFFICER' && !submission.consultant_id && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR') && (
                         <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 space-y-3">
                             <label className="flex items-center gap-2 text-sm font-black text-purple-800 tracking-tight">
                                 <UserCheck className="w-4 h-4" /> Penunjukan Advisor
@@ -282,19 +323,29 @@ export const WorkflowActions = ({
                         </div>
                     )}
 
-                    {submission.status === 'QC_OFFICER' && submission.consultant_id && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
+                    {submission.status === 'QC_OFFICER' && submission.consultant_id && (user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
                         <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-2">
-                            <label className="flex items-center gap-2 text-sm font-semibold text-blue-800">
-                                <UserCheck className="w-4 h-4" /> Pilih Drafter
+                            <label className="flex items-center justify-between text-sm font-semibold text-blue-800">
+                                <span className="flex items-center gap-1.5"><UserCheck className="w-4 h-4" /> Pilih Drafter</span>
+                                {submission.assigned_drafter && (
+                                    <span className="text-[10px] bg-blue-200/60 text-blue-900 px-2 py-0.5 rounded font-bold">
+                                        Sudah Ada Drafter
+                                    </span>
+                                )}
                             </label>
                             <select
                                 className="glass-input text-sm w-full"
-                                value={selectedDrafterId}
+                                value={selectedDrafterId || submission.assigned_drafter_id || ''}
                                 onChange={e => setSelectedDrafterId(e.target.value)}
                             >
                                 <option value="">-- Pilih Drafter --</option>
                                 {drafters.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
                             </select>
+                            {submission.assigned_drafter && !selectedDrafterId && (
+                                <p className="text-[11px] text-blue-600 italic">
+                                    Akan otomatis menggunakan Drafter saat ini ({submission.assigned_drafter.full_name}) jika tidak diubah.
+                                </p>
+                            )}
                         </div>
                     )}
 
@@ -303,9 +354,9 @@ export const WorkflowActions = ({
                             onClick={() => triggerConfirm(
                                 'Konfirmasi Aksi',
                                 `Apakah Anda yakin ingin melakukan aksi "${getApproveLabel()}"?`,
-                                () => onAction('approve', { drafter_id: selectedDrafterId })
+                                () => onAction('approve', { drafter_id: effectiveDrafterId })
                             )}
-                            disabled={processing || (submission.status === 'QC_OFFICER' && !selectedDrafterId)}
+                            disabled={processing || (submission.status === 'QC_OFFICER' && !effectiveDrafterId)}
                             className="w-full glass-button bg-green-600 text-white hover:bg-green-700 border-green-500 flex justify-center items-center gap-2 disabled:opacity-50"
                         >
                             {processing ? <Loader2 className="animate-spin w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
@@ -317,19 +368,22 @@ export const WorkflowActions = ({
                         <button
                             onClick={() => setShowRejectModal(true)}
                             disabled={processing}
-                            className="w-full glass-button bg-red-50 text-red-600 hover:bg-red-100 border-red-200 flex justify-center items-center gap-2"
+                            className="w-full glass-button bg-amber-500 text-white hover:bg-amber-600 border-amber-400 flex justify-center items-center gap-2 shadow-md"
                         >
-                            <XCircle className="w-4 h-4" />
+                            <RotateCcw className="w-4 h-4" />
                             {getRejectLabel()}
                         </button>
                     )}
 
-                    {submission.status === 'SIDANG_FATWA' && (
-                        <div className="space-y-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-                            <label className="block text-xs font-black text-emerald-800 uppercase tracking-widest mb-1">Upload Sertifikat Halal</label>
+                    {canIssueSHDirect && (
+                        <div className="space-y-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl mt-4">
+                            <label className="block text-xs font-black text-emerald-800 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                                Upload & Terbitkan Sertifikat Halal
+                            </label>
                             <input 
                                 type="file" 
-                                className="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700"
+                                className="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer"
                                 accept=".pdf,.jpg,.jpeg,.png"
                                 onChange={(e) => setShFile(e.target.files?.[0] || null)}
                             />
@@ -337,7 +391,7 @@ export const WorkflowActions = ({
                                 <button
                                     onClick={handleIssueSH}
                                     disabled={processing}
-                                    className="w-full glass-button bg-emerald-600 text-white hover:bg-emerald-700 border-emerald-500 flex justify-center items-center gap-2"
+                                    className="w-full glass-button bg-emerald-600 text-white hover:bg-emerald-700 border-emerald-500 flex justify-center items-center gap-2 shadow-md"
                                 >
                                     {processing ? <Loader2 className="animate-spin w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                                     Konfirmasi & Terbitkan SH
@@ -345,32 +399,149 @@ export const WorkflowActions = ({
                             )}
                         </div>
                     )}
+
+                    {submission.status === 'SH_TERBIT' && (user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'LEGAL' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'MANAGER') && (
+                        <div className="pt-2">
+                            <button
+                                onClick={() => triggerConfirm(
+                                    'Batalkan / Ganti File SH',
+                                    'Apakah Anda yakin ingin membatalkan penerbitan SH ini untuk mengunggah ulang file Sertifikat Halal yang benar?',
+                                    () => onRevokeSH && onRevokeSH()
+                                )}
+                                disabled={processing}
+                                className="w-full glass-button bg-amber-50 text-amber-800 hover:bg-amber-100 border-amber-300 flex justify-center items-center gap-2 shadow-sm font-bold text-xs"
+                            >
+                                <RotateCcw className="w-4 h-4 text-amber-600" />
+                                Batalkan / Ganti File SH
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
+            {/* Enhanced Reject / Return Modal */}
             <Modal 
                 isOpen={showRejectModal} 
                 onClose={() => setShowRejectModal(false)}
-                title="Return / Reject Submission"
+                title="Pengembalian Data / Catatan Revisi"
                 maxWidth="md"
             >
-                <div className="space-y-4">
-                    <p className="text-sm text-gray-500">Please provide a reason for return/rejection or revision instructions.</p>
-                    <textarea
-                        className="w-full glass-input"
-                        rows={4}
-                        placeholder="Enter notes here..."
-                        value={rejectNote}
-                        onChange={(e) => setRejectNote(e.target.value)}
-                    ></textarea>
-                    <div className="flex justify-end gap-3 pt-4">
-                        <button onClick={() => setShowRejectModal(false)} className="px-4 py-2 text-sm font-bold text-gray-500 hover:bg-gray-50 rounded-xl transition-colors">Batal</button>
+                <div className="space-y-5">
+                    {/* Destination Selection */}
+                    <div className="space-y-2">
+                        <label className="block text-xs font-black text-gray-700 uppercase tracking-wider">
+                            Pilih Tujuan Pengembalian Data
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {submission.assigned_drafter && (
+                                <button
+                                    type="button"
+                                    onClick={() => setTargetStatus('DRAFTER')}
+                                    className={`p-3 rounded-xl border text-left transition-all ${
+                                        targetStatus === 'DRAFTER' 
+                                            ? 'bg-amber-500/10 border-amber-500 ring-2 ring-amber-500/20 text-amber-900' 
+                                            : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
+                                    }`}
+                                >
+                                    <div className="font-bold text-xs">Direct to Drafter</div>
+                                    <div className="text-[10px] text-gray-500 mt-0.5">Drafter: {submission.assigned_drafter.full_name}</div>
+                                </button>
+                            )}
+
+                            <button
+                                type="button"
+                                onClick={() => setTargetStatus('VERVAL_PENDAMPING')}
+                                className={`p-3 rounded-xl border text-left transition-all ${
+                                    targetStatus === 'VERVAL_PENDAMPING' 
+                                        ? 'bg-amber-500/10 border-amber-500 ring-2 ring-amber-500/20 text-amber-900' 
+                                        : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
+                                }`}
+                            >
+                                <div className="font-bold text-xs">Kembalikan ke Advisor</div>
+                                <div className="text-[10px] text-gray-500 mt-0.5">Verval Pendamping</div>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setTargetStatus('REVISION')}
+                                className={`p-3 rounded-xl border text-left transition-all ${
+                                    targetStatus === 'REVISION' 
+                                        ? 'bg-amber-500/10 border-amber-500 ring-2 ring-amber-500/20 text-amber-900' 
+                                        : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
+                                }`}
+                            >
+                                <div className="font-bold text-xs">Kembalikan ke Klien</div>
+                                <div className="text-[10px] text-gray-500 mt-0.5">Revisi Data Klien</div>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setTargetStatus('QC_OFFICER')}
+                                className={`p-3 rounded-xl border text-left transition-all ${
+                                    targetStatus === 'QC_OFFICER' 
+                                        ? 'bg-amber-500/10 border-amber-500 ring-2 ring-amber-500/20 text-amber-900' 
+                                        : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
+                                }`}
+                            >
+                                <div className="font-bold text-xs">Kembalikan ke QC</div>
+                                <div className="text-[10px] text-gray-500 mt-0.5">QC Officer Review</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Invalid Fields Checklist */}
+                    <div className="space-y-2">
+                        <label className="block text-xs font-black text-gray-700 uppercase tracking-wider">
+                            Pilih Bagian Data yang Bermasalah / Perlu Revisi
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {invalidFieldOptions.map(option => {
+                                const checked = selectedInvalidFields.includes(option);
+                                return (
+                                    <label key={option} className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                                        checked ? 'bg-red-50 border-red-300 text-red-700' : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                                    }`}>
+                                        <input 
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => toggleInvalidField(option)}
+                                            className="rounded text-red-600 focus:ring-red-500"
+                                        />
+                                        <span>{option}</span>
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Reject Note Textarea */}
+                    <div className="space-y-2">
+                        <label className="block text-xs font-black text-gray-700 uppercase tracking-wider">
+                            Catatan Detail & Instruksi Perbaikan
+                        </label>
+                        <textarea
+                            className="w-full glass-input text-xs"
+                            rows={4}
+                            placeholder="Tuliskan catatan perbaikan atau instruksi detail di sini..."
+                            value={rejectNote}
+                            onChange={(e) => setRejectNote(e.target.value)}
+                        ></textarea>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                        <button 
+                            onClick={() => setShowRejectModal(false)} 
+                            className="px-4 py-2 text-xs font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
+                        >
+                            Batal
+                        </button>
                         <button
                             onClick={handleReject}
-                            disabled={!rejectNote || processing}
-                            className="px-6 py-2 bg-red-600 text-white rounded-xl font-black text-sm shadow-lg shadow-red-100 hover:bg-red-700 disabled:opacity-30 transition-all"
+                            disabled={processing || (!rejectNote && selectedInvalidFields.length === 0)}
+                            className="px-6 py-2.5 bg-amber-600 text-white rounded-xl font-black text-xs shadow-lg shadow-amber-100 hover:bg-amber-700 disabled:opacity-30 transition-all flex items-center gap-2"
                         >
-                            {processing ? 'Processing...' : 'Confirm Reject'}
+                            {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                            Kirim Pengembalian Data
                         </button>
                     </div>
                 </div>

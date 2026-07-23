@@ -37,7 +37,9 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
     };
 
-    const totalAmount = submission.cost_detail?.total_amount || 0;
+    const totalAmount = submission.cost_detail?.total_amount 
+        || submission.invoice?.amount 
+        || (submission.invoices && submission.invoices.length > 0 ? submission.invoices[0].amount : 0);
     const today = new Date();
     const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
     const months = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];

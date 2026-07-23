@@ -44,6 +44,8 @@ export const formatRoleName = (role: string): string => {
         'DRAFTER': 'HDO (Halal Documentation Officer)',
         'ADMIN_KEUANGAN': 'Finance & Legal',
         'ADMIN_PELATIHAN': 'Training & Recruitment',
+        'VERIFIKATOR': 'Verifikator Dokumen',
+        'QC_OFFICER': 'QC Officer (Verifikator)',
     };
     return labels[role.toUpperCase()] || role.replace(/_/g, ' ');
 };

@@ -38,7 +38,7 @@ func (r *userRepository) FindByID(id uuid.UUID) (*domain.User, error) {
 
 func (r *userRepository) FindByReferralCode(code string) (*domain.User, error) {
 	var user domain.User
-	if err := r.db.Where("referral_code = ?", code).First(&user).Error; err != nil {
+	if err := r.db.Preload("Role").Preload("Leader").Where("referral_code = ?", code).First(&user).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil

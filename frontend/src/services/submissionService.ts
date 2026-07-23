@@ -98,6 +98,14 @@ class SubmissionService extends BaseService {
         }
     }
 
+    async revokeSH(id: string, note?: string): Promise<void> {
+        try {
+            await this.api.post(`/submissions/${id}/revoke-sh`, { note });
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
     async submit(id: string): Promise<void> {
         try {
             await this.api.post(`/submissions/${id}/submit`);
@@ -114,9 +122,10 @@ class SubmissionService extends BaseService {
         }
     }
 
-    async reject(id: string, note: string): Promise<void> {
+    async reject(id: string, data: { note: string; target_status?: string; invalid_fields?: string[] } | string): Promise<void> {
         try {
-            await this.api.post(`/submissions/${id}/reject`, { note });
+            const payload = typeof data === 'string' ? { note: data } : data;
+            await this.api.post(`/submissions/${id}/reject`, payload);
         } catch (error) {
             this.handleError(error);
         }

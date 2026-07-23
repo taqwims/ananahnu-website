@@ -15,11 +15,12 @@ type SubmissionWorkflowUsecase interface {
 	ApproveWithDrafter(id uuid.UUID, userID uuid.UUID, userRole string, drafterID uuid.UUID) error
 	BulkApproveWithDrafter(ids []uuid.UUID, userID uuid.UUID, userRole string, drafterID uuid.UUID) error
 	AssignConsultant(id uuid.UUID, userID uuid.UUID, userRole string, consultantID uuid.UUID) error
-	Reject(id uuid.UUID, userID uuid.UUID, userRole string, note string) error
+	Reject(id uuid.UUID, userID uuid.UUID, userRole string, input RejectInput) error
 	GetSubmissions(userID uuid.UUID, role string, filter map[string]interface{}) ([]domain.Submission, error)
 	GetSubmission(id uuid.UUID) (*domain.Submission, error)
 	GetHistory(id uuid.UUID) ([]domain.AuditLog, error)
 	IssueSH(id uuid.UUID, userID uuid.UUID, shURL string) error
+	RevokeSH(id uuid.UUID, userID uuid.UUID, userRole string, note string) error
 	UpdateAuditInfo(id uuid.UUID, userID uuid.UUID, userRole string, auditDate *time.Time) error
 	UpdateAuditResult(id uuid.UUID, userID uuid.UUID, userRole string, url1, url2 string) error
 	UpdateBusinessType(id uuid.UUID, userID uuid.UUID, userRole string, businessTypeID int64) error
@@ -29,6 +30,12 @@ type SubmissionWorkflowUsecase interface {
 	IsAuthorized(userID uuid.UUID, role string, submissionID uuid.UUID) bool
 	UpdateClientInfoAndPricing(id uuid.UUID, input UpdateClientInfoAndPricingInput, userID uuid.UUID, userRole string) error
 	GetDrafterMonthlyAnalytics() ([]DrafterMonthlyStat, error)
+}
+
+type RejectInput struct {
+	Note          string   `json:"note"`
+	TargetStatus  string   `json:"target_status,omitempty"`
+	InvalidFields []string `json:"invalid_fields,omitempty"`
 }
 
 type DrafterMonthlyStat struct {
@@ -89,6 +96,8 @@ type UpdateClientInfoAndPricingInput struct {
 	SalesSchemeID     *int64 `json:"sales_scheme_id"`
 	DataSource        string `json:"data_source"`
 	SelectedOptionalComponentIDs *[]int64 `json:"selected_optional_component_ids"`
+	TotalAmount       *float64 `json:"total_amount,omitempty"`
+	CostBreakdownData *string  `json:"cost_breakdown_data,omitempty"`
 }
 
 

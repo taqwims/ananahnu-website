@@ -1,4 +1,5 @@
-import { Edit3, Save, X, Building2, User, Info } from 'lucide-react';
+import { Edit3, Save, X, Building2, User, Info, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { Submission } from '../../../types';
 
 interface ClientInfoPanelProps {
@@ -34,12 +35,23 @@ export const ClientInfoPanel = ({
                     <h3 className="text-sm font-black text-gray-800 tracking-tight uppercase">Data Pelaku Usaha</h3>
                 </div>
                 {!isEditing ? (
-                    <button
-                        onClick={() => setIsEditing(true)}
-                        className="p-2 hover:bg-brand-50 rounded-lg text-brand-600 transition-all opacity-0 group-hover:opacity-100"
-                    >
-                        <Edit3 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <Link
+                            to={`/dashboard/submissions/${submission.id}`}
+                            className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg transition-all flex items-center gap-1"
+                            title="Buka Halaman Detail untuk Tampilan Edit Luas"
+                        >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            Detail
+                        </Link>
+                        <button
+                            onClick={() => setIsEditing(true)}
+                            className="px-2.5 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-bold rounded-lg border border-brand-200 transition-all flex items-center gap-1 shadow-xs"
+                        >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            Edit
+                        </button>
+                    </div>
                 ) : (
                     <div className="flex items-center gap-2">
                         <button
@@ -51,9 +63,10 @@ export const ClientInfoPanel = ({
                         <button
                             onClick={onSave}
                             disabled={processing}
-                            className="p-1.5 bg-brand-600 text-white rounded-lg shadow-lg shadow-brand-100"
+                            className="px-3 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-bold text-xs shadow-md shadow-brand-100 flex items-center gap-1"
                         >
-                            <Save className="w-4 h-4" />
+                            <Save className="w-3.5 h-3.5" />
+                            Simpan
                         </button>
                     </div>
                 )}

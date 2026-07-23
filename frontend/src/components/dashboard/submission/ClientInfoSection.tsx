@@ -29,9 +29,9 @@ const InfoItem = ({ label, value, mono = false, highlight = false }: { label: st
 export const ClientInfoSection = ({ 
     submission, 
     user, 
-    onUpdateClient, 
+    onUpdateClient: _onUpdateClient, 
     onUpdateClientInfoAndPricing, 
-    onUpdateBusinessType, 
+    onUpdateBusinessType: _onUpdateBusinessType, 
     businessTypes, 
     processing,
     defaultCollapsed = false

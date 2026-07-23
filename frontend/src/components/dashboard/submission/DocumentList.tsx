@@ -50,10 +50,10 @@ export const DocumentList = ({
         if (!cfg) return true;
         
         // Convert to numbers or strings to safely compare
-        if (cfg.business_type_id != null) {
+        if (cfg.business_type_id != null && Number(cfg.business_type_id) > 0) {
             if (!subBtId || Number(cfg.business_type_id) !== Number(subBtId)) return false;
         }
-        if (cfg.product_category_id != null) {
+        if (cfg.product_category_id != null && Number(cfg.product_category_id) > 0) {
             if (!subPcId || Number(cfg.product_category_id) !== Number(subPcId)) return false;
         }
         return true;

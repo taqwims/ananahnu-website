@@ -77,6 +77,9 @@ export const useSubmissionCreate = () => {
             if (clientData.business_type_id) {
                 params.business_type_id = clientData.business_type_id;
             }
+            if (clientData.product_category_id) {
+                params.product_category_id = clientData.product_category_id;
+            }
             const res = await api.get(`/form-config/${clientData.service_type}`, { params });
             setConfigs(res.data || []);
             

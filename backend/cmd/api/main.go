@@ -115,7 +115,7 @@ func main() {
 	// 4. Seed Roles (Idempotent)
 	log.Println("Seeding Roles...")
 	roles := []string{
-		"DIRECTOR", "MANAGER", "QC_OFFICER", "DRAFTER",
+		"DIRECTOR", "MANAGER", "QC_OFFICER", "VERIFIKATOR", "DRAFTER",
 		"HALAL_ADVISOR", "MARKETING",
 		"CLIENT",
 		"HALAL_MANAGER", "HALAL_DIRECTOR", "ADMIN_PELATIHAN", "ADMIN_KEUANGAN",
@@ -237,8 +237,9 @@ func main() {
 		UserRepo:       userRepo,
 	})
 	formConfigUC := usecase.NewFormConfigUsecase(usecase.FormConfigUsecaseDeps{
-		ConfigRepo: formConfigRepo,
-		ValueRepo:  formValueRepo,
+		ConfigRepo:     formConfigRepo,
+		ValueRepo:      formValueRepo,
+		SubmissionRepo: submissionRepo,
 	})
 	geographyUC := usecase.NewGeographyUsecase(usecase.GeographyUsecaseDeps{
 		GeoRepo:  geoRepo,

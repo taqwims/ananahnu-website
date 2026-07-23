@@ -88,13 +88,14 @@ export interface Submission {
     invoices?: Invoice[]; // all invoices (DP + PELUNASAN)
     field_values?: FormFieldValue[];
     cost_detail?: SubmissionCostDetail;
+    reject_note?: string;
+    has_been_returned?: boolean;
     sh_url?: string;
     tracking_number?: string;
     contract_number?: string;
     audit_date?: string;
     audit_result_1_url?: string;
     audit_result_2_url?: string;
-    reject_note?: string;
     business_type_id?: number;
     business_type?: BusinessType;
     province_id?: number;

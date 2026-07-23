@@ -553,7 +553,9 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 branch_count: branchCount,
                 sales_scheme_id: salesSchemeVal ? parseInt(salesSchemeVal) : null,
                 data_source: dataSourceVal || 'ORGANIK',
-                selected_optional_component_ids: selectedOptionalComponentIds
+                selected_optional_component_ids: selectedOptionalComponentIds,
+                total_amount: total,
+                cost_breakdown_data: JSON.stringify(breakdown)
             };
 
             await api.put(`/submissions/${submissionId}/client-info`, payload);

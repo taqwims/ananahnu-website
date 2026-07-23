@@ -62,14 +62,20 @@ export const TaskSidebar = ({
                                     : 'hover:bg-white/80 text-gray-700'
                                 }`}
                         >
-                            <div className="flex justify-between items-start mb-1">
+                            <div className="flex justify-between items-start mb-1 gap-1">
                                 <span className={`text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest ${activeSubId === sub.id ? 'bg-white/20 text-white' : 'bg-brand-50 text-brand-600'
                                     }`}>
                                     {formatServiceType(sub.service_type)}
                                 </span>
-                                <span className={`text-[8px] font-medium ${activeSubId === sub.id ? 'text-brand-100' : 'text-gray-400'}`}>
-                                    #{sub.id.split('-')[0]}
-                                </span>
+                                {sub.has_been_returned || sub.reject_note ? (
+                                    <span className="text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest bg-amber-100 text-amber-900 border border-amber-300">
+                                        ⚡ REVISI
+                                    </span>
+                                ) : (
+                                    <span className="text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest bg-emerald-100 text-emerald-900 border border-emerald-300">
+                                        ✨ BARU
+                                    </span>
+                                )}
                             </div>
                             <h3 className="font-bold text-sm truncate">{sub.client?.business_name}</h3>
                             <p className={`text-[10px] truncate ${activeSubId === sub.id ? 'text-brand-100' : 'text-gray-500'}`}>

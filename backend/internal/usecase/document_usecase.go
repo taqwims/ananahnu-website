@@ -194,9 +194,16 @@ func (uc *documentUsecase) GenerateContract(submissionID uuid.UUID, format strin
 
 	// Cost details
 	totalAmount := 0.0
-	if submission.CostDetail != nil {
+	if submission.CostDetail != nil && submission.CostDetail.TotalAmount > 0 {
 		totalAmount = submission.CostDetail.TotalAmount
 		vars["[CostBreakdownJSON]"] = submission.CostDetail.CostBreakdownData
+	} else if submission.Invoice != nil && submission.Invoice.Amount > 0 {
+		totalAmount = submission.Invoice.Amount
+	} else if len(submission.Invoices) > 0 && submission.Invoices[0].Amount > 0 {
+		totalAmount = submission.Invoices[0].Amount
+	} else if costDetail, err := uc.BillingConfigRepo.GetSubmissionCostDetail(submissionID); err == nil && costDetail != nil && costDetail.TotalAmount > 0 {
+		totalAmount = costDetail.TotalAmount
+		vars["[CostBreakdownJSON]"] = costDetail.CostBreakdownData
 	}
 	vars["{{total_contract_amount_formatted}}"] = uc.formatIDR(totalAmount)
 	vars["{{total_contract_amount_words}}"] = utils.TerbilangRupiah(totalAmount)

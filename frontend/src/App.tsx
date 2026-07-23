@@ -75,6 +75,7 @@ import FeeConfigAdmin from './pages/dashboard/FeeConfigAdmin';
 import BizDevDashboard from './pages/dashboard/BizDevDashboard';
 import SPHForm from './pages/dashboard/SPHForm';
 import EstimasiBiaya from './pages/dashboard/EstimasiBiaya';
+import SHWorkspace from './pages/dashboard/SHWorkspace';
 
 import { Toaster } from 'react-hot-toast';
 
@@ -149,6 +150,9 @@ function App() {
           } />
           <Route path="qc-workspace" element={
             <RoleRoute path="qc-workspace"><QCWorkspace /></RoleRoute>
+          } />
+          <Route path="sh-workspace" element={
+            <RoleRoute path="sh-workspace"><SHWorkspace /></RoleRoute>
           } />
           <Route path="audit-manager-workspace" element={
             <RoleRoute path="audit-manager-workspace"><AuditManagerWorkspace /></RoleRoute>

@@ -81,12 +81,21 @@ export const DrafterPerformanceCard = ({
                                         <div className={`absolute top-0 right-0 w-1 h-full ${isReguler ? 'bg-blue-500' : 'bg-purple-500'}`} />
                                         <div className="flex justify-between items-start mb-4">
                                             <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest ${isReguler ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                                                        {formatServiceType(sub.service_type)}
-                                                    </span>
-                                                    <span className="text-[8px] font-bold text-gray-400">#{sub.id.split('-')[0]}</span>
-                                                </div>
+                                                 <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                     <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest ${isReguler ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                                                         {formatServiceType(sub.service_type)}
+                                                     </span>
+                                                     {sub.has_been_returned || sub.reject_note ? (
+                                                         <span className="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-amber-100 text-amber-900 border border-amber-300">
+                                                             ⚡ REVISI
+                                                         </span>
+                                                     ) : (
+                                                         <span className="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest bg-emerald-100 text-emerald-900 border border-emerald-300">
+                                                             ✨ PEKERJAAN BARU
+                                                         </span>
+                                                     )}
+                                                     <span className="text-[8px] font-bold text-gray-400">#{sub.id.split('-')[0]}</span>
+                                                 </div>
                                                 <h4 className="font-bold text-gray-800 leading-tight pr-8">{sub.client?.business_name}</h4>
                                                 <p className="text-[10px] text-gray-500 font-medium">{sub.client?.client_name || 'Tanpa Nama Klien'}</p>
                                             </div>

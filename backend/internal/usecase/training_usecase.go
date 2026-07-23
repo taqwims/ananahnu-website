@@ -19,7 +19,7 @@ type TrainingUsecase interface {
 
 	GetParticipants(trainingID int64) ([]domain.TrainingParticipant, error)
 	GetUserTrainings(userID uuid.UUID) ([]domain.TrainingParticipant, error)
-	AddParticipant(trainingID int64, userID uuid.UUID) error
+	AddParticipant(trainingID int64, targetUserID uuid.UUID, actorUserID uuid.UUID, actorRole string) error
 	UpdateParticipantStatus(trainingID int64, userID uuid.UUID, status string) error
 	RemoveParticipant(id int64) error
 
@@ -84,7 +84,7 @@ func (uc *trainingUsecase) GetUserTrainings(userID uuid.UUID) ([]domain.Training
 	return uc.ParticipantRepo.FindByUser(userID)
 }
 
-func (uc *trainingUsecase) AddParticipant(trainingID int64, userID uuid.UUID) error {
+func (uc *trainingUsecase) AddParticipant(trainingID int64, targetUserID uuid.UUID, actorUserID uuid.UUID, actorRole string) error {
 	// Validate training is not expired
 	training, err := uc.TrainingRepo.FindByID(trainingID)
 	if err != nil {
@@ -94,9 +94,22 @@ func (uc *trainingUsecase) AddParticipant(trainingID int64, userID uuid.UUID) er
 		return errors.New("pelatihan sudah kadaluarsa, tidak dapat menambah peserta")
 	}
 
+	targetUser, errUser := uc.UserRepo.FindByID(targetUserID)
+	if errUser != nil || targetUser == nil {
+		return errors.New("peserta tidak ditemukan")
+	}
+
+	// Strictly restrict HALAL_MANAGER and HALAL_DIRECTOR: they can ONLY add participants from their own referral/team!
+	if actorRole == "HALAL_MANAGER" || actorRole == "HALAL_DIRECTOR" {
+		isReferred := (targetUser.ReferredByID != nil && *targetUser.ReferredByID == actorUserID) || (targetUser.LeaderID != nil && *targetUser.LeaderID == actorUserID)
+		if !isReferred {
+			return errors.New("Anda hanya dapat mendaftarkan peserta yang mendaftar menggunakan kode referral Anda atau anggota tim binaan Anda sendiri")
+		}
+	}
+
 	p := &domain.TrainingParticipant{
 		TrainingID: trainingID,
-		UserID:     userID,
+		UserID:     targetUserID,
 		Status:     "PESERTA",
 	}
 	return uc.ParticipantRepo.Create(p)
@@ -137,43 +150,6 @@ func (uc *trainingUsecase) UpdateParticipantStatus(trainingID int64, userID uuid
 				_ = uc.PromotionRepo.Update(req)
 			}
 		}
-
-		// Update user's role to HALAL_MANAGER
-		user, err := uc.UserRepo.FindByID(userID)
-		if err == nil && user != nil {
-			role, errRole := uc.RoleRepo.FindByName("HALAL_MANAGER")
-			if errRole == nil && role != nil {
-				user.RoleID = role.ID
-				_ = uc.UserRepo.Update(user)
-
-				// Calculate structural referral commission
-				if user.LeaderID != nil {
-					period := time.Now().Format("2006-01")
-					commissions, _, _ := uc.CommissionRepo.FindAll(map[string]interface{}{
-						"user_id": user.ID,
-						"type":    domain.CommissionTypeDirectSales,
-					}, 1, 10000)
-
-					var totalOmset float64
-					for _, c := range commissions {
-						totalOmset += c.BaseOmset
-					}
-
-					if totalOmset > 0 {
-						_ = uc.CommissionRepo.UpsertStructural(&domain.Commission{
-							ID:         uuid.New(),
-							Type:       domain.CommissionTypeReferral,
-							ReferrerID: user.LeaderID,
-							ReferredID: &user.ID,
-							Period:     period,
-							BaseOmset:  totalOmset,
-							Amount:     totalOmset * 0.01,
-							Status:     domain.CommissionStatusPending,
-						})
-					}
-				}
-			}
-		}
 	}
 
 	return nil
@@ -185,7 +161,7 @@ func (uc *trainingUsecase) RemoveParticipant(id int64) error {
 
 // GetAvailableParticipants returns HALAL_ADVISOR users that can be added as participants.
 // Filters only advisors with active IN_TRAINING promotion requests.
-// For HALAL_MANAGER role, filters only users referred by that manager.
+// For HALAL_MANAGER and HALAL_DIRECTOR roles, filters only users referred by or in team of that manager/director.
 func (uc *trainingUsecase) GetAvailableParticipants(search string, userID uuid.UUID, role string) ([]domain.User, error) {
 	// Find all HALAL_ADVISOR users
 	users, _, err := uc.UserRepo.FindAll(map[string]interface{}{
@@ -221,7 +197,7 @@ func (uc *trainingUsecase) GetAvailableParticipants(search string, userID uuid.U
 			}
 		}
 
-		if role == "HALAL_MANAGER" {
+		if role == "HALAL_MANAGER" || role == "HALAL_DIRECTOR" {
 			isReferred := (user.ReferredByID != nil && *user.ReferredByID == userID) || (user.LeaderID != nil && *user.LeaderID == userID)
 			if !isReferred {
 				continue

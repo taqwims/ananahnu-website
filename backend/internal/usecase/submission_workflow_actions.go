@@ -204,7 +204,7 @@ func (uc *submissionWorkflowUsecase) Approve(id uuid.UUID, userID uuid.UUID, use
 		return errors.New("no approval action available for current status")
 	}
 
-	if userRole != requiredRole && userRole != "ADMIN" && userRole != "DIRECTOR" {
+	if userRole != requiredRole && !(requiredRole == "QC_OFFICER" && userRole == "VERIFIKATOR") && userRole != "ADMIN" && userRole != "DIRECTOR" {
 		return fmt.Errorf("unauthorized: role %s cannot approve in status %s", userRole, sub.Status)
 	}
 
@@ -252,7 +252,7 @@ func (uc *submissionWorkflowUsecase) ApproveWithDrafter(id uuid.UUID, userID uui
 		return errors.New("assign drafter only available when status is QC_OFFICER")
 	}
 
-	if userRole != "QC_OFFICER" && userRole != "ADMIN" && userRole != "DIRECTOR" {
+	if userRole != "QC_OFFICER" && userRole != "VERIFIKATOR" && userRole != "ADMIN" && userRole != "DIRECTOR" {
 		return fmt.Errorf("unauthorized: role %s cannot assign drafter", userRole)
 	}
 
@@ -280,8 +280,8 @@ func (uc *submissionWorkflowUsecase) ApproveWithDrafter(id uuid.UUID, userID uui
 }
 
 func (uc *submissionWorkflowUsecase) BulkApproveWithDrafter(ids []uuid.UUID, userID uuid.UUID, userRole string, drafterID uuid.UUID) error {
-	if userRole != "QC_OFFICER" && userRole != "ADMIN" && userRole != "DIRECTOR" {
-		return errors.New("unauthorized: only QC_OFFICER can distribute submissions")
+	if userRole != "QC_OFFICER" && userRole != "VERIFIKATOR" && userRole != "ADMIN" && userRole != "DIRECTOR" {
+		return errors.New("unauthorized: only QC_OFFICER or VERIFIKATOR can distribute submissions")
 	}
 
 	var errs []string
@@ -304,7 +304,7 @@ func (uc *submissionWorkflowUsecase) AssignConsultant(id uuid.UUID, userID uuid.
 		return err
 	}
 
-	if userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "HALAL_MANAGER" && userRole != "HALAL_DIRECTOR" && userRole != "QC_OFFICER" {
+	if userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "HALAL_MANAGER" && userRole != "HALAL_DIRECTOR" && userRole != "QC_OFFICER" && userRole != "VERIFIKATOR" {
 		return errors.New("unauthorized to assign consultant")
 	}
 
@@ -335,40 +335,65 @@ func (uc *submissionWorkflowUsecase) AssignConsultant(id uuid.UUID, userID uuid.
 	return nil
 }
 
-func (uc *submissionWorkflowUsecase) Reject(id uuid.UUID, userID uuid.UUID, userRole string, note string) error {
+func (uc *submissionWorkflowUsecase) Reject(id uuid.UUID, userID uuid.UUID, userRole string, input RejectInput) error {
 	sub, err := uc.SubmissionRepo.FindByID(id)
 	if err != nil {
 		return err
 	}
 
 	var nextStatus domain.SubmissionStatus
-	switch sub.Status {
-	case domain.StatusQCOfficer:
-		nextStatus = domain.StatusVervalPendamping
-	case domain.StatusDrafter:
-		nextStatus = domain.StatusQCOfficer
-	case domain.StatusQCReview:
-		nextStatus = domain.StatusDrafter
-	case domain.StatusSidangFatwa:
-		nextStatus = domain.StatusDrafter
-	default:
-		nextStatus = domain.StatusRevision
+
+	if input.TargetStatus != "" {
+		nextStatus = domain.SubmissionStatus(input.TargetStatus)
+	} else {
+		switch sub.Status {
+		case domain.StatusQCOfficer:
+			nextStatus = domain.StatusVervalPendamping
+		case domain.StatusDrafter:
+			nextStatus = domain.StatusQCOfficer
+		case domain.StatusQCReview:
+			if sub.AssignedDrafterID != nil {
+				nextStatus = domain.StatusDrafter
+			} else {
+				nextStatus = domain.StatusQCOfficer
+			}
+		case domain.StatusSubmittedBPJPH, domain.StatusSidangFatwa:
+			if sub.AssignedDrafterID != nil {
+				nextStatus = domain.StatusDrafter
+			} else {
+				nextStatus = domain.StatusVervalPendamping
+			}
+		default:
+			nextStatus = domain.StatusRevision
+		}
+	}
+
+	// Format full note including invalid fields if provided
+	fullNote := input.Note
+	if len(input.InvalidFields) > 0 {
+		invalidHeader := "[Bagian Bermasalah: " + strings.Join(input.InvalidFields, ", ") + "]"
+		if fullNote != "" {
+			fullNote = invalidHeader + "\n" + fullNote
+		} else {
+			fullNote = invalidHeader
+		}
 	}
 
 	err = uc.SubmissionRepo.UpdateStatus(id, nextStatus, 0)
 	if err == nil {
 		_ = uc.SubmissionRepo.UpdateHasBeenReturned(id, true)
-		uc.logChange(id, userID, "REJECT", sub.Status, nextStatus, note)
-		_ = uc.SubmissionRepo.UpdateRejectNote(id, note)
+		uc.logChange(id, userID, "REJECT", sub.Status, nextStatus, fullNote)
+		_ = uc.SubmissionRepo.UpdateRejectNote(id, fullNote)
 
-		if sub.AssignedDrafterID != nil {
+		// Notify Drafter if target is Drafter or assigned
+		if sub.AssignedDrafterID != nil && (nextStatus == domain.StatusDrafter || nextStatus == domain.StatusQCReview) {
 			drafter, _ := uc.UserRepo.FindByID(*sub.AssignedDrafterID)
 			if drafter != nil {
 				_ = uc.NotifUC.SendWorkflowNotification("revision_internal", map[string]string{
 					"drafter_name":  drafter.FullName,
 					"business_name": sub.Client.BusinessName,
-					"note":          note,
-				}, drafter.Phone, &drafter.ID, id, "Pengajuan Dikembalikan", "Pengajuan "+sub.Client.BusinessName+" dikembalikan: "+note)
+					"note":          fullNote,
+				}, drafter.Phone, &drafter.ID, id, "Pengajuan Dikembalikan (Revisi Drafter)", "Pengajuan "+sub.Client.BusinessName+" dikembalikan ke Anda: "+fullNote)
 			}
 		}
 
@@ -376,17 +401,18 @@ func (uc *submissionWorkflowUsecase) Reject(id uuid.UUID, userID uuid.UUID, user
 		_ = uc.NotifUC.SendWorkflowNotification("revision_client", map[string]string{
 			"client_name":   sub.Client.ClientName,
 			"business_name": sub.Client.BusinessName,
-			"note":          note,
-		}, sub.Client.Phone, nil, id, "Catatan Revisi", "Halo *"+sub.Client.ClientName+"*, pengajuan Anda untuk *"+sub.Client.BusinessName+"* memerlukan revisi: "+note)
+			"note":          fullNote,
+		}, sub.Client.Phone, nil, id, "Catatan Revisi", "Halo *"+sub.Client.ClientName+"*, pengajuan Anda untuk *"+sub.Client.BusinessName+"* memerlukan revisi: "+fullNote)
 
+		// Notify Advisor
 		if sub.ConsultantID != nil {
 			cons, _ := uc.UserRepo.FindByID(*sub.ConsultantID)
 			if cons != nil {
 				_ = uc.NotifUC.SendWorkflowNotification("revision_internal", map[string]string{
 					"target_name":   cons.FullName,
 					"business_name": sub.Client.BusinessName,
-					"note":          note,
-				}, cons.Phone, &cons.ID, id, "Catatan Revisi", "Pengajuan "+sub.Client.BusinessName+" memerlukan revisi: "+note)
+					"note":          fullNote,
+				}, cons.Phone, &cons.ID, id, "Catatan Revisi Advisor", "Pengajuan "+sub.Client.BusinessName+" memerlukan revisi: "+fullNote)
 			}
 		}
 	}
@@ -394,13 +420,17 @@ func (uc *submissionWorkflowUsecase) Reject(id uuid.UUID, userID uuid.UUID, user
 }
 
 func (uc *submissionWorkflowUsecase) IssueSH(id uuid.UUID, userID uuid.UUID, shURL string) error {
+	if strings.TrimSpace(shURL) == "" {
+		return errors.New("file Sertifikat Halal wajib diunggah sebelum menerbitkan SH")
+	}
+
 	sub, err := uc.SubmissionRepo.FindByID(id)
 	if err != nil {
 		return err
 	}
 
-	if sub.Status != domain.StatusSidangFatwa {
-		return errors.New("cannot issue SH if not in SIDANG_FATWA status")
+	if sub.Status != domain.StatusSidangFatwa && sub.Status != domain.StatusSubmittedBPJPH {
+		return errors.New("cannot issue SH if not in SIDANG_FATWA or SUBMITTED_TO_BPJPH status")
 	}
 
 	if err := uc.SubmissionRepo.UpdateSH(id, shURL); err != nil {
@@ -504,6 +534,42 @@ func (uc *submissionWorkflowUsecase) IssueSH(id uuid.UUID, userID uuid.UUID, shU
 			}, cons.Phone, &cons.ID, id, "Sertifikat Halal Terbit", "Sertifikat Halal untuk *"+sub.Client.BusinessName+"* telah terbit.")
 		}
 	}
+
+	return nil
+}
+
+func (uc *submissionWorkflowUsecase) RevokeSH(id uuid.UUID, userID uuid.UUID, userRole string, note string) error {
+	sub, err := uc.SubmissionRepo.FindByID(id)
+	if err != nil {
+		return err
+	}
+
+	if sub.Status != domain.StatusSHTerbit {
+		return errors.New("hanya pengajuan berstatus SH_TERBIT yang dapat dibatalkan penerbitannya")
+	}
+
+	if userRole != "ADMIN_KEUANGAN" && userRole != "FINANCE" && userRole != "LEGAL" && userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "MANAGER" {
+		return errors.New("unauthorized: role Anda tidak memiliki wewenang untuk membatalkan penerbitan SH")
+	}
+
+	// Reset SH URL
+	if err := uc.SubmissionRepo.UpdateSH(id, ""); err != nil {
+		return err
+	}
+
+	// Rollback status to SUBMITTED_TO_BPJPH
+	nextStatus := domain.StatusSubmittedBPJPH
+	if err := uc.SubmissionRepo.UpdateStatus(id, nextStatus, 0); err != nil {
+		return err
+	}
+
+	revokeReason := "Penerbitan SH dibatalkan / direvisi"
+	if note != "" {
+		revokeReason = note
+	}
+
+	_ = uc.SubmissionRepo.UpdateRejectNote(id, revokeReason)
+	uc.logChange(id, userID, "REVOKE_SH", sub.Status, nextStatus, revokeReason)
 
 	return nil
 }

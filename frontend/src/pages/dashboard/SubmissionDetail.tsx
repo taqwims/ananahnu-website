@@ -13,6 +13,7 @@ import { DocumentList } from '../../components/dashboard/submission/DocumentList
 import { SubmissionCertificate } from '../../components/dashboard/submission/SubmissionCertificate';
 import { SubmissionInvoice } from '../../components/dashboard/submission/SubmissionInvoice';
 import { SubmissionHistory } from '../../components/dashboard/submission/SubmissionHistory';
+import { DataReturnNoticeCard } from '../../components/dashboard/submission/DataReturnNoticeCard';
 import api from '../../services/api';
 import type { BusinessType } from '../../types';
 import ContractTextPreview from '../../components/dashboard/submission/ContractTextPreview';
@@ -33,7 +34,8 @@ export default function SubmissionDetail() {
         updateClient, 
         updateClientInfoAndPricing,
         handleAction, 
-        issueSH, 
+        issueSH,
+        revokeSH, 
         saveAuditInfo, 
         saveAuditResult,
         updateBusinessType
@@ -293,6 +295,9 @@ return (
                         </div>
                     )}
 
+                    {/* Dedicated Data Return Documentation Card */}
+                    <DataReturnNoticeCard submission={submission} />
+
                     {serviceType === 'REGULER' ? (
                         <div className="overflow-x-auto pb-4">
                             <KalkulatorReguler 
@@ -397,6 +402,7 @@ return (
                         onSaveAuditInfo={saveAuditInfo}
                         onSaveAuditResult={saveAuditResult}
                         onIssueSH={issueSH}
+                        onRevokeSH={revokeSH}
                     />
 
                     <SubmissionHistory history={history} />

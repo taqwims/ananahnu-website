@@ -173,8 +173,10 @@ func (h *TrainingHandler) AddParticipant(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
 		return
 	}
-	if err := h.trainingUC.AddParticipant(trainingID, userID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	actorUserID := middleware.GetUserID(c)
+	actorRole := middleware.GetUserRole(c)
+	if err := h.trainingUC.AddParticipant(trainingID, userID, actorUserID, actorRole); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"message": "participant added"})

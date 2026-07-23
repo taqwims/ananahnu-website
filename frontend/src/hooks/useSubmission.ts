@@ -95,7 +95,7 @@ export const useSubmission = (id: string | undefined) => {
                     await submissionService.approve(id, payload);
                     break;
                 case 'reject':
-                    await submissionService.reject(id, payload.note);
+                    await submissionService.reject(id, payload);
                     break;
                 case 'assign_consultant':
                     await submissionService.assignConsultant(id, payload.consultantId);
@@ -116,6 +116,20 @@ export const useSubmission = (id: string | undefined) => {
         try {
             await submissionService.issueSH(id, shUrl);
             toast.success('Sertifikat Halal berhasil diterbitkan');
+            await refresh();
+        } catch (err: any) {
+            toast.error(err.message);
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    const revokeSH = async (note?: string) => {
+        if (!id) return;
+        setProcessing(true);
+        try {
+            await submissionService.revokeSH(id, note);
+            toast.success('Penerbitan Sertifikat Halal berhasil dibatalkan / direvisi');
             await refresh();
         } catch (err: any) {
             toast.error(err.message);
@@ -176,6 +190,7 @@ export const useSubmission = (id: string | undefined) => {
         updateClientInfoAndPricing,
         handleAction,
         issueSH,
+        revokeSH,
         saveAuditInfo,
         saveAuditResult,
         updateBusinessType

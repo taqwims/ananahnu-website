@@ -25,6 +25,7 @@ func NewSubmissionHandler(r *gin.Engine, uc usecase.SubmissionWorkflowUsecase) {
 		g.POST("/:id/submit", handler.Submit)
 		g.POST("/:id/approve", handler.Approve)
 		g.POST("/:id/issue-sh", handler.IssueSH)
+		g.POST("/:id/revoke-sh", handler.RevokeSH)
 		g.POST("/:id/assign-drafter", handler.AssignDrafter)
 		g.POST("/:id/reject", handler.Reject)
 		g.POST("/:id/audit-info", handler.UpdateAuditInfo)
@@ -259,15 +260,13 @@ func (h *SubmissionHandler) Reject(c *gin.Context) {
 		return
 	}
 
-	var input struct {
-		Note string `json:"note"`
-	}
+	var input usecase.RejectInput
 	_ = c.ShouldBindJSON(&input)
 
 	userID := middleware.GetUserID(c)
 	role := middleware.GetUserRole(c)
 
-	if err := h.workflowUC.Reject(id, userID, role, input.Note); err != nil {
+	if err := h.workflowUC.Reject(id, userID, role, input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -342,6 +341,12 @@ func (h *SubmissionHandler) IssueSH(c *gin.Context) {
 		return
 	}
 
+	role := middleware.GetUserRole(c)
+	if role == "HALAL_ADVISOR" || role == "HALAL_MANAGER" || role == "HALAL_DIRECTOR" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Halal Agency / Halal Manager tidak memiliki akses untuk menerbitkan Sertifikat Halal. Penerbitan SH hanya untuk tim Finance & Legal."})
+		return
+	}
+
 	var input struct {
 		SHURL string `json:"sh_url" binding:"required"`
 	}
@@ -357,6 +362,30 @@ func (h *SubmissionHandler) IssueSH(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "SH issued successfully"})
+}
+
+func (h *SubmissionHandler) RevokeSH(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var input struct {
+		Note string `json:"note"`
+	}
+	_ = c.ShouldBindJSON(&input)
+
+	userID := middleware.GetUserID(c)
+	role := middleware.GetUserRole(c)
+
+	if err := h.workflowUC.RevokeSH(id, userID, role, input.Note); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "pembatalan penerbitan SH berhasil"})
 }
 
 func (h *SubmissionHandler) TrackSubmission(c *gin.Context) {

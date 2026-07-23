@@ -136,7 +136,11 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 		return errors.New("kode referral tidak valid")
 	}
 	referredByID = &referrer.ID
-	leaderID = &referrer.ID
+	if referrer.Role.Name == "HALAL_ADVISOR" && referrer.LeaderID != nil {
+		leaderID = referrer.LeaderID
+	} else {
+		leaderID = &referrer.ID
+	}
 
 	pID, _ := strconv.ParseInt(input.ProvinceID, 10, 64)
 	rID, _ := strconv.ParseInt(input.RegencyID, 10, 64)
