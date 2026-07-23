@@ -42,11 +42,11 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
         return submission.invoice || null;
     })();
 
-    // Sync amount from the resolved invoice + paymentMode
+    // Sync amount from submission.cost_detail (primary source) or resolvedInvoice + paymentMode
     useEffect(() => {
         let total = submission.cost_detail?.total_amount || 0;
 
-        // If we don't have total_amount from cost_detail, try to infer it from resolvedInvoice
+        // If cost_detail is not available, infer from resolvedInvoice
         if (total === 0 && resolvedInvoice?.amount) {
             if (resolvedInvoice.type === 'DP') {
                 total = resolvedInvoice.amount / 0.70;
@@ -69,38 +69,6 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
             } else {
                 setAmount(Math.round(total));
             }
-            return;
-        }
-
-        if (submission.service_type === 'REGULER') {
-            setLoadingConfig(true);
-            api.get(`/invoices/submission/${submission.id}`)
-                .then(res => {
-                    if (res.data && res.data.amount) {
-                        const a = res.data.amount;
-                        const invType = res.data.type || 'FULL';
-                        let computedTotal = a;
-                        if (invType === 'DP') {
-                            computedTotal = a / 0.70;
-                        } else if (invType === 'PELUNASAN') {
-                            computedTotal = a / 0.30;
-                        }
-
-                        if (invoiceType === 'PELUNASAN') {
-                            setAmount(Math.round(computedTotal * 0.30));
-                        } else if (invoiceType === 'DP') {
-                            if (paymentMode === 'FULL') {
-                                setAmount(Math.round(computedTotal));
-                            } else {
-                                setAmount(Math.round(computedTotal * 0.70));
-                            }
-                        } else {
-                            setAmount(Math.round(computedTotal));
-                        }
-                    }
-                })
-                .catch(err => console.error("Failed to load invoice amount", err))
-                .finally(() => setLoadingConfig(false));
         } else if (submission.service_type === 'SELF_DECLARE_MANDIRI') {
             setLoadingConfig(true);
             api.get('/system-settings/SD_MANDIRI_COST?default=280000')

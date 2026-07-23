@@ -9,10 +9,12 @@ interface DynamicSubmissionFormProps {
     formType: string;
     submissionId: string;
     readOnly?: boolean;
+    businessTypeId?: number;
+    productCategoryId?: number;
     onSaved?: () => void;
 }
 
-export default function DynamicSubmissionForm({ formType, submissionId, readOnly = false, onSaved }: DynamicSubmissionFormProps) {
+export default function DynamicSubmissionForm({ formType, submissionId, readOnly = false, businessTypeId, productCategoryId, onSaved }: DynamicSubmissionFormProps) {
     const [configs, setConfigs] = useState<FormFieldConfig[]>([]);
     const [values, setValues] = useState<Record<number, { text_value: string; file_url: string; link_value: string }>>({});
     const [existingValues, setExistingValues] = useState<FormFieldValue[]>([]);
@@ -27,8 +29,12 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
         const load = async () => {
             setLoading(true);
             try {
+                const params: Record<string, any> = {};
+                if (businessTypeId) params.business_type_id = businessTypeId;
+                if (productCategoryId) params.product_category_id = productCategoryId;
+
                 const [configRes, valuesRes] = await Promise.all([
-                    api.get(`/form-config/${formType}`),
+                    api.get(`/form-config/${formType}`, { params }),
                     api.get(`/submission-fields/${submissionId}`).catch(() => ({ data: [] })),
                 ]);
 
@@ -54,7 +60,7 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
             } finally { setLoading(false); }
         };
         load();
-    }, [formType, submissionId]);
+    }, [formType, submissionId, businessTypeId, productCategoryId]);
 
     const updateValue = (fieldId: number, key: string, value: string) => {
         setValues(prev => ({

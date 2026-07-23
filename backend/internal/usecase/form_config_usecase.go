@@ -10,7 +10,7 @@ import (
 
 type FormConfigUsecase interface {
 	// Config CRUD (admin)
-	GetFormConfig(formType string, businessTypeID *int64) ([]domain.FormFieldConfig, error)
+	GetFormConfig(formType string, businessTypeID *int64, productCategoryID *int64) ([]domain.FormFieldConfig, error)
 	CreateField(config *domain.FormFieldConfig) error
 	UpdateField(config *domain.FormFieldConfig) error
 	DeleteField(id int64) error
@@ -43,15 +43,15 @@ func NewFormConfigUsecase(deps FormConfigUsecaseDeps) FormConfigUsecase {
 	}
 }
 
-func (uc *formConfigUsecase) GetFormConfig(formType string, businessTypeID *int64) ([]domain.FormFieldConfig, error) {
-	configs, err := uc.ConfigRepo.FindByFormTypeAndBusinessType(formType, businessTypeID)
+func (uc *formConfigUsecase) GetFormConfig(formType string, businessTypeID *int64, productCategoryID *int64) ([]domain.FormFieldConfig, error) {
+	configs, err := uc.ConfigRepo.FindByFormTypeAndBusinessType(formType, businessTypeID, productCategoryID)
 	if err == nil && len(configs) > 0 {
 		return configs, nil
 	}
 
 	// Fallback for SELF_DECLARE_MANDIRI to use regular SELF_DECLARE form
 	if formType == "SELF_DECLARE_MANDIRI" {
-		return uc.ConfigRepo.FindByFormTypeAndBusinessType("SELF_DECLARE", businessTypeID)
+		return uc.ConfigRepo.FindByFormTypeAndBusinessType("SELF_DECLARE", businessTypeID, productCategoryID)
 	}
 
 	return configs, err
@@ -80,6 +80,7 @@ func (uc *formConfigUsecase) UpdateField(config *domain.FormFieldConfig) error {
 	existing.SortOrder = config.SortOrder
 	existing.Description = config.Description
 	existing.BusinessTypeID = config.BusinessTypeID
+	existing.ProductCategoryID = config.ProductCategoryID
 
 	return uc.ConfigRepo.Update(existing)
 }

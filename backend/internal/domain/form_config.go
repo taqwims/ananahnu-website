@@ -41,7 +41,7 @@ type FormFieldValue struct {
 
 type FormConfigRepository interface {
 	FindByFormType(formType string) ([]FormFieldConfig, error)
-	FindByFormTypeAndBusinessType(formType string, businessTypeID *int64) ([]FormFieldConfig, error)
+	FindByFormTypeAndBusinessType(formType string, businessTypeID *int64, productCategoryID *int64) ([]FormFieldConfig, error)
 	FindByID(id int64) (*FormFieldConfig, error)
 	Create(config *FormFieldConfig) error
 	Update(config *FormFieldConfig) error

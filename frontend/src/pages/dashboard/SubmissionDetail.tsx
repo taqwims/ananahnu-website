@@ -125,24 +125,9 @@ export default function SubmissionDetail() {
                     </div>
                 )}
 
-                <ClientInfoSection 
-                    submission={submission} 
-                    user={user} 
-                    onUpdateClient={updateClient} 
-                    onUpdateClientInfoAndPricing={updateClientInfoAndPricing}
-                    onUpdateBusinessType={updateBusinessType}
-                    businessTypes={businessTypes}
-                    processing={processing} 
-                    defaultCollapsed={submission.status === 'WAITING_PAYMENT'}
-                />
 
-                {submission.status === 'WAITING_PAYMENT' && (
-                    <PaymentSection 
-                        submission={submission} 
-                        fieldValues={fieldValues}
-                        onPaymentSuccess={refresh} 
-                    />
-                )}
+
+
 
                 <DocumentList 
                     submission={submission}

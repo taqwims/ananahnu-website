@@ -558,7 +558,9 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
 
             await api.put(`/submissions/${submissionId}/client-info`, payload);
             toast.success("Rincian biaya dan data klien berhasil disimpan!");
-            if (onSaved) onSaved();
+            if (onSaved) {
+                await onSaved();
+            }
         } catch (err: any) {
             console.error(err);
             toast.error(err.response?.data?.error || "Gagal menyimpan data");

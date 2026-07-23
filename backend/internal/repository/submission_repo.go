@@ -35,10 +35,20 @@ func (r *submissionRepository) FindByID(id uuid.UUID) (*domain.Submission, error
 		Preload("AssignedDrafter").
 		Preload("Consultant").
 		Preload("BusinessType").
+		Preload("ProductCategory").
 		Preload("FieldValues").
 		Preload("FieldValues.FormField").
 		First(&submission, "id = ?", id).Error; err != nil {
 		return nil, err
+	}
+	if submission.ProductCategoryID == nil && submission.CostDetail != nil && submission.CostDetail.ProductCategoryID != nil {
+		submission.ProductCategoryID = submission.CostDetail.ProductCategoryID
+	}
+	if submission.ProductCategory == nil && submission.CostDetail != nil && submission.CostDetail.ProductCategory.ID != 0 {
+		submission.ProductCategory = &submission.CostDetail.ProductCategory
+	}
+	if submission.BusinessTypeID == nil && submission.CostDetail != nil && submission.CostDetail.BusinessTypeID != nil {
+		submission.BusinessTypeID = submission.CostDetail.BusinessTypeID
 	}
 	return &submission, nil
 }

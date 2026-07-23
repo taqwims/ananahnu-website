@@ -39,13 +39,15 @@ export const useSubmission = (id: string | undefined) => {
     const refresh = async () => {
         if (!id) return;
         try {
-            const [sub, hist, inv] = await Promise.all([
+            const [sub, hist, fields, inv] = await Promise.all([
                 submissionService.getById(id),
                 submissionService.getHistory(id),
+                submissionService.getFields(id),
                 submissionService.getInvoice(id).catch(() => null)
             ]);
             setSubmission(sub);
             setHistory(hist);
+            setFieldValues(fields);
             if (inv) {
                 setInvoice(inv);
             }

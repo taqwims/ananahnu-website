@@ -253,6 +253,7 @@ export default function FormConfigAdmin() {
                     newField={newField}
                     setNewField={setNewField}
                     businessTypes={businessTypes}
+                    productCategories={productCategories}
                     onSave={handleAdd}
                     onClose={() => setShowAdd(false)}
                     saving={saving}

@@ -38,7 +38,28 @@ export const DocumentList = ({
         }
     }, [editingData]);
 
-    const groupedSteps = fieldValues.reduce((acc, fv) => {
+    // Scope IDs from the submission for filtering
+    const subBtId = submission.business_type_id || submission.business_type?.id || (submission.cost_detail as any)?.business_type_id;
+    const subPcId = submission.product_category_id || submission.product_category?.id || (submission.cost_detail as any)?.product_category_id || (submission.cost_detail as any)?.product_category?.id;
+
+    // Filter field values by scope (business_type_id and product_category_id)
+    // Rule: if a field config has a scope set, only show it when the submission matches that scope.
+    // If the field config has NO scope (null), it's global and always shown.
+    const scopedFieldValues = fieldValues.filter(fv => {
+        const cfg = fv.form_field;
+        if (!cfg) return true;
+        
+        // Convert to numbers or strings to safely compare
+        if (cfg.business_type_id != null) {
+            if (!subBtId || Number(cfg.business_type_id) !== Number(subBtId)) return false;
+        }
+        if (cfg.product_category_id != null) {
+            if (!subPcId || Number(cfg.product_category_id) !== Number(subPcId)) return false;
+        }
+        return true;
+    });
+
+    const groupedSteps = scopedFieldValues.reduce((acc, fv) => {
         const stepNum = fv.form_field?.step_number || 1;
         const stepName = fv.form_field?.step_name || `Step ${stepNum}`;
         if (!acc[stepNum]) {
@@ -59,6 +80,9 @@ export const DocumentList = ({
     steps.forEach(step => {
         step.fieldValues.sort((a, b) => (a.form_field?.sort_order || 0) - (b.form_field?.sort_order || 0));
     });
+
+    // Ensure activeStepIdx is valid if step count changed due to scope filtering
+    const safeStepIdx = Math.min(activeStepIdx, Math.max(0, steps.length - 1));
 
     return (
         <div className="glass-panel p-6 shadow-xl border border-white/40">
@@ -89,6 +113,8 @@ export const DocumentList = ({
                         <DynamicSubmissionForm
                             formType={serviceType}
                             submissionId={submission.id}
+                            businessTypeId={subBtId}
+                            productCategoryId={subPcId}
                             onSaved={() => {
                                 setEditingData(false);
                                 onRefresh();
@@ -109,7 +135,7 @@ export const DocumentList = ({
                                         />
                                         
                                         {steps.map((step, idx) => {
-                                            const isActive = idx === activeStepIdx;
+                                            const isActive = idx === safeStepIdx;
                                             return (
                                                 <button
                                                     key={step.step_number}
@@ -136,7 +162,7 @@ export const DocumentList = ({
                                     {/* Mobile step name label */}
                                     <div className="text-center mt-4 sm:hidden">
                                         <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
-                                            Step {steps[activeStepIdx]?.step_number}: {steps[activeStepIdx]?.step_name}
+                                            Step {steps[safeStepIdx]?.step_number}: {steps[safeStepIdx]?.step_name}
                                         </span>
                                     </div>
                                 </div>
@@ -144,7 +170,7 @@ export const DocumentList = ({
 
                             {steps.length > 0 ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                                    {steps[activeStepIdx]?.fieldValues.map(fv => {
+                                    {steps[safeStepIdx]?.fieldValues.map(fv => {
                                         const isProductList = fv.form_field.input_type === 'PRODUCT_LIST' || fv.form_field.input_type === 'INGREDIENT_LIST' || fv.form_field.input_type === 'INGREDIENT_MATRIX' || fv.form_field.input_type === 'ACTIVITY_PHOTOS' || fv.form_field.input_type === 'HALAL_TEAM';
                                         return (
                                             <div key={fv.id} className={`p-3 bg-white/50 rounded-xl border border-gray-100 hover:border-brand-200 transition-all group/item shadow-sm ${isProductList ? 'col-span-1 sm:col-span-2 flex flex-col items-stretch' : 'flex items-center justify-between'}`}>

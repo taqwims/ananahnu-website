@@ -542,7 +542,7 @@ export const QCReferencePanel = ({
                                             interface ProductItem { nama: string; foto_url: string; }
                                             let products: ProductItem[] = [];
                                             try {
-                                                products = JSON.parse(fv.text_value);
+                                                products = JSON.parse(fv.text_value || '[]');
                                                 if (!Array.isArray(products)) products = [];
                                             } catch { products = []; }
                                             if (products.length === 0) return <p className="text-[10px] text-gray-400 italic">Belum diisi</p>;
@@ -552,22 +552,21 @@ export const QCReferencePanel = ({
                                                         <thead>
                                                             <tr className="bg-gray-100 border-b border-gray-100 text-[8px] font-black uppercase text-gray-400">
                                                                 <th className="p-1.5 w-10 text-center">No</th>
-                                                                <th className="p-1.5">Nama</th>
-                                                                <th className="p-1.5 w-24">Foto</th>
+                                                                <th className="p-1.5">Nama Produk</th>
+                                                                <th className="p-1.5 w-12 text-center">Foto</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {products.map((p, pIdx) => (
-                                                                <tr key={pIdx}>
-                                                                    <td className="p-1.5 text-center text-gray-400">{pIdx + 1}</td>
-                                                                    <td className="p-1.5 font-bold text-gray-700">{p.nama}</td>
-                                                                    <td className="p-1.5">
-                                                                        {p.foto_url ? (
-                                                                            <a href={`${import.meta.env.VITE_API_URL}${p.foto_url}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:underline text-brand-600">
-                                                                                <img src={`${import.meta.env.VITE_API_URL}${p.foto_url}`} className="w-5 h-5 object-cover rounded border" />
-                                                                                <span className="truncate max-w-[60px] text-[8px]">{p.foto_url.split('/').pop()}</span>
+                                                            {products.map((item, idx) => (
+                                                                <tr key={idx}>
+                                                                    <td className="p-1.5 text-center text-gray-400">{idx + 1}</td>
+                                                                    <td className="p-1.5 font-bold text-gray-700">{item.nama}</td>
+                                                                    <td className="p-1.5 text-center">
+                                                                        {item.foto_url ? (
+                                                                            <a href={`${import.meta.env.VITE_API_URL}${item.foto_url}`} target="_blank" rel="noreferrer" className="inline-block w-5 h-5 rounded border bg-white">
+                                                                                <img src={`${import.meta.env.VITE_API_URL}${item.foto_url}`} className="w-full h-full object-cover" />
                                                                             </a>
-                                                                        ) : <span className="text-gray-300 italic">Tidak ada</span>}
+                                                                        ) : '-'}
                                                                     </td>
                                                                 </tr>
                                                             ))}
@@ -581,7 +580,7 @@ export const QCReferencePanel = ({
                                             interface IngredientItem { nama: string; produsen: string; penerbit: string; no_id: string; tanggal: string; }
                                             let ingredients: IngredientItem[] = [];
                                             try {
-                                                ingredients = JSON.parse(fv.text_value);
+                                                ingredients = JSON.parse(fv.text_value || '[]');
                                                 if (!Array.isArray(ingredients)) ingredients = [];
                                             } catch { ingredients = []; }
                                             if (ingredients.length === 0) return <p className="text-[10px] text-gray-400 italic">Belum diisi</p>;
@@ -617,7 +616,7 @@ export const QCReferencePanel = ({
                                             interface MatrixItem { nama_produk: string; bahan: string[]; }
                                             let items: MatrixItem[] = [];
                                             try {
-                                                items = JSON.parse(fv.text_value);
+                                                items = JSON.parse(fv.text_value || '[]');
                                                 if (!Array.isArray(items)) items = [];
                                             } catch { items = []; }
                                             if (items.length === 0) return <p className="text-[10px] text-gray-400 italic">Belum diisi</p>;
@@ -653,7 +652,7 @@ export const QCReferencePanel = ({
                                             interface ActivityItem { nama_kegiatan: string; fotos: string[]; }
                                             let items: ActivityItem[] = [];
                                             try {
-                                                items = JSON.parse(fv.text_value);
+                                                items = JSON.parse(fv.text_value || '[]');
                                                 if (!Array.isArray(items)) items = [];
                                             } catch { items = []; }
                                             if (items.length === 0) return <p className="text-[10px] text-gray-400 italic">Belum diisi</p>;
@@ -693,7 +692,7 @@ export const QCReferencePanel = ({
                                             interface HalalTeamItem { nama: string; jabatan: string; posisi_tim: string; ttd_url: string; }
                                             let items: HalalTeamItem[] = [];
                                             try {
-                                                items = JSON.parse(fv.text_value);
+                                                items = JSON.parse(fv.text_value || '[]');
                                                 if (!Array.isArray(items)) items = [];
                                             } catch { items = []; }
                                             if (items.length === 0) return <p className="text-[10px] text-gray-400 italic">Belum diisi</p>;

@@ -6,6 +6,7 @@ interface AddFieldModalProps {
     newField: any;
     setNewField: (v: any) => void;
     businessTypes: {id: number; name: string}[];
+    productCategories?: {id: number; name: string; business_type_id?: number}[];
     onSave: () => void;
     onClose: () => void;
     saving: boolean;
@@ -15,6 +16,7 @@ export const AddFieldModal = ({
     newField,
     setNewField,
     businessTypes,
+    productCategories = [],
     onSave,
     onClose,
     saving
@@ -96,6 +98,20 @@ export const AddFieldModal = ({
                         >
                             <option value="">Semua Bidang (Global)</option>
                             {businessTypes.map(bt => <option key={bt.id} value={bt.id}>{bt.name}</option>)}
+                        </select>
+                    </div>
+
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Terapkan Hanya Pada Jenis Produk:</label>
+                        <select 
+                            className="glass-input w-full text-xs font-bold" 
+                            value={newField.product_category_id || ''}
+                            onChange={e => setNewField((p: any) => ({ ...p, product_category_id: e.target.value }))}
+                        >
+                            <option value="">Semua Jenis Produk (Global)</option>
+                            {productCategories
+                                .filter(pc => !newField.business_type_id || pc.business_type_id === parseInt(newField.business_type_id))
+                                .map(pc => <option key={pc.id} value={pc.id}>{pc.name}</option>)}
                         </select>
                     </div>
 

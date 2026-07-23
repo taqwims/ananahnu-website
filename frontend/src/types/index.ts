@@ -99,6 +99,7 @@ export interface Submission {
     business_type?: BusinessType;
     province_id?: number;
     product_category_id?: number;
+    product_category?: ProductCategory;
     business_scale_id?: number;
     product_count?: number;
     branch_count?: number;

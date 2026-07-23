@@ -55,8 +55,14 @@ func (h *FormConfigHandler) GetConfig(c *gin.Context) {
 			btIDPtr = &id
 		}
 	}
+	var pcIDPtr *int64
+	if pcIDStr := c.Query("product_category_id"); pcIDStr != "" {
+		if id, err := strconv.ParseInt(pcIDStr, 10, 64); err == nil {
+			pcIDPtr = &id
+		}
+	}
 
-	configs, err := h.formConfigUC.GetFormConfig(formType, btIDPtr)
+	configs, err := h.formConfigUC.GetFormConfig(formType, btIDPtr, pcIDPtr)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -44,6 +44,7 @@ type Submission struct {
 	BusinessType        *BusinessType    `gorm:"foreignKey:BusinessTypeID" json:"business_type,omitempty"`
 	ProvinceID          *int64           `json:"province_id,omitempty"`
 	ProductCategoryID   *int64           `json:"product_category_id,omitempty"`
+	ProductCategory     *ProductCategory `gorm:"foreignKey:ProductCategoryID" json:"product_category,omitempty"`
 	BusinessScaleID     *int64           `json:"business_scale_id,omitempty"`
 	ProductCount        int              `gorm:"default:1" json:"product_count"`
 	BranchCount         int              `gorm:"default:1" json:"branch_count"`

@@ -25,11 +25,14 @@ func (r *formConfigRepository) FindByFormType(formType string) ([]domain.FormFie
 	return configs, nil
 }
 
-func (r *formConfigRepository) FindByFormTypeAndBusinessType(formType string, businessTypeID *int64) ([]domain.FormFieldConfig, error) {
+func (r *formConfigRepository) FindByFormTypeAndBusinessType(formType string, businessTypeID *int64, productCategoryID *int64) ([]domain.FormFieldConfig, error) {
 	var configs []domain.FormFieldConfig
 	query := r.db.Where("form_type = ? AND is_active = ?", formType, true)
 	if businessTypeID != nil {
 		query = query.Where("business_type_id = ? OR business_type_id IS NULL", *businessTypeID)
+	}
+	if productCategoryID != nil {
+		query = query.Where("product_category_id = ? OR product_category_id IS NULL", *productCategoryID)
 	}
 	if err := query.Order("sort_order ASC").Find(&configs).Error; err != nil {
 		return nil, err

@@ -169,14 +169,7 @@ export const ClientInfoSection = ({
                 selected_optional_component_ids: selectedOptionalComponentIds
             };
 
-            if (submission.service_type === 'REGULER') {
-                await onUpdateClientInfoAndPricing(payload);
-            } else {
-                await Promise.all([
-                    onUpdateClient(submission.client.id, payload),
-                    updatedClientForm.business_type_id ? onUpdateBusinessType(parseInt(updatedClientForm.business_type_id)) : Promise.resolve()
-                ]);
-            }
+            await onUpdateClientInfoAndPricing(payload);
             setIsEditingClient(false);
             setNibFile(null);
         } catch (e: any) {
