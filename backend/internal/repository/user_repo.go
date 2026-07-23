@@ -153,19 +153,25 @@ func (r *commissionRepository) Create(commission *domain.Commission) error {
 }
 
 func (r *commissionRepository) UpsertStructural(commission *domain.Commission) error {
-	// Find if there's already a structural commission for this user and period
 	var existing domain.Commission
-	err := r.db.Where("user_id = ? AND period = ? AND type = ?", commission.UserID, commission.Period, domain.CommissionTypeStructural).First(&existing).Error
-	
+	var query *gorm.DB
+	if commission.SubmissionID != nil {
+		query = r.db.Where("user_id = ? AND period = ? AND type = ? AND submission_id = ?", commission.UserID, commission.Period, commission.Type, commission.SubmissionID)
+	} else {
+		query = r.db.Where("user_id = ? AND period = ? AND type = ?", commission.UserID, commission.Period, commission.Type)
+	}
+
+	err := query.First(&existing).Error
 	if err == nil {
-		// Update existing
 		existing.Amount += commission.Amount
 		existing.BaseOmset += commission.BaseOmset
+		if commission.SubmissionID != nil {
+			existing.SubmissionID = commission.SubmissionID
+		}
 		existing.UpdatedAt = time.Now()
 		return r.db.Save(&existing).Error
 	}
-	
-	// Create new
+
 	return r.db.Create(commission).Error
 }
 
@@ -173,7 +179,7 @@ func (r *commissionRepository) FindAll(filter map[string]interface{}, page, limi
 	var commissions []domain.Commission
 	var total int64
 
-	db := r.db.Model(&domain.Commission{}).Preload("Referrer").Preload("Referred").Preload("Submission").Preload("User")
+	db := r.db.Model(&domain.Commission{}).Preload("Referrer").Preload("Referred").Preload("Submission").Preload("Submission.Client").Preload("User")
 
 	if t, ok := filter["type"]; ok {
 		db = db.Where("type = ?", t)

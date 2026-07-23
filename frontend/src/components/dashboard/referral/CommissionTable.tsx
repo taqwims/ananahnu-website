@@ -1,4 +1,5 @@
-import { CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { CheckCircle2, Clock, AlertCircle, ExternalLink } from 'lucide-react';
 import { formatRupiah } from '../../../utils/format';
 import type { Commission } from '../../../hooks/useReferralFeeAdmin';
 
@@ -45,6 +46,7 @@ export const CommissionTable = ({
                             <th className="px-8 py-5">Referrer (Penerima)</th>
                             <th className="px-8 py-5">Referral (User Baru)</th>
                             <th className="px-8 py-5">Submission / Tracking</th>
+                            <th className="px-8 py-5">Detail Pengajuan</th>
                             <th className="px-8 py-5">Besar Komisi</th>
                             <th className="px-8 py-5">Status</th>
                             <th className="px-8 py-5 text-right">Aksi</th>
@@ -54,12 +56,12 @@ export const CommissionTable = ({
                         {loading ? (
                             Array(5).fill(0).map((_, i) => (
                                 <tr key={i} className="animate-pulse">
-                                    <td colSpan={6} className="px-8 py-6 h-20 bg-gray-50/10"></td>
+                                    <td colSpan={7} className="px-8 py-6 h-20 bg-gray-50/10"></td>
                                 </tr>
                             ))
                         ) : commissions.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="px-8 py-20 text-center text-gray-400">
+                                <td colSpan={7} className="px-8 py-20 text-center text-gray-400">
                                     <div className="flex flex-col items-center gap-4">
                                         <div className="p-4 bg-gray-50 rounded-full">
                                             <AlertCircle className="w-10 h-10 opacity-20" />
@@ -69,35 +71,69 @@ export const CommissionTable = ({
                                 </td>
                             </tr>
                         ) : (
-                            commissions.map((comm) => (
-                                <tr key={comm.id} className="hover:bg-brand-50/20 transition-all group">
-                                    <td className="px-8 py-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center font-black text-sm shadow-inner group-hover:scale-110 transition-transform">
-                                                {comm.referrer?.full_name?.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <p className="font-black text-gray-900 text-sm">{comm.referrer?.full_name}</p>
-                                                <p className="text-[10px] text-gray-400 font-medium">{comm.referrer?.email}</p>
-                                                <p className="text-[10px] text-brand-600 font-black mt-0.5">{comm.referrer?.phone || '-'}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-8 py-6">
-                                        <p className="text-sm text-gray-800 font-bold">{comm.referred?.full_name}</p>
-                                        <p className="text-[10px] text-gray-400 font-medium">{comm.referred?.email}</p>
-                                        <p className="text-[10px] text-brand-600 font-black mt-0.5">{comm.referred?.phone || '-'}</p>
-                                    </td>
-                                    <td className="px-8 py-6">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-black font-mono bg-gray-100 text-gray-500 px-3 py-1 rounded-lg self-start mb-2 tracking-widest group-hover:bg-brand-100 group-hover:text-brand-700 transition-colors">
-                                                {comm.submission?.tracking_number}
-                                            </span>
-                                            <span className="text-xs text-gray-600 font-bold truncate max-w-[180px]">
-                                                {comm.submission?.client?.business_name}
-                                            </span>
-                                        </div>
-                                    </td>
+                            commissions.map((comm) => {
+                                const recipient = comm.referrer || comm.user;
+                                const subId = comm.submission?.id || comm.submission_id;
+
+                                return (
+                                    <tr key={comm.id} className="hover:bg-brand-50/20 transition-all group">
+                                        <td className="px-8 py-6">
+                                            {recipient ? (
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center font-black text-sm shadow-inner group-hover:scale-110 transition-transform">
+                                                        {recipient.full_name?.charAt(0) || '-'}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-black text-gray-900 text-sm">{recipient.full_name || '-'}</p>
+                                                        <p className="text-[10px] text-gray-400 font-medium">{recipient.email || '-'}</p>
+                                                        <p className="text-[10px] text-brand-600 font-black mt-0.5">{recipient.phone || '-'}</p>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-sm font-bold text-gray-400">-</span>
+                                            )}
+                                        </td>
+                                        <td className="px-8 py-6">
+                                            {comm.referred ? (
+                                                <div>
+                                                    <p className="text-sm text-gray-800 font-bold">{comm.referred?.full_name || '-'}</p>
+                                                    <p className="text-[10px] text-gray-400 font-medium">{comm.referred?.email || '-'}</p>
+                                                    <p className="text-[10px] text-brand-600 font-black mt-0.5">{comm.referred?.phone || '-'}</p>
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-gray-400 font-medium italic">Komisi Pengajuan / Insentif</span>
+                                            )}
+                                        </td>
+                                        <td className="px-8 py-6">
+                                            {subId ? (
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black font-mono bg-gray-100 text-gray-600 px-2.5 py-1 rounded-lg self-start mb-1 tracking-widest">
+                                                        #{comm.submission?.tracking_number || subId.slice(0, 8)}
+                                                    </span>
+                                                    <span className="text-xs text-gray-700 font-bold truncate max-w-[180px]">
+                                                        {comm.submission?.client?.business_name || 'Detail Pengajuan'}
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-bold">
+                                                    Registrasi Referral Baru
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-8 py-6">
+                                            {subId ? (
+                                                <Link
+                                                    to={`/dashboard/submissions/${subId}`}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-50 hover:bg-brand-600 text-brand-700 hover:text-white border border-brand-200 rounded-xl text-xs font-bold transition-all shadow-sm group/btn"
+                                                    title="Buka Halaman Detail Pengajuan"
+                                                >
+                                                    <span>Buka Detail</span>
+                                                    <ExternalLink className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
+                                                </Link>
+                                            ) : (
+                                                <span className="text-xs text-gray-400 font-medium italic">-</span>
+                                            )}
+                                        </td>
                                     <td className="px-8 py-6">
                                         <div className="flex flex-col">
                                             <span className="text-lg font-black text-brand-600 tracking-tight">{formatRupiah(comm.amount)}</span>
@@ -131,7 +167,8 @@ export const CommissionTable = ({
                                         )}
                                     </td>
                                 </tr>
-                            ))
+                            );
+                        })
                         )}
                     </tbody>
                 </table>

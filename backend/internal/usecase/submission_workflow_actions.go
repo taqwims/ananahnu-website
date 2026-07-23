@@ -249,7 +249,7 @@ func (uc *submissionWorkflowUsecase) ApproveWithDrafter(id uuid.UUID, userID uui
 	}
 
 	if sub.Status != domain.StatusQCOfficer {
-		return errors.New("assign drafter only available when status is QC_OFFICER")
+		return uc.Approve(id, userID, userRole)
 	}
 
 	if userRole != "QC_OFFICER" && userRole != "VERIFIKATOR" && userRole != "ADMIN" && userRole != "DIRECTOR" {

@@ -97,8 +97,8 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   // ── Jaringan & Referral ───────────────────────────────────────────
   'team':           ['HALAL_MANAGER', 'HALAL_DIRECTOR'],
   'referrals':      ['HALAL_MANAGER', 'HALAL_DIRECTOR', 'MARKETING', 'DIRECTOR'],
-  'admin-referrals':['DIRECTOR', 'ADMIN_PELATIHAN', 'ADMIN_KEUANGAN'],
-  'referral-fees':  ['DIRECTOR', 'ADMIN_KEUANGAN', 'ADMIN_PELATIHAN'],
+  'admin-referrals':['DIRECTOR', 'ADMIN_KEUANGAN'],
+  'referral-fees':  ['DIRECTOR', 'ADMIN_KEUANGAN'],
   'coordinator-rates': ['DIRECTOR', 'ADMIN_KEUANGAN'],
 
   // ── Operasional ───────────────────────────────────────────────────

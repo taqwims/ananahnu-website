@@ -241,13 +241,14 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 		// 1. Insentif Pendampingan untuk Halal Advisor (default 25%)
 		if pendampinganAmount > 0 {
 			_ = uc.CommissionRepo.UpsertStructural(&domain.Commission{
-				ID:        uuid.New(),
-				Type:      domain.CommissionTypeDirectSales,
-				UserID:    submission.ConsultantID,
-				Period:    period,
-				BaseOmset: pendampinganAmount,
-				Amount:    pendampinganAmount * feeDirectSales,
-				Status:    domain.CommissionStatusPending,
+				ID:           uuid.New(),
+				Type:         domain.CommissionTypeDirectSales,
+				UserID:       submission.ConsultantID,
+				Period:       period,
+				BaseOmset:    pendampinganAmount,
+				Amount:       pendampinganAmount * feeDirectSales,
+				Status:       domain.CommissionStatusPending,
+				SubmissionID: &invoice.SubmissionID,
 			})
 		}
 
@@ -278,13 +279,14 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 
 						if amt > 0 {
 							_ = uc.CommissionRepo.UpsertStructural(&domain.Commission{
-								ID:        uuid.New(),
-								Type:      domain.CommissionTypeOverride,
-								UserID:    &nodeUser.ID,
-								Period:    period,
-								BaseOmset: pendampinganAmount,
-								Amount:    amt,
-								Status:    domain.CommissionStatusPending,
+								ID:           uuid.New(),
+								Type:         domain.CommissionTypeOverride,
+								UserID:       &nodeUser.ID,
+								Period:       period,
+								BaseOmset:    pendampinganAmount,
+								Amount:       amt,
+								Status:       domain.CommissionStatusPending,
+								SubmissionID: &invoice.SubmissionID,
 							})
 						}
 					}
@@ -292,13 +294,14 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 					// Director gets director fee (default 2.5%), stops traversal
 					if pendampinganAmount > 0 {
 						_ = uc.CommissionRepo.UpsertStructural(&domain.Commission{
-							ID:        uuid.New(),
-							Type:      domain.CommissionTypeStructural,
-							UserID:    &nodeUser.ID,
-							Period:    period,
-							BaseOmset: pendampinganAmount,
-							Amount:    pendampinganAmount * feeDirector,
-							Status:    domain.CommissionStatusPending,
+							ID:           uuid.New(),
+							Type:         domain.CommissionTypeStructural,
+							UserID:       &nodeUser.ID,
+							Period:       period,
+							BaseOmset:    pendampinganAmount,
+							Amount:       pendampinganAmount * feeDirector,
+							Status:       domain.CommissionStatusPending,
+							SubmissionID: &invoice.SubmissionID,
 						})
 					}
 					break // Stop traversing up after finding a director

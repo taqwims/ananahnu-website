@@ -4,22 +4,31 @@ import toast from 'react-hot-toast';
 
 export interface Commission {
     id: string;
-    referrer_id: string;
+    type?: string;
+    referrer_id?: string;
     referrer?: {
         full_name: string;
         email: string;
         phone?: string;
         address?: string;
     };
-    referred_id: string;
+    referred_id?: string;
     referred?: {
         full_name: string;
         email: string;
         phone?: string;
         address?: string;
     };
-    submission_id: string;
+    user_id?: string;
+    user?: {
+        full_name: string;
+        email: string;
+        phone?: string;
+        address?: string;
+    };
+    submission_id?: string;
     submission?: {
+        id?: string;
         tracking_number: string;
         client?: {
             business_name: string;

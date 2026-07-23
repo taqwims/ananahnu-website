@@ -3,7 +3,10 @@ import { userService } from '../services/userService';
 import type { User, Role } from '../types';
 import toast from 'react-hot-toast';
 
+import { useAuthStore } from '../store/authStore';
+
 export const useUserManagement = () => {
+    const { user: currentUser, updateUser } = useAuthStore();
     const [users, setUsers] = useState<User[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [total, setTotal] = useState(0);
@@ -122,6 +125,15 @@ export const useUserManagement = () => {
 
             if (editingUser) {
                 await userService.updateUser(editingUser.id, payload);
+                if (currentUser && editingUser.id === currentUser.id) {
+                    updateUser({
+                        role: formData.role,
+                        full_name: formData.full_name,
+                        email: formData.email,
+                        phone: formData.phone,
+                        address: formData.address,
+                    });
+                }
                 setShowModal(false);
                 toast.success('User berhasil diperbarui');
             } else {

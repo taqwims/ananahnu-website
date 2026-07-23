@@ -1,10 +1,32 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import { useAuthStore } from '../../store/authStore';
+import { userService } from '../../services/userService';
 
 export default function DashboardLayout() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const updateUser = useAuthStore(state => state.updateUser);
+
+    useEffect(() => {
+        // Sync profil & role terbaru dari backend ke authStore
+        userService.getProfile().then(profile => {
+            if (profile && profile.role) {
+                updateUser({
+                    full_name: profile.full_name,
+                    email: profile.email,
+                    phone: profile.phone,
+                    address: profile.address,
+                    role: profile.role,
+                    avatar_url: profile.avatar_url,
+                    leader_id: profile.leader?.id || profile.leader_id
+                });
+            }
+        }).catch(err => {
+            console.error("Gagal sinkronisasi profil user:", err);
+        });
+    }, [updateUser]);
 
     return (
         <div className="flex h-screen overflow-hidden bg-gradient-to-br from-brand-50 to-brand-100">
