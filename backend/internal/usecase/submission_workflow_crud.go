@@ -179,6 +179,10 @@ func (uc *submissionWorkflowUsecase) CreateDraft(clientID *uuid.UUID, businessNa
 		uc.incrementFacilitationQuotaUsed()
 	}
 
+	if sub.ServiceType == "REGULER" || sub.ServiceType == "SELF_DECLARE_MANDIRI" {
+		_ = uc.recalculateAndSaveRegularCost(sub, nil, false)
+	}
+
 	uc.logChange(sub.ID, facilitatorID, "CREATE_DRAFT", "", domain.StatusDraft, "Initial draft created")
 	return sub, nil
 }
@@ -279,7 +283,8 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 
 	// Recalculate cost if REGULER or SELF_DECLARE_MANDIRI
 	if sub.ServiceType == "REGULER" || sub.ServiceType == "SELF_DECLARE_MANDIRI" {
-		if err := uc.recalculateAndSaveRegularCost(sub, nil, false); err != nil {
+		hasExplicit := len(input.SelectedOptionalIDs) > 0
+		if err := uc.recalculateAndSaveRegularCost(sub, input.SelectedOptionalIDs, hasExplicit); err != nil {
 			log.Printf("[CreateFull] failed to calculate regular cost: %v", err)
 		}
 	}

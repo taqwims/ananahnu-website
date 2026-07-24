@@ -325,10 +325,10 @@ export const ClientInfoSection = ({
                             <textarea className="glass-input w-full" rows={2} value={clientForm.address} onChange={e => setClientForm({...clientForm, address: e.target.value})} placeholder="Alamat lengkap usaha" />
                         </div>
 
-                        {submission.service_type === 'REGULER' && (
+                        {(submission.service_type === 'REGULER' || submission.service_type === 'SELF_DECLARE_MANDIRI') && (
                             <>
                                 <div className="sm:col-span-2 border-t border-gray-100 pt-4 mt-2">
-                                    <h4 className="text-xs font-bold text-brand-700 uppercase tracking-wider mb-2">Informasi Penentuan Harga (Reguler)</h4>
+                                    <h4 className="text-xs font-bold text-brand-700 uppercase tracking-wider mb-2">Informasi Penentuan Harga</h4>
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Provinsi Usaha <span className="text-red-500">*</span></label>
@@ -561,7 +561,7 @@ export const ClientInfoSection = ({
                     <InfoItem label="Produk Utama" value={submission.client?.product_name} />
                     <InfoItem label="Bidang Usaha" value={submission.business_type?.name} highlight />
                     <InfoItem label="Telepon" value={submission.client?.phone} />
-                    {submission.service_type === 'REGULER' && (
+                    {(submission.service_type === 'REGULER' || submission.service_type === 'SELF_DECLARE_MANDIRI') && (
                         <>
                             <InfoItem label="Provinsi" value={submission.cost_detail?.province?.name || '-'} />
                             <InfoItem label="Kabupaten / Kota" value={submission.cost_detail?.regency?.name || '-'} />
@@ -614,9 +614,9 @@ export const ClientInfoSection = ({
                 </div>
             )}
             
-            {submission.service_type === 'REGULER' && (
+            {(submission.service_type === 'REGULER' || submission.service_type === 'SELF_DECLARE_MANDIRI' || submission.service_type === 'SELF_DECLARE') && (
                 <div className="mt-6 flex flex-col sm:flex-row justify-between items-center bg-blue-50/50 p-4 rounded-2xl border border-blue-100 gap-4">
-                    <span className="text-xs text-blue-800 font-bold text-center sm:text-left">Layanan Reguler membutuhkan kontrak pendampingan.</span>
+                    <span className="text-xs text-blue-800 font-bold text-center sm:text-left">Pengajuan layanan ini dilengkapi dokumen Kontrak Layanan Pendampingan.</span>
                     <button 
                         onClick={async () => {
                             try {

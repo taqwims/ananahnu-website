@@ -3,6 +3,7 @@ import { useSubmissionCreate } from '../../hooks/useSubmissionCreate';
 import { VerificationAlert } from '../../components/dashboard/submission/create/VerificationAlert';
 import { ClientInfoForm } from '../../components/dashboard/submission/create/ClientInfoForm';
 import { SubmissionConfigForm } from '../../components/dashboard/submission/create/SubmissionConfigForm';
+import { SubmissionLiveCalculator } from '../../components/dashboard/submission/create/SubmissionLiveCalculator';
 import { SubmissionActions } from '../../components/dashboard/submission/create/SubmissionActions';
 
 export default function SubmissionCreate() {
@@ -36,7 +37,7 @@ export default function SubmissionCreate() {
                 </button>
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800">Buat Pengajuan Baru</h1>
-                    <p className="text-sm text-gray-500">Lengkapi data klien dan dokumen persyaratan</p>
+                    <p className="text-sm text-gray-500">Lengkapi data klien, kalkulasi biaya, dan dokumen persyaratan</p>
                 </div>
             </div>
 
@@ -59,7 +60,8 @@ export default function SubmissionCreate() {
                         districts={districts}
                     />
 
-                    <div className="block md:hidden">
+                    <div className="block md:hidden space-y-6">
+                        <SubmissionLiveCalculator clientData={clientData} setClientData={setClientData} />
                         <SubmissionActions 
                             onSave={handleSave}
                             saving={saving}
@@ -76,8 +78,9 @@ export default function SubmissionCreate() {
                     />
                 </div>
 
-                {/* Sidebar Actions */}
+                {/* Sidebar Actions & Live Calculator */}
                 <div className="hidden md:block space-y-6">
+                    <SubmissionLiveCalculator clientData={clientData} setClientData={setClientData} />
                     <SubmissionActions 
                         onSave={handleSave}
                         saving={saving}

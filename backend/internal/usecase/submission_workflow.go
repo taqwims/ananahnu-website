@@ -69,7 +69,8 @@ type CreateFullInput struct {
 		ProductCount      int    `json:"product_count"`
 		BranchCount       int    `json:"branch_count"`
 	} `json:"client_data"`
-	FieldValues []FieldValueInput `json:"field_values"`
+	SelectedOptionalIDs []int64           `json:"selected_optional_ids"`
+	FieldValues         []FieldValueInput `json:"field_values"`
 }
 
 type UpdateClientInfoAndPricingInput struct {
