@@ -31,8 +31,8 @@ export const useSubmissionCreate = () => {
         province_id: '',
         regency_id: '',
         district_id: '',
-        product_count: 0,
-        branch_count: 0
+        product_count: 1,
+        branch_count: 1
     });
 
     const [businessTypes, setBusinessTypes] = useState<any[]>([]);

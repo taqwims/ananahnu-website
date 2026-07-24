@@ -8,6 +8,7 @@ import { MasterDataManagement } from '../../components/dashboard/billing/MasterD
 import { QuotaSettings } from '../../components/dashboard/billing/QuotaSettings';
 import { DiscountPanel } from '../../components/dashboard/billing/DiscountPanel';
 import { RoleSchemePanel } from '../../components/dashboard/billing/RoleSchemePanel';
+import { SelfDeclareRates } from '../../components/dashboard/billing/SelfDeclareRates';
 import CoordinatorRates from './CoordinatorRates';
 
 export default function BillingConfigAdmin() {
@@ -141,6 +142,14 @@ export default function BillingConfigAdmin() {
             {activeMainTab === 'role_scheme' && (
                 <RoleSchemePanel
                     schemes={schemes}
+                />
+            )}
+
+            {activeMainTab === 'sd_rates' && (
+                <SelfDeclareRates
+                    systemSettings={systemSettings}
+                    setSystemSettings={setSystemSettings}
+                    onUpdate={handleUpdateSystemSetting}
                 />
             )}
 

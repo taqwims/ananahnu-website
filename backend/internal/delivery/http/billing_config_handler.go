@@ -344,6 +344,9 @@ func (h *BillingConfigHandler) GetBillingComponents(c *gin.Context) {
 	if v := c.Query("district_id"); v != "" {
 		filter["district_id"] = v
 	}
+	if v := c.Query("service_type"); v != "" {
+		filter["service_type"] = v
+	}
 	if v := c.Query("resolve_geography"); v == "true" {
 		filter["resolve_geography"] = true
 	}

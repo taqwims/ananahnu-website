@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Loader2, Save, Plus, Trash, BookOpen } from 'lucide-react';
+import { Loader2, Save, Plus, Trash, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { formatRupiah } from '../../utils/format';
@@ -12,6 +12,7 @@ type Props = {
     readOnly?: boolean;
     salesSchemeId?: number;
     dataSource?: string;
+    defaultCollapsed?: boolean;
 };
 
 type OptionalCost = {
@@ -20,10 +21,11 @@ type OptionalCost = {
     qty?: number;
 };
 
-export default function KalkulatorReguler({ submissionId, onSaved, readOnly = false, salesSchemeId, dataSource = 'ORGANIK' }: Props) {
+export default function KalkulatorReguler({ submissionId, onSaved, readOnly = false, salesSchemeId, dataSource = 'ORGANIK', defaultCollapsed = false }: Props) {
     const user = useAuthStore(state => state.user);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
 
     // Master Data
     const [businessTypes, setBusinessTypes] = useState<any[]>([]);
@@ -36,8 +38,9 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
 
     // Dynamic cost components from master biaya
     const [masterComponents, setMasterComponents] = useState<BillingComponent[]>([]);
-    const [loadingComponents, setLoadingComponents] = useState(false);
     const [salesSchemePrice, setSalesSchemePrice] = useState<any | null>(null);
+    const [loadingComponents, setLoadingComponents] = useState(false);
+    const [systemSettings, setSystemSettings] = useState<Record<string, string>>({});
 
     // Form State
     const [businessTypeId, setBusinessTypeId] = useState('');
@@ -58,6 +61,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     const [address, setAddress] = useState('');
     const [salesSchemeVal, setSalesSchemeVal] = useState('');
     const [dataSourceVal, setDataSourceVal] = useState('ORGANIK');
+    const [serviceTypeVal, setServiceTypeVal] = useState('');
 
     // Quantities
     const [branchCount, setBranchCount] = useState(1);
@@ -104,6 +108,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             if (provinceId) params.province_id = provinceId;
             if (regencyId) params.regency_id = regencyId;
             if (districtId) params.district_id = districtId;
+            if (serviceTypeVal) params.service_type = serviceTypeVal;
             if (dataSource) {
                 // Map TELEMARKETING to ORGANIK so it can fetch the master biaya components
                 params.data_source = dataSource === 'TELEMARKETING' ? 'ORGANIK' : dataSource;
@@ -161,13 +166,13 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         } finally {
             setLoadingComponents(false);
         }
-    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, salesSchemeId, dataSource, schemes]);
+    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, salesSchemeId, dataSource, schemes, serviceTypeVal]);
 
     // Load master data + existing cost detail on mount
     useEffect(() => {
         const fetchMasterData = async () => {
             try {
-                const [btRes, pRes, bsRes, provRes, scRes, detailRes, formValsRes, subRes] = await Promise.all([
+                const [btRes, pRes, bsRes, provRes, scRes, detailRes, formValsRes, subRes, sysRes] = await Promise.all([
                     api.get('/billing-config/business-types').catch(() => ({ data: [] })),
                     api.get('/billing-config/product-categories').catch(() => ({ data: [] })),
                     api.get('/billing-config/business-scales').catch(() => ({ data: [] })),
@@ -175,7 +180,8 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                     api.get('/billing-config/sales-schemes').catch(() => ({ data: [] })),
                     api.get(`/submissions/${submissionId}/cost-detail`).catch(() => ({ data: null })),
                     api.get(`/submission-fields/${submissionId}`).catch(() => ({ data: [] })),
-                    api.get(`/submissions/${submissionId}`).catch(() => ({ data: null }))
+                    api.get(`/submissions/${submissionId}`).catch(() => ({ data: null })),
+                    api.get('/system-settings').catch(() => ({ data: {} }))
                 ]);
 
                 setBusinessTypes(btRes.data || []);
@@ -184,6 +190,14 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 setProvinces(provRes.data || []);
                 setSchemes(scRes.data || []);
                 setSubmissionFieldValues(formValsRes.data || []);
+
+                const settingsMap: Record<string, string> = {};
+                if (sysRes.data && Array.isArray(sysRes.data)) {
+                    sysRes.data.forEach((s: any) => { settingsMap[s.key] = s.value; });
+                } else if (sysRes.data && typeof sysRes.data === 'object') {
+                    Object.assign(settingsMap, sysRes.data);
+                }
+                setSystemSettings(settingsMap);
 
                 if (subRes.data && subRes.data.client) {
                     const c = subRes.data.client;
@@ -196,6 +210,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                     setAddress(c.address || '');
                     setSalesSchemeVal(subRes.data.sales_scheme_id?.toString() || '');
                     setDataSourceVal(subRes.data.data_source || 'ORGANIK');
+                    setServiceTypeVal(subRes.data.service_type || 'REGULER');
                 }
 
                 if (detailRes.data && detailRes.data.id) {
@@ -299,6 +314,8 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         
         masterComponents.forEach(comp => {
             if (!comp || !comp.category) return;
+            const compSt = comp.service_type || 'REGULER';
+            if (compSt !== 'BOTH' && compSt !== 'ALL' && serviceTypeVal && compSt !== serviceTypeVal) return;
             const cat = comp.category.toUpperCase();
             if (cat === 'PENDAMPINGAN') return; // Skip PENDAMPINGAN as it is handled separately below
             
@@ -376,6 +393,8 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         let bestPendScore = -1;
         masterComponents.forEach(comp => {
             if (!comp || comp.category.toUpperCase() !== 'PENDAMPINGAN') return;
+            const compSt = comp.service_type || 'REGULER';
+            if (compSt !== 'BOTH' && compSt !== 'ALL' && serviceTypeVal && compSt !== serviceTypeVal) return;
 
             // Match filters
             if (comp.province_id && comp.province_id.toString() !== provinceId) return;
@@ -402,32 +421,54 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         let finalPrice = 0;
         let dispName = 'Jasa Pendampingan';
         let dispCategory = 'PENDAMPINGAN';
+        let pendDiscountPercent = 0;
 
         if (bestPend) {
             finalPrice = bestPend.base_amount;
             dispName = bestPend.name;
             dispCategory = bestPend.category;
-        } else if (salesSchemePrice) {
+            if (bestPend.discount_percent && bestPend.discount_percent > 0) {
+                pendDiscountPercent = bestPend.discount_percent;
+            }
+        } else if (serviceTypeVal === 'REGULER' && salesSchemePrice) {
             finalPrice = salesSchemePrice.base_price;
             if (salesSchemePrice.sales_scheme?.name) {
                 dispName = salesSchemePrice.sales_scheme.name;
             }
+        } else if (serviceTypeVal === 'SELF_DECLARE_MANDIRI') {
+            const sysCost = systemSettings['SD_MANDIRI_COST'];
+            finalPrice = sysCost ? parseFloat(sysCost) : 230000;
+            dispName = 'Biaya Self Declare Mandiri';
         }
 
-        if (salesSchemePrice && salesSchemePrice.discount_percent > 0) {
-            finalPrice = finalPrice - (finalPrice * (salesSchemePrice.discount_percent / 100));
+        if (pendDiscountPercent === 0 && salesSchemePrice && salesSchemePrice.discount_percent > 0) {
+            pendDiscountPercent = salesSchemePrice.discount_percent;
         }
 
-        if (finalPrice > 0) {
+        const basePendPrice = finalPrice;
+        if (basePendPrice > 0) {
             currentBreakdown.push({
                 name: dispName,
                 category: dispCategory.toUpperCase(),
-                unit_cost: finalPrice,
+                unit_cost: basePendPrice,
                 multiplier: null,
-                total: finalPrice,
+                total: basePendPrice,
                 is_optional: false
             });
-            currentTotal += finalPrice;
+            currentTotal += basePendPrice;
+
+            if (pendDiscountPercent > 0) {
+                const discAmount = basePendPrice * (pendDiscountPercent / 100);
+                currentBreakdown.push({
+                    name: `Diskon ${dispName} (${pendDiscountPercent}%)`,
+                    category: 'DISKON',
+                    unit_cost: -discAmount,
+                    multiplier: null,
+                    total: -discAmount,
+                    is_optional: false
+                });
+                currentTotal -= discAmount;
+            }
         }
 
         // 2. Partnership discount on pendampingan
@@ -452,6 +493,8 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         masterComponents.forEach(comp => {
             if (!comp || !comp.category || comp.is_mandatory) return;
             if (comp.category.toUpperCase() === 'PENDAMPINGAN') return;
+            const compSt = comp.service_type || 'REGULER';
+            if (compSt !== 'BOTH' && compSt !== 'ALL' && serviceTypeVal && compSt !== serviceTypeVal) return;
 
             let shouldInclude = false;
             if (comp.form_field_config_id) {
@@ -584,11 +627,47 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     const isEditable = !readOnly && canEdit;
     const canEditOptional = isEditable && (user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR');
 
+    if (isCollapsed) {
+        return (
+            <div className="bg-white p-5 rounded-2xl border border-gray-150 shadow-sm mt-6 flex items-center justify-between hover:border-brand-300 transition-all cursor-pointer select-none" onClick={() => setIsCollapsed(false)}>
+                <div className="flex items-center gap-3">
+                    <div className="w-2.5 h-2.5 rounded-full bg-brand-600"></div>
+                    <div>
+                        <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Form Perhitungan Biaya</h4>
+                        <p className="text-xs text-gray-500">Form parameter & rincian biaya dapat di-expand dan diedit.</p>
+                    </div>
+                </div>
+                <button type="button" onClick={(e) => { e.stopPropagation(); setIsCollapsed(false); }} className="px-4 py-2 bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-bold rounded-xl border border-brand-200 transition-all flex items-center gap-1.5">
+                    <span>Buka Form Kalkulasi</span>
+                    <ChevronDown className="w-4 h-4" />
+                </button>
+            </div>
+        );
+    }
+
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 bg-white p-4 sm:p-6 md:p-8 rounded-2xl border border-gray-100 shadow-xl mt-8">
-            {/* Left Column: Form */}
-            <div className="space-y-6">
-                <h3 className="text-2xl font-bold text-brand-700">Form Perhitungan Biaya</h3>
+        <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl border border-gray-100 shadow-xl mt-8">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
+                <div className="flex items-center gap-3">
+                    <div className="w-2 h-6 bg-brand-600 rounded-full"></div>
+                    <div>
+                        <h3 className="text-xl font-black text-brand-700 uppercase tracking-wider">Form Perhitungan Biaya</h3>
+                        <p className="text-xs text-gray-500">Parameter & opsi biaya pendampingan (Editable)</p>
+                    </div>
+                </div>
+                <button 
+                    type="button" 
+                    onClick={() => setIsCollapsed(true)} 
+                    className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-all flex items-center gap-1"
+                >
+                    <span>Tutup Form</span>
+                    <ChevronUp className="w-4 h-4" />
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+                {/* Left Column: Form */}
+                <div className="space-y-6">
 
                 {/* Data Source Badge */}
                 {dataSource && (
@@ -1108,6 +1187,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                     <p className="text-[10px] text-gray-400 italic leading-relaxed">
                         *Perhitungan biaya mengacu pada Kep Kaban No. 22 Tahun 2024 sebagai tarif batas atas. LPH dapat menyesuaikan biaya sesuai kebijakan masing-masing.
                     </p>
+                </div>
                 </div>
             </div>
         </div>

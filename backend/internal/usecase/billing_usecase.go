@@ -233,9 +233,9 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 	// Read dynamic fee rates from SystemSettings (configurable by Keuangan)
 	feeDirectSales := uc.getFeeRate("fee_direct_sales_percent", 25.0) / 100.0
 	feeOverrideReguler := uc.getFeeRate("fee_override_percent", 5.0) / 100.0
-	feeOverrideSelfDeclare := uc.getFeeRate("fee_override_self_declare", 15000.0)
+	feeOverrideSelfDeclare := uc.getFeeRate("fee_override_self_declare", 5.0) / 100.0
 	feeDirector := uc.getFeeRate("fee_director_percent", 2.5) / 100.0
-	feeDirectorSelfDeclare := uc.getFeeRate("fee_director_override_self_declare", 10000.0)
+	feeDirectorSelfDeclare := uc.getFeeRate("fee_director_override_self_declare", 2.5) / 100.0
 
 	submission, _ := uc.SubmissionRepo.FindByID(invoice.SubmissionID)
 	if submission != nil && submission.ConsultantID != nil {
@@ -272,8 +272,10 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 						foundManager = true
 						// First Manager: Override
 						var amt float64
-						if submission.ServiceType == "SELF_DECLARE" {
-							amt = feeOverrideSelfDeclare
+						var baseOmset float64 = pendampinganAmount
+						if submission.ServiceType == "SELF_DECLARE" || submission.ServiceType == "SELF_DECLARE_MANDIRI" {
+							baseOmset = invoice.Amount
+							amt = invoice.Amount * feeOverrideSelfDeclare
 						} else {
 							amt = pendampinganAmount * feeOverrideReguler
 						}
@@ -284,7 +286,7 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 								Type:         domain.CommissionTypeOverride,
 								UserID:       &nodeUser.ID,
 								Period:       period,
-								BaseOmset:    pendampinganAmount,
+								BaseOmset:    baseOmset,
 								Amount:       amt,
 								Status:       domain.CommissionStatusPending,
 								SubmissionID: &invoice.SubmissionID,
@@ -294,8 +296,10 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 				} else if roleName == "HALAL_DIRECTOR" {
 					// Director gets director override
 					var directorAmt float64
-					if submission.ServiceType == "SELF_DECLARE" {
-						directorAmt = feeDirectorSelfDeclare
+					var baseOmset float64 = pendampinganAmount
+					if submission.ServiceType == "SELF_DECLARE" || submission.ServiceType == "SELF_DECLARE_MANDIRI" {
+						baseOmset = invoice.Amount
+						directorAmt = invoice.Amount * feeDirectorSelfDeclare
 					} else {
 						directorAmt = pendampinganAmount * feeDirector
 					}
@@ -306,7 +310,7 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 							Type:         domain.CommissionTypeStructural,
 							UserID:       &nodeUser.ID,
 							Period:       period,
-							BaseOmset:    pendampinganAmount,
+							BaseOmset:    baseOmset,
 							Amount:       directorAmt,
 							Status:       domain.CommissionStatusPending,
 							SubmissionID: &invoice.SubmissionID,

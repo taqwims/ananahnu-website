@@ -48,7 +48,7 @@ export const BillingComponentTable = ({
                                         {c.type === 'PER_MANDAY' ? 'PER KUANTITAS' : c.type}
                                     </span>
                                     <span className="ml-1.5 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-[10px] font-semibold text-blue-600">
-                                        {c.service_type || 'REGULER'}
+                                        {c.service_type === 'SELF_DECLARE_MANDIRI' ? 'SD MANDIRI' : c.service_type === 'SELF_DECLARE' ? 'SD FASILITASI' : (c.service_type || 'REGULER')}
                                     </span>
                                 </div>
                             </td>

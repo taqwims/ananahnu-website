@@ -12,7 +12,8 @@ import {
     X,
     Eye,
     ShieldCheck,
-    RotateCcw
+    RotateCcw,
+    Calendar
 } from 'lucide-react';
 import api from '../../services/api';
 import { submissionService } from '../../services/submissionService';
@@ -27,6 +28,7 @@ export default function SHWorkspace() {
     const [search, setSearch] = useState('');
     const [activeTab, setActiveTab] = useState<'pending' | 'completed' | 'all'>('pending');
     const [serviceTypeFilter, setServiceTypeFilter] = useState('');
+    const [monthYearFilter, setMonthYearFilter] = useState('');
 
     // Modal state for issuing SH
     const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
@@ -65,6 +67,14 @@ export default function SHWorkspace() {
                 return false;
             }
 
+            // Month-Year filter (YYYY-MM)
+            if (monthYearFilter) {
+                const subDate = sub.created_at || (sub as any).CreatedAt || '';
+                if (!subDate.startsWith(monthYearFilter)) {
+                    return false;
+                }
+            }
+
             // Search filter
             if (search.trim()) {
                 const q = search.toLowerCase();
@@ -76,7 +86,7 @@ export default function SHWorkspace() {
 
             return true;
         });
-    }, [submissions, activeTab, serviceTypeFilter, search]);
+    }, [submissions, activeTab, serviceTypeFilter, monthYearFilter, search]);
 
     // Counts
     const pendingCount = useMemo(() => {
@@ -284,7 +294,29 @@ export default function SHWorkspace() {
                         <option value="">Semua Layanan</option>
                         <option value="REGULER">REGULER</option>
                         <option value="SELF_DECLARE">SELF DECLARE</option>
+                        <option value="SELF_DECLARE_MANDIRI">SELF DECLARE MANDIRI</option>
                     </select>
+
+                    {/* Month-Year Filter */}
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/70 border border-gray-200 rounded-xl">
+                        <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                        <input 
+                            type="month"
+                            value={monthYearFilter}
+                            onChange={e => setMonthYearFilter(e.target.value)}
+                            className="bg-transparent text-xs font-bold text-gray-700 outline-none cursor-pointer"
+                            title="Filter Bulan & Tahun"
+                        />
+                        {monthYearFilter && (
+                            <button 
+                                onClick={() => setMonthYearFilter('')}
+                                className="text-gray-400 hover:text-gray-600 p-0.5"
+                                title="Reset Filter Bulan"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 

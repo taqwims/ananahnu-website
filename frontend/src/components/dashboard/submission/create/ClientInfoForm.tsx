@@ -1,5 +1,3 @@
-import { useAuthStore } from '../../../../store/authStore';
-
 interface ClientInfoFormProps {
     clientData: any;
     setClientData: (v: any) => void;
@@ -21,10 +19,6 @@ export const ClientInfoForm = ({
     regencies = [],
     districts = []
 }: ClientInfoFormProps) => {
-    const user = useAuthStore(state => state.user);
-    const role = user?.role || '';
-    const isHalalAgency = role === 'HALAL_ADVISOR' || role === 'HALAL_MANAGER' || role === 'HALAL_DIRECTOR';
-
     return (
         <div className="glass-panel p-6">
             <h3 className="text-lg font-semibold mb-4">Informasi Klien</h3>
@@ -99,101 +93,84 @@ export const ClientInfoForm = ({
                     </select>
                 </div>
 
-                {isHalalAgency && (
-                    <>
+                <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Skala Usaha <span className="text-red-500">*</span></label>
+                    <select 
+                        className="glass-input w-full"
+                        value={clientData.business_scale_id}
+                        onChange={e => setClientData({...clientData, business_scale_id: e.target.value})}
+                    >
+                        <option value="">Pilih Skala Usaha</option>
+                        {businessScales.map(bs => (
+                            <option key={bs.id} value={bs.id}>{bs.name}</option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Provinsi <span className="text-red-500">*</span></label>
+                    <select 
+                        className="glass-input w-full"
+                        value={clientData.province_id}
+                        onChange={e => setClientData({...clientData, province_id: e.target.value, regency_id: '', district_id: ''})}
+                    >
+                        <option value="">Pilih Provinsi</option>
+                        {provinces.map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Kabupaten/Kota <span className="text-red-500">*</span></label>
+                    <select 
+                        className="glass-input w-full disabled:opacity-50"
+                        value={clientData.regency_id}
+                        disabled={!clientData.province_id}
+                        onChange={e => setClientData({...clientData, regency_id: e.target.value, district_id: ''})}
+                    >
+                        <option value="">Pilih Kabupaten/Kota</option>
+                        {regencies.map(r => (
+                            <option key={r.id} value={r.id}>{r.name}</option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Kecamatan <span className="text-red-500">*</span></label>
+                    <select 
+                        className="glass-input w-full disabled:opacity-50"
+                        value={clientData.district_id}
+                        disabled={!clientData.regency_id}
+                        onChange={e => setClientData({...clientData, district_id: e.target.value})}
+                    >
+                        <option value="">Pilih Kecamatan</option>
+                        {districts.map(d => (
+                            <option key={d.id} value={d.id}>{d.name}</option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <div className="grid grid-cols-2 gap-2">
                         <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Kategori Produk <span className="text-red-500">*</span></label>
-                            <select 
-                                className="glass-input w-full"
-                                value={clientData.product_category_id}
-                                onChange={e => setClientData({...clientData, product_category_id: e.target.value})}
-                            >
-                                <option value="">Pilih Kategori Produk</option>
-                                {productCategories.map(pc => (
-                                    <option key={pc.id} value={pc.id}>{pc.name}</option>
-                                ))}
-                            </select>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">Jumlah Cabang</label>
+                            <input 
+                                type="number"
+                                min={1}
+                                className="glass-input w-full" 
+                                value={clientData.branch_count || 1} 
+                                onChange={e => setClientData({...clientData, branch_count: Math.max(1, parseInt(e.target.value) || 1)})} 
+                            />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Skala Usaha <span className="text-red-500">*</span></label>
-                            <select 
-                                className="glass-input w-full"
-                                value={clientData.business_scale_id}
-                                onChange={e => setClientData({...clientData, business_scale_id: e.target.value})}
-                            >
-                                <option value="">Pilih Skala Usaha</option>
-                                {businessScales.map(bs => (
-                                    <option key={bs.id} value={bs.id}>{bs.name}</option>
-                                ))}
-                            </select>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">Jumlah Produk</label>
+                            <input 
+                                type="number"
+                                min={1}
+                                className="glass-input w-full" 
+                                value={clientData.product_count || 1} 
+                                onChange={e => setClientData({...clientData, product_count: Math.max(1, parseInt(e.target.value) || 1)})} 
+                            />
                         </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Provinsi <span className="text-red-500">*</span></label>
-                            <select 
-                                className="glass-input w-full"
-                                value={clientData.province_id}
-                                onChange={e => setClientData({...clientData, province_id: e.target.value, regency_id: '', district_id: ''})}
-                            >
-                                <option value="">Pilih Provinsi</option>
-                                {provinces.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Kabupaten/Kota <span className="text-red-500">*</span></label>
-                            <select 
-                                className="glass-input w-full disabled:opacity-50"
-                                value={clientData.regency_id}
-                                disabled={!clientData.province_id}
-                                onChange={e => setClientData({...clientData, regency_id: e.target.value, district_id: ''})}
-                            >
-                                <option value="">Pilih Kabupaten/Kota</option>
-                                {regencies.map(r => (
-                                    <option key={r.id} value={r.id}>{r.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Kecamatan <span className="text-red-500">*</span></label>
-                            <select 
-                                className="glass-input w-full disabled:opacity-50"
-                                value={clientData.district_id}
-                                disabled={!clientData.regency_id}
-                                onChange={e => setClientData({...clientData, district_id: e.target.value})}
-                            >
-                                <option value="">Pilih Kecamatan</option>
-                                {districts.map(d => (
-                                    <option key={d.id} value={d.id}>{d.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-500 mb-1">Jumlah Cabang</label>
-                                    <input 
-                                        type="number"
-                                        min={0}
-                                        className="glass-input w-full" 
-                                        value={clientData.branch_count} 
-                                        onChange={e => setClientData({...clientData, branch_count: parseInt(e.target.value) || 0})} 
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-500 mb-1">Jumlah Produk</label>
-                                    <input 
-                                        type="number"
-                                        min={0}
-                                        className="glass-input w-full" 
-                                        value={clientData.product_count} 
-                                        onChange={e => setClientData({...clientData, product_count: parseInt(e.target.value) || 0})} 
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </>
-                )}
+                    </div>
+                </div>
 
                 <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1">NIB</label>

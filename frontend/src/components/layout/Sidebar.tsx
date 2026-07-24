@@ -83,6 +83,7 @@ const GROUPS: SidebarGroup[] = [
             { name: 'Verifikasi Advisor',  pathKey: 'consultant-verification', to: '/dashboard/consultant-verification', icon: Shield },
             { name: 'Pelatihan',           pathKey: 'training',                to: '/dashboard/training',                icon: GraduationCap },
             { name: 'Pengajuan Promosi',   pathKey: 'admin-promosi',           to: '/dashboard/admin-promosi',           icon: Award },
+            { name: 'Performa Advisor',    pathKey: 'advisor-performance',     to: '/dashboard/advisor-performance',     icon: TrendingUp },
         ],
     },
     {

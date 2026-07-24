@@ -56,6 +56,7 @@ import AdvisorsGeo from './pages/dashboard/AdvisorsGeo';
 import CoordinatorDashboard from './pages/dashboard/CoordinatorDashboard';
 import UserManagement from './pages/dashboard/UserManagement';
 import ConsultantVerification from './pages/dashboard/ConsultantVerification';
+import AdvisorPerformance from './pages/dashboard/AdvisorPerformance';
 import TrackSubmission from './pages/tracking/TrackSubmission';
 import VerifyInvoice from './pages/tracking/VerifyInvoice';
 import VerifyAgreement from './pages/tracking/VerifyAgreement';
@@ -201,6 +202,9 @@ function App() {
           } />
           <Route path="admin-promosi" element={
             <RoleRoute path="admin-promosi"><AdminPelatihanPromosi /></RoleRoute>
+          } />
+          <Route path="advisor-performance" element={
+            <RoleRoute path="advisor-performance"><AdvisorPerformance /></RoleRoute>
           } />
 
           {/* Pengaturan Sistem */}

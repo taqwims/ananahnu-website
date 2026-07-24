@@ -33,6 +33,7 @@ func NewConsultantHandler(r *gin.Engine, uc usecase.ConsultantUsecase) {
 		{
 			adminOnly.GET("/profiles", handler.GetAllProfiles)
 			adminOnly.PUT("/profiles/:userId/verify", handler.VerifyProfile)
+			adminOnly.GET("/advisor-performance", handler.GetAdvisorPerformance)
 		}
 	}
 }
@@ -139,4 +140,23 @@ func (h *ConsultantHandler) VerifyProfile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "verification updated"})
+}
+
+// GetAdvisorPerformance returns productivity performance status for Halal Advisors
+func (h *ConsultantHandler) GetAdvisorPerformance(c *gin.Context) {
+	period := c.Query("period")
+	var managerIDPtr *uuid.UUID
+	if managerIDStr := c.Query("manager_id"); managerIDStr != "" {
+		if id, err := uuid.Parse(managerIDStr); err == nil {
+			managerIDPtr = &id
+		}
+	}
+
+	performance, err := h.consultantUC.GetAdvisorPerformance(period, managerIDPtr)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, performance)
 }

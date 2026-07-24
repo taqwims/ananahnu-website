@@ -248,9 +248,9 @@ func (uc *financeUsecase) GetFeeConfig() ([]FeeConfigItem, error) {
 		{"fee_referral_percent", "Insentif Referral Halal Manager (%)", 1.0},
 		{"fee_director_referral_percent", "Insentif Referral Halal Director (%)", 1.0},
 		{"fee_override_percent", "Insentif Override Halal Manager Reguler (%)", 5.0},
-		{"fee_override_self_declare", "Insentif Override Halal Manager Self Declare (Rp / Flat)", 15000.0},
+		{"fee_override_self_declare", "Insentif Override Halal Manager Self Declare (%)", 5.0},
 		{"fee_director_percent", "Insentif Override Halal Director Reguler (%)", 2.5},
-		{"fee_director_override_self_declare", "Insentif Override Halal Director Self Declare (Rp / Flat)", 10000.0},
+		{"fee_director_override_self_declare", "Insentif Override Halal Director Self Declare (%)", 2.5},
 	}
 
 	var items []FeeConfigItem

@@ -126,6 +126,9 @@ func (r *billingConfigRepo) FindAllBillingComponents(filter map[string]interface
 	if val, ok := filter["data_source"]; ok && val != "" {
 		query = query.Where("data_source = ? OR data_source = 'BOTH'", val)
 	}
+	if val, ok := filter["service_type"]; ok && val != "" {
+		query = query.Where("service_type = ? OR service_type = 'BOTH' OR service_type = 'ALL' OR service_type = '' OR service_type IS NULL", val)
+	}
 	resolveGeo, _ := filter["resolve_geography"].(bool)
 
 	if val, ok := filter["province_id"]; ok && val != "" {

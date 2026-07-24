@@ -1,4 +1,6 @@
+import { Download } from 'lucide-react';
 import type { Submission } from '../../../types';
+import toast from 'react-hot-toast';
 
 interface ContractTextPreviewProps {
     submission: Submission;
@@ -6,6 +8,42 @@ interface ContractTextPreviewProps {
 
 export default function ContractTextPreview({ submission }: ContractTextPreviewProps) {
     const client = submission.client;
+
+    const handlePrint = () => {
+        const printElem = document.getElementById(`contract-doc-${submission.id}`);
+        if (!printElem) return;
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            toast.error('Gagal membuka jendela cetak. Izinkan popup pada browser Anda.');
+            return;
+        }
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Kontrak Layanan Pendampingan - ${submission.tracking_number || ''}</title>
+                <script src="https://cdn.tailwindcss.com"></script>
+                <style>
+                    @media print {
+                        .no-print { display: none !important; }
+                        body { -webkit-print-color-adjust: exact; padding: 0; }
+                    }
+                    body { padding: 20px; font-family: ui-sans-serif, system-ui, sans-serif; background: #fff; }
+                </style>
+            </head>
+            <body>
+                ${printElem.outerHTML}
+                <script>
+                    setTimeout(() => {
+                        window.print();
+                    }, 500);
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
     if (!client) return null;
     const clientName = client.business_name || client.client_name;
     const address = client.address || '-';
@@ -49,9 +87,26 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
     const generatedAtLocal = contractDateText;
 
     return (
-        <div className="space-y-8 text-xs text-gray-800 leading-relaxed font-serif bg-white max-w-4xl mx-auto p-4 sm:p-10 border border-gray-200 rounded-xl shadow-lg">
-            {/* Logo and Header Block */}
-            <div className="flex justify-between items-start border-b border-gray-200 pb-4">
+        <div className="space-y-4 max-w-4xl mx-auto">
+            {/* Top Action Bar */}
+            <div className="flex justify-between items-center bg-indigo-50/80 p-3 sm:p-4 rounded-xl border border-indigo-100 font-sans no-print">
+                <div>
+                    <span className="text-xs font-bold text-indigo-950 block">Draf Perjanjian Layanan Pendampingan</span>
+                    <span className="text-[11px] text-indigo-700">Unduh atau cetak dokumen Perjanjian Layanan Pendampingan Sertifikasi Halal.</span>
+                </div>
+                <button
+                    type="button"
+                    onClick={handlePrint}
+                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 shadow-sm shrink-0"
+                >
+                    <Download className="w-4 h-4" />
+                    <span>Download / Cetak Kontrak</span>
+                </button>
+            </div>
+
+            <div id={`contract-doc-${submission.id}`} className="space-y-8 text-xs text-gray-800 leading-relaxed font-serif bg-white p-4 sm:p-10 border border-gray-200 rounded-xl shadow-lg">
+                {/* Logo and Header Block */}
+                <div className="flex justify-between items-start border-b border-gray-200 pb-4">
                 <div className="text-left space-y-1 font-sans">
                     <p className="text-[10px] font-bold text-amber-700 tracking-wider">PERJANJIAN LAYANAN</p>
                     <h2 className="text-xl font-black text-sky-900 tracking-wide">KONTRAK PENDAMPINGAN</h2>
@@ -488,5 +543,6 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
                 </div>
             </div>
         </div>
-    );
+    </div>
+);
 }

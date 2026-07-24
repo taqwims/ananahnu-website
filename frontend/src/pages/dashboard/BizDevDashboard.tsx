@@ -510,7 +510,7 @@ export default function BizDevDashboard() {
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 text-xs font-bold text-amber-800">
-                                        {s.service_type === 'SELF_DECLARE' ? (
+                                        {(s.service_type === 'SELF_DECLARE' || s.service_type === 'SELF_DECLARE_MANDIRI') ? (
                                             <span className="text-gray-400 font-medium italic text-[11px]">- (Tanpa Audit)</span>
                                         ) : s.audit_date ? (
                                             <span className="flex items-center gap-1 text-amber-900">

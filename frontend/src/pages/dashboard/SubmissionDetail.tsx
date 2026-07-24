@@ -298,7 +298,20 @@ return (
                     {/* Dedicated Data Return Documentation Card */}
                     <DataReturnNoticeCard submission={submission} />
 
-                    {serviceType === 'REGULER' ? (
+                    {/* Informasi Client Read Only */}
+                    <ClientInfoSection 
+                        submission={submission} 
+                        user={user} 
+                        onUpdateClient={updateClient} 
+                        onUpdateClientInfoAndPricing={updateClientInfoAndPricing}
+                        onUpdateBusinessType={updateBusinessType}
+                        businessTypes={businessTypes}
+                        processing={processing} 
+                        defaultCollapsed={false}
+                    />
+
+                    {/* Form Perhitungan Biaya (Collapsed & Editable) */}
+                    {(serviceType === 'REGULER' || serviceType === 'SELF_DECLARE_MANDIRI') && (
                         <div className="overflow-x-auto pb-4">
                             <KalkulatorReguler 
                                 submissionId={submission.id} 
@@ -306,34 +319,24 @@ return (
                                 onSaved={refresh}
                                 salesSchemeId={submission.sales_scheme_id || undefined}
                                 dataSource={submission.data_source}
+                                defaultCollapsed={true}
                             />
                         </div>
-                    ) : (
-                        <ClientInfoSection 
-                            submission={submission} 
-                            user={user} 
-                            onUpdateClient={updateClient} 
-                            onUpdateClientInfoAndPricing={updateClientInfoAndPricing}
-                            onUpdateBusinessType={updateBusinessType}
-                            businessTypes={businessTypes}
-                            processing={processing} 
-                        />
                     )}
 
-                    {submission.service_type === 'REGULER' && (
-                        <div className="bg-white p-6 rounded-2xl border border-gray-150 shadow-sm space-y-4">
-                            <h3 className="text-sm font-black text-gray-850 flex items-center gap-2 uppercase tracking-wider">
-                                <FileText className="w-5 h-5 text-indigo-600" />
-                                Perjanjian Kontrak Layanan Pendampingan
-                            </h3>
-                            <p className="text-xs text-gray-505">
-                                Berikut adalah draf kontrak perjanjian layanan pendampingan sertifikasi halal Anda. Silakan pelajari seluruh pasal di bawah ini.
-                            </p>
-                            <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 max-h-[500px] overflow-y-auto p-2">
-                                <ContractTextPreview submission={submission} />
-                            </div>
+                    {/* Perjanjian Kontrak Layanan Pendampingan untuk Semua Layanan */}
+                    <div className="bg-white p-6 rounded-2xl border border-gray-150 shadow-sm space-y-4">
+                        <h3 className="text-sm font-black text-gray-850 flex items-center gap-2 uppercase tracking-wider">
+                            <FileText className="w-5 h-5 text-indigo-600" />
+                            Perjanjian Kontrak Layanan Pendampingan
+                        </h3>
+                        <p className="text-xs text-gray-500">
+                            Berikut adalah draf kontrak perjanjian layanan pendampingan sertifikasi halal Anda. Silakan pelajari seluruh pasal di bawah ini.
+                        </p>
+                        <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 max-h-[500px] overflow-y-auto p-2">
+                            <ContractTextPreview submission={submission} />
                         </div>
-                    )}
+                    </div>
 
                     <div className="space-y-6">
                         {submission.status === 'WAITING_PAYMENT' && (

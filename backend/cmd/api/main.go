@@ -254,8 +254,9 @@ func main() {
 		RoleRepo:        roleRepo,
 	})
 	consultantUC := usecase.NewConsultantUsecase(usecase.ConsultantUsecaseDeps{
-		ProfileRepo: consultantRepo,
-		UserRepo:    userRepo,
+		ProfileRepo:    consultantRepo,
+		UserRepo:       userRepo,
+		SubmissionRepo: submissionRepo,
 	})
 
 	// Initialize in order of dependency: Billing -> Workflow -> Payment

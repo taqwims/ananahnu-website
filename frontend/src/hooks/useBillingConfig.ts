@@ -3,7 +3,7 @@ import { billingService } from '../services/billingService';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
-export type MainTab = 'master_data' | 'components' | 'settings' | 'quota' | 'discounts' | 'facilitation' | 'role_scheme';
+export type MainTab = 'master_data' | 'components' | 'settings' | 'quota' | 'discounts' | 'facilitation' | 'role_scheme' | 'sd_rates';
 export type TabKey = 'schemes' | 'business_types' | 'products' | 'scales' | 'components';
 
 export const useBillingConfig = () => {
@@ -32,6 +32,7 @@ export const useBillingConfig = () => {
         type: 'FIXED',
         category: 'PERSYARATAN_LAIN',
         mandatory: false,
+        serviceType: 'REGULER',
         businessTypeId: '',
         productCategoryId: '',
         salesSchemeId: '',
@@ -104,6 +105,7 @@ export const useBillingConfig = () => {
             type: 'FIXED',
             category: 'PERSYARATAN_LAIN',
             mandatory: false,
+            serviceType: 'REGULER',
             businessTypeId: '',
             productCategoryId: '',
             salesSchemeId: '',
@@ -167,6 +169,7 @@ export const useBillingConfig = () => {
                     payload.type = formData.type;
                     payload.base_amount = parseFloat(formData.amount) || 0;
                     payload.is_mandatory = formData.mandatory;
+                    payload.service_type = formData.serviceType || 'REGULER';
                     payload.business_type_id = formData.businessTypeId ? parseInt(formData.businessTypeId) : null;
                     payload.product_category_id = formData.productCategoryId ? parseInt(formData.productCategoryId) : null;
                     payload.province_id = formData.provinceId ? parseInt(formData.provinceId) : null;
@@ -213,6 +216,7 @@ export const useBillingConfig = () => {
             type: item.type || 'FIXED',
             category: item.category || 'PERSYARATAN_LAIN',
             mandatory: item.is_mandatory || false,
+            serviceType: item.service_type || 'REGULER',
             businessTypeId: item.business_type_id?.toString() || '',
             productCategoryId: item.product_category_id?.toString() || '',
             salesSchemeId: item.sales_scheme_id?.toString() || '',

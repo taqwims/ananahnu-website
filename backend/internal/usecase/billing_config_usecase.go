@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"ananahnu/internal/domain"
+	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -173,17 +174,17 @@ func (uc *billingConfigUsecase) SaveSubmissionCost(detail *domain.SubmissionCost
 
 	// If invoice doesn't exist, check if we should create one
 	sub, err := uc.SubmissionRepo.FindByID(detail.SubmissionID)
-	if err == nil && sub != nil && sub.ServiceType == "REGULER" {
+	if err == nil && sub != nil && (sub.ServiceType == "REGULER" || sub.ServiceType == "SELF_DECLARE_MANDIRI") {
 		// Only create invoice if it's already in WAITING_PAYMENT or later (except DRAFT/REVISION)
 		if sub.Status != domain.StatusDraft && sub.Status != domain.StatusRevision {
 			return uc.InvoiceRepo.Create(&domain.Invoice{
 				SubmissionID:  detail.SubmissionID,
 				PayerID:       nil,
-				ServiceType:   "REGULER",
+				ServiceType:   sub.ServiceType,
 				Amount:        detail.TotalAmount,
 				Status:        domain.InvoiceStatusUnpaid,
 				PricingSource: "COST_DETAIL",
-				Notes:         "Full Payment Layanan Reguler (Sync from Calculator)",
+				Notes:         fmt.Sprintf("Full Payment Layanan %s (Sync from Calculator)", sub.ServiceType),
 			})
 		}
 	}

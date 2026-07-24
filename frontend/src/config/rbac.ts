@@ -105,6 +105,7 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   'consultant-verification': ['DIRECTOR', 'ADMIN_PELATIHAN', 'HALAL_MANAGER', 'HALAL_DIRECTOR'],
   'training':       ['DIRECTOR', 'MANAGER', 'ADMIN_PELATIHAN', 'HALAL_MANAGER', 'HALAL_DIRECTOR'],
   'admin-promosi':  ['DIRECTOR', 'ADMIN_PELATIHAN'],
+  'advisor-performance': ['DIRECTOR', 'ADMIN_PELATIHAN', 'HALAL_MANAGER', 'HALAL_DIRECTOR'],
 
   // ── Pengaturan Sistem ─────────────────────────────────────────────
   'billing':        ['DIRECTOR', 'ADMIN_KEUANGAN'],

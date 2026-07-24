@@ -331,6 +331,7 @@ export interface BillingComponent {
     base_amount: number;
     is_mandatory: boolean;
     discount_percent?: number;
+    service_type?: string;
     business_scale_id?: number;
     province_id?: number;
     regency_id?: number;

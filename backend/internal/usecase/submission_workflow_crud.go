@@ -461,7 +461,7 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 
 // recalculateAndSaveRegularCost recalculates regular pricing dynamically and saves to Cost Detail & Invoice
 func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.Submission, selectedOptionalComponentIDs []int64, hasExplicitSelection bool) error {
-	if sub.ServiceType != "REGULER" {
+	if sub.ServiceType != "REGULER" && sub.ServiceType != "SELF_DECLARE_MANDIRI" {
 		return nil
 	}
 
@@ -519,8 +519,11 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 		scheme = &schemes[0]
 	}
 
-	// Fetch all active billing components
-	components, err := uc.BillingConfigRepo.FindAllBillingComponents(map[string]interface{}{"is_active": true})
+	// Fetch active billing components filtered by service_type
+	components, err := uc.BillingConfigRepo.FindAllBillingComponents(map[string]interface{}{
+		"is_active":    true,
+		"service_type": sub.ServiceType,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to fetch billing components: %w", err)
 	}
@@ -540,6 +543,9 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 
 	for _, comp := range components {
 		if comp.Category != "PENDAMPINGAN" {
+			continue
+		}
+		if comp.ServiceType != "" && comp.ServiceType != "BOTH" && comp.ServiceType != "ALL" && comp.ServiceType != sub.ServiceType {
 			continue
 		}
 		// Match filters
@@ -578,21 +584,32 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 	var price float64
 	var pendampinganName string = "Jasa Pendampingan"
 	var pendampinganCategory string = "PENDAMPINGAN"
+	var pendDiscount float64
 
 	if bestPendampingan != nil {
 		price = bestPendampingan.BaseAmount
 		pendampinganName = bestPendampingan.Name
 		pendampinganCategory = bestPendampingan.Category
-	} else if scheme != nil {
+		if bestPendampingan.DiscountPercent > 0 {
+			pendDiscount = bestPendampingan.DiscountPercent
+		}
+	} else if sub.ServiceType == "REGULER" && scheme != nil {
 		price = scheme.BasePrice
 		if scheme.SalesScheme.Name != "" {
 			pendampinganName = scheme.SalesScheme.Name
 		}
+	} else if sub.ServiceType == "SELF_DECLARE_MANDIRI" {
+		price = 230000.0
+		if setting, err := uc.SettingRepo.GetSetting("SD_MANDIRI_COST"); err == nil && setting != nil {
+			if val, parseErr := strconv.ParseFloat(setting.Value, 64); parseErr == nil {
+				price = val
+			}
+		}
+		pendampinganName = "Biaya Self Declare Mandiri"
 	}
 
-	if scheme != nil && scheme.DiscountPercent > 0 {
-		discount := price * (scheme.DiscountPercent / 100.0)
-		price -= discount
+	if pendDiscount == 0 && scheme != nil && scheme.DiscountPercent > 0 {
+		pendDiscount = scheme.DiscountPercent
 	}
 
 	if price > 0 {
@@ -603,11 +620,25 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 			"unit_cost": price,
 			"total":     price,
 		})
+
+		if pendDiscount > 0 {
+			discountAmount := price * (pendDiscount / 100.0)
+			total -= discountAmount
+			breakdown = append(breakdown, map[string]interface{}{
+				"name":      fmt.Sprintf("Diskon %s (%.0f%%)", pendampinganName, pendDiscount),
+				"category":  "DISKON",
+				"unit_cost": -discountAmount,
+				"total":     -discountAmount,
+			})
+		}
 	}
 
 	// Calculate other components
 	for _, comp := range components {
 		if comp.Category == "PENDAMPINGAN" {
+			continue
+		}
+		if comp.ServiceType != "" && comp.ServiceType != "BOTH" && comp.ServiceType != "ALL" && comp.ServiceType != sub.ServiceType {
 			continue
 		}
 
