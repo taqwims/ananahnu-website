@@ -247,54 +247,82 @@ export const WorkflowActions = ({
                         </button>
                     )}
 
-                    {(submission.status === 'DRAFTER' || submission.status === 'QC_REVIEW') && 
-                        submission.service_type === 'REGULER' && (
-                        <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 space-y-3">
-                                {(user?.role === 'BUSINESS_DEVELOPMENT' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
-                                    <>
-                                        <label className="flex items-center gap-2 text-sm font-black text-amber-800 tracking-tight">
-                                            📅 Input Tanggal Audit
-                                        </label>
+                    {/* Khusus Layanan Reguler: Informasi & Atur Tanggal Audit */}
+                    {submission.service_type === 'REGULER' && (
+                        <div className="p-4 bg-amber-50/70 rounded-2xl border border-amber-200/80 space-y-4 shadow-sm">
+                            <div className="flex items-center justify-between border-b border-amber-200/60 pb-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="p-1.5 bg-amber-100 rounded-lg text-amber-700 font-bold text-xs">📅</span>
+                                    <div>
+                                        <h4 className="text-xs font-black text-amber-900 uppercase tracking-wider">Jadwal Audit Sertifikasi Reguler</h4>
+                                        <p className="text-[10px] text-amber-700 font-medium">Status Workflow: <span className="font-bold underline">{submission.status?.replace(/_/g, ' ')}</span></p>
+                                    </div>
+                                </div>
+                                {submission.audit_date && (
+                                    <span className="px-2.5 py-1 bg-amber-200/70 text-amber-900 rounded-lg text-[10px] font-black uppercase tracking-wider">
+                                        Sudah Dijadwalkan
+                                    </span>
+                                )}
+                            </div>
+
+                            {(user?.role === 'BUSINESS_DEVELOPMENT' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
+                                <div className="bg-white/80 p-3 rounded-xl border border-amber-100 space-y-2">
+                                    <label className="block text-[10px] font-black text-amber-800 uppercase tracking-widest">
+                                        {submission.audit_date ? 'Ubah Tanggal Audit' : 'Tetapkan Tanggal Audit'}
+                                    </label>
+                                    <div className="flex flex-col sm:flex-row gap-2">
                                         <input 
                                             type="date"
-                                            className="w-full px-4 py-2 rounded-xl border-none focus:ring-2 focus:ring-amber-500/20 text-sm font-medium"
+                                            className="flex-1 px-3 py-2 bg-white border border-amber-200 rounded-xl text-xs font-medium text-gray-800 focus:ring-2 focus:ring-amber-500/20 outline-none"
                                             value={auditDate}
                                             onChange={(e) => setAuditDate(e.target.value)}
                                         />
                                         <button 
                                             onClick={() => onSaveAuditInfo(auditDate)}
                                             disabled={processing || !auditDate}
-                                            className="w-full py-2 bg-amber-600 text-white rounded-xl font-bold text-xs hover:bg-amber-700 transition-all disabled:opacity-50"
+                                            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs transition-all disabled:opacity-50 shadow-sm"
                                         >
-                                            Simpan Tanggal Audit
+                                            {processing ? 'Menyimpan...' : 'Simpan Tanggal'}
                                         </button>
-                                    </>
-                                )}
+                                    </div>
+                                </div>
+                            )}
 
-                                {submission.audit_date ? (
-                                    <div className="mt-4 pt-4 border-t border-amber-200 space-y-4">
-                                        <div className="space-y-2">
-                                            <label className="block text-[10px] font-black text-amber-700 uppercase tracking-widest">File Hasil Audit 1 (Utama)</label>
-                                            <FileUpload 
-                                                subfolder="audit" 
-                                                label="Upload Laporan 1"
-                                                onUploadSuccess={(url) => onSaveAuditResult(url, submission.audit_result_2_url || "")}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="block text-[10px] font-black text-amber-700 uppercase tracking-widest">File Hasil Audit 2 (Opsional)</label>
-                                            <FileUpload 
-                                                subfolder="audit" 
-                                                label="Upload Laporan 2"
-                                                onUploadSuccess={(url) => onSaveAuditResult(submission.audit_result_1_url || "", url)}
-                                            />
-                                        </div>
+                            {submission.audit_date ? (
+                                <div className="space-y-3">
+                                    <div className="p-3 bg-amber-100/60 rounded-xl border border-amber-200/50 flex items-center justify-between">
+                                        <span className="text-xs font-bold text-amber-900">Tanggal Audit Terdaftar:</span>
+                                        <span className="text-xs font-black text-amber-900 font-mono">
+                                            {new Date(submission.audit_date).toLocaleDateString('id-ID', { dateStyle: 'full' })}
+                                        </span>
                                     </div>
-                                ) : (
-                                    <div className="mt-2 text-center text-xs font-bold text-amber-700 bg-amber-100/50 p-3 rounded-lg">
-                                        Jadwal audit belum ditetapkan oleh Marketing & BD Manager.
-                                    </div>
-                                )}
+
+                                    {(user?.role === 'DRAFTER' || user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
+                                        <div className="pt-2 border-t border-amber-200/60 space-y-3">
+                                            <div className="space-y-1">
+                                                <label className="block text-[10px] font-black text-amber-800 uppercase tracking-widest">File Hasil Audit 1 (Utama)</label>
+                                                <FileUpload 
+                                                    subfolder="audit" 
+                                                    label="Upload Laporan 1"
+                                                    onUploadSuccess={(url) => onSaveAuditResult(url, submission.audit_result_2_url || "")}
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="block text-[10px] font-black text-amber-800 uppercase tracking-widest">File Hasil Audit 2 (Opsional)</label>
+                                                <FileUpload 
+                                                    subfolder="audit" 
+                                                    label="Upload Laporan 2"
+                                                    onUploadSuccess={(url) => onSaveAuditResult(submission.audit_result_1_url || "", url)}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="text-center text-xs font-semibold text-amber-700 bg-amber-100/40 p-3 rounded-xl border border-amber-200/40">
+                                    Jadwal audit belum ditetapkan oleh Marketing & BD Manager.
+                                </div>
+                            )}
                         </div>
                     )}
 

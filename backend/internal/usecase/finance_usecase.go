@@ -240,15 +240,17 @@ func (uc *financeUsecase) DeleteExpense(id int64) error {
 
 func (uc *financeUsecase) GetFeeConfig() ([]FeeConfigItem, error) {
 	feeKeys := []struct {
-		Key   string
-		Label string
+		Key     string
+		Label   string
 		Default float64
 	}{
-		{"fee_direct_sales_percent", "Komisi Pendamping (%)", 25.0},
-		{"fee_referral_percent", "Insentif Referral (%)", 1.0},
-		{"fee_override_percent", "Insentif Override Reguler (%)", 5.0},
-		{"fee_override_self_declare", "Insentif Override Self Declare (Rp / Flat)", 15000.0},
-		{"fee_director_percent", "Fee Halal Director (%)", 2.5},
+		{"fee_direct_sales_percent", "Komisi Pendampingan Reguler (%)", 25.0},
+		{"fee_referral_percent", "Insentif Referral Halal Manager (%)", 1.0},
+		{"fee_director_referral_percent", "Insentif Referral Halal Director (%)", 1.0},
+		{"fee_override_percent", "Insentif Override Halal Manager Reguler (%)", 5.0},
+		{"fee_override_self_declare", "Insentif Override Halal Manager Self Declare (Rp / Flat)", 15000.0},
+		{"fee_director_percent", "Insentif Override Halal Director Reguler (%)", 2.5},
+		{"fee_director_override_self_declare", "Insentif Override Halal Director Self Declare (Rp / Flat)", 10000.0},
 	}
 
 	var items []FeeConfigItem

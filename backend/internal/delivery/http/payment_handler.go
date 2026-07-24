@@ -28,6 +28,7 @@ func NewPaymentHandler(r *gin.Engine, uc usecase.PaymentUsecase) {
 		g.GET("/", handler.ListAll)
 		g.PUT("/:id/verify", handler.VerifyManual)
 		g.POST("/:id/sync", handler.SyncStatus)
+		g.POST("/:id/cancel", handler.CancelPayment)
 	}
 
 	// Public webhook endpoint — Midtrans calls this, no auth required
@@ -207,4 +208,19 @@ func (h *PaymentHandler) SyncStatus(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "status synced"})
+}
+
+func (h *PaymentHandler) CancelPayment(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment id"})
+		return
+	}
+
+	if err := h.paymentUC.CancelPayment(id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "payment cancelled successfully"})
 }

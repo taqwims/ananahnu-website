@@ -77,3 +77,25 @@ func (uc *paymentUsecase) VerifyManualPayment(paymentID int64, approved bool, ve
 
 	return nil
 }
+
+// CancelPayment cancels or deletes a pending payment so the user can re-select method.
+func (uc *paymentUsecase) CancelPayment(paymentID int64) error {
+	payment, err := uc.PaymentRepo.FindByID(paymentID)
+	if err != nil {
+		return fmt.Errorf("payment not found: %w", err)
+	}
+
+	if payment.Status == domain.PaymentStatusPaid {
+		return errors.New("tidak dapat membatalkan pembayaran yang sudah lunas")
+	}
+
+	if payment.SubmissionID != nil {
+		inv, _ := uc.InvoiceRepo.FindBySubmissionID(*payment.SubmissionID)
+		if inv != nil && inv.PaymentID != nil && *inv.PaymentID == paymentID {
+			inv.PaymentID = nil
+			_ = uc.InvoiceRepo.Update(inv)
+		}
+	}
+
+	return uc.PaymentRepo.Delete(paymentID)
+}

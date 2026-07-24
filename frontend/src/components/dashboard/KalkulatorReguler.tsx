@@ -17,6 +17,7 @@ type Props = {
 type OptionalCost = {
     name: string;
     amount: number;
+    qty?: number;
 };
 
 export default function KalkulatorReguler({ submissionId, onSaved, readOnly = false, salesSchemeId, dataSource = 'ORGANIK' }: Props) {
@@ -67,6 +68,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     const [optionalCosts, setOptionalCosts] = useState<OptionalCost[]>([]);
     const [newOptName, setNewOptName] = useState('');
     const [newOptAmount, setNewOptAmount] = useState('');
+    const [newOptQty, setNewOptQty] = useState('1');
     const [selectedOptionalComponentIds, setSelectedOptionalComponentIds] = useState<number[]>([]);
     const [initialBreakdown, setInitialBreakdown] = useState<any[] | null>(null);
     const [hasInitializedOptionalComponents, setHasInitializedOptionalComponents] = useState(false);
@@ -265,9 +267,11 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
 
     const addOptionalCost = () => {
         if (!newOptName || !newOptAmount) return;
-        setOptionalCosts([...optionalCosts, { name: newOptName, amount: parseFloat(newOptAmount) }]);
+        const qty = Math.max(1, parseInt(newOptQty) || 1);
+        setOptionalCosts([...optionalCosts, { name: newOptName, amount: parseFloat(newOptAmount), qty }]);
         setNewOptName('');
         setNewOptAmount('');
+        setNewOptQty('1');
     };
 
     const removeOptionalCost = (index: number) => {
@@ -462,16 +466,17 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
 
             let multiplier = 1;
             let multiplierLabel = '';
+            const customQty = optionalQuantities[comp.id] || 1;
             
             if (comp.type === 'PER_CABANG') {
-                multiplier = branchCount;
-                multiplierLabel = ` (${branchCount} Cabang)`;
-            } else if (comp.type === 'PER_MANDAY') {
-                multiplier = optionalQuantities[comp.id] || 1;
-                multiplierLabel = ` (${multiplier} Kuantitas)`;
+                multiplier = branchCount * customQty;
+                multiplierLabel = ` (${branchCount} Cabang${customQty > 1 ? ` x ${customQty} Qty` : ''})`;
             } else if (comp.type === 'PER_PRODUK') {
-                multiplier = productCount;
-                multiplierLabel = ` (${productCount} Produk)`;
+                multiplier = productCount * customQty;
+                multiplierLabel = ` (${productCount} Produk${customQty > 1 ? ` x ${customQty} Qty` : ''})`;
+            } else {
+                multiplier = customQty;
+                multiplierLabel = customQty > 1 ? ` (${customQty} Komponen)` : '';
             }
 
             const baseAmount = comp.base_amount * multiplier;
@@ -513,15 +518,17 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
 
         // 3. Optional Costs
         optionalCosts.forEach(opt => {
+            const qty = opt.qty && opt.qty > 0 ? opt.qty : 1;
+            const subtotal = opt.amount * qty;
             currentBreakdown.push({
-                name: opt.name,
+                name: opt.name + (qty > 1 ? ` (${qty} Komponen)` : ''),
                 category: 'OPSIONAL',
                 unit_cost: opt.amount,
-                multiplier: null,
-                total: opt.amount,
+                multiplier: qty > 1 ? qty : null,
+                total: subtotal,
                 is_optional: true
             });
-            currentTotal += opt.amount;
+            currentTotal += subtotal;
         });
 
         return { total: currentTotal, breakdown: currentBreakdown };
@@ -926,25 +933,25 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                                                                 )}
                                                             </div>
                                                         </label>
-                                                        {isChecked && comp.type === 'PER_MANDAY' && (
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-xs text-gray-505 font-semibold">Kuantitas:</span>
-                                                                <input
-                                                                    type="number"
-                                                                    disabled={!isEditable}
-                                                                    min={1}
-                                                                    className="w-16 px-2 py-1 border border-gray-200 rounded-lg text-xs font-bold text-center outline-none focus:ring-2 focus:ring-brand-500/20"
-                                                                    value={optionalQuantities[comp.id] || 1}
-                                                                    onChange={e => {
-                                                                        const val = Math.max(1, parseInt(e.target.value) || 1);
-                                                                        setOptionalQuantities({
-                                                                            ...optionalQuantities,
-                                                                            [comp.id]: val
-                                                                        });
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                        )}
+                                                        {isChecked && (
+                                                            <div className="flex items-center gap-1.5 shrink-0 bg-gray-50 px-2 py-1 rounded-lg border border-gray-150">
+                                                                 <span className="text-[11px] text-gray-500 font-bold">Kuantitas:</span>
+                                                                 <input
+                                                                     type="number"
+                                                                     disabled={!isEditable}
+                                                                     min={1}
+                                                                     className="w-14 px-1.5 py-0.5 border border-gray-200 rounded-md text-xs font-bold text-center outline-none focus:ring-2 focus:ring-brand-500/20 bg-white"
+                                                                     value={optionalQuantities[comp.id] || 1}
+                                                                     onChange={e => {
+                                                                         const val = Math.max(1, parseInt(e.target.value) || 1);
+                                                                         setOptionalQuantities({
+                                                                             ...optionalQuantities,
+                                                                             [comp.id]: val
+                                                                         });
+                                                                     }}
+                                                                 />
+                                                             </div>
+                                                         )}
                                                     </div>
                                                 );
                                             })}
@@ -955,36 +962,52 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                             {/* Biaya Tambahan Lainnya */}
                             <div className="border-t border-gray-150 pt-4">
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Biaya Tambahan Lainnya</label>
-                                {optionalCosts.map((opt, idx) => (
-                                    <div key={idx} className="flex gap-2 items-center mb-2">
-                                        <span className="flex-1 text-sm bg-gray-50 p-2.5 rounded-lg border border-gray-100">{opt.name}</span>
-                                        <span className="w-1/3 text-sm bg-gray-50 p-2.5 rounded-lg border border-gray-100 text-right font-medium">{formatRupiah(opt.amount)}</span>
-                                        {canEditOptional && (
-                                            <button onClick={() => removeOptionalCost(idx)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                                                <Trash className="w-4 h-4" />
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
+                                {optionalCosts.map((opt, idx) => {
+                                    const qty = opt.qty && opt.qty > 0 ? opt.qty : 1;
+                                    return (
+                                        <div key={idx} className="flex gap-2 items-center mb-2 bg-gray-50 p-2.5 rounded-xl border border-gray-100 shadow-2xs">
+                                            <span className="flex-1 text-sm font-bold text-gray-800">{opt.name}</span>
+                                            <span className="text-xs text-gray-500 font-medium">{formatRupiah(opt.amount)}</span>
+                                            <span className="px-2 py-0.5 bg-gray-200 text-gray-700 rounded-lg text-xs font-bold font-mono">x {qty}</span>
+                                            <span className="text-sm font-black text-brand-600 w-28 text-right">{formatRupiah(opt.amount * qty)}</span>
+                                            {canEditOptional && (
+                                                <button onClick={() => removeOptionalCost(idx)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                                    <Trash className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })}
 
                                 {canEditOptional && (
-                                    <div className="flex gap-2 mt-2">
+                                    <div className="flex flex-col sm:flex-row gap-2 mt-3 p-3 bg-gray-50/70 border border-gray-200/80 rounded-2xl">
                                         <input
                                             type="text"
                                             placeholder="Nama Biaya..."
-                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500/20 font-semibold"
+                                            className="flex-1 bg-white border border-gray-200 rounded-xl px-3.5 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 font-semibold"
                                             value={newOptName}
                                             onChange={e => setNewOptName(e.target.value)}
                                         />
                                         <input
                                             type="number"
-                                            placeholder="Nominal..."
-                                            className="w-1/3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500/20 font-semibold"
+                                            placeholder="Harga Satuan (Rp)..."
+                                            className="w-full sm:w-36 bg-white border border-gray-200 rounded-xl px-3.5 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 font-semibold"
                                             value={newOptAmount}
                                             onChange={e => setNewOptAmount(e.target.value)}
                                         />
-                                        <button onClick={addOptionalCost} className="bg-gray-800 text-white p-2.5 rounded-xl hover:bg-gray-900 transition-colors">
-                                            <Plus className="w-4 h-4" />
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-xs text-gray-500 font-bold px-1">Jumlah:</span>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                placeholder="1"
+                                                className="w-16 bg-white border border-gray-200 rounded-xl px-2 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 font-bold text-center"
+                                                value={newOptQty}
+                                                onChange={e => setNewOptQty(e.target.value)}
+                                            />
+                                        </div>
+                                        <button onClick={addOptionalCost} className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl transition-colors font-bold text-xs flex items-center justify-center gap-1 shadow-xs">
+                                            <Plus className="w-4 h-4" /> Tambah
                                         </button>
                                     </div>
                                 )}

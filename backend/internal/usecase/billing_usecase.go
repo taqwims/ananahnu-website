@@ -235,6 +235,7 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 	feeOverrideReguler := uc.getFeeRate("fee_override_percent", 5.0) / 100.0
 	feeOverrideSelfDeclare := uc.getFeeRate("fee_override_self_declare", 15000.0)
 	feeDirector := uc.getFeeRate("fee_director_percent", 2.5) / 100.0
+	feeDirectorSelfDeclare := uc.getFeeRate("fee_director_override_self_declare", 10000.0)
 
 	submission, _ := uc.SubmissionRepo.FindByID(invoice.SubmissionID)
 	if submission != nil && submission.ConsultantID != nil {
@@ -291,15 +292,22 @@ func (uc *billingUsecase) MarkInvoicePaid(invoiceID int64) error {
 						}
 					}
 				} else if roleName == "HALAL_DIRECTOR" {
-					// Director gets director fee (default 2.5%), stops traversal
-					if pendampinganAmount > 0 {
+					// Director gets director override
+					var directorAmt float64
+					if submission.ServiceType == "SELF_DECLARE" {
+						directorAmt = feeDirectorSelfDeclare
+					} else {
+						directorAmt = pendampinganAmount * feeDirector
+					}
+
+					if directorAmt > 0 {
 						_ = uc.CommissionRepo.UpsertStructural(&domain.Commission{
 							ID:           uuid.New(),
 							Type:         domain.CommissionTypeStructural,
 							UserID:       &nodeUser.ID,
 							Period:       period,
 							BaseOmset:    pendampinganAmount,
-							Amount:       pendampinganAmount * feeDirector,
+							Amount:       directorAmt,
 							Status:       domain.CommissionStatusPending,
 							SubmissionID: &invoice.SubmissionID,
 						})

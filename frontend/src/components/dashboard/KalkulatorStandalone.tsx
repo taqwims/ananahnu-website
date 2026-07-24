@@ -13,6 +13,7 @@ type Props = {
 type OptionalCost = {
     name: string;
     amount: number;
+    qty?: number;
 };
 
 export default function KalkulatorStandalone({ onSaveClick }: Props) {
@@ -62,6 +63,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
     const [optionalCosts, setOptionalCosts] = useState<OptionalCost[]>([]);
     const [newOptName, setNewOptName] = useState('');
     const [newOptAmount, setNewOptAmount] = useState('');
+    const [newOptQty, setNewOptQty] = useState('1');
     const [selectedOptionalComponentIds, setSelectedOptionalComponentIds] = useState<number[]>([]);
 
     const formatCurrency = (val: number) => {
@@ -196,9 +198,11 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
 
     const addOptionalCost = () => {
         if (!newOptName || !newOptAmount) return;
-        setOptionalCosts([...optionalCosts, { name: newOptName, amount: parseFloat(newOptAmount) }]);
+        const qty = Math.max(1, parseInt(newOptQty) || 1);
+        setOptionalCosts([...optionalCosts, { name: newOptName, amount: parseFloat(newOptAmount), qty }]);
         setNewOptName('');
         setNewOptAmount('');
+        setNewOptQty('1');
     };
 
     const removeOptionalCost = (index: number) => {
@@ -374,16 +378,17 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
 
             let multiplier = 1;
             let multiplierLabel = '';
+            const customQty = optionalQuantities[comp.id] || 1;
             
             if (comp.type === 'PER_CABANG') {
-                multiplier = branchCount;
-                multiplierLabel = ` (${branchCount} Cabang)`;
-            } else if (comp.type === 'PER_MANDAY') {
-                multiplier = optionalQuantities[comp.id] || 1;
-                multiplierLabel = ` (${multiplier} Kuantitas)`;
+                multiplier = branchCount * customQty;
+                multiplierLabel = ` (${branchCount} Cabang${customQty > 1 ? ` x ${customQty} Qty` : ''})`;
             } else if (comp.type === 'PER_PRODUK') {
-                multiplier = productCount;
-                multiplierLabel = ` (${productCount} Produk)`;
+                multiplier = productCount * customQty;
+                multiplierLabel = ` (${productCount} Produk${customQty > 1 ? ` x ${customQty} Qty` : ''})`;
+            } else {
+                multiplier = customQty;
+                multiplierLabel = customQty > 1 ? ` (${customQty} Komponen)` : '';
             }
 
             const baseAmount = comp.base_amount * multiplier;
@@ -425,15 +430,17 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
 
         // 3. Optional Costs
         optionalCosts.forEach(opt => {
+            const qty = opt.qty && opt.qty > 0 ? opt.qty : 1;
+            const subtotal = opt.amount * qty;
             currentBreakdown.push({
-                name: opt.name,
+                name: opt.name + (qty > 1 ? ` (${qty} Komponen)` : ''),
                 category: 'OPSIONAL',
                 unit_cost: opt.amount,
-                multiplier: null,
-                total: opt.amount,
+                multiplier: qty > 1 ? qty : null,
+                total: subtotal,
                 is_optional: true
             });
-            currentTotal += opt.amount;
+            currentTotal += subtotal;
         });
 
         return { total: currentTotal, breakdown: currentBreakdown };
@@ -789,13 +796,13 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                                                         </span>
                                                     </div>
                                                 </label>
-                                                {isChecked && comp.type === 'PER_MANDAY' && (
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="text-[10px] text-gray-500 font-semibold">Kuantitas:</span>
+                                                {isChecked && (
+                                                    <div className="flex items-center gap-1.5 shrink-0 bg-gray-50 px-2 py-1 rounded-lg border border-gray-150">
+                                                        <span className="text-[10px] text-gray-500 font-bold">Kuantitas:</span>
                                                         <input
                                                             type="number"
                                                             min={1}
-                                                            className="w-14 px-1.5 py-0.5 border border-gray-200 rounded-md text-[10px] font-bold text-center outline-none focus:ring-2 focus:ring-brand-500/20"
+                                                            className="w-14 px-1.5 py-0.5 border border-gray-200 rounded-md text-[10px] font-bold text-center outline-none focus:ring-2 focus:ring-brand-500/20 bg-white"
                                                             value={optionalQuantities[comp.id] || 1}
                                                             onChange={e => {
                                                                 const val = Math.max(1, parseInt(e.target.value) || 1);
@@ -817,33 +824,49 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                     {/* Biaya Tambahan Lainnya */}
                     <div className="border-t border-gray-100 pt-3">
                         <label className="block text-xs font-semibold text-gray-700 mb-1.5">Biaya Tambahan Lainnya</label>
-                        {optionalCosts.map((opt, idx) => (
-                            <div key={idx} className="flex gap-2 items-center mb-1.5">
-                                <span className="flex-1 text-xs bg-gray-50 p-2 rounded-lg border border-gray-100">{opt.name}</span>
-                                <span className="w-1/3 text-xs bg-gray-50 p-2 rounded-lg border border-gray-100 text-right font-medium">{formatCurrency(opt.amount)}</span>
-                                <button onClick={() => removeOptionalCost(idx)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                                    <Trash className="w-3.5 h-3.5" />
-                                </button>
-                            </div>
-                        ))}
+                        {optionalCosts.map((opt, idx) => {
+                            const qty = opt.qty && opt.qty > 0 ? opt.qty : 1;
+                            return (
+                                <div key={idx} className="flex gap-2 items-center mb-1.5 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                    <span className="flex-1 text-xs font-bold text-gray-800">{opt.name}</span>
+                                    <span className="text-[11px] text-gray-500 font-medium">{formatCurrency(opt.amount)}</span>
+                                    <span className="px-1.5 py-0.5 bg-gray-200 text-gray-700 rounded-md text-[10px] font-bold font-mono">x {qty}</span>
+                                    <span className="text-xs font-black text-brand-600 w-24 text-right">{formatCurrency(opt.amount * qty)}</span>
+                                    <button onClick={() => removeOptionalCost(idx)} className="p-1 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                        <Trash className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            );
+                        })}
 
-                        <div className="flex gap-2 mt-1.5">
+                        <div className="flex flex-col sm:flex-row gap-1.5 mt-2 p-2 bg-gray-50/70 border border-gray-200/80 rounded-xl">
                             <input
                                 type="text"
                                 placeholder="Nama Biaya..."
-                                className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
+                                className="flex-1 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
                                 value={newOptName}
                                 onChange={e => setNewOptName(e.target.value)}
                             />
                             <input
                                 type="number"
-                                placeholder="Nominal..."
-                                className="w-1/3 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
+                                placeholder="Harga Satuan (Rp)..."
+                                className="w-full sm:w-32 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/20"
                                 value={newOptAmount}
                                 onChange={e => setNewOptAmount(e.target.value)}
                             />
-                            <button onClick={addOptionalCost} className="bg-gray-800 text-white p-2 rounded-lg hover:bg-gray-900 transition-colors">
-                                <Plus className="w-3.5 h-3.5" />
+                            <div className="flex items-center gap-1">
+                                <span className="text-[10px] text-gray-500 font-bold px-0.5">Jumlah:</span>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    placeholder="1"
+                                    className="w-14 bg-white border border-gray-200 rounded-lg px-1.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 font-bold text-center"
+                                    value={newOptQty}
+                                    onChange={e => setNewOptQty(e.target.value)}
+                                />
+                            </div>
+                            <button onClick={addOptionalCost} className="bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-lg transition-colors font-bold text-xs flex items-center justify-center gap-1">
+                                <Plus className="w-3.5 h-3.5" /> Tambah
                             </button>
                         </div>
                     </div>

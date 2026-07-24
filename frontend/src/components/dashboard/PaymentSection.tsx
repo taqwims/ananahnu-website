@@ -108,6 +108,21 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
         }
     };
 
+    const handleCancelPayment = async (paymentId: number) => {
+        if (!window.confirm("Apakah Anda yakin ingin membatalkan / mengganti metode pembayaran ini?")) return;
+        setLoading(true);
+        try {
+            await api.post(`/payments/${paymentId}/cancel`);
+            toast.success("Transaksi pembayaran berhasil dibatalkan. Silakan pilih metode pembayaran baru.");
+            await loadHistory();
+        } catch (err: any) {
+            console.error('Failed to cancel payment:', err);
+            toast.error(err.response?.data?.error || 'Gagal membatalkan transaksi.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         loadHistory();
     }, [loadHistory]);
@@ -288,45 +303,122 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
     // Show "Waiting for Verification" state (manual payment pending)
     if (pendingPayment && pendingPayment.method === 'MANUAL') {
         return (
-            <div className="glass-panel p-6 bg-yellow-50 border-yellow-200 space-y-3">
-                <div className="flex items-center gap-3 text-yellow-800">
-                    <Clock className="w-6 h-6" />
-                    <h3 className="text-lg font-bold">Menunggu Verifikasi</h3>
+            <div className="glass-panel p-6 bg-amber-50/80 border border-amber-200/80 rounded-3xl space-y-4 shadow-xs">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-amber-900">
+                        <div className="p-2.5 bg-amber-100 rounded-2xl text-amber-700">
+                            <Clock className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h3 className="text-base font-black">Bukti Transfer Manual Terkirim</h3>
+                            <p className="text-xs text-amber-700 font-medium">Sedang diverifikasi oleh Admin Finance & Legal</p>
+                        </div>
+                    </div>
+                    <span className="px-3 py-1 bg-amber-200/70 text-amber-900 rounded-full text-xs font-black uppercase tracking-wider">
+                        Menunggu Verifikasi
+                    </span>
                 </div>
-                <p className="text-sm text-yellow-700">Bukti pembayaran manual telah dikirim. Menunggu persetujuan admin.</p>
-                <p className="text-sm text-yellow-600">Jumlah: {formatRupiah(pendingPayment.amount)}</p>
+
+                <div className="p-3 bg-white/90 rounded-2xl border border-amber-100 flex items-center justify-between text-xs">
+                    <span className="text-gray-500 font-bold">Total Pembayaran:</span>
+                    <span className="text-sm font-black text-amber-900">{formatRupiah(pendingPayment.amount)}</span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                    {pendingPayment.proof_url && (
+                        <a
+                            href={pendingPayment.proof_url.startsWith('http') ? pendingPayment.proof_url : `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}${pendingPayment.proof_url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 py-2.5 px-4 bg-white hover:bg-amber-100/50 border border-amber-200 text-amber-900 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
+                        >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Lihat Bukti Transfer Terupload</span>
+                        </a>
+                    )}
+                    <button
+                        onClick={() => handleCancelPayment(pendingPayment.id)}
+                        disabled={loading}
+                        className="py-2.5 px-4 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                        <span>Batal & Ganti Metode</span>
+                    </button>
+                </div>
             </div>
         );
     }
 
     // Show "Midtrans Payment Pending" state
     if (pendingPayment && pendingPayment.method === 'MIDTRANS') {
+        const handleOpenSnap = () => {
+            if (pendingPayment.snap_token && isSnapReady()) {
+                window.snap.pay(pendingPayment.snap_token, {
+                    onSuccess: () => { onPaymentSuccess(); loadHistory(); },
+                    onPending: () => { toast.success('Pembayaran sedang diproses.'); loadHistory(); },
+                    onError: () => { toast.error('Pembayaran gagal.'); loadHistory(); },
+                    onClose: () => { loadHistory(); }
+                });
+            } else if (pendingPayment.snap_url) {
+                window.open(pendingPayment.snap_url, '_blank');
+            }
+        };
+
         return (
-            <div className="glass-panel p-6 bg-blue-50 border-blue-200 space-y-4">
-                <div className="flex items-center gap-3 text-blue-800">
-                    <Clock className="w-6 h-6" />
-                    <h3 className="text-lg font-bold">Pembayaran Sedang Diproses</h3>
+            <div className="glass-panel p-6 bg-gradient-to-br from-blue-50 to-indigo-50/50 border border-blue-200/80 rounded-3xl space-y-5 shadow-md">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-blue-900">
+                        <div className="p-2.5 bg-blue-100/80 rounded-2xl text-blue-700">
+                            <CreditCard className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h3 className="text-base font-black">Pembayaran Midtrans Online Berlangsung</h3>
+                            <p className="text-xs text-blue-700 font-medium">Virtual Account (BCA, Mandiri, BRI, BNI), QRIS, atau E-Wallet</p>
+                        </div>
+                    </div>
+                    <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-black uppercase tracking-wider animate-pulse">
+                        Menunggu Pembayaran
+                    </span>
                 </div>
-                <p className="text-sm text-blue-700">Transaksi online sedang menunggu pembayaran.</p>
-                <div className="flex gap-2">
-                    {pendingPayment.snap_url && (
-                        <a
-                            href={pendingPayment.snap_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-                        >
-                            <ExternalLink className="w-4 h-4" />
-                            Lanjutkan Pembayaran
-                        </a>
+
+                <div className="p-4 bg-white/90 rounded-2xl border border-blue-100 space-y-2">
+                    <div className="flex justify-between items-center text-xs">
+                        <span className="text-gray-500 font-bold">Total Tagihan:</span>
+                        <span className="text-base font-black text-brand-600">{formatRupiah(pendingPayment.amount)}</span>
+                    </div>
+                    {pendingPayment.external_id && (
+                        <div className="flex justify-between items-center text-xs">
+                            <span className="text-gray-500 font-medium">Order ID Midtrans:</span>
+                            <span className="font-mono font-bold text-gray-700">{pendingPayment.external_id}</span>
+                        </div>
                     )}
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                        onClick={handleOpenSnap}
+                        className="flex-1 py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-brand-100 flex items-center justify-center gap-2"
+                    >
+                        <Zap className="w-4 h-4" />
+                        <span>Buka Menu Pembayaran (VA / QRIS / Snap)</span>
+                    </button>
+                    
                     <button
                         onClick={() => handleSync(pendingPayment.id)}
                         disabled={loading}
-                        className="flex items-center gap-2 px-4 py-2 border border-blue-300 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors disabled:opacity-50"
+                        className="py-3 px-4 bg-white hover:bg-blue-50 border border-blue-200 text-blue-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
+                        title="Cek Status Pembayaran"
                     >
                         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                        Refresh Status
+                        <span>Cek Status</span>
+                    </button>
+
+                    <button
+                        onClick={() => handleCancelPayment(pendingPayment.id)}
+                        disabled={loading}
+                        className="py-3 px-4 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
+                        title="Salah pilih metode? Batal & Ganti Metode Pembayaran"
+                    >
+                        <span>Ganti / Batal Metode</span>
                     </button>
                 </div>
             </div>

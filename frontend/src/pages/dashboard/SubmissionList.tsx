@@ -9,6 +9,7 @@ import ConfirmModal from '../../components/ui/ConfirmModal';
 export default function SubmissionList() {
     const {
         loading, search, setSearch, statusFilter, setStatusFilter,
+        serviceTypeFilter, setServiceTypeFilter, businessTypeFilter, setBusinessTypeFilter,
         isGrouped, setIsGrouped, showCreateModal, setShowCreateModal,
         newSub, setNewSub, isVerified, sortKey, sortOrder,
         expandedGroups, setExpandedGroups, copiedId, confirmModal, setConfirmModal,
@@ -61,6 +62,10 @@ export default function SubmissionList() {
                     setSearch={setSearch}
                     statusFilter={statusFilter}
                     setStatusFilter={setStatusFilter}
+                    serviceTypeFilter={serviceTypeFilter}
+                    setServiceTypeFilter={setServiceTypeFilter}
+                    businessTypeFilter={businessTypeFilter}
+                    setBusinessTypeFilter={setBusinessTypeFilter}
                     isGrouped={isGrouped}
                     setIsGrouped={setIsGrouped}
                     statusOrder={STATUS_ORDER}

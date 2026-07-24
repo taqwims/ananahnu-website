@@ -121,6 +121,9 @@ export const useSubmissionList = () => {
         setTimeout(() => setCopiedId(null), 2000);
     };
 
+    const [serviceTypeFilter, setServiceTypeFilter] = useState('');
+    const [businessTypeFilter, setBusinessTypeFilter] = useState('');
+
     const filteredData = useMemo(() => {
         return submissions.filter(s => {
             const matchSearch = s.client?.business_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -130,10 +133,18 @@ export const useSubmissionList = () => {
                 s.client?.facilitator?.leader?.full_name.toLowerCase().includes(search.toLowerCase()) ||
                 s.service_type?.toLowerCase().includes(search.toLowerCase()) ||
                 s.business_type?.name?.toLowerCase().includes(search.toLowerCase());
+            
             const matchStatus = statusFilter === '' || s.status === statusFilter;
-            return matchSearch && matchStatus;
+
+            const matchServiceType = serviceTypeFilter === '' || 
+                (serviceTypeFilter === 'SELF_DECLARE' ? s.service_type?.includes('SELF_DECLARE') : s.service_type === 'REGULER');
+
+            const matchBusinessType = businessTypeFilter === '' || 
+                (s.business_type?.name?.toUpperCase().includes(businessTypeFilter) || s.client?.service_type?.toUpperCase().includes(businessTypeFilter));
+
+            return matchSearch && matchStatus && matchServiceType && matchBusinessType;
         });
-    }, [submissions, search, statusFilter]);
+    }, [submissions, search, statusFilter, serviceTypeFilter, businessTypeFilter]);
 
     const groupedData = useMemo(() => {
         const groups: Record<string, { coordinator: string, submissions: Submission[] }> = {};
@@ -191,6 +202,7 @@ export const useSubmissionList = () => {
 
     return {
         submissions, loading, search, setSearch, statusFilter, setStatusFilter,
+        serviceTypeFilter, setServiceTypeFilter, businessTypeFilter, setBusinessTypeFilter,
         isGrouped, setIsGrouped, showCreateModal, setShowCreateModal,
         newSub, setNewSub, isVerified, sortKey, sortOrder,
         expandedGroups, setExpandedGroups, copiedId, confirmModal, setConfirmModal,

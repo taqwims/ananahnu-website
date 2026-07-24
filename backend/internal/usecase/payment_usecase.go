@@ -25,6 +25,7 @@ type PaymentUsecase interface {
 	GetPaymentsBySubmission(submissionID uuid.UUID) ([]domain.Payment, error)
 	GetAllPayments(filter map[string]interface{}, page, limit int) ([]domain.Payment, int64, error)
 	SyncPaymentStatus(paymentID int64) error
+	CancelPayment(paymentID int64) error
 	InitiateBulkPayment(invoiceIDs []int64, payerID uuid.UUID) (*domain.Payment, error)
 	CleanupExpiredPayments() error
 }

@@ -1,8 +1,9 @@
 import { useEffect, useState, Fragment } from 'react';
+import { Link } from 'react-router-dom';
 import { financeService } from '../../services/financeService';
 import { useAuthStore } from '../../store/authStore';
 import {
-    BarChart3, Target, FileText, Users, TrendingUp, ChevronDown, Building2, Trash2, X, Loader2, Edit2
+    BarChart3, Target, FileText, Users, TrendingUp, ChevronDown, Building2, Trash2, X, Loader2, Edit2, ExternalLink, Calendar
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -483,35 +484,66 @@ export default function BizDevDashboard() {
             </div>
 
             {showSubmissions && (
-                <div className="glass-panel rounded-xl overflow-hidden">
+                <div className="glass-panel rounded-xl overflow-hidden shadow-md border border-gray-100">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="bg-gray-50/80 border-b border-gray-100">
-                                <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Klien</th>
-                                <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Jenis</th>
-                                <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Status</th>
-                                <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Tanggal</th>
+                                <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Klien / Nama Usaha</th>
+                                <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Jenis Layanan</th>
+                                <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Status Workflow</th>
+                                <th className="text-left px-4 py-3 font-bold text-gray-500 text-xs uppercase">Jadwal Audit</th>
+                                <th className="text-right px-4 py-3 font-bold text-gray-500 text-xs uppercase">Aksi</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="divide-y divide-gray-50">
                             {submissions.map((s, idx) => (
-                                <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                                    <td className="px-4 py-3 font-medium text-gray-800">{s.client?.business_name || s.client?.client_name || '-'}</td>
+                                <tr key={s.id || idx} className="hover:bg-gray-50/50 transition-colors">
+                                    <td className="px-4 py-3 font-semibold text-gray-800">{s.client?.business_name || s.client?.client_name || '-'}</td>
                                     <td className="px-4 py-3">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${s.service_type === 'REGULER' ? 'bg-indigo-50 text-indigo-600' : 'bg-teal-50 text-teal-600'}`}>
+                                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${s.service_type === 'REGULER' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-teal-50 text-teal-700 border border-teal-100'}`}>
                                             {s.service_type}
                                         </span>
                                     </td>
                                     <td className="px-4 py-3">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${s.status === 'SH_TERBIT' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${s.status === 'SH_TERBIT' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>
                                             {s.status?.replace(/_/g, ' ')}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-3 text-gray-600">{new Date(s.created_at).toLocaleDateString('id')}</td>
+                                    <td className="px-4 py-3 text-xs font-bold text-amber-800">
+                                        {s.service_type === 'SELF_DECLARE' ? (
+                                            <span className="text-gray-400 font-medium italic text-[11px]">- (Tanpa Audit)</span>
+                                        ) : s.audit_date ? (
+                                            <span className="flex items-center gap-1 text-amber-900">
+                                                <Calendar className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                                {new Date(s.audit_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            </span>
+                                        ) : (
+                                            <span className="text-amber-600 font-bold italic text-[11px]">Belum Dijadwalkan</span>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                        {s.service_type === 'REGULER' ? (
+                                            <Link
+                                                to={`/dashboard/submissions/${s.id}`}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-50 hover:bg-brand-600 text-brand-700 hover:text-white rounded-xl text-xs font-bold transition-all border border-brand-200 shadow-xs group/btn"
+                                                title="Atur Tanggal Audit & Lihat Detail Pengajuan"
+                                            >
+                                                <span>Atur Audit</span>
+                                                <ExternalLink className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
+                                            </Link>
+                                        ) : (
+                                            <Link
+                                                to={`/dashboard/submissions/${s.id}`}
+                                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl text-xs font-bold transition-all border border-gray-200"
+                                            >
+                                                <span>Detail</span>
+                                            </Link>
+                                        )}
+                                    </td>
                                 </tr>
                             ))}
                             {submissions.length === 0 && (
-                                <tr><td colSpan={4} className="text-center py-8 text-gray-400">Belum ada data</td></tr>
+                                <tr><td colSpan={5} className="text-center py-8 text-gray-400 font-medium">Belum ada data pengajuan</td></tr>
                             )}
                         </tbody>
                     </table>
