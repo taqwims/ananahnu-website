@@ -30,7 +30,7 @@ export default function SubmissionCreate() {
     if (loading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-brand-600" /></div>;
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-[1440px] mx-auto space-y-6 px-4 sm:px-6">
             <div className="flex items-center gap-4">
                 <button onClick={() => navigate('/dashboard/submissions')} className="p-2 hover:bg-white/50 rounded-lg transition-colors">
                     <ChevronLeft className="w-5 h-5 text-gray-600" />
@@ -47,8 +47,8 @@ export default function SubmissionCreate() {
                 onNavigateProfile={() => navigate('/dashboard/consultant-profile')}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                <div className="lg:col-span-8 space-y-6">
                     <ClientInfoForm 
                         clientData={clientData}
                         setClientData={setClientData}
@@ -60,7 +60,7 @@ export default function SubmissionCreate() {
                         districts={districts}
                     />
 
-                    <div className="block md:hidden space-y-6">
+                    <div className="block lg:hidden space-y-6">
                         <SubmissionLiveCalculator clientData={clientData} setClientData={setClientData} />
                         <SubmissionActions 
                             onSave={handleSave}
@@ -79,7 +79,7 @@ export default function SubmissionCreate() {
                 </div>
 
                 {/* Sidebar Actions & Live Calculator */}
-                <div className="hidden md:block space-y-6">
+                <div className="hidden lg:block lg:col-span-4 space-y-6 sticky top-6">
                     <SubmissionLiveCalculator clientData={clientData} setClientData={setClientData} />
                     <SubmissionActions 
                         onSave={handleSave}

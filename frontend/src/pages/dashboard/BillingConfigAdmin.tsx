@@ -8,7 +8,6 @@ import { MasterDataManagement } from '../../components/dashboard/billing/MasterD
 import { QuotaSettings } from '../../components/dashboard/billing/QuotaSettings';
 import { DiscountPanel } from '../../components/dashboard/billing/DiscountPanel';
 import { RoleSchemePanel } from '../../components/dashboard/billing/RoleSchemePanel';
-import { SelfDeclareRates } from '../../components/dashboard/billing/SelfDeclareRates';
 import CoordinatorRates from './CoordinatorRates';
 
 export default function BillingConfigAdmin() {
@@ -48,7 +47,7 @@ export default function BillingConfigAdmin() {
     }
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
+        <div className="max-w-[1440px] mx-auto space-y-8 px-4 sm:px-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
             {/* Header Section */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -142,14 +141,6 @@ export default function BillingConfigAdmin() {
             {activeMainTab === 'role_scheme' && (
                 <RoleSchemePanel
                     schemes={schemes}
-                />
-            )}
-
-            {activeMainTab === 'sd_rates' && (
-                <SelfDeclareRates
-                    systemSettings={systemSettings}
-                    setSystemSettings={setSystemSettings}
-                    onUpdate={handleUpdateSystemSetting}
                 />
             )}
 

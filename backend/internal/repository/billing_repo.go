@@ -21,7 +21,7 @@ func (r *invoiceRepository) FindAll(filter map[string]interface{}, page, limit i
 	var invoices []domain.Invoice
 	var count int64
 
-	query := r.db.Model(&domain.Invoice{}).Preload("Payer").Preload("Submission.Client").Preload("Submission.BusinessType")
+	query := r.db.Model(&domain.Invoice{}).Preload("Payer").Preload("Submission.Client").Preload("Submission.BusinessType").Preload("Submission.Consultant")
 	if len(filter) > 0 {
 		query = query.Where(filter)
 	}

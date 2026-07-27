@@ -56,7 +56,9 @@ func NewBillingUsecase(deps BillingUsecaseDeps) BillingUsecase {
 }
 
 func (uc *billingUsecase) GetMyInvoices(userID uuid.UUID, roleName string, status string, page, limit int) ([]domain.Invoice, int64, error) {
-	filter := map[string]interface{}{}
+	filter := map[string]interface{}{
+		"service_type": []string{"SELF_DECLARE", "SELF_DECLARE_MANDIRI"},
+	}
 	
 	if status != "" {
 		filter["status"] = status
@@ -92,6 +94,9 @@ func (uc *billingUsecase) GetMyInvoices(userID uuid.UUID, roleName string, statu
 			}
 		}
 		filter["payer_id"] = ids
+	case "FINANCE_LEGAL", "FINANCE", "LEGAL", "ADMIN_KEUANGAN", "DIRECTOR":
+		// Finance & Legal sees all invoices of all agents
+		// Do not set filter["payer_id"]
 	default:
 		filter["payer_id"] = userID
 	}

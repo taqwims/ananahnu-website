@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Loader2, Send, FileText, AlertTriangle, AlertCircle } from 'lucide-react';
 import PaymentSection from '../../components/dashboard/PaymentSection';
-import CostCalculator from '../../components/dashboard/CostCalculator';
-import KalkulatorReguler from '../../components/dashboard/KalkulatorReguler';
 import { useAuthStore } from '../../store/authStore';
 import { useSubmission } from '../../hooks/useSubmission';
 import { SubmissionHeader } from '../../components/dashboard/submission/SubmissionHeader';
@@ -310,19 +308,7 @@ return (
                         defaultCollapsed={false}
                     />
 
-                    {/* Form Perhitungan Biaya (Collapsed & Editable) */}
-                    {(serviceType === 'REGULER' || serviceType === 'SELF_DECLARE_MANDIRI') && (
-                        <div className="overflow-x-auto pb-4">
-                            <KalkulatorReguler 
-                                submissionId={submission.id} 
-                                readOnly={user?.role === 'CLIENT'} 
-                                onSaved={refresh}
-                                salesSchemeId={submission.sales_scheme_id || undefined}
-                                dataSource={submission.data_source}
-                                defaultCollapsed={true}
-                            />
-                        </div>
-                    )}
+
 
                     {/* Perjanjian Kontrak Layanan Pendampingan untuk Semua Layanan */}
                     <div className="bg-white p-6 rounded-2xl border border-gray-150 shadow-sm space-y-4">
@@ -355,17 +341,6 @@ return (
                             setEditingData={setEditingData}
                             onRefresh={refresh}
                         />
-                    </div>
-
-                    <div className="overflow-x-auto pb-4">
-                        {(serviceType !== 'REGULER' && serviceType !== 'SELF_DECLARE') ? (
-                            <CostCalculator 
-                                submissionId={submission.id} 
-                                readOnly={user?.role !== 'FINANCE' && user?.role !== 'ADMIN_KEUANGAN' && user?.role !== 'ADMIN'} 
-                                onSaved={refresh}
-                                serviceType={serviceType}
-                            />
-                        ) : null}
                     </div>
 
                     {submission.sh_url && (

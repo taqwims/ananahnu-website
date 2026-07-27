@@ -33,7 +33,8 @@ export const useSubmissionCreate = () => {
         district_id: '',
         product_count: 1,
         branch_count: 1,
-        selected_optional_ids: [] as number[]
+        selected_optional_ids: [] as number[],
+        optional_quantities: {} as Record<number, number>
     });
 
     const [businessTypes, setBusinessTypes] = useState<any[]>([]);
@@ -205,6 +206,7 @@ export const useSubmissionCreate = () => {
                     branch_count: Number(clientData.branch_count || 0)
                 },
                 selected_optional_ids: clientData.selected_optional_ids || [],
+                optional_quantities: clientData.optional_quantities || {},
                 field_values: configs.map(cfg => ({
                     form_field_id: cfg.id,
                     ...fieldValues[cfg.id]

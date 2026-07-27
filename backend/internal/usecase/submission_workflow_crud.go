@@ -180,7 +180,7 @@ func (uc *submissionWorkflowUsecase) CreateDraft(clientID *uuid.UUID, businessNa
 	}
 
 	if sub.ServiceType == "REGULER" || sub.ServiceType == "SELF_DECLARE_MANDIRI" {
-		_ = uc.recalculateAndSaveRegularCost(sub, nil, false)
+		_ = uc.recalculateAndSaveRegularCost(sub, nil, nil, false)
 	}
 
 	uc.logChange(sub.ID, facilitatorID, "CREATE_DRAFT", "", domain.StatusDraft, "Initial draft created")
@@ -284,7 +284,7 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 	// Recalculate cost if REGULER or SELF_DECLARE_MANDIRI
 	if sub.ServiceType == "REGULER" || sub.ServiceType == "SELF_DECLARE_MANDIRI" {
 		hasExplicit := len(input.SelectedOptionalIDs) > 0
-		if err := uc.recalculateAndSaveRegularCost(sub, input.SelectedOptionalIDs, hasExplicit); err != nil {
+		if err := uc.recalculateAndSaveRegularCost(sub, input.SelectedOptionalIDs, input.OptionalQuantities, hasExplicit); err != nil {
 			log.Printf("[CreateFull] failed to calculate regular cost: %v", err)
 		}
 	}
@@ -454,7 +454,7 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 			selectedIDs = *input.SelectedOptionalComponentIDs
 			hasExplicit = true
 		}
-		if err := uc.recalculateAndSaveRegularCost(sub, selectedIDs, hasExplicit); err != nil {
+		if err := uc.recalculateAndSaveRegularCost(sub, selectedIDs, input.OptionalQuantities, hasExplicit); err != nil {
 			return fmt.Errorf("failed to calculate and sync pricing: %w", err)
 		}
 	}
@@ -465,63 +465,66 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 }
 
 // recalculateAndSaveRegularCost recalculates regular pricing dynamically and saves to Cost Detail & Invoice
-func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.Submission, selectedOptionalComponentIDs []int64, hasExplicitSelection bool) error {
+func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.Submission, selectedOptionalComponentIDs []int64, optionalQuantities map[int64]int, hasExplicitSelection bool) error {
 	if sub.ServiceType != "REGULER" && sub.ServiceType != "SELF_DECLARE_MANDIRI" {
 		return nil
 	}
 
-	// Check if required fields are present
-	if sub.BusinessTypeID == nil || sub.BusinessScaleID == nil || sub.ProvinceID == nil || sub.SalesSchemeID == nil {
+	if sub.SalesSchemeID == nil && sub.ServiceType == "REGULER" {
+		var defaultSalesSchemeID int64 = 1
+		sub.SalesSchemeID = &defaultSalesSchemeID
+	}
+
+	// Check if required fields are present for REGULER
+	if sub.ServiceType == "REGULER" && (sub.BusinessTypeID == nil || sub.BusinessScaleID == nil || sub.ProvinceID == nil) {
 		// Pricing fields not fully filled, skip calculation (not an error, just incomplete client info)
 		return nil
 	}
 
-	// Fetch sales scheme prices
-	ds := sub.DataSource
-	if ds == "TELEMARKETING" || ds == "" {
-		ds = "ORGANIK"
-	}
-
-	schemes, err := uc.BillingConfigRepo.FindAllSalesSchemePrices(map[string]interface{}{
-		"sales_scheme_id":   *sub.SalesSchemeID,
-		"business_type_id":  *sub.BusinessTypeID,
-		"business_scale_id": *sub.BusinessScaleID,
-		"data_source":       ds,
-		"is_active":         true,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to fetch sales scheme: %w", err)
-	}
-
+	// Fetch sales scheme prices if SalesSchemeID is set
 	var scheme *domain.SalesSchemePrice
-	if len(schemes) > 0 {
-		// Sort schemes by specificity: non-null fields first
-		sort.Slice(schemes, func(i, j int) bool {
-			scoreI := 0
-			if schemes[i].ProductCategoryID != nil {
-				scoreI += 100
-			}
-			if schemes[i].BusinessScaleID != nil {
-				scoreI += 10
-			}
-			if schemes[i].BusinessTypeID != nil {
-				scoreI += 1
-			}
+	if sub.SalesSchemeID != nil && sub.BusinessTypeID != nil && sub.BusinessScaleID != nil {
+		ds := sub.DataSource
+		if ds == "TELEMARKETING" || ds == "" {
+			ds = "ORGANIK"
+		}
 
-			scoreJ := 0
-			if schemes[j].ProductCategoryID != nil {
-				scoreJ += 100
-			}
-			if schemes[j].BusinessScaleID != nil {
-				scoreJ += 10
-			}
-			if schemes[j].BusinessTypeID != nil {
-				scoreJ += 1
-			}
-
-			return scoreI > scoreJ // Descending order of specificity
+		schemes, err := uc.BillingConfigRepo.FindAllSalesSchemePrices(map[string]interface{}{
+			"sales_scheme_id":   *sub.SalesSchemeID,
+			"business_type_id":  *sub.BusinessTypeID,
+			"business_scale_id": *sub.BusinessScaleID,
+			"data_source":       ds,
+			"is_active":         true,
 		})
-		scheme = &schemes[0]
+		if err == nil && len(schemes) > 0 {
+			// Sort schemes by specificity: non-null fields first
+			sort.Slice(schemes, func(i, j int) bool {
+				scoreI := 0
+				if schemes[i].ProductCategoryID != nil {
+					scoreI += 100
+				}
+				if schemes[i].BusinessScaleID != nil {
+					scoreI += 10
+				}
+				if schemes[i].BusinessTypeID != nil {
+					scoreI += 1
+				}
+
+				scoreJ := 0
+				if schemes[j].ProductCategoryID != nil {
+					scoreJ += 100
+				}
+				if schemes[j].BusinessScaleID != nil {
+					scoreJ += 10
+				}
+				if schemes[j].BusinessTypeID != nil {
+					scoreJ += 1
+				}
+
+				return scoreI > scoreJ // Descending order of specificity
+			})
+			scheme = &schemes[0]
+		}
 	}
 
 	// Fetch active billing components filtered by service_type
@@ -583,6 +586,15 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 		if score > bestScore {
 			bestScore = score
 			bestPendampingan = &comp
+		}
+	}
+
+	if sub.ServiceType == "SELF_DECLARE_MANDIRI" && bestPendampingan == nil {
+		for _, comp := range components {
+			if comp.ServiceType == "SELF_DECLARE_MANDIRI" {
+				bestPendampingan = &comp
+				break
+			}
 		}
 	}
 
@@ -686,24 +698,39 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 		multiplier := 1
 		multiplierLabel := ""
 
-		if comp.Type == "PER_CABANG" && sub.BranchCount > 1 {
-			amount = amount * float64(sub.BranchCount)
-			multiplier = sub.BranchCount
-			multiplierLabel = fmt.Sprintf(" (%d Cabang)", sub.BranchCount)
-		}
-		if comp.Type == "PER_PRODUK" && sub.ProductCount > 0 {
-			amount = amount * float64(sub.ProductCount)
-			multiplier = sub.ProductCount
-			multiplierLabel = fmt.Sprintf(" (%d Produk)", sub.ProductCount)
-		}
-		if comp.Type == "PER_MANDAY" {
-			// All PER_MANDAY components use per-component multiplier from breakdown
-			prevMult := getMultiplierFromBreakdown(existingBreakdown, comp.Name)
-			if prevMult > 0 {
-				multiplier = prevMult
+		if !comp.IsMandatory {
+			if optQty, ok := optionalQuantities[comp.ID]; ok && optQty > 0 {
+				multiplier = optQty
+			} else {
+				prevMult := getMultiplierFromBreakdown(existingBreakdown, comp.Name)
+				if prevMult > 0 {
+					multiplier = prevMult
+				}
 			}
-			multiplierLabel = fmt.Sprintf(" (%d Kuantitas)", multiplier)
+			if multiplier > 1 {
+				multiplierLabel = fmt.Sprintf(" (%d Kuantitas)", multiplier)
+			}
 			amount = amount * float64(multiplier)
+		} else {
+			if comp.Type == "PER_CABANG" && sub.BranchCount > 1 {
+				amount = amount * float64(sub.BranchCount)
+				multiplier = sub.BranchCount
+				multiplierLabel = fmt.Sprintf(" (%d Cabang)", sub.BranchCount)
+			}
+			if comp.Type == "PER_PRODUK" && sub.ProductCount > 0 {
+				amount = amount * float64(sub.ProductCount)
+				multiplier = sub.ProductCount
+				multiplierLabel = fmt.Sprintf(" (%d Produk)", sub.ProductCount)
+			}
+			if comp.Type == "PER_MANDAY" {
+				// All PER_MANDAY components use per-component multiplier from breakdown
+				prevMult := getMultiplierFromBreakdown(existingBreakdown, comp.Name)
+				if prevMult > 0 {
+					multiplier = prevMult
+				}
+				multiplierLabel = fmt.Sprintf(" (%d Kuantitas)", multiplier)
+				amount = amount * float64(multiplier)
+			}
 		}
 
 		discountAmount := 0.0
@@ -726,11 +753,12 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 		}
 
 		breakdown = append(breakdown, map[string]interface{}{
-			"name":       comp.Name + nameTag + multiplierLabel,
-			"category":   comp.Category,
-			"unit_cost":  comp.BaseAmount,
-			"multiplier": multiplier,
-			"total":      amount + discountAmount,
+			"name":        comp.Name + nameTag + multiplierLabel,
+			"category":    comp.Category,
+			"unit_cost":   comp.BaseAmount,
+			"multiplier":  multiplier,
+			"is_optional": !comp.IsMandatory,
+			"total":       amount + discountAmount,
 		})
 
 		if discountAmount > 0 {
@@ -797,8 +825,10 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 	// Sync or create invoice
 	invoice, err := uc.InvoiceRepo.FindBySubmissionID(sub.ID)
 	if err == nil && invoice != nil {
-		// Respect existing invoice type
-		if invoice.Type == domain.InvoiceTypeDP {
+		if sub.ServiceType == "SELF_DECLARE_MANDIRI" {
+			invoice.Amount = total
+			invoice.Type = domain.InvoiceTypeFull
+		} else if invoice.Type == domain.InvoiceTypeDP {
 			invoice.Amount = total * 0.70
 		} else {
 			invoice.Amount = total
@@ -808,14 +838,22 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 	}
 
 	if sub.Status != domain.StatusDraft && sub.Status != domain.StatusRevision {
+		invType := domain.InvoiceTypeDP
+		invAmount := total * 0.70
+		notes := "Down Payment 70% Layanan Reguler (Auto-sync from Client Info)"
+		if sub.ServiceType == "SELF_DECLARE_MANDIRI" {
+			invType = domain.InvoiceTypeFull
+			invAmount = total
+			notes = "Pembayaran Self Declare Mandiri (Auto-sync from Client Info)"
+		}
 		newInvoice := &domain.Invoice{
 			SubmissionID:  sub.ID,
-			ServiceType:   "REGULER",
-			Type:          domain.InvoiceTypeDP,
-			Amount:        total * 0.70,
+			ServiceType:   sub.ServiceType,
+			Type:          invType,
+			Amount:        invAmount,
 			Status:        domain.InvoiceStatusUnpaid,
 			PricingSource: "COST_DETAIL",
-			Notes:         "Down Payment 70% Layanan Reguler (Auto-sync from Client Info)",
+			Notes:         notes,
 		}
 		return uc.InvoiceRepo.Create(newInvoice)
 	}

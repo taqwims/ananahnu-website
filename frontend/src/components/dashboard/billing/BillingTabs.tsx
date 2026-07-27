@@ -20,7 +20,6 @@ export const BillingTabs = ({
 
     const tabs = [
         { key: 'components', label: 'Biaya', icon: Plus },
-        { key: 'sd_rates', label: 'Tarif Default SD Mandiri', icon: Tag },
         { key: 'discounts', label: 'Diskon Jasa Pendampingan', icon: Tag },
         { key: 'role_scheme', label: 'Pemetaan Role-Skema', icon: Tag },
         ...(isDirector ? [{ key: 'quota', label: 'Kuota Fasilitasi', icon: Tag }] : []),

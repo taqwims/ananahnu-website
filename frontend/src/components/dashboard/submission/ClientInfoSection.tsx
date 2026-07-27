@@ -58,6 +58,7 @@ export const ClientInfoSection = ({
     const [schemes, setSchemes] = useState<any[]>([]);
     const [masterComponents, setMasterComponents] = useState<any[]>([]);
     const [selectedOptionalComponentIds, setSelectedOptionalComponentIds] = useState<number[]>([]);
+    const [optionalQuantities, setOptionalQuantities] = useState<Record<number, number>>({});
     const [nibFile, setNibFile] = useState<File | null>(null);
 
     const [clientForm, setClientForm] = useState({
@@ -97,18 +98,24 @@ export const ClientInfoSection = ({
             try {
                 const bd = JSON.parse(submission.cost_detail.cost_breakdown_data);
                 const selectedIds: number[] = [];
+                const quantities: Record<number, number> = {};
                 bd.forEach((item: any) => {
-                    if (!item.is_optional) return;
+                    if (!item || !item.name || item.category === 'DISKON' || item.category === 'PENDAMPINGAN') return;
                     const matchingComp = masterComponents.find(c => 
                         !c.is_mandatory && 
-                        c.category.toUpperCase() !== 'PENDAMPINGAN' &&
+                        c.category?.toUpperCase() !== 'PENDAMPINGAN' &&
                         item.name.startsWith(c.name)
                     );
                     if (matchingComp) {
-                        selectedIds.push(matchingComp.id);
+                        if (!selectedIds.includes(matchingComp.id)) {
+                            selectedIds.push(matchingComp.id);
+                        }
+                        const mult = typeof item.multiplier === 'number' && item.multiplier > 0 ? item.multiplier : 1;
+                        quantities[matchingComp.id] = mult;
                     }
                 });
                 setSelectedOptionalComponentIds(selectedIds);
+                setOptionalQuantities(quantities);
             } catch (e) {
                 console.error(e);
             }
@@ -166,7 +173,8 @@ export const ClientInfoSection = ({
                 sales_scheme_id: updatedClientForm.sales_scheme_id ? parseInt(updatedClientForm.sales_scheme_id) : null,
                 product_count: updatedClientForm.product_count,
                 branch_count: updatedClientForm.branch_count,
-                selected_optional_component_ids: selectedOptionalComponentIds
+                selected_optional_component_ids: selectedOptionalComponentIds,
+                optional_quantities: optionalQuantities
             };
 
             await onUpdateClientInfoAndPricing(payload);
@@ -443,52 +451,98 @@ export const ClientInfoSection = ({
                                         onChange={e => setClientForm({...clientForm, branch_count: parseInt(e.target.value) || 1})} 
                                     />
                                 </div>
-                                {/* Optional Components */}
-                                {(() => {
-                                    const availableOptionals = masterComponents.filter(comp => {
-                                        if (!comp || comp.is_mandatory || comp.category.toUpperCase() === 'PENDAMPINGAN') return false;
-                                        
-                                        // Match filters
-                                        if (comp.province_id && comp.province_id.toString() !== clientForm.province_id) return false;
-                                        if (comp.regency_id && comp.regency_id.toString() !== clientForm.regency_id) return false;
-                                        if (comp.business_type_id && comp.business_type_id.toString() !== clientForm.business_type_id) return false;
-                                        if (comp.business_scale_id && comp.business_scale_id.toString() !== clientForm.business_scale_id) return false;
-                                        if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== clientForm.sales_scheme_id) return false;
-                                        
-                                        return true;
-                                    });
+                                 {/* Optional Components */}
+                                 {(() => {
+                                     const currentSt = submission.service_type || submission.client?.service_type || 'REGULER';
+                                     const availableOptionals = masterComponents.filter(comp => {
+                                         if (!comp || comp.is_mandatory || comp.category?.toUpperCase() === 'PENDAMPINGAN') return false;
+                                         
+                                         // Match service_type
+                                         const compSt = comp.service_type || 'REGULER';
+                                         if (compSt !== 'BOTH' && compSt !== 'ALL' && currentSt && compSt !== currentSt) return false;
 
-                                    if (availableOptionals.length === 0) return null;
+                                         // Match filters
+                                         if (comp.province_id && comp.province_id.toString() !== clientForm.province_id) return false;
+                                         if (comp.regency_id && comp.regency_id.toString() !== clientForm.regency_id) return false;
+                                         if (comp.business_type_id && comp.business_type_id.toString() !== clientForm.business_type_id) return false;
+                                         if (comp.business_scale_id && comp.business_scale_id.toString() !== clientForm.business_scale_id) return false;
+                                         if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== clientForm.sales_scheme_id) return false;
+                                         
+                                         return true;
+                                     });
 
-                                    return (
-                                        <div className="col-span-1 sm:col-span-2 md:col-span-3 border-t border-gray-100 pt-4 mt-2">
-                                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Komponen Tambahan (Opsional)</label>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-200/50">
-                                                {availableOptionals.map(comp => {
-                                                    const isChecked = selectedOptionalComponentIds.includes(comp.id);
-                                                    return (
-                                                        <label key={comp.id} className="flex items-center gap-3 cursor-pointer select-none">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={isChecked}
-                                                                onChange={() => {
-                                                                    if (isChecked) {
-                                                                        setSelectedOptionalComponentIds(selectedOptionalComponentIds.filter(id => id !== comp.id));
-                                                                    } else {
-                                                                        setSelectedOptionalComponentIds([...selectedOptionalComponentIds, comp.id]);
-                                                                    }
-                                                                }}
-                                                                className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
-                                                            />
-                                                            <div className="flex-1 text-sm text-gray-700 font-medium">{comp.name}</div>
-                                                            <div className="text-xs text-gray-500 font-bold">({formatRupiah(comp.base_amount)})</div>
-                                                        </label>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    );
-                                })()}
+                                     if (availableOptionals.length === 0) return null;
+
+                                     const toggleComp = (id: number) => {
+                                         if (selectedOptionalComponentIds.includes(id)) {
+                                             setSelectedOptionalComponentIds(selectedOptionalComponentIds.filter(x => x !== id));
+                                         } else {
+                                             setSelectedOptionalComponentIds([...selectedOptionalComponentIds, id]);
+                                             setOptionalQuantities({
+                                                 ...optionalQuantities,
+                                                 [id]: optionalQuantities[id] || 1
+                                             });
+                                         }
+                                     };
+
+                                     return (
+                                         <div className="col-span-1 sm:col-span-2 md:col-span-3 border-t border-gray-100 pt-4 mt-2">
+                                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Komponen Tambahan (Opsional)</label>
+                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-gray-50/50 p-4 rounded-xl border border-gray-200/50">
+                                                 {availableOptionals.map(comp => {
+                                                     const isChecked = selectedOptionalComponentIds.includes(comp.id);
+                                                     const qty = optionalQuantities[comp.id] || 1;
+                                                     return (
+                                                         <div 
+                                                             key={comp.id} 
+                                                             onClick={() => toggleComp(comp.id)}
+                                                             className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all cursor-pointer select-none ${
+                                                                 isChecked ? 'bg-brand-50/80 border-brand-300' : 'bg-white border-gray-200 hover:bg-gray-50'
+                                                             }`}
+                                                         >
+                                                             <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                                 <input
+                                                                     type="checkbox"
+                                                                     checked={isChecked}
+                                                                     readOnly
+                                                                     className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500 shrink-0 pointer-events-none"
+                                                                 />
+                                                                 <span className="text-xs text-gray-700 font-medium truncate">{comp.name}</span>
+                                                             </div>
+                                                             <div className="flex items-center gap-3 shrink-0" onClick={e => e.stopPropagation()}>
+                                                                 {isChecked && (
+                                                                     <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-1.5 py-0.5">
+                                                                         <span className="text-[10px] text-gray-400 font-bold mr-1">Qty:</span>
+                                                                         <button
+                                                                             type="button"
+                                                                             onClick={() => setOptionalQuantities({ ...optionalQuantities, [comp.id]: Math.max(1, qty - 1) })}
+                                                                             className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-100 font-bold text-gray-600 text-xs"
+                                                                         >-</button>
+                                                                         <input
+                                                                             type="number"
+                                                                             min="1"
+                                                                             value={qty}
+                                                                             onChange={(e) => setOptionalQuantities({ ...optionalQuantities, [comp.id]: Math.max(1, parseInt(e.target.value) || 1) })}
+                                                                             className="w-8 text-center bg-transparent border-none text-xs font-bold text-brand-700 outline-none p-0"
+                                                                         />
+                                                                         <button
+                                                                             type="button"
+                                                                             onClick={() => setOptionalQuantities({ ...optionalQuantities, [comp.id]: qty + 1 })}
+                                                                             className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-100 font-bold text-gray-600 text-xs"
+                                                                         >+</button>
+                                                                     </div>
+                                                                 )}
+                                                                 <div className="text-xs text-gray-500 font-bold">
+                                                                     ({formatRupiah(comp.base_amount * (isChecked ? qty : 1))})
+                                                                 </div>
+                                                             </div>
+                                                         </div>
+                                                     );
+                                                 })}
+                                             </div>
+                                         </div>
+                                     );
+                                 })()}
                             </>
                         )}
                     </div>

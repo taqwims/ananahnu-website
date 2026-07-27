@@ -70,6 +70,7 @@ type CreateFullInput struct {
 		BranchCount       int    `json:"branch_count"`
 	} `json:"client_data"`
 	SelectedOptionalIDs []int64           `json:"selected_optional_ids"`
+	OptionalQuantities  map[int64]int     `json:"optional_quantities"`
 	FieldValues         []FieldValueInput `json:"field_values"`
 }
 
@@ -97,6 +98,7 @@ type UpdateClientInfoAndPricingInput struct {
 	SalesSchemeID     *int64 `json:"sales_scheme_id"`
 	DataSource        string `json:"data_source"`
 	SelectedOptionalComponentIDs *[]int64 `json:"selected_optional_component_ids"`
+	OptionalQuantities           map[int64]int `json:"optional_quantities"`
 	TotalAmount       *float64 `json:"total_amount,omitempty"`
 	CostBreakdownData *string  `json:"cost_breakdown_data,omitempty"`
 }

@@ -15,7 +15,7 @@ export default function UserManagement() {
     } = useUserManagement();
 
     return (
-        <div className="max-w-6xl mx-auto space-y-6 pb-12">
+        <div className="max-w-[1440px] mx-auto space-y-6 px-4 sm:px-6 pb-12">
             <UserTableHeader onAddClick={openCreate} />
 
             <UserFilters 

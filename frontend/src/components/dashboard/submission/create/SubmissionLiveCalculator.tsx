@@ -16,6 +16,7 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
 
     const serviceType = clientData.service_type || 'SELF_DECLARE';
     const selectedOptionalIds: number[] = clientData.selected_optional_ids || [];
+    const optionalQuantities: Record<number, number> = clientData.optional_quantities || {};
 
     // Fetch billing components and settings
     useEffect(() => {
@@ -73,14 +74,30 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
 
     const toggleOptional = (id: number) => {
         let updated: number[];
+        const updatedQuantities = { ...optionalQuantities };
         if (selectedOptionalIds.includes(id)) {
             updated = selectedOptionalIds.filter(x => x !== id);
         } else {
             updated = [...selectedOptionalIds, id];
+            if (!updatedQuantities[id] || updatedQuantities[id] < 1) {
+                updatedQuantities[id] = 1;
+            }
         }
         setClientData({
             ...clientData,
-            selected_optional_ids: updated
+            selected_optional_ids: updated,
+            optional_quantities: updatedQuantities
+        });
+    };
+
+    const handleQtyChange = (id: number, qty: number) => {
+        const val = Math.max(1, qty);
+        setClientData({
+            ...clientData,
+            optional_quantities: {
+                ...optionalQuantities,
+                [id]: val
+            }
         });
     };
 
@@ -179,14 +196,15 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
         // 2. Selected Optional Components
         optionalComponents.forEach(comp => {
             if (!selectedOptionalIds.includes(comp.id)) return;
-            let multiplier = 1;
-            let multiplierLabel = '';
+            const optQty = optionalQuantities[comp.id] || 1;
+            let multiplier = optQty;
+            let multiplierLabel = multiplier > 1 ? ` (${multiplier} Kuantitas)` : '';
 
             if (comp.type === 'PER_CABANG') {
-                multiplier = Math.max(1, parseInt(clientData.branch_count) || 1);
+                multiplier = Math.max(1, parseInt(clientData.branch_count) || 1) * optQty;
                 multiplierLabel = ` (${multiplier} Cabang)`;
             } else if (comp.type === 'PER_PRODUK') {
-                multiplier = Math.max(1, parseInt(clientData.product_count) || 1);
+                multiplier = Math.max(1, parseInt(clientData.product_count) || 1) * optQty;
                 multiplierLabel = ` (${multiplier} Produk)`;
             }
 
@@ -222,9 +240,12 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
         let bestPend: any = null;
         let bestPendScore = -1;
         masterComponents.forEach(comp => {
-            if (!comp || comp.category?.toUpperCase() !== 'PENDAMPINGAN') return;
+            if (!comp) return;
             const compSt = comp.service_type || 'REGULER';
             if (compSt !== 'BOTH' && compSt !== 'ALL' && serviceType && compSt !== serviceType) return;
+            if (serviceType === 'SELF_DECLARE_MANDIRI' && (compSt === 'SELF_DECLARE_MANDIRI' || comp.category?.toUpperCase() === 'PENDAMPINGAN')) {
+                // eligible for SD Mandiri
+            } else if (comp.category?.toUpperCase() !== 'PENDAMPINGAN') return;
 
             if (comp.province_id && comp.province_id.toString() !== clientData.province_id?.toString()) return;
             if (comp.regency_id && comp.regency_id.toString() !== clientData.regency_id?.toString()) return;
@@ -292,7 +313,7 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
         }
 
         return { total: currentTotal, breakdown: currentBreakdown };
-    }, [masterComponents, salesSchemePrice, systemSettings, serviceType, clientData, selectedOptionalIds, optionalComponents]);
+    }, [masterComponents, salesSchemePrice, systemSettings, serviceType, clientData, selectedOptionalIds, optionalQuantities, optionalComponents]);
 
     const formatCurrency = (val: number) => {
         return new Intl.NumberFormat('id-ID', {
@@ -373,28 +394,54 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
                     <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                         {optionalComponents.map(comp => {
                             const isSelected = selectedOptionalIds.includes(comp.id);
+                            const qty = optionalQuantities[comp.id] || 1;
                             return (
-                                <label 
+                                <div 
                                     key={comp.id}
-                                    className={`flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                                    onClick={() => toggleOptional(comp.id)}
+                                    className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all cursor-pointer select-none ${
                                         isSelected 
                                             ? 'bg-brand-50/80 border-brand-300 text-brand-900 font-semibold shadow-xs' 
                                             : 'bg-gray-50 border-gray-150 text-gray-600 hover:bg-gray-100'
                                     }`}
                                 >
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-1 min-w-0">
                                         <input 
                                             type="checkbox"
                                             checked={isSelected}
-                                            onChange={() => toggleOptional(comp.id)}
-                                            className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 cursor-pointer"
+                                            readOnly
+                                            className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 cursor-pointer shrink-0 pointer-events-none"
                                         />
-                                        <span title={comp.name}>{comp.name}</span>
+                                        <span title={comp.name} className="truncate">{comp.name}</span>
                                     </div>
-                                    <span className="font-mono font-bold text-gray-800">
-                                        +{formatCurrency(comp.base_amount)}
-                                    </span>
-                                </label>
+                                    <div className="flex items-center gap-3 shrink-0" onClick={e => e.stopPropagation()}>
+                                        {isSelected && (
+                                            <div className="flex items-center gap-1 bg-white border border-brand-200 rounded-lg px-1.5 py-0.5">
+                                                <span className="text-[10px] text-gray-400 font-bold mr-1">Qty:</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleQtyChange(comp.id, qty - 1)}
+                                                    className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-100 font-bold text-gray-600 text-xs"
+                                                >-</button>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={qty}
+                                                    onChange={(e) => handleQtyChange(comp.id, parseInt(e.target.value) || 1)}
+                                                    className="w-8 text-center bg-transparent border-none text-xs font-bold text-brand-700 outline-none p-0"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleQtyChange(comp.id, qty + 1)}
+                                                    className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-100 font-bold text-gray-600 text-xs"
+                                                >+</button>
+                                            </div>
+                                        )}
+                                        <span className="font-mono font-bold text-gray-800">
+                                            +{formatCurrency(comp.base_amount * (isSelected ? qty : 1))}
+                                        </span>
+                                    </div>
+                                </div>
                             );
                         })}
                     </div>

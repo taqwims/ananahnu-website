@@ -112,7 +112,7 @@ export default function FormConfigAdmin() {
     const filteredFields = fields.filter(f => (f.step_number || 1) === activeStepNum);
 
     return (
-        <div className="max-w-5xl mx-auto space-y-8 pb-12">
+        <div className="max-w-[1440px] mx-auto space-y-8 px-4 sm:px-6 pb-12">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-black text-gray-900 tracking-tight flex items-center gap-3">

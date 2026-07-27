@@ -19,6 +19,10 @@ interface Invoice {
         client?: {
             business_name: string;
         };
+        consultant?: {
+            full_name: string;
+            id: string;
+        };
     };
     payer?: {
         full_name: string;
@@ -37,7 +41,13 @@ export default function MyInvoices() {
     const [activeTab, setActiveTab] = useState<TabType>('UNPAID');
 
     const currentUser = useAuthStore(state => state.user);
-    const isCoordinator = currentUser?.role === 'HALAL_MANAGER' || currentUser?.role === 'HALAL_DIRECTOR';
+    const isCoordinator = currentUser?.role === 'HALAL_MANAGER' || 
+                          currentUser?.role === 'HALAL_DIRECTOR' || 
+                          currentUser?.role === 'FINANCE_LEGAL' || 
+                          currentUser?.role === 'FINANCE' || 
+                          currentUser?.role === 'LEGAL' || 
+                          currentUser?.role === 'ADMIN_KEUANGAN' || 
+                          currentUser?.role === 'DIRECTOR';
 
     const fetchInvoices = useCallback(async (tabStatus: TabType) => {
         setLoading(true);
@@ -171,15 +181,15 @@ export default function MyInvoices() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="max-w-[1440px] mx-auto space-y-6 px-4 sm:px-6 pb-12">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800">
-                        {isCoordinator ? 'Tagihan Self Declare (Tim & Saya)' : 'Tagihan Self Declare'}
+                        {isCoordinator ? 'Tagihan Self Declare (Semua Agent & Tim)' : 'Tagihan Self Declare'}
                     </h1>
                     <p className="text-gray-500 text-sm">
                         {isCoordinator 
-                            ? 'Daftar tagihan & riwayat pembayaran sertifikasi Self Declare tim advisor Anda.' 
+                            ? 'Daftar tagihan & riwayat pembayaran sertifikasi Self Declare seluruh advisor & agent.' 
                             : 'Daftar tagihan & riwayat pelunasan sertifikasi Self Declare.'}
                     </p>
                 </div>
@@ -269,9 +279,11 @@ export default function MyInvoices() {
                                     )}
                                     <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Klien / Detail</th>
                                     <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Layanan</th>
-                                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Tanggal Tagihan</th>
+                                    <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">
+                                        {activeTab === 'PAID' ? 'Tanggal Pembayaran' : 'Tanggal Tagihan'}
+                                    </th>
                                     <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Nominal</th>
-                                    {isCoordinator && <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Advisor</th>}
+                                    {isCoordinator && <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider">Advisor / Agent</th>}
                                     <th className="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-wider text-right">Status / Aksi</th>
                                 </tr>
                             </thead>
@@ -306,19 +318,43 @@ export default function MyInvoices() {
                                                 <td className="px-6 py-4 font-medium text-gray-600">
                                                     {formatServiceType(inv.service_type)}
                                                 </td>
-                                                <td className="px-6 py-4 text-sm text-gray-500">
-                                                    {new Date(inv.created_at).toLocaleDateString('id-ID', {
-                                                        day: 'numeric', month: 'short', year: 'numeric'
-                                                    })}
+                                                <td className="px-6 py-4 text-sm font-medium text-gray-700">
+                                                    {activeTab === 'PAID' ? (
+                                                        <div className="flex flex-col">
+                                                            <span className="text-emerald-700 font-bold">
+                                                                {inv.updated_at ? new Date(inv.updated_at).toLocaleDateString('id-ID', {
+                                                                    day: 'numeric', month: 'short', year: 'numeric'
+                                                                }) : new Date(inv.created_at).toLocaleDateString('id-ID', {
+                                                                    day: 'numeric', month: 'short', year: 'numeric'
+                                                                })}
+                                                            </span>
+                                                            {inv.updated_at && (
+                                                                <span className="text-[10px] text-gray-400">
+                                                                    {new Date(inv.updated_at).toLocaleTimeString('id-ID', {
+                                                                        hour: '2-digit', minute: '2-digit'
+                                                                    })} WIB
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        new Date(inv.created_at).toLocaleDateString('id-ID', {
+                                                            day: 'numeric', month: 'short', year: 'numeric'
+                                                        })
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4 font-black text-brand-600">
                                                     {formatRupiah(inv.amount)}
                                                 </td>
                                                 {isCoordinator && (
                                                     <td className="px-6 py-4">
-                                                        <p className="text-xs font-medium text-gray-700">
-                                                            {inv.payer?.id === currentUser?.id ? 'Saya' : inv.payer?.full_name || '-'}
-                                                        </p>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-xs font-bold text-gray-800">
+                                                                {inv.payer?.full_name || inv.submission?.consultant?.full_name || 'Halal Agent'}
+                                                            </span>
+                                                            {inv.payer?.id === currentUser?.id && (
+                                                                <span className="text-[10px] text-brand-600 font-semibold">(Saya)</span>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                 )}
                                                 <td className="px-6 py-4 text-right flex flex-col items-end gap-2">
