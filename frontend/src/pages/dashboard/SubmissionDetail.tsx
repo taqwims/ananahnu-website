@@ -57,8 +57,6 @@ export default function SubmissionDetail() {
     
     if (!submission) return <div className="p-8 text-center text-gray-500">Submission not found</div>;
 
-    const serviceType = submission.service_type || submission.client?.service_type || '';
-
     if (user?.role === 'CLIENT') {
         return (
             <div className="max-w-4xl mx-auto space-y-6 px-4 sm:px-6">
