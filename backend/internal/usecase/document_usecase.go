@@ -209,7 +209,7 @@ func (uc *documentUsecase) GenerateContract(submissionID uuid.UUID, format strin
 	vars["{{total_contract_amount_words}}"] = utils.TerbilangRupiah(totalAmount)
 
 	// Support info
-	vars["{{customer_service_contact}}"] = "cs@halalcore.id"
+	vars["{{customer_service_contact}}"] = "support@halalcore.id"
 	vars["{{complaint_channel}}"] = "complaint@halalcore.id"
 	vars["{{privacy_contact}}"] = "privasi@halalcore.id"
 	vars["{{refund_processing_days}}"] = uc.getSetting(settingMap, "REFUND_PROCESSING_DAYS", "14")
@@ -316,9 +316,35 @@ func (uc *documentUsecase) generateDocx(vars map[string]string) ([]byte, error) 
 	return buf.Bytes(), nil
 }
 
+func cleanPDFText(s string) string {
+	r := strings.NewReplacer(
+		"—", "-",   // em dash U+2014
+		"–", "-",   // en dash U+2013
+		"“", "\"",  // left double quote U+201C
+		"”", "\"",  // right double quote U+201D
+		"‘", "'",   // left single quote U+2018
+		"’", "'",   // right single quote U+2019
+		"•", "-",   // bullet U+2022
+		"…", "...", // ellipsis U+2026
+		"\u00a0", " ", // non-breaking space
+	)
+	return r.Replace(s)
+}
+
 func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.SetAutoPageBreak(true, 25)
+
+	cleanStr := func(s string) string {
+		return cleanPDFText(s)
+	}
+
+	// Pre-sanitize all values in vars map
+	cleanVars := make(map[string]string, len(vars))
+	for k, v := range vars {
+		cleanVars[k] = cleanStr(v)
+	}
+	vars = cleanVars
 	
 	// Define header with logo on all pages
 	pdf.SetHeaderFunc(func() {
@@ -333,7 +359,7 @@ func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 		pdf.SetY(-15)
 		pdf.SetFont("Times", "", 8)
 		pdf.SetTextColor(100, 116, 139) // slate-500
-		pdf.CellFormat(0, 10, fmt.Sprintf("Kontrak %s  |  Halaman %d", vars["{{contract_number}}"], pdf.PageNo()), "", 0, "R", false, 0, "")
+		pdf.CellFormat(0, 10, cleanStr(fmt.Sprintf("Kontrak %s  |  Halaman %d", vars["{{contract_number}}"], pdf.PageNo())), "", 0, "R", false, 0, "")
 	})
 
 	pdf.SetMargins(20, 32, 20)
@@ -343,16 +369,16 @@ func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 	pdf.SetXY(20, 32)
 	pdf.SetFont("Times", "B", 10)
 	pdf.SetTextColor(194, 65, 12) // amber-700 / orange-700
-	pdf.CellFormat(0, 6, "PERJANJIAN LAYANAN", "", 1, "L", false, 0, "")
+	pdf.CellFormat(0, 6, cleanStr("PERJANJIAN LAYANAN"), "", 1, "L", false, 0, "")
 	
 	pdf.SetFont("Times", "B", 18)
 	pdf.SetTextColor(12, 74, 110) // sky-900
-	pdf.CellFormat(0, 8, "KONTRAK PENDAMPINGAN", "", 1, "L", false, 0, "")
-	pdf.CellFormat(0, 8, "SERTIFIKASI HALAL", "", 1, "L", false, 0, "")
+	pdf.CellFormat(0, 8, cleanStr("KONTRAK PENDAMPINGAN"), "", 1, "L", false, 0, "")
+	pdf.CellFormat(0, 8, cleanStr("SERTIFIKASI HALAL"), "", 1, "L", false, 0, "")
 	
 	pdf.SetFont("Times", "B", 11)
 	pdf.SetTextColor(51, 65, 85) // slate-700
-	pdf.CellFormat(0, 6, "Nomor: "+vars["{{contract_number}}"], "", 1, "L", false, 0, "")
+	pdf.CellFormat(0, 6, cleanStr("Nomor: "+vars["{{contract_number}}"]), "", 1, "L", false, 0, "")
 	pdf.Ln(4)
 
 	// Summary Table
@@ -363,12 +389,12 @@ func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 		pdf.SetFillColor(240, 249, 255) // sky-50
 		pdf.SetFont("Times", "B", 10)
 		pdf.SetTextColor(12, 74, 110) // sky-900
-		pdf.CellFormat(50, 7.5, "  "+label, "1", 0, "L", true, 0, "")
+		pdf.CellFormat(50, 7.5, cleanStr("  "+label), "1", 0, "L", true, 0, "")
 		
 		pdf.SetFillColor(255, 255, 255)
 		pdf.SetFont("Times", "", 10)
 		pdf.SetTextColor(51, 65, 85)
-		pdf.CellFormat(120, 7.5, "  "+val, "1", 1, "L", true, 0, "")
+		pdf.CellFormat(120, 7.5, cleanStr("  "+val), "1", 1, "L", true, 0, "")
 	}
 	
 	drawTableObj("Nomor Pengajuan", vars["{{application_number}}"])
@@ -386,10 +412,10 @@ func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 	pdf.SetXY(22, yNotice + 2.5)
 	pdf.SetFont("Times", "B", 9.5)
 	pdf.SetTextColor(194, 65, 12) // amber-700
-	pdf.Write(5, "PENTING. ")
+	pdf.Write(5, cleanStr("PENTING. "))
 	pdf.SetFont("Times", "", 9.5)
 	pdf.SetTextColor(71, 85, 105) // slate-600
-	pdf.Write(5, "Dokumen berstatus DRAFT belum mengikat Para Pihak. Perjanjian menjadi efektif setelah\nditandatangani oleh kedua pihak dan persyaratan mulai layanan pada Pasal 6 terpenuhi.")
+	pdf.Write(5, cleanStr("Dokumen berstatus DRAFT belum mengikat Para Pihak. Perjanjian menjadi efektif setelah\nditandatangani oleh kedua pihak dan persyaratan mulai layanan pada Pasal 6 terpenuhi."))
 	pdf.SetXY(20, yNotice + 16)
 	pdf.Ln(6)
 
@@ -397,50 +423,50 @@ func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 	pdf.SetFont("Times", "", 10)
 	pdf.SetTextColor(51, 65, 85)
 	introText := fmt.Sprintf("Pada hari ini, %s, tanggal %s, bertempat di %s, Para Pihak menerangkan dan menyepakati Perjanjian Layanan Pendampingan Sertifikasi Halal (selanjutnya disebut \"Perjanjian\") sebagai berikut:", vars["{{contract_day}}"], vars["{{contract_date_text}}"], vars["{{contract_city}}"])
-	pdf.MultiCell(0, 5.5, introText, "", "J", false)
+	pdf.MultiCell(0, 5.5, cleanStr(introText), "", "J", false)
 	pdf.Ln(3)
 
 	// Pihak Pertama
 	pdf.SetFont("Times", "B", 10)
 	pdf.SetTextColor(12, 74, 110)
-	pdf.CellFormat(0, 5, "PIHAK PERTAMA — PENYEDIA LAYANAN", "", 1, "L", false, 0, "")
+	pdf.CellFormat(0, 5, cleanStr("PIHAK PERTAMA — PENYEDIA LAYANAN"), "", 1, "L", false, 0, "")
 	pdf.SetFont("Times", "", 10)
 	pdf.SetTextColor(51, 65, 85)
 	p1Details := fmt.Sprintf("PT ANA NAHNU INDONESIA, badan hukum Indonesia dengan NIB 0411230033734 dan alamat di %s, pemilik dan pengelola platform Halalcore, dalam Perjanjian ini diwakili oleh %s, ID Halal Advisor %s, yang bertindak untuk dan atas nama PT Ana Nahnu Indonesia, selanjutnya disebut \"PIHAK PERTAMA\".", vars["{{company_address}}"], vars["{{advisor_name}}"], vars["{{advisor_id}}"])
-	pdf.MultiCell(0, 5.5, p1Details, "", "J", false)
+	pdf.MultiCell(0, 5.5, cleanStr(p1Details), "", "J", false)
 	pdf.Ln(3)
 
 	// Pihak Kedua
 	pdf.SetFont("Times", "B", 10)
 	pdf.SetTextColor(12, 74, 110)
-	pdf.CellFormat(0, 5, "PIHAK KEDUA — KLIEN/PELAKU USAHA", "", 1, "L", false, 0, "")
+	pdf.CellFormat(0, 5, cleanStr("PIHAK KEDUA — KLIEN/PELAKU USAHA"), "", 1, "L", false, 0, "")
 	pdf.SetFont("Times", "", 10)
 	pdf.SetTextColor(51, 65, 85)
 	p2Details := fmt.Sprintf("%s, %s, NIK/NIB/nomor identitas %s, beralamat di %s, dalam hal merupakan badan usaha diwakili secara sah oleh %s selaku Pemohon, selanjutnya disebut \"PIHAK KEDUA\".", vars["{{client_party_name}}"], vars["{{client_party_description}}"], vars["{{client_identity_number_masked}}"], vars["{{client_address}}"], vars["{{client_signatory_name}}"])
-	pdf.MultiCell(0, 5.5, p2Details, "", "J", false)
+	pdf.MultiCell(0, 5.5, cleanStr(p2Details), "", "J", false)
 	pdf.Ln(3)
 
 	p3Text := "PIHAK PERTAMA dan PIHAK KEDUA secara bersama-sama disebut \"Para Pihak\" dan masing-masing disebut \"Pihak\"."
-	pdf.MultiCell(0, 5.5, p3Text, "", "J", false)
+	pdf.MultiCell(0, 5.5, cleanStr(p3Text), "", "J", false)
 	pdf.Ln(3)
 
 	p4Text := "Para Pihak terlebih dahulu menerangkan bahwa PIHAK PERTAMA menyediakan jasa konsultasi dan pendampingan administratif sertifikasi halal; PIHAK KEDUA bermaksud mengajukan sertifikasi halal atas produk/usaha sebagaimana Ringkasan Pengajuan; dan keputusan penerbitan sertifikat halal sepenuhnya berada pada lembaga yang berwenang sesuai peraturan perundang-undangan."
-	pdf.MultiCell(0, 5.5, p4Text, "", "J", false)
+	pdf.MultiCell(0, 5.5, cleanStr(p4Text), "", "J", false)
 	pdf.Ln(6)
 
 	pasalHeader := func(num, name string) {
 		pdf.Ln(4)
 		pdf.SetFont("Times", "B", 11)
 		pdf.SetTextColor(12, 74, 110)
-		pdf.CellFormat(0, 6, num, "", 1, "C", false, 0, "")
-		pdf.CellFormat(0, 6, name, "", 1, "C", false, 0, "")
+		pdf.CellFormat(0, 6, cleanStr(num), "", 1, "C", false, 0, "")
+		pdf.CellFormat(0, 6, cleanStr(name), "", 1, "C", false, 0, "")
 		pdf.Ln(2)
 	}
 
 	pasalBody := func(text string) {
 		pdf.SetFont("Times", "", 10)
 		pdf.SetTextColor(51, 65, 85)
-		pdf.MultiCell(0, 5.5, text, "", "J", false)
+		pdf.MultiCell(0, 5.5, cleanStr(text), "", "J", false)
 		pdf.Ln(2)
 	}
 
@@ -633,12 +659,12 @@ func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 		pdf.SetFillColor(240, 249, 255)
 		pdf.SetFont("Times", "B", 9.5)
 		pdf.SetTextColor(12, 74, 110)
-		pdf.CellFormat(50, 7, "  "+label, "1", 0, "L", true, 0, "")
+		pdf.CellFormat(50, 7, cleanStr("  "+label), "1", 0, "L", true, 0, "")
 		
 		pdf.SetFillColor(255, 255, 255)
 		pdf.SetFont("Times", "", 9.5)
 		pdf.SetTextColor(51, 65, 85)
-		pdf.CellFormat(120, 7, "  "+value, "1", 1, "L", true, 0, "")
+		pdf.CellFormat(120, 7, cleanStr("  "+value), "1", 1, "L", true, 0, "")
 	}
 
 	// Identitas Pengaju Table
@@ -650,7 +676,7 @@ func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 	pdf.SetTextColor(0, 0, 0)
 	drawRow("Nama Pelaku Usaha", vars["{{client_party_name}}"])
 	drawRow("Nama Usaha/Merek", vars["{{client_party_name}}"]+" / "+vars["{{service_package}}"])
-	drawRow("NIB", vars["{{client_nib}}"]+" jika ada")
+	drawRow("NIB", vars["{{client_nib}}"])
 	drawRow("Skala Usaha", vars["{{business_scale}}"])
 	drawRow("Alamat Usaha", vars["{{business_address}}"])
 	drawRow("Narahubung", fmt.Sprintf("%s | %s | %s", vars["{{client_contact_name}}"], vars["{{client_phone}}"], vars["{{client_email}}"]))
@@ -666,9 +692,9 @@ func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 	drawRow("Skema", vars["{{service_scheme}}"])
 	drawRow("Paket", vars["{{service_package}}"])
 	drawRow("Kategori Produk", vars["{{product_category}}"])
-	drawRow("Produk/Varian", vars["{{product_count}}"]+" produk/varian — "+vars["{{product_summary}}"])
-	drawRow("Pabrik/Cabang", vars["{{facility_count}}"]+" lokasi — "+vars["{{facility_summary}}"])
-	drawRow("Ketentuan Khusus", vars["{{special_terms_or_dash}}"]+" / dikosongkan")
+	drawRow("Produk/Varian", vars["{{product_count}}"]+" produk/varian - "+vars["{{product_summary}}"])
+	drawRow("Pabrik/Cabang", vars["{{facility_count}}"]+" lokasi - "+vars["{{facility_summary}}"])
+	drawRow("Ketentuan Khusus", vars["{{special_terms_or_dash}}"])
 	pdf.Ln(4)
 
 	// Rincian Biaya Table
@@ -735,10 +761,10 @@ func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 	pdf.Write(4.5, "D. KONTAK RESMI. ")
 	pdf.SetFont("Times", "", 9)
 	pdf.SetTextColor(71, 85, 105)
-	contactText := fmt.Sprintf("Halal Advisor: %s (ID %s), %s, %s | Layanan pelanggan: %s | Pengaduan: %s | Privasi: %s.",
+	contactText := fmt.Sprintf("Halal Advisor: %s (ID %s), %s, %s | Layanan pelanggan: %s.",
 		vars["{{advisor_name}}"], vars["{{advisor_id}}"], vars["{{advisor_phone}}"], vars["{{advisor_email}}"],
-		vars["{{customer_service_contact}}"], vars["{{complaint_channel}}"], vars["{{privacy_contact}}"])
-	pdf.Write(4.5, contactText)
+		vars["{{customer_service_contact}}"])
+	pdf.Write(4.5, cleanStr(contactText))
 	pdf.SetXY(20, yPosD + 15)
 	pdf.Ln(6)
 

@@ -1,12 +1,15 @@
-import { Download } from 'lucide-react';
+import { useState } from 'react';
+import { Download, Loader2, Printer } from 'lucide-react';
 import type { Submission } from '../../../types';
 import toast from 'react-hot-toast';
+import { submissionService } from '../../../services/submissionService';
 
 interface ContractTextPreviewProps {
     submission: Submission;
 }
 
 export default function ContractTextPreview({ submission }: ContractTextPreviewProps) {
+    const [downloading, setDownloading] = useState(false);
     const client = submission.client;
 
     const handlePrint = () => {
@@ -86,22 +89,46 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
     const contractDateText = `${today.getDate()} ${months[today.getMonth() + 1]} ${today.getFullYear()}`;
     const generatedAtLocal = contractDateText;
 
+    const handleDownloadContract = async () => {
+        try {
+            setDownloading(true);
+            toast.loading('Mengunduh Kontrak...', { id: 'download-contract' });
+            await submissionService.downloadContract(submission.id, 'pdf');
+            toast.success('Kontrak berhasil diunduh', { id: 'download-contract' });
+        } catch (e: any) {
+            toast.error(e.message || 'Gagal mengunduh kontrak', { id: 'download-contract' });
+        } finally {
+            setDownloading(false);
+        }
+    };
+
     return (
         <div className="space-y-4 max-w-4xl mx-auto">
             {/* Top Action Bar */}
             <div className="flex justify-between items-center bg-indigo-50/80 p-3 sm:p-4 rounded-xl border border-indigo-100 font-sans no-print">
                 <div>
                     <span className="text-xs font-bold text-indigo-950 block">Draf Perjanjian Layanan Pendampingan</span>
-                    <span className="text-[11px] text-indigo-700">Unduh atau cetak dokumen Perjanjian Layanan Pendampingan Sertifikasi Halal.</span>
+                    <span className="text-[11px] text-indigo-700">Unduh langsung dokumen Perjanjian Layanan (PDF) atau cetak draf.</span>
                 </div>
-                <button
-                    type="button"
-                    onClick={handlePrint}
-                    className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 shadow-sm shrink-0"
-                >
-                    <Download className="w-4 h-4" />
-                    <span>Download / Cetak Kontrak</span>
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={handleDownloadContract}
+                        disabled={downloading}
+                        className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 shadow-sm shrink-0 disabled:opacity-50"
+                    >
+                        {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        <span>Download Kontrak (PDF)</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handlePrint}
+                        className="px-3.5 py-2.5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-sm shrink-0"
+                    >
+                        <Printer className="w-4 h-4 text-gray-500" />
+                        <span>Cetak Draf</span>
+                    </button>
+                </div>
             </div>
 
             <div id={`contract-doc-${submission.id}`} className="space-y-8 text-xs text-gray-800 leading-relaxed font-serif bg-white p-4 sm:p-10 border border-gray-200 rounded-xl shadow-lg">
@@ -157,14 +184,14 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
                 </p>
                 
                 <div className="space-y-1">
-                    <p className="font-bold text-sky-900 uppercase">PIHAK PERTAMA — PENYEDIA LAYANAN</p>
+                    <p className="font-bold text-sky-900 uppercase">PIHAK PERTAMA - PENYEDIA LAYANAN</p>
                     <p>
                         PT ANA NAHNU INDONESIA, badan hukum Indonesia dengan NIB 0411230033734 dan alamat di Dusun Cikohkol, Desa Sukasari, Kecamatan Banjarsari, Kabupaten Ciamis, Jawa Barat 46383, pemilik dan pengelola platform Halalcore, dalam Perjanjian ini diwakili oleh <strong>{advisorName}</strong>, ID Halal Advisor <strong>{advisorId}</strong>, yang bertindak untuk dan atas nama PT Ana Nahnu Indonesia, selanjutnya disebut "PIHAK PERTAMA".
                     </p>
                 </div>
 
                 <div className="space-y-1">
-                    <p className="font-bold text-sky-900 uppercase">PIHAK KEDUA — KLIEN/PELAKU USAHA</p>
+                    <p className="font-bold text-sky-900 uppercase">PIHAK KEDUA - KLIEN/PELAKU USAHA</p>
                     <p>
                         <strong>{clientName}</strong>, {clientPartyDesc}, NIK/NIB/nomor identitas <strong>{idDisplay}</strong>, beralamat di {address}, dalam hal merupakan badan usaha diwakili secara sah oleh <strong>{client.client_name}</strong> selaku Pemohon, selanjutnya disebut "PIHAK KEDUA".
                     </p>
@@ -486,7 +513,7 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
                     <h5 className="font-bold text-sky-900 text-xs">D. KONTAK RESMI</h5>
                     <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg text-[10px] space-y-1 font-sans text-slate-700">
                         <p>
-                            <strong>D. KONTAK RESMI.</strong> Halal Advisor: {advisorName} (ID {advisorId}), {submission.consultant?.phone || '-'}, {submission.consultant?.email || '-'} | Layanan pelanggan: cs@halalcore.id | Pengaduan: complaint@halalcore.id | Privasi: privasi@halalcore.id.
+                            <strong>D. KONTAK RESMI.</strong> Halal Advisor: {advisorName} (ID {advisorId}), {submission.consultant?.phone || '-'}, {submission.consultant?.email || '-'} | Layanan pelanggan: support@halalcore.id.
                         </p>
                     </div>
                 </div>
