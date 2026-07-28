@@ -646,7 +646,7 @@ func (uc *submissionWorkflowUsecase) UpdateBusinessType(id uuid.UUID, userID uui
 	}
 
 	sub.BusinessTypeID = &businessTypeID
-	_ = uc.recalculateAndSaveRegularCost(sub, nil, nil, false)
+	_ = uc.RecalculateAndSaveRegularCost(sub, nil, nil, false)
 
 	uc.logChange(id, userID, "UPDATE_BUSINESS_TYPE", sub.Status, sub.Status, "Business type updated")
 	return nil

@@ -48,72 +48,125 @@ func (uc *sphUsecase) GenerateSPH(submissionID uuid.UUID) (*domain.SPH, error) {
 		return nil, fmt.Errorf("submission not found: %w", err)
 	}
 
-	// Build cost breakdown from master biaya (BillingComponents)
-	filter := map[string]interface{}{}
-	if submission.BusinessTypeID != nil {
-		filter["business_type_id"] = *submission.BusinessTypeID
-	}
-
-	components, err := uc.BillingConfigRepo.FindAllBillingComponents(filter)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get billing components: %w", err)
-	}
-
-	// Calculate total and build breakdown
-	type CostItem struct {
-		Name     string  `json:"name"`
-		Category string  `json:"category"`
-		Type     string  `json:"type"`
-		Amount   float64 `json:"amount"`
-	}
-
-	var items []CostItem
 	var totalAmount float64
+	var breakdownJSON []byte
 
-	for _, comp := range components {
-		if !comp.IsMandatory {
-			continue // Only include mandatory for SPH
-		}
-		item := CostItem{
-			Name:     comp.Name,
-			Category: comp.Category,
-			Type:     comp.Type,
-			Amount:   comp.BaseAmount,
-		}
-		items = append(items, item)
-		totalAmount += comp.BaseAmount
-	}
-
-	// Also include configured scheme prices if submission has a sales scheme
-	if submission.SalesSchemeID != nil {
-		priceFilter := map[string]interface{}{
-			"sales_scheme_id": *submission.SalesSchemeID,
-		}
+	// Priority 1: Use SubmissionCostDetail if available
+	costDetail, err := uc.BillingConfigRepo.GetSubmissionCostDetail(submissionID)
+	if err == nil && costDetail != nil && costDetail.TotalAmount > 0 && costDetail.CostBreakdownData != "" {
+		totalAmount = costDetail.TotalAmount
+		breakdownJSON = []byte(costDetail.CostBreakdownData)
+	} else {
+		// Priority 2: Fallback calculation with best match per category
+		filter := map[string]interface{}{}
 		if submission.BusinessTypeID != nil {
-			priceFilter["business_type_id"] = *submission.BusinessTypeID
+			filter["business_type_id"] = *submission.BusinessTypeID
 		}
 
-		prices, _ := uc.BillingConfigRepo.FindAllSalesSchemePrices(priceFilter)
-		for _, p := range prices {
-			if !p.IsActive {
+		components, err := uc.BillingConfigRepo.FindAllBillingComponents(filter)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get billing components: %w", err)
+		}
+
+		type CostItem struct {
+			Name     string  `json:"name"`
+			Category string  `json:"category"`
+			Type     string  `json:"type"`
+			Amount   float64 `json:"amount"`
+		}
+
+		type scoredComp struct {
+			comp  domain.BillingComponent
+			score int
+		}
+		categoryMap := make(map[string]scoredComp)
+
+		for _, comp := range components {
+			if !comp.IsMandatory {
+				continue // Only include mandatory for SPH
+			}
+
+			if comp.ProvinceID != nil && (submission.ProvinceID == nil || *comp.ProvinceID != *submission.ProvinceID) {
 				continue
 			}
-			desc := p.Description
-			if desc == "" {
-				desc = "Biaya Skema"
+			if comp.RegencyID != nil && (submission.RegencyID == nil || *comp.RegencyID != *submission.RegencyID) {
+				continue
 			}
+			if comp.DistrictID != nil && (submission.DistrictID == nil || *comp.DistrictID != *submission.DistrictID) {
+				continue
+			}
+			if comp.BusinessTypeID != nil && (submission.BusinessTypeID == nil || *comp.BusinessTypeID != *submission.BusinessTypeID) {
+				continue
+			}
+			if comp.ProductCategoryID != nil && (submission.ProductCategoryID == nil || *comp.ProductCategoryID != *submission.ProductCategoryID) {
+				continue
+			}
+			if comp.BusinessScaleID != nil && (submission.BusinessScaleID == nil || *comp.BusinessScaleID != *submission.BusinessScaleID) {
+				continue
+			}
+			if comp.SalesSchemeID != nil && (submission.SalesSchemeID == nil || *comp.SalesSchemeID != *submission.SalesSchemeID) {
+				continue
+			}
+
+			score := 0
+			if comp.DistrictID != nil { score += 1000 }
+			if comp.RegencyID != nil { score += 100 }
+			if comp.ProvinceID != nil { score += 10 }
+			if comp.SalesSchemeID != nil { score += 8 }
+			if comp.BusinessScaleID != nil { score += 5 }
+			if comp.ProductCategoryID != nil { score += 2 }
+			if comp.BusinessTypeID != nil { score += 1 }
+
+			cat := comp.Category
+			existing, exists := categoryMap[cat]
+			if !exists || score > existing.score {
+				categoryMap[cat] = scoredComp{comp: comp, score: score}
+			}
+		}
+
+		var items []CostItem
+		for _, sc := range categoryMap {
 			item := CostItem{
-				Name:     desc,
-				Category: "SKEMA",
-				Type:     "FIXED",
-				Amount:   p.BasePrice,
+				Name:     sc.comp.Name,
+				Category: sc.comp.Category,
+				Type:     sc.comp.Type,
+				Amount:   sc.comp.BaseAmount,
 			}
 			items = append(items, item)
-			totalAmount += p.BasePrice
+			totalAmount += sc.comp.BaseAmount
 		}
-	}
 
-	breakdownJSON, _ := json.Marshal(items)
+		// Also include configured scheme prices if submission has a sales scheme
+		if submission.SalesSchemeID != nil {
+			priceFilter := map[string]interface{}{
+				"sales_scheme_id": *submission.SalesSchemeID,
+			}
+			if submission.BusinessTypeID != nil {
+				priceFilter["business_type_id"] = *submission.BusinessTypeID
+			}
+
+			prices, _ := uc.BillingConfigRepo.FindAllSalesSchemePrices(priceFilter)
+			for _, p := range prices {
+				if !p.IsActive {
+					continue
+				}
+				desc := p.Description
+				if desc == "" {
+					desc = "Biaya Skema"
+				}
+				item := CostItem{
+					Name:     desc,
+					Category: "SKEMA",
+					Type:     "FIXED",
+					Amount:   p.BasePrice,
+				}
+				items = append(items, item)
+				totalAmount += p.BasePrice
+			}
+		}
+
+		breakdownJSON, _ = json.Marshal(items)
+	}
 
 	// Generate SPH number
 	now := time.Now()

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -157,14 +158,15 @@ type TeleDashboard struct {
 // ── Estimation Calculator DTO ──────────────────────────────────────────
 
 type CalculateRegulerInput struct {
-	BusinessTypeID  int64  `json:"business_type_id" binding:"required"`
-	BusinessScaleID int64  `json:"business_scale_id" binding:"required"`
-	ProvinceID      int64  `json:"province_id" binding:"required"`
-	RegencyID       *int64 `json:"regency_id"`
-	ProductCount    int    `json:"product_count"`
-	BranchCount     int    `json:"branch_count"`
-	SalesSchemeID   int64  `json:"sales_scheme_id" binding:"required"`
-	DataSource      string `json:"data_source"` // ORGANIK or MARKETING
+	BusinessTypeID    int64  `json:"business_type_id" binding:"required"`
+	ProductCategoryID *int64 `json:"product_category_id"`
+	BusinessScaleID   int64  `json:"business_scale_id" binding:"required"`
+	ProvinceID        int64  `json:"province_id" binding:"required"`
+	RegencyID         *int64 `json:"regency_id"`
+	ProductCount      int    `json:"product_count"`
+	BranchCount       int    `json:"branch_count"`
+	SalesSchemeID     int64  `json:"sales_scheme_id" binding:"required"`
+	DataSource        string `json:"data_source"` // ORGANIK or MARKETING
 }
 
 type BreakdownItem struct {
@@ -936,20 +938,32 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 		})
 	}
 
-	// 3. Hitung komponen lainnya berdasarkan rule masing-masing
+	// 3. Hitung komponen lainnya berdasarkan rule masing-masing dengan best match score per category
+	type scoredComp struct {
+		comp  domain.BillingComponent
+		score int
+	}
+	categoryMap := make(map[string]scoredComp)
+
 	for _, comp := range components {
 		if comp.Category == "PENDAMPINGAN" {
 			continue // Jasa pendampingan sudah dihitung
+		}
+		if !comp.IsMandatory {
+			continue // Skenario reguler hanya menghitung komponen wajib secara default
 		}
 
 		// Filter komponen yg mensyaratkan province/regency/dll
 		if comp.ProvinceID != nil && *comp.ProvinceID != input.ProvinceID {
 			continue
 		}
-		if comp.RegencyID != nil && input.RegencyID != nil && *comp.RegencyID != *input.RegencyID {
+		if comp.RegencyID != nil && (input.RegencyID == nil || *comp.RegencyID != *input.RegencyID) {
 			continue
 		}
 		if comp.BusinessTypeID != nil && *comp.BusinessTypeID != input.BusinessTypeID {
+			continue
+		}
+		if comp.ProductCategoryID != nil && (input.ProductCategoryID == nil || *comp.ProductCategoryID != *input.ProductCategoryID) {
 			continue
 		}
 		if comp.BusinessScaleID != nil && *comp.BusinessScaleID != input.BusinessScaleID {
@@ -959,6 +973,35 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 			continue
 		}
 
+		score := 0
+		if comp.DistrictID != nil { score += 1000 }
+		if comp.RegencyID != nil { score += 100 }
+		if comp.ProvinceID != nil { score += 10 }
+		if comp.SalesSchemeID != nil { score += 8 }
+		if comp.BusinessScaleID != nil { score += 5 }
+		if comp.ProductCategoryID != nil { score += 2 }
+		if comp.BusinessTypeID != nil { score += 1 }
+
+		cat := strings.ToUpper(comp.Category)
+		existing, exists := categoryMap[cat]
+		if !exists || score > existing.score {
+			categoryMap[cat] = scoredComp{comp: comp, score: score}
+		}
+	}
+
+	var finalComponents []domain.BillingComponent
+	for _, sc := range categoryMap {
+		finalComponents = append(finalComponents, sc.comp)
+	}
+
+	sort.Slice(finalComponents, func(i, j int) bool {
+		if finalComponents[i].Category != finalComponents[j].Category {
+			return finalComponents[i].Category < finalComponents[j].Category
+		}
+		return finalComponents[i].Name < finalComponents[j].Name
+	})
+
+	for _, comp := range finalComponents {
 		amount := comp.BaseAmount
 		
 		// Modifier untuk cabang

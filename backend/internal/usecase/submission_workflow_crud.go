@@ -180,7 +180,7 @@ func (uc *submissionWorkflowUsecase) CreateDraft(clientID *uuid.UUID, businessNa
 	}
 
 	if sub.ServiceType == "REGULER" || sub.ServiceType == "SELF_DECLARE_MANDIRI" {
-		_ = uc.recalculateAndSaveRegularCost(sub, nil, nil, false)
+		_ = uc.RecalculateAndSaveRegularCost(sub, nil, nil, false)
 	}
 
 	uc.logChange(sub.ID, facilitatorID, "CREATE_DRAFT", "", domain.StatusDraft, "Initial draft created")
@@ -284,7 +284,7 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 	// Recalculate cost if REGULER or SELF_DECLARE_MANDIRI
 	if sub.ServiceType == "REGULER" || sub.ServiceType == "SELF_DECLARE_MANDIRI" {
 		hasExplicit := len(input.SelectedOptionalIDs) > 0
-		if err := uc.recalculateAndSaveRegularCost(sub, input.SelectedOptionalIDs, input.OptionalQuantities, hasExplicit); err != nil {
+		if err := uc.RecalculateAndSaveRegularCost(sub, input.SelectedOptionalIDs, input.OptionalQuantities, hasExplicit); err != nil {
 			log.Printf("[CreateFull] failed to calculate regular cost: %v", err)
 		}
 	}
@@ -454,7 +454,7 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 			selectedIDs = *input.SelectedOptionalComponentIDs
 			hasExplicit = true
 		}
-		if err := uc.recalculateAndSaveRegularCost(sub, selectedIDs, input.OptionalQuantities, hasExplicit); err != nil {
+		if err := uc.RecalculateAndSaveRegularCost(sub, selectedIDs, input.OptionalQuantities, hasExplicit); err != nil {
 			return fmt.Errorf("failed to calculate and sync pricing: %w", err)
 		}
 	}
@@ -464,8 +464,8 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 	return nil
 }
 
-// recalculateAndSaveRegularCost recalculates regular pricing dynamically and saves to Cost Detail & Invoice
-func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.Submission, selectedOptionalComponentIDs []int64, optionalQuantities map[int64]int, hasExplicitSelection bool) error {
+// RecalculateAndSaveRegularCost recalculates regular pricing dynamically and saves to Cost Detail & Invoice
+func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.Submission, selectedOptionalComponentIDs []int64, optionalQuantities map[int64]int, hasExplicitSelection bool) error {
 	if sub.ServiceType != "REGULER" && sub.ServiceType != "SELF_DECLARE_MANDIRI" {
 		return nil
 	}
@@ -650,7 +650,14 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 		}
 	}
 
-	// Calculate other components
+	// Calculate other components with best specificity scoring per category
+	type scoredComp struct {
+		comp  domain.BillingComponent
+		score int
+	}
+	mandatoryCategoryMap := make(map[string]scoredComp)
+	var finalComponents []domain.BillingComponent
+
 	for _, comp := range components {
 		if comp.Category == "PENDAMPINGAN" {
 			continue
@@ -659,19 +666,25 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 			continue
 		}
 
-		if comp.ProvinceID != nil && *comp.ProvinceID != *sub.ProvinceID {
+		if comp.ProvinceID != nil && (sub.ProvinceID == nil || *comp.ProvinceID != *sub.ProvinceID) {
 			continue
 		}
-		if comp.RegencyID != nil && sub.RegencyID != nil && *comp.RegencyID != *sub.RegencyID {
+		if comp.RegencyID != nil && (sub.RegencyID == nil || *comp.RegencyID != *sub.RegencyID) {
 			continue
 		}
-		if comp.BusinessTypeID != nil && *comp.BusinessTypeID != *sub.BusinessTypeID {
+		if comp.DistrictID != nil && (sub.DistrictID == nil || *comp.DistrictID != *sub.DistrictID) {
 			continue
 		}
-		if comp.BusinessScaleID != nil && *comp.BusinessScaleID != *sub.BusinessScaleID {
+		if comp.BusinessTypeID != nil && (sub.BusinessTypeID == nil || *comp.BusinessTypeID != *sub.BusinessTypeID) {
 			continue
 		}
-		if comp.SalesSchemeID != nil && *comp.SalesSchemeID != *sub.SalesSchemeID {
+		if comp.ProductCategoryID != nil && (sub.ProductCategoryID == nil || *comp.ProductCategoryID != *sub.ProductCategoryID) {
+			continue
+		}
+		if comp.BusinessScaleID != nil && (sub.BusinessScaleID == nil || *comp.BusinessScaleID != *sub.BusinessScaleID) {
+			continue
+		}
+		if comp.SalesSchemeID != nil && (sub.SalesSchemeID == nil || *comp.SalesSchemeID != *sub.SalesSchemeID) {
 			continue
 		}
 
@@ -689,11 +702,40 @@ func (uc *submissionWorkflowUsecase) recalculateAndSaveRegularCost(sub *domain.S
 				isSelected = isComponentInBreakdown(existingBreakdown, comp.Name)
 			}
 
-			if !isSelected {
-				continue
+			if isSelected {
+				finalComponents = append(finalComponents, comp)
+			}
+		} else {
+			score := 0
+			if comp.DistrictID != nil { score += 1000 }
+			if comp.RegencyID != nil { score += 100 }
+			if comp.ProvinceID != nil { score += 10 }
+			if comp.SalesSchemeID != nil { score += 8 }
+			if comp.BusinessScaleID != nil { score += 5 }
+			if comp.ProductCategoryID != nil { score += 2 }
+			if comp.BusinessTypeID != nil { score += 1 }
+
+			cat := strings.ToUpper(comp.Category)
+			existing, exists := mandatoryCategoryMap[cat]
+			if !exists || score > existing.score {
+				mandatoryCategoryMap[cat] = scoredComp{comp: comp, score: score}
 			}
 		}
+	}
 
+	for _, sc := range mandatoryCategoryMap {
+		finalComponents = append(finalComponents, sc.comp)
+	}
+
+	// Sort finalComponents for deterministic output order (by Category, then Name)
+	sort.Slice(finalComponents, func(i, j int) bool {
+		if finalComponents[i].Category != finalComponents[j].Category {
+			return finalComponents[i].Category < finalComponents[j].Category
+		}
+		return finalComponents[i].Name < finalComponents[j].Name
+	})
+
+	for _, comp := range finalComponents {
 		amount := comp.BaseAmount
 		multiplier := 1
 		multiplierLabel := ""

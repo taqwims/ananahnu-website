@@ -29,6 +29,7 @@ type SubmissionWorkflowUsecase interface {
 	HandlePaymentSuccess(id uuid.UUID, amount float64) error
 	IsAuthorized(userID uuid.UUID, role string, submissionID uuid.UUID) bool
 	UpdateClientInfoAndPricing(id uuid.UUID, input UpdateClientInfoAndPricingInput, userID uuid.UUID, userRole string) error
+	RecalculateAndSaveRegularCost(sub *domain.Submission, selectedOptionalComponentIDs []int64, optionalQuantities map[int64]int, hasExplicitSelection bool) error
 	GetDrafterMonthlyAnalytics() ([]DrafterMonthlyStat, error)
 }
 
