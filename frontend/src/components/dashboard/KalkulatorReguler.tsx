@@ -322,6 +322,14 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             // Skip optional components from categoryMap (handled separately)
             if (!comp.is_mandatory) return;
 
+            if (comp.province_id && comp.province_id.toString() !== provinceId?.toString()) return;
+            if (comp.regency_id && comp.regency_id.toString() !== regencyId?.toString()) return;
+            if (comp.district_id && comp.district_id.toString() !== districtId?.toString()) return;
+            if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId?.toString()) return;
+            if (comp.product_category_id && comp.product_category_id.toString() !== productId?.toString()) return;
+            if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId?.toString()) return;
+            if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== salesSchemeId?.toString()) return;
+
             let score = 0;
             if (comp.district_id) score += 1000;
             if (comp.regency_id) score += 100;

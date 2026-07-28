@@ -372,20 +372,7 @@ export const ClientInfoSection = ({
                                         <option value="">Pilih Kecamatan</option>
                                         {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                                     </select>
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Kategori Produk <span className="text-red-500">*</span></label>
-                                    <select 
-                                        className="glass-input w-full" 
-                                        value={clientForm.product_category_id} 
-                                        onChange={e => setClientForm({...clientForm, product_category_id: e.target.value})}
-                                    >
-                                        <option value="">Pilih Kategori Produk</option>
-                                        {productCategories
-                                            .filter(pc => !clientForm.business_type_id || pc.business_type_id?.toString() === clientForm.business_type_id.toString())
-                                            .map(pc => <option key={pc.id} value={pc.id}>{pc.name}</option>)}
-                                    </select>
-                                </div>
+                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Skala Usaha <span className="text-red-500">*</span></label>
                                     <select 
