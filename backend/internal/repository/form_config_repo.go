@@ -27,9 +27,8 @@ func (r *formConfigRepository) FindByFormType(formType string) ([]domain.FormFie
 
 func (r *formConfigRepository) FindByFormTypeAndBusinessType(formType string, businessTypeID *int64, productCategoryID *int64, showAll bool) ([]domain.FormFieldConfig, error) {
 	var configs []domain.FormFieldConfig
-	query := r.db.Where("form_type = ?", formType)
+	query := r.db.Where("form_type = ? AND is_active = ?", formType, true)
 	if !showAll {
-		query = query.Where("is_active = ?", true)
 		if businessTypeID != nil && *businessTypeID > 0 {
 			query = query.Where("business_type_id = ? OR business_type_id IS NULL", *businessTypeID)
 		} else {

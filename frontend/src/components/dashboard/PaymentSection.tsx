@@ -16,7 +16,7 @@ interface PaymentSectionProps {
     invoiceType?: 'DP' | 'PELUNASAN' | 'FULL';
 }
 
-export default function PaymentSection({ submission, fieldValues = [], onPaymentSuccess, invoiceType = 'DP' }: PaymentSectionProps) {
+export default function PaymentSection({ submission, fieldValues: _fieldValues = [], onPaymentSuccess, invoiceType = 'DP' }: PaymentSectionProps) {
     const [loading, setLoading] = useState(false);
     const [method, setMethod] = useState<'MANUAL' | 'MIDTRANS'>('MIDTRANS');
     const [proofUrl, setProofUrl] = useState('');
@@ -115,6 +115,7 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
             await api.post(`/payments/${paymentId}/cancel`);
             toast.success("Transaksi pembayaran berhasil dibatalkan. Silakan pilih metode pembayaran baru.");
             await loadHistory();
+            onPaymentSuccess();
         } catch (err: any) {
             console.error('Failed to cancel payment:', err);
             toast.error(err.response?.data?.error || 'Gagal membatalkan transaksi.');
@@ -126,6 +127,26 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
     useEffect(() => {
         loadHistory();
     }, [loadHistory]);
+
+    // Auto-sync status in background every 4s when payment is pending (no manual click needed)
+    useEffect(() => {
+        const pending = paymentHistory.find(p => p.status === 'PENDING');
+        if (!pending) return;
+
+        const interval = setInterval(async () => {
+            try {
+                if (pending.method === 'MIDTRANS') {
+                    await api.post(`/payments/${pending.id}/sync`);
+                }
+                await loadHistory();
+                onPaymentSuccess();
+            } catch (err) {
+                console.error('Auto sync payment status error:', err);
+            }
+        }, 4000);
+
+        return () => clearInterval(interval);
+    }, [paymentHistory, loadHistory, onPaymentSuccess]);
 
     // Pre-load Snap.js when MIDTRANS method is selected
     useEffect(() => {
@@ -144,12 +165,6 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
     }, [method]);
 
     const handlePay = async () => {
-        // Prerequisites check
-        if (submission.service_type === 'REGULER' && !fieldValues.find(fv => fv.form_field.field_key === 'data_kontrak' && fv.file_url)) {
-            toast.error('Silakan unggah Dokumen Kontrak terlebih dahulu.');
-            return;
-        }
-
         setLoading(true);
         try {
             // Switch invoice type if necessary before paying
@@ -251,12 +266,11 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
             : 'Pembayaran';
 
     // Check for existing paid/pending payments or paid invoice
-    const foundPayment = paymentHistory.find(p => p.status === 'PAID') ||
-        submission.payments?.find(p => p.status === 'PAID');
+    const foundPayment = paymentHistory.find(p => p.status === 'PAID');
     const isInvoicePaid = resolvedInvoice?.status === 'PAID';
     const paidPayment = foundPayment || (isInvoicePaid ? { amount: resolvedInvoice?.amount || 0, status: 'PAID' } : null);
 
-    const pendingPayment = paymentHistory.find(p => p.status === 'PENDING') || submission.payments?.find(p => p.status === 'PENDING');
+    const pendingPayment = paymentHistory.find(p => p.status === 'PENDING');
 
     // Show "Payment Completed" state
     if (paidPayment) {
@@ -660,14 +674,6 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                 </div>
             )}
 
-            {/* Prerequisites check */}
-            {submission.service_type === 'REGULER' && !fieldValues.find(fv => fv.form_field.field_key === 'data_kontrak' && fv.file_url) && (
-                <div className="p-3 bg-red-50 text-red-600 text-xs rounded-lg flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>Anda belum Download Dokumen Kontrak. Silakan Download Dokumen Kontrak di atas terlebih dahulu.</span>
-                </div>
-            )}
-
             {amount <= 0 && !loadingConfig && (
                 <div className="p-3 bg-yellow-50 text-yellow-700 text-xs rounded-lg flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0" />
@@ -681,8 +687,7 @@ export default function PaymentSection({ submission, fieldValues = [], onPayment
                 disabled={
                     loading ||
                     (method === 'MANUAL' && !proofUrl) ||
-                    amount <= 0 ||
-                    (submission.service_type === 'REGULER' && !fieldValues.find(fv => fv.form_field.field_key === 'data_kontrak' && fv.file_url))
+                    amount <= 0
                 }
                 className="w-full glass-button bg-brand-600 text-white hover:bg-brand-700 font-bold py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >

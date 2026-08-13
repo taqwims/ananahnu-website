@@ -1,4 +1,4 @@
-import { Settings, Plus, Loader2, Save } from 'lucide-react';
+import { Settings, Plus, Loader2, Save, Trash2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useFormConfigAdmin } from '../../hooks/useFormConfigAdmin';
 import { formatServiceType } from '../../utils/format';
@@ -23,6 +23,7 @@ export default function FormConfigAdmin() {
     const [customStepNames, setCustomStepNames] = useState<Record<number, string>>({});
     const [stepNameInput, setStepNameInput] = useState('');
     const [renaming, setRenaming] = useState(false);
+    const [deletingStep, setDeletingStep] = useState(false);
 
     // Group fields to find steps
     const stepsMap = fields.reduce((acc, field) => {
@@ -97,6 +98,43 @@ export default function FormConfigAdmin() {
         } finally {
             setRenaming(false);
         }
+    };
+
+    const handleDeleteStep = async (stepNumToDelete: number) => {
+        const fieldsInStep = fields.filter(f => (f.step_number || 1) === stepNumToDelete);
+        const stepName = getStepName(stepNumToDelete);
+
+        if (fieldsInStep.length > 0) {
+            const confirmMsg = `Hapus Step ${stepNumToDelete} (${stepName}) beserta ${fieldsInStep.length} field di dalamnya?`;
+            if (!window.confirm(confirmMsg)) return;
+
+            setDeletingStep(true);
+            try {
+                await Promise.all(fieldsInStep.map(f => api.delete(`/form-config/${f.id}`)));
+                toast.success(`Step ${stepNumToDelete} dan ${fieldsInStep.length} field berhasil dihapus`);
+            } catch (err) {
+                toast.error('Gagal menghapus beberapa field dalam step');
+            } finally {
+                setDeletingStep(false);
+            }
+        } else {
+            if (!window.confirm(`Hapus Step ${stepNumToDelete} (${stepName})?`)) return;
+            toast.success(`Step ${stepNumToDelete} dihapus`);
+        }
+
+        setCustomStepNames(prev => {
+            const copy = { ...prev };
+            delete copy[stepNumToDelete];
+            return copy;
+        });
+
+        const remainingSteps = stepsList
+            .map(s => s.step_number)
+            .filter(num => num !== stepNumToDelete);
+        const nextStep = remainingSteps.length > 0 ? Math.min(...remainingSteps) : 1;
+        setActiveStepNum(nextStep);
+
+        loadFields(activeTab);
     };
 
     const handleOpenAdd = () => {
@@ -186,14 +224,27 @@ export default function FormConfigAdmin() {
                             onChange={e => setStepNameInput(e.target.value)}
                         />
                     </div>
-                    <button
-                        onClick={handleRenameStep}
-                        disabled={renaming || !stepNameInput.trim()}
-                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-blue-100"
-                    >
-                        {renaming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                        Simpan Nama Step
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleRenameStep}
+                            disabled={renaming || deletingStep || !stepNameInput.trim()}
+                            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-blue-100"
+                        >
+                            {renaming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                            Simpan Nama Step
+                        </button>
+                        {stepsList.length > 1 && (
+                            <button
+                                onClick={() => handleDeleteStep(activeStepNum)}
+                                disabled={renaming || deletingStep}
+                                className="px-4 py-3 bg-red-50 hover:bg-red-100 disabled:opacity-50 text-red-600 font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 border border-red-150"
+                                title={`Hapus Step ${activeStepNum}`}
+                            >
+                                {deletingStep ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                Hapus Step
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex items-center justify-between border-t border-gray-50 pt-6">
@@ -254,6 +305,7 @@ export default function FormConfigAdmin() {
                     setNewField={setNewField}
                     businessTypes={businessTypes}
                     productCategories={productCategories}
+                    existingFields={fields}
                     onSave={handleAdd}
                     onClose={() => setShowAdd(false)}
                     saving={saving}

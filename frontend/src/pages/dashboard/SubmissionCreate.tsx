@@ -2,21 +2,16 @@ import { ChevronLeft, Loader2 } from 'lucide-react';
 import { useSubmissionCreate } from '../../hooks/useSubmissionCreate';
 import { VerificationAlert } from '../../components/dashboard/submission/create/VerificationAlert';
 import { ClientInfoForm } from '../../components/dashboard/submission/create/ClientInfoForm';
-import { SubmissionConfigForm } from '../../components/dashboard/submission/create/SubmissionConfigForm';
 import { SubmissionLiveCalculator } from '../../components/dashboard/submission/create/SubmissionLiveCalculator';
 import { SubmissionActions } from '../../components/dashboard/submission/create/SubmissionActions';
 
 export default function SubmissionCreate() {
     const {
         clientData, setClientData,
-        configs,
-        fieldValues, setFieldValues,
         loading,
         saving,
-        uploading,
         isVerified,
         verStatus,
-        handleFileUpload,
         handleSave,
         businessTypes,
         productCategories,
@@ -37,7 +32,7 @@ export default function SubmissionCreate() {
                 </button>
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800">Buat Pengajuan Baru</h1>
-                    <p className="text-sm text-gray-500">Lengkapi data klien, kalkulasi biaya, dan dokumen persyaratan</p>
+                    <p className="text-sm text-gray-500">Lengkapi data klien dan kalkulasi biaya</p>
                 </div>
             </div>
 
@@ -68,14 +63,6 @@ export default function SubmissionCreate() {
                             isVerified={isVerified}
                         />
                     </div>
-
-                    <SubmissionConfigForm 
-                        configs={configs}
-                        fieldValues={fieldValues}
-                        setFieldValues={setFieldValues}
-                        uploading={uploading}
-                        onFileUpload={handleFileUpload}
-                    />
                 </div>
 
                 {/* Sidebar Actions & Live Calculator */}

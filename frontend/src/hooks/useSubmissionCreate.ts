@@ -44,7 +44,7 @@ export const useSubmissionCreate = () => {
     const [regencies, setRegencies] = useState<any[]>([]);
     const [districts, setDistricts] = useState<any[]>([]);
 
-    const [configs, setConfigs] = useState<FormFieldConfig[]>([]);
+    const [configs] = useState<FormFieldConfig[]>([]);
     const [fieldValues, setFieldValues] = useState<Record<number, { text_value: string; file_url: string; link_value: string }>>({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -72,33 +72,9 @@ export const useSubmissionCreate = () => {
         }
     }, [user]);
 
-    const loadConfigs = useCallback(async () => {
-        setLoading(true);
-        try {
-            const params: any = {};
-            if (clientData.business_type_id) {
-                params.business_type_id = clientData.business_type_id;
-            }
-            if (clientData.product_category_id) {
-                params.product_category_id = clientData.product_category_id;
-            }
-            const res = await api.get(`/form-config/${clientData.service_type}`, { params });
-            setConfigs(res.data || []);
-            
-            const valueMap: typeof fieldValues = {};
-            (res.data || []).forEach((cfg: FormFieldConfig) => {
-                valueMap[cfg.id] = { text_value: '', file_url: '', link_value: '' };
-            });
-            setFieldValues(valueMap);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    }, [clientData.service_type, clientData.business_type_id]);
-
     useEffect(() => {
         const fetchInitialOptions = async () => {
+            setLoading(true);
             try {
                 const [btRes, catRes, scaleRes, provRes] = await Promise.all([
                     api.get('/billing-config/business-types'),
@@ -112,6 +88,8 @@ export const useSubmissionCreate = () => {
                 setProvinces(provRes.data || []);
             } catch (err) {
                 console.error("Gagal memuat opsi form", err);
+            } finally {
+                setLoading(false);
             }
         };
         fetchInitialOptions();
@@ -144,8 +122,7 @@ export const useSubmissionCreate = () => {
 
     useEffect(() => {
         checkVerification();
-        loadConfigs();
-    }, [checkVerification, loadConfigs]);
+    }, [checkVerification]);
 
     const handleFileUpload = async (fieldId: number, file: File) => {
         setUploading(prev => ({ ...prev, [fieldId]: true }));
@@ -207,10 +184,7 @@ export const useSubmissionCreate = () => {
                 },
                 selected_optional_ids: clientData.selected_optional_ids || [],
                 optional_quantities: clientData.optional_quantities || {},
-                field_values: configs.map(cfg => ({
-                    form_field_id: cfg.id,
-                    ...fieldValues[cfg.id]
-                }))
+                field_values: []
             };
 
             await api.post('/submissions/create-full', payload);

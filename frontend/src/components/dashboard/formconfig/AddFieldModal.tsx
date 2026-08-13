@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { Loader2, Save, X } from 'lucide-react';
+import { generateUniqueSystemKey } from '../../../utils/slugify';
+import type { FormFieldConfig } from '../../../types';
 
 const INPUT_TYPES = ['FILE_UPLOAD', 'LINK', 'TEXT', 'DATE', 'REPEATER', 'PRODUCT_LIST', 'INGREDIENT_LIST', 'INGREDIENT_MATRIX', 'ACTIVITY_PHOTOS', 'HALAL_TEAM'] as const;
 
@@ -7,6 +10,7 @@ interface AddFieldModalProps {
     setNewField: (v: any) => void;
     businessTypes: {id: number; name: string}[];
     productCategories?: {id: number; name: string; business_type_id?: number}[];
+    existingFields?: FormFieldConfig[];
     onSave: () => void;
     onClose: () => void;
     saving: boolean;
@@ -17,10 +21,28 @@ export const AddFieldModal = ({
     setNewField,
     businessTypes,
     productCategories = [],
+    existingFields = [],
     onSave,
     onClose,
     saving
 }: AddFieldModalProps) => {
+    const [isKeyManuallyEdited, setIsKeyManuallyEdited] = useState(false);
+    const existingKeys = existingFields.map(f => f.field_key);
+
+    const handleLabelChange = (label: string) => {
+        const generatedKey = generateUniqueSystemKey(label, existingKeys);
+        setNewField((p: any) => ({
+            ...p,
+            field_label: label,
+            field_key: isKeyManuallyEdited ? p.field_key : generatedKey
+        }));
+    };
+
+    const handleKeyChange = (key: string) => {
+        setIsKeyManuallyEdited(true);
+        setNewField((p: any) => ({ ...p, field_key: key }));
+    };
+
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 space-y-6 relative border border-gray-100">
@@ -43,17 +65,17 @@ export const AddFieldModal = ({
                             className="glass-input w-full" 
                             placeholder="Contoh: KTP Pemilik" 
                             value={newField.field_label}
-                            onChange={e => setNewField((p: any) => ({ ...p, field_label: e.target.value }))} 
+                            onChange={e => handleLabelChange(e.target.value)} 
                         />
                     </div>
                     
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">System Key (Snake Case)</label>
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">System Key (Snake Case - Otomatis)</label>
                         <input 
                             className="glass-input w-full font-mono" 
-                            placeholder="Contoh: ktp_url" 
+                            placeholder="Contoh: ktp_pemilik" 
                             value={newField.field_key}
-                            onChange={e => setNewField((p: any) => ({ ...p, field_key: e.target.value }))} 
+                            onChange={e => handleKeyChange(e.target.value)} 
                         />
                     </div>
 

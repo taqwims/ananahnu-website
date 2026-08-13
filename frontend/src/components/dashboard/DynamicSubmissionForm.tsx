@@ -41,6 +41,13 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
                 const cfgs: FormFieldConfig[] = configRes.data || [];
                 const vals: FormFieldValue[] = valuesRes.data || [];
 
+                // Sertakan field historis jika pengajuan ini sudah memiliki nilai tersimpan (meskipun field di-soft-delete belakangan)
+                vals.forEach(v => {
+                    if (v.form_field && v.form_field.id && !cfgs.some(c => c.id === v.form_field.id)) {
+                        cfgs.push(v.form_field);
+                    }
+                });
+
                 setConfigs(cfgs);
                 setExistingValues(vals);
 
