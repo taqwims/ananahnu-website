@@ -22,6 +22,9 @@ export default function EstimasiReguler() {
     const [districts, setDistricts] = useState<any[]>([]);
     const [schemes, setSchemes] = useState<any[]>([]);
 
+    const [serviceType, setServiceType] = useState('REGULER');
+    const [systemSettings, setSystemSettings] = useState<Record<string, string>>({});
+
     // Dynamic cost components from master biaya
     const [masterComponents, setMasterComponents] = useState<any[]>([]);
     const [loadingComponents, setLoadingComponents] = useState(false);
@@ -89,6 +92,7 @@ export default function EstimasiReguler() {
             if (provinceId) params.province_id = provinceId;
             if (regencyId) params.regency_id = regencyId;
             if (districtId) params.district_id = districtId;
+            if (serviceType) params.service_type = serviceType;
             if (dataSource) {
                 params.data_source = dataSource === 'TELEMARKETING' ? 'ORGANIK' : dataSource;
             }
@@ -102,7 +106,7 @@ export default function EstimasiReguler() {
                 api.get('/billing-config/components', { params })
             ];
 
-            if (targetSchemeId) {
+            if (targetSchemeId && serviceType === 'REGULER') {
                 const priceParams: Record<string, string> = {
                     sales_scheme_id: targetSchemeId,
                     is_active: 'true'
@@ -143,18 +147,19 @@ export default function EstimasiReguler() {
         } finally {
             setLoadingComponents(false);
         }
-    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, salesSchemeId, dataSource]);
+    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, salesSchemeId, dataSource, serviceType]);
 
     // Load master data on mount
     useEffect(() => {
         const fetchMasterData = async () => {
             try {
-                const [btRes, pRes, bsRes, provRes, scRes] = await Promise.all([
+                const [btRes, pRes, bsRes, provRes, scRes, sysRes] = await Promise.all([
                     api.get('/billing-config/business-types').catch(() => ({ data: [] })),
                     api.get('/billing-config/product-categories').catch(() => ({ data: [] })),
                     api.get('/billing-config/business-scales').catch(() => ({ data: [] })),
                     api.get('/geography/provinces').catch(() => ({ data: [] })),
-                    api.get('/billing-config/sales-schemes').catch(() => ({ data: [] }))
+                    api.get('/billing-config/sales-schemes').catch(() => ({ data: [] })),
+                    api.get('/system-settings').catch(() => ({ data: {} }))
                 ]);
 
                 setBusinessTypes(btRes.data || []);
@@ -162,6 +167,14 @@ export default function EstimasiReguler() {
                 setScales(bsRes.data || []);
                 setProvinces(provRes.data || []);
                 setSchemes(scRes.data || []);
+
+                const settingsMap: Record<string, string> = {};
+                if (sysRes.data && Array.isArray(sysRes.data)) {
+                    sysRes.data.forEach((s: any) => { settingsMap[s.key] = s.value; });
+                } else if (sysRes.data && typeof sysRes.data === 'object') {
+                    Object.assign(settingsMap, sysRes.data);
+                }
+                setSystemSettings(settingsMap);
             } catch (err) {
                 console.error(err);
             } finally {
@@ -174,7 +187,7 @@ export default function EstimasiReguler() {
     // Re-fetch components when any filter changes
     useEffect(() => {
         if (!loading) fetchComponents();
-    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, salesSchemeId, dataSource, fetchComponents, loading]);
+    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, salesSchemeId, dataSource, serviceType, fetchComponents, loading]);
 
     const addOptionalCost = () => {
         if (!newOptName || !newOptAmount) return;
@@ -191,18 +204,34 @@ export default function EstimasiReguler() {
 
     // Reactive calculation
     const { total, breakdown } = useMemo(() => {
+        if (serviceType === 'SELF_DECLARE') {
+            return {
+                total: 0,
+                breakdown: [
+                    {
+                        name: 'Program Self Declare (Fasilitasi / Gratis)',
+                        category: 'SELF_DECLARE',
+                        unit_cost: 0,
+                        multiplier: null,
+                        total: 0,
+                        is_optional: false
+                    }
+                ]
+            };
+        }
+
         let currentTotal = 0;
         const currentBreakdown: any[] = [];
 
-        // 1. Components from master biaya
+        // 1. Mandatory Components from master biaya
         const categoryMap = new Map<string, any>();
         
         masterComponents.forEach(comp => {
-            if (!comp || !comp.category) return;
+            if (!comp || !comp.category || !comp.is_mandatory) return;
+            const compSt = comp.service_type || 'REGULER';
+            if (compSt !== 'BOTH' && compSt !== 'ALL' && serviceType && compSt !== serviceType) return;
             const cat = comp.category.toUpperCase();
-            if (cat === 'PENDAMPINGAN') return; // Skip PENDAMPINGAN as we use salesSchemePrice
-            
-            if (!comp.is_mandatory) return;
+            if (cat === 'PENDAMPINGAN') return; // Skip PENDAMPINGAN as it is handled separately below
 
             if (comp.province_id && comp.province_id.toString() !== provinceId) return;
             if (comp.regency_id && comp.regency_id.toString() !== regencyId) return;
@@ -227,11 +256,13 @@ export default function EstimasiReguler() {
             }
         });
 
-        // Find matching PENDAMPINGAN component name
-        let pendampinganName = 'Jasa Pendampingan';
+        // 2. Handle PENDAMPINGAN from Master Biaya or SalesSchemePrice or SD Mandiri Cost
+        let bestPend: any = null;
         let bestPendScore = -1;
         masterComponents.forEach(comp => {
             if (!comp || comp.category.toUpperCase() !== 'PENDAMPINGAN') return;
+            const compSt = comp.service_type || 'REGULER';
+            if (compSt !== 'BOTH' && compSt !== 'ALL' && serviceType && compSt !== serviceType) return;
 
             if (comp.province_id && comp.province_id.toString() !== provinceId) return;
             if (comp.regency_id && comp.regency_id.toString() !== regencyId) return;
@@ -250,29 +281,63 @@ export default function EstimasiReguler() {
 
             if (score > bestPendScore) {
                 bestPendScore = score;
-                pendampinganName = comp.name;
+                bestPend = comp;
             }
         });
 
-        // Add Jasa Pendampingan from salesSchemePrice if exists
-        if (salesSchemePrice) {
-            const price = salesSchemePrice.base_price;
-            let finalPrice = price;
-            if (salesSchemePrice.discount_percent > 0) {
-                finalPrice = price - (price * (salesSchemePrice.discount_percent / 100));
+        let finalPrice = 0;
+        let dispName = 'Jasa Pendampingan';
+        let dispCategory = 'PENDAMPINGAN';
+        let pendDiscountPercent = 0;
+
+        if (bestPend) {
+            finalPrice = bestPend.base_amount;
+            dispName = bestPend.name;
+            dispCategory = bestPend.category.toUpperCase();
+            if (bestPend.discount_percent && bestPend.discount_percent > 0) {
+                pendDiscountPercent = bestPend.discount_percent;
             }
-            
+        } else if (serviceType === 'REGULER' && salesSchemePrice) {
+            finalPrice = salesSchemePrice.base_price;
+            if (salesSchemePrice.sales_scheme?.name) {
+                dispName = salesSchemePrice.sales_scheme.name;
+            }
+            if (salesSchemePrice.discount_percent > 0) {
+                pendDiscountPercent = salesSchemePrice.discount_percent;
+            }
+        } else if (serviceType === 'SELF_DECLARE_MANDIRI') {
+            const sysCost = systemSettings['SD_MANDIRI_COST'];
+            finalPrice = sysCost ? parseFloat(sysCost) : 230000;
+            dispName = 'Biaya Self Declare Mandiri';
+            dispCategory = 'PENDAMPINGAN';
+        }
+
+        if (finalPrice > 0) {
             currentBreakdown.push({
-                name: pendampinganName,
-                category: 'JASA',
+                name: dispName,
+                category: dispCategory,
                 unit_cost: finalPrice,
                 multiplier: null,
                 total: finalPrice,
                 is_optional: false
             });
             currentTotal += finalPrice;
+
+            if (pendDiscountPercent > 0) {
+                const discAmount = finalPrice * (pendDiscountPercent / 100);
+                currentBreakdown.push({
+                    name: `Diskon ${dispName} (${pendDiscountPercent}%)`,
+                    category: 'DISKON',
+                    unit_cost: -discAmount,
+                    multiplier: null,
+                    total: -discAmount,
+                    is_optional: false
+                });
+                currentTotal -= discAmount;
+            }
         }
 
+        // Add mandatory non-pendampingan components
         Array.from(categoryMap.values()).forEach(comp => {
             let nameTag = '';
             if (comp.district_id) nameTag = ' [Khusus Kecamatan]';
@@ -294,25 +359,42 @@ export default function EstimasiReguler() {
                 multiplierLabel = ` (${productCount} Produk)`;
             }
 
-            const itemTotal = comp.base_amount * multiplier;
+            const baseAmount = comp.base_amount * multiplier;
+            let itemTotal = baseAmount;
+            let discountAmount = 0;
+            if (comp.discount_percent && comp.discount_percent > 0) {
+                discountAmount = baseAmount * (comp.discount_percent / 100);
+                itemTotal = baseAmount - discountAmount;
+            }
 
             currentBreakdown.push({
                 name: comp.name + nameTag + multiplierLabel,
                 category: comp.category.toUpperCase(),
                 unit_cost: comp.base_amount,
                 multiplier: multiplier > 1 ? multiplier : null,
-                total: itemTotal,
+                total: baseAmount,
                 is_optional: false
             });
+
+            if (discountAmount > 0) {
+                currentBreakdown.push({
+                    name: `Diskon ${comp.name} (${comp.discount_percent}%)`,
+                    category: 'DISKON',
+                    unit_cost: -(discountAmount / multiplier),
+                    multiplier: multiplier > 1 ? multiplier : null,
+                    total: -discountAmount,
+                    is_optional: false
+                });
+            }
             currentTotal += itemTotal;
         });
 
-        // 2. Partnership discount on pendampingan
+        // 3. Partnership discount on pendampingan
         const currentScheme = schemes.find((s: any) => s.id === parseInt(salesSchemeId));
-        if (currentScheme && currentScheme.name.toUpperCase() === 'PARTNERSHIP') {
-            const jaseItem = currentBreakdown.find(item => item.category === 'JASA');
-            if (jaseItem) {
-                const discountAmount = jaseItem.unit_cost * 0.1;
+        if (currentScheme && currentScheme.name.toUpperCase() === 'PARTNERSHIP' && serviceType === 'REGULER') {
+            const pendItem = currentBreakdown.find(item => item.category === 'PENDAMPINGAN');
+            if (pendItem) {
+                const discountAmount = pendItem.unit_cost * 0.1;
                 currentBreakdown.push({
                     name: 'Diskon Partnership (10%)',
                     category: 'DISKON',
@@ -325,10 +407,12 @@ export default function EstimasiReguler() {
             }
         }
 
-        // 1b. Optional components
+        // 4. Optional components from master biaya
         masterComponents.forEach(comp => {
             if (!comp || !comp.category || comp.is_mandatory) return;
             if (comp.category.toUpperCase() === 'PENDAMPINGAN') return;
+            const compSt = comp.service_type || 'REGULER';
+            if (compSt !== 'BOTH' && compSt !== 'ALL' && serviceType && compSt !== serviceType) return;
 
             const shouldInclude = selectedOptionalComponentIds.includes(comp.id);
             if (!shouldInclude) return;
@@ -347,7 +431,14 @@ export default function EstimasiReguler() {
                 multiplierLabel = ` (${productCount} Produk)`;
             }
 
-            const itemTotal = comp.base_amount * multiplier;
+            const baseAmount = comp.base_amount * multiplier;
+            let itemTotal = baseAmount;
+            let discountAmount = 0;
+            if (comp.discount_percent && comp.discount_percent > 0) {
+                discountAmount = baseAmount * (comp.discount_percent / 100);
+                itemTotal = baseAmount - discountAmount;
+            }
+
             let nameTag = '';
             if (comp.district_id) nameTag = ' [Khusus Kecamatan]';
             else if (comp.regency_id) nameTag = ' [Khusus Kabupaten]';
@@ -360,13 +451,24 @@ export default function EstimasiReguler() {
                 category: comp.category.toUpperCase(),
                 unit_cost: comp.base_amount,
                 multiplier: multiplier > 1 ? multiplier : null,
-                total: itemTotal,
+                total: baseAmount,
                 is_optional: true
             });
+
+            if (discountAmount > 0) {
+                currentBreakdown.push({
+                    name: `Diskon ${comp.name} (${comp.discount_percent}%)`,
+                    category: 'DISKON',
+                    unit_cost: -(discountAmount / multiplier),
+                    multiplier: multiplier > 1 ? multiplier : null,
+                    total: -discountAmount,
+                    is_optional: true
+                });
+            }
             currentTotal += itemTotal;
         });
 
-        // 3. Optional Costs
+        // 5. Optional Costs (Custom user input)
         optionalCosts.forEach(opt => {
             currentBreakdown.push({
                 name: opt.name,
@@ -380,7 +482,34 @@ export default function EstimasiReguler() {
         });
 
         return { total: currentTotal, breakdown: currentBreakdown };
-    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, optionalQuantities, productCount, selectedOptionalComponentIds]);
+    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, optionalQuantities, productCount, selectedOptionalComponentIds, serviceType, systemSettings, provinceId, regencyId, districtId, businessTypeId, productId, businessScaleId]);
+
+    const getCategoryBadgeClass = (cat: string) => {
+        switch (cat) {
+            case 'LPH':
+                return 'bg-purple-100 text-purple-700 border border-purple-200';
+            case 'PENDAMPINGAN':
+                return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+            case 'BPJPH':
+                return 'bg-indigo-100 text-indigo-700 border border-indigo-200';
+            case 'MUI':
+                return 'bg-amber-100 text-amber-700 border border-amber-200';
+            case 'PERSYARATAN_LAIN':
+                return 'bg-blue-100 text-blue-700 border border-blue-200';
+            case 'DISKON':
+                return 'bg-rose-100 text-rose-700 border border-rose-200';
+            case 'SELF_DECLARE':
+                return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+            default:
+                return 'bg-gray-100 text-gray-700 border border-gray-200';
+        }
+    };
+
+    const getCategoryLabel = (cat: string) => {
+        if (cat === 'PERSYARATAN_LAIN') return 'PERSYARATAN LAIN';
+        if (cat === 'SELF_DECLARE') return 'SELF DECLARE';
+        return cat;
+    };
 
     const handleDownloadPDF = () => {
         const printWindow = window.open('', '_blank');
@@ -396,13 +525,14 @@ export default function EstimasiReguler() {
         const selectedProd = products.find(p => p.id.toString() === productId)?.name || '-';
         const selectedScale = scales.find(s => s.id.toString() === businessScaleId)?.name || '-';
         const selectedScheme = schemes.find(s => s.id.toString() === salesSchemeId)?.name || '-';
+        const serviceLabel = serviceType === 'REGULER' ? 'Sertifikasi Reguler' : serviceType === 'SELF_DECLARE_MANDIRI' ? 'Self Declare Mandiri' : 'Self Declare Fasilitasi (Gratis)';
 
         const breakdownRows = breakdown.map((item, idx) => `
             <tr style="border-bottom: 1px solid #e5e7eb;">
                 <td style="padding: 8px; font-size: 11px; color: #374151;">${idx + 1}</td>
                 <td style="padding: 8px; font-size: 11px; color: #374151;">
                     <div style="font-weight: 600;">${item.name}</div>
-                    <span style="font-size: 8px; padding: 1px 4px; background-color: #f3f4f6; color: #4b5563; border-radius: 3px; font-weight: bold; text-transform: uppercase;">${item.category}</span>
+                    <span style="font-size: 8px; padding: 1px 4px; background-color: #f3f4f6; color: #4b5563; border-radius: 3px; font-weight: bold; text-transform: uppercase;">${getCategoryLabel(item.category)}</span>
                 </td>
                 <td style="padding: 8px; font-size: 11px; color: #047857; font-weight: bold; text-align: right;">
                     ${item.total < 0 ? `- ${formatCurrency(Math.abs(item.total))}` : formatCurrency(item.total)}
@@ -442,6 +572,7 @@ export default function EstimasiReguler() {
                 <div class="details-grid">
                     <div class="details-box">
                         <h3>Informasi Wilayah & Kriteria</h3>
+                        <div class="details-row"><span>Jenis Layanan:</span><span>${serviceLabel}</span></div>
                         <div class="details-row"><span>Provinsi:</span><span>${selectedProv}</span></div>
                         <div class="details-row"><span>Kabupaten:</span><span>${selectedReg}</span></div>
                         <div class="details-row"><span>Kecamatan:</span><span>${selectedDist}</span></div>
@@ -451,7 +582,7 @@ export default function EstimasiReguler() {
                     <div class="details-box">
                         <h3>Skema & Volume</h3>
                         <div class="details-row"><span>Skala Usaha:</span><span>${selectedScale}</span></div>
-                        <div class="details-row"><span>Skema Penjualan:</span><span>${selectedScheme}</span></div>
+                        ${serviceType === 'REGULER' ? `<div class="details-row"><span>Skema Penjualan:</span><span>${selectedScheme}</span></div>` : ''}
                         <div class="details-row"><span>Sumber Data:</span><span>${dataSource === 'MARKETING' ? 'Marketing (Partner)' : 'Organik'}</span></div>
                         <div class="details-row"><span>Jumlah Cabang:</span><span>${branchCount}</span></div>
                         <div class="details-row"><span>Jumlah Produk:</span><span>${productCount}</span></div>
@@ -519,7 +650,7 @@ export default function EstimasiReguler() {
                         </div>
                         Perhitungan Biaya
                     </h1>
-                    <p className="text-sm text-gray-500 mt-1 ml-12">Hitung dan simulasikan rincian biaya sertifikasi halal secara instan</p>
+                    <p className="text-sm text-gray-500 mt-1 ml-12">Hitung dan simulasikan rincian biaya sertifikasi halal secara instan sesuai Master Biaya</p>
                 </div>
             </div>
 
@@ -530,20 +661,36 @@ export default function EstimasiReguler() {
                         <h3 className="text-lg font-bold text-brand-700">Form Perhitungan Biaya</h3>
                     </div>
 
-                    {/* Skema Selection */}
-                    <div className="grid grid-cols-1 gap-3">
-                        <div>
-                            <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Skema Penjualan</label>
-                            <select
-                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all font-bold text-brand-700"
-                                value={salesSchemeId}
-                                onChange={e => setSalesSchemeId(e.target.value)}
-                            >
-                                <option value="">Pilih Skema...</option>
-                                {schemes.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                            </select>
-                        </div>
+                    {/* Jenis Pengajuan / Layanan Selection */}
+                    <div>
+                        <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Jenis Layanan / Pengajuan</label>
+                        <select
+                            className="w-full bg-emerald-50/60 border border-emerald-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all font-bold text-emerald-800"
+                            value={serviceType}
+                            onChange={e => setServiceType(e.target.value)}
+                        >
+                            <option value="REGULER">Sertifikasi Reguler (Berbayar)</option>
+                            <option value="SELF_DECLARE_MANDIRI">Self Declare Mandiri (Berbayar Mandiri)</option>
+                            <option value="SELF_DECLARE">Self Declare Fasilitasi (Gratis / Rp 0)</option>
+                        </select>
                     </div>
+
+                    {/* Skema Selection - only for REGULER */}
+                    {serviceType === 'REGULER' && (
+                        <div className="grid grid-cols-1 gap-3">
+                            <div>
+                                <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Skema Penjualan</label>
+                                <select
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all font-bold text-brand-700"
+                                    value={salesSchemeId}
+                                    onChange={e => setSalesSchemeId(e.target.value)}
+                                >
+                                    <option value="">Pilih Skema...</option>
+                                    {schemes.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Guide Section */}
                     <div className="bg-brand-50 border border-brand-100 p-3 rounded-xl flex gap-2 text-brand-850 text-xs">
@@ -551,8 +698,9 @@ export default function EstimasiReguler() {
                         <div>
                             <h4 className="font-bold mb-0.5">Panduan Penggunaan Kalkulator</h4>
                             <ul className="list-disc pl-3.5 space-y-0.5 text-[10px] text-brand-700/80">
+                                <li>Semua tag komponen dan tarif otomatis disinkronkan dari Master Biaya.</li>
+                                <li>Pilih Jenis Layanan untuk menyesuaikan komponen biaya yang relevan.</li>
                                 <li>Harga berubah otomatis saat Provinsi, Bidang, atau Produk dipilih.</li>
-                                <li>Sistem otomatis menyesuaikan jika ada tarif khusus wilayah.</li>
                             </ul>
                         </div>
                     </div>
@@ -667,12 +815,20 @@ export default function EstimasiReguler() {
                         </div>
 
                         {/* Optional Components */}
-                        {masterComponents.filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN').length > 0 && (
+                        {masterComponents.filter(c => {
+                            if (!c || !c.category || c.is_mandatory || c.category.toUpperCase() === 'PENDAMPINGAN') return false;
+                            const compSt = c.service_type || 'REGULER';
+                            return compSt === 'BOTH' || compSt === 'ALL' || !serviceType || compSt === serviceType;
+                        }).length > 0 && (
                             <div className="border-t border-gray-100 pt-3">
                                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">Komponen Pilihan Master Biaya</label>
                                 <div className="space-y-1.5 bg-gray-50 p-3 rounded-lg border border-gray-200">
                                     {masterComponents
-                                        .filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN')
+                                        .filter(c => {
+                                            if (!c || !c.category || c.is_mandatory || c.category.toUpperCase() === 'PENDAMPINGAN') return false;
+                                            const compSt = c.service_type || 'REGULER';
+                                            return compSt === 'BOTH' || compSt === 'ALL' || !serviceType || compSt === serviceType;
+                                        })
                                         .map(comp => {
                                             const isChecked = selectedOptionalComponentIds.includes(comp.id);
                                             return (
@@ -797,8 +953,8 @@ export default function EstimasiReguler() {
                                             <p className="font-semibold text-xs text-gray-700 leading-tight">
                                                 {item.name}
                                             </p>
-                                            <span className="text-[8px] px-1 bg-gray-100 text-gray-600 rounded font-bold uppercase">
-                                                {item.category}
+                                            <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold uppercase ${getCategoryBadgeClass(item.category)}`}>
+                                                {getCategoryLabel(item.category)}
                                             </span>
                                         </div>
                                         <div className="col-span-4 text-right">

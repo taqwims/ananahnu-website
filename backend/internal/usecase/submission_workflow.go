@@ -20,6 +20,8 @@ type SubmissionWorkflowUsecase interface {
 	GetSubmission(id uuid.UUID) (*domain.Submission, error)
 	GetHistory(id uuid.UUID) ([]domain.AuditLog, error)
 	IssueSH(id uuid.UUID, userID uuid.UUID, shURL string) error
+	SubmitSJPH(id uuid.UUID, userID uuid.UUID, userRole string, sjphURL string, notes string) error
+	ApproveSJPH(id uuid.UUID, userID uuid.UUID, userRole string) error
 	RevokeSH(id uuid.UUID, userID uuid.UUID, userRole string, note string) error
 	UpdateAuditInfo(id uuid.UUID, userID uuid.UUID, userRole string, auditDate *time.Time) error
 	UpdateAuditResult(id uuid.UUID, userID uuid.UUID, userRole string, url1, url2 string) error
@@ -67,8 +69,9 @@ type CreateFullInput struct {
 		ProvinceID        *int64 `json:"province_id"`
 		RegencyID         *int64 `json:"regency_id"`
 		DistrictID        *int64 `json:"district_id"`
-		ProductCount      int    `json:"product_count"`
-		BranchCount       int    `json:"branch_count"`
+		ProductCount      int        `json:"product_count"`
+		BranchCount       int        `json:"branch_count"`
+		FacilitatorID     *uuid.UUID `json:"facilitator_id,omitempty"`
 	} `json:"client_data"`
 	SelectedOptionalIDs []int64           `json:"selected_optional_ids"`
 	OptionalQuantities  map[int64]int     `json:"optional_quantities"`

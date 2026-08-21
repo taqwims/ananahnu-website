@@ -84,7 +84,7 @@ func (uc *submissionWorkflowUsecase) checkVerification(userID uuid.UUID) error {
 		}
 
 		if !profile.IsVerified && !isGraduated {
-			return errors.New("Akses Dibatasi: Akun Anda belum diverifikasi admin DAN Anda belum dinyatakan lulus pelatihan.")
+			return errors.New("Akses Dibatasi: Akun Anda belum diverifikasi admin dan Anda belum dinyatakan lulus pelatihan.")
 		}
 		if !profile.IsVerified {
 			return errors.New("Akses Dibatasi: Akun Anda belum diverifikasi oleh admin. Silakan lengkapi dokumen di Profil Advisor.")
@@ -100,7 +100,7 @@ func (uc *submissionWorkflowUsecase) checkUnpaidInvoices(userID uuid.UUID, servi
 	if serviceType != "SELF_DECLARE" && serviceType != "SELF_DECLARE_MANDIRI" {
 		return nil
 	}
-	
+
 	// Cek apakah ada tagihan SELF_DECLARE yang belum dibayar
 	filter := map[string]interface{}{
 		"payer_id": userID,
@@ -110,7 +110,7 @@ func (uc *submissionWorkflowUsecase) checkUnpaidInvoices(userID uuid.UUID, servi
 	if err != nil {
 		return err
 	}
-	
+
 	for _, inv := range invoices {
 		if inv.ServiceType == "SELF_DECLARE" || inv.ServiceType == "SELF_DECLARE_MANDIRI" {
 			return errors.New("Tidak dapat membuat pengajuan baru. Anda masih memiliki tagihan Self Declare yang belum dibayar. Silakan lunasi tagihan Anda di menu 'Tagihan Self Declare'.")
@@ -188,6 +188,10 @@ func (uc *submissionWorkflowUsecase) CreateDraft(clientID *uuid.UUID, businessNa
 }
 
 func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uuid.UUID, userRole string) (*domain.Submission, error) {
+	if userRole != "CLIENT" && userRole != "DIRECTOR" && userRole != "ADMIN" {
+		return nil, errors.New("Akses Dibatasi: Pengajuan hanya dapat dilakukan oleh Pelaku Usaha (Client)")
+	}
+
 	if err := uc.checkVerification(userID); err != nil {
 		return nil, err
 	}
@@ -201,18 +205,50 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 	}
 
 	// 1. Create/Update Client
+	var facilitatorID uuid.UUID
+	var consultantIDPtr *uuid.UUID
+
+	if input.ClientData.FacilitatorID != nil && *input.ClientData.FacilitatorID != uuid.Nil {
+		facilitatorID = *input.ClientData.FacilitatorID
+		consultantIDPtr = input.ClientData.FacilitatorID
+	} else if userRole != "CLIENT" {
+		facilitatorID = userID
+		consultantIDPtr = &userID
+	}
+
+	userObj, _ := uc.UserRepo.FindByID(userID)
+
+	clientName := input.ClientData.ClientName
+	if clientName == "" && userObj != nil {
+		clientName = userObj.FullName
+	}
+
+	businessName := input.ClientData.BusinessName
+	if businessName == "" {
+		if clientName != "" {
+			businessName = "Usaha " + clientName
+		} else {
+			businessName = "Draf Pengajuan Baru"
+		}
+	}
+
+	phone := input.ClientData.Phone
+	if phone == "" && userObj != nil {
+		phone = userObj.Phone
+	}
+
 	client := &domain.Client{
 		ID:            uuid.New(),
 		NIB:           input.ClientData.NIB,
 		NIK:           input.ClientData.NIK,
-		BusinessName:  input.ClientData.BusinessName,
-		ClientName:    input.ClientData.ClientName,
+		BusinessName:  businessName,
+		ClientName:    clientName,
 		Address:       input.ClientData.Address,
 		ProductName:   input.ClientData.ProductName,
 		ServiceType:   input.ClientData.ServiceType,
 		ContactPerson: input.ClientData.ContactPerson,
-		Phone:         input.ClientData.Phone,
-		FacilitatorID: userID,
+		Phone:         phone,
+		FacilitatorID: facilitatorID,
 		CreatedBy:     userID,
 	}
 
@@ -226,11 +262,6 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 
 	if err := uc.ClientRepo.Create(client); err != nil {
 		return nil, err
-	}
-
-	var consultantIDPtr *uuid.UUID
-	if userRole != "CLIENT" {
-		consultantIDPtr = &userID
 	}
 
 	dataSource := "ORGANIK"
@@ -306,7 +337,7 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 	}
 
 	uc.logChange(sub.ID, userID, "CREATE_FULL", "", domain.StatusDraft, "Full submission record created")
-	
+
 	return uc.SubmissionRepo.FindByID(sub.ID)
 }
 
@@ -466,6 +497,34 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 
 // RecalculateAndSaveRegularCost recalculates regular pricing dynamically and saves to Cost Detail & Invoice
 func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.Submission, selectedOptionalComponentIDs []int64, optionalQuantities map[int64]int, hasExplicitSelection bool) error {
+	if sub.ServiceType == "SELF_DECLARE" {
+		breakdown := []map[string]interface{}{
+			{
+				"name":        "Program Self Declare (Fasilitasi / Gratis)",
+				"category":    "SELF_DECLARE",
+				"unit_cost":   0.0,
+				"total":       0.0,
+				"is_optional": false,
+			},
+		}
+		jsonBreakdown, _ := json.Marshal(breakdown)
+		costDetail := &domain.SubmissionCostDetail{
+			SubmissionID:      sub.ID,
+			ProductCategoryID: sub.ProductCategoryID,
+			BusinessTypeID:    sub.BusinessTypeID,
+			BusinessScaleID:   sub.BusinessScaleID,
+			ProvinceID:        sub.ProvinceID,
+			RegencyID:         sub.RegencyID,
+			DistrictID:        sub.DistrictID,
+			ProductCount:      sub.ProductCount,
+			BranchCount:       sub.BranchCount,
+			TotalAmount:       0,
+			CostBreakdownData: string(jsonBreakdown),
+		}
+		_ = uc.BillingConfigRepo.SaveSubmissionCostDetail(costDetail)
+		return nil
+	}
+
 	if sub.ServiceType != "REGULER" && sub.ServiceType != "SELF_DECLARE_MANDIRI" {
 		return nil
 	}
@@ -481,9 +540,9 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 		return nil
 	}
 
-	// Fetch sales scheme prices if SalesSchemeID is set
+	// Fetch sales scheme prices if SalesSchemeID is set (only relevant for REGULER)
 	var scheme *domain.SalesSchemePrice
-	if sub.SalesSchemeID != nil && sub.BusinessTypeID != nil && sub.BusinessScaleID != nil {
+	if sub.ServiceType == "REGULER" && sub.SalesSchemeID != nil && sub.BusinessTypeID != nil && sub.BusinessScaleID != nil {
 		ds := sub.DataSource
 		if ds == "TELEMARKETING" || ds == "" {
 			ds = "ORGANIK"
@@ -545,56 +604,79 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 	var total float64
 	var breakdown []map[string]interface{}
 
+	isCompServiceTypeMatch := func(comp domain.BillingComponent) bool {
+		compSt := strings.TrimSpace(comp.ServiceType)
+		if sub.ServiceType == "REGULER" {
+			return compSt == "REGULER" || compSt == "BOTH" || compSt == "ALL" || compSt == ""
+		}
+		if sub.ServiceType == "SELF_DECLARE_MANDIRI" {
+			if compSt != "SELF_DECLARE_MANDIRI" && compSt != "BOTH" && compSt != "ALL" {
+				return false
+			}
+			cat := strings.ToUpper(comp.Category)
+			if cat == "LPH" || cat == "MUI" {
+				return false
+			}
+			return true
+		}
+		return false
+	}
+
 	// Find the best matching PENDAMPINGAN component
 	var bestPendampingan *domain.BillingComponent
 	bestScore := -1
 
 	for _, comp := range components {
-		if comp.Category != "PENDAMPINGAN" {
+		if strings.ToUpper(comp.Category) != "PENDAMPINGAN" {
 			continue
 		}
-		if comp.ServiceType != "" && comp.ServiceType != "BOTH" && comp.ServiceType != "ALL" && comp.ServiceType != sub.ServiceType {
+		if !isCompServiceTypeMatch(comp) {
 			continue
 		}
 		// Match filters
-		if comp.ProvinceID != nil && *comp.ProvinceID != *sub.ProvinceID {
+		if comp.ProvinceID != nil && sub.ProvinceID != nil && *comp.ProvinceID != *sub.ProvinceID {
 			continue
 		}
 		if comp.RegencyID != nil && sub.RegencyID != nil && *comp.RegencyID != *sub.RegencyID {
 			continue
 		}
-		if comp.BusinessTypeID != nil && *comp.BusinessTypeID != *sub.BusinessTypeID {
+		if comp.BusinessTypeID != nil && sub.BusinessTypeID != nil && *comp.BusinessTypeID != *sub.BusinessTypeID {
 			continue
 		}
-		if comp.BusinessScaleID != nil && *comp.BusinessScaleID != *sub.BusinessScaleID {
+		if comp.BusinessScaleID != nil && sub.BusinessScaleID != nil && *comp.BusinessScaleID != *sub.BusinessScaleID {
 			continue
 		}
-		if comp.SalesSchemeID != nil && *comp.SalesSchemeID != *sub.SalesSchemeID {
+		if comp.SalesSchemeID != nil && sub.SalesSchemeID != nil && *comp.SalesSchemeID != *sub.SalesSchemeID {
 			continue
 		}
 
 		// Score specificity
 		score := 0
-		if comp.DistrictID != nil { score += 1000 }
-		if comp.RegencyID != nil { score += 100 }
-		if comp.ProvinceID != nil { score += 10 }
-		if comp.SalesSchemeID != nil { score += 8 }
-		if comp.BusinessScaleID != nil { score += 5 }
-		if comp.ProductCategoryID != nil { score += 2 }
-		if comp.BusinessTypeID != nil { score += 1 }
+		if comp.DistrictID != nil {
+			score += 1000
+		}
+		if comp.RegencyID != nil {
+			score += 100
+		}
+		if comp.ProvinceID != nil {
+			score += 10
+		}
+		if comp.SalesSchemeID != nil {
+			score += 8
+		}
+		if comp.BusinessScaleID != nil {
+			score += 5
+		}
+		if comp.ProductCategoryID != nil {
+			score += 2
+		}
+		if comp.BusinessTypeID != nil {
+			score += 1
+		}
 
 		if score > bestScore {
 			bestScore = score
 			bestPendampingan = &comp
-		}
-	}
-
-	if sub.ServiceType == "SELF_DECLARE_MANDIRI" && bestPendampingan == nil {
-		for _, comp := range components {
-			if comp.ServiceType == "SELF_DECLARE_MANDIRI" {
-				bestPendampingan = &comp
-				break
-			}
 		}
 	}
 
@@ -606,7 +688,7 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 	if bestPendampingan != nil {
 		price = bestPendampingan.BaseAmount
 		pendampinganName = bestPendampingan.Name
-		pendampinganCategory = bestPendampingan.Category
+		pendampinganCategory = strings.ToUpper(bestPendampingan.Category)
 		if bestPendampingan.DiscountPercent > 0 {
 			pendDiscount = bestPendampingan.DiscountPercent
 		}
@@ -618,7 +700,7 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 	} else if sub.ServiceType == "SELF_DECLARE_MANDIRI" {
 		price = 230000.0
 		if setting, err := uc.SettingRepo.GetSetting("SD_MANDIRI_COST"); err == nil && setting != nil {
-			if val, parseErr := strconv.ParseFloat(setting.Value, 64); parseErr == nil {
+			if val, parseErr := strconv.ParseFloat(setting.Value, 64); parseErr == nil && val > 0 {
 				price = val
 			}
 		}
@@ -632,20 +714,22 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 	if price > 0 {
 		total += price
 		breakdown = append(breakdown, map[string]interface{}{
-			"name":      pendampinganName,
-			"category":  pendampinganCategory,
-			"unit_cost": price,
-			"total":     price,
+			"name":        pendampinganName,
+			"category":    pendampinganCategory,
+			"unit_cost":   price,
+			"total":       price,
+			"is_optional": false,
 		})
 
 		if pendDiscount > 0 {
 			discountAmount := price * (pendDiscount / 100.0)
 			total -= discountAmount
 			breakdown = append(breakdown, map[string]interface{}{
-				"name":      fmt.Sprintf("Diskon %s (%.0f%%)", pendampinganName, pendDiscount),
-				"category":  "DISKON",
-				"unit_cost": -discountAmount,
-				"total":     -discountAmount,
+				"name":        fmt.Sprintf("Diskon %s (%.0f%%)", pendampinganName, pendDiscount),
+				"category":    "DISKON",
+				"unit_cost":   -discountAmount,
+				"total":       -discountAmount,
+				"is_optional": false,
 			})
 		}
 	}
@@ -659,10 +743,10 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 	var finalComponents []domain.BillingComponent
 
 	for _, comp := range components {
-		if comp.Category == "PENDAMPINGAN" {
+		if strings.ToUpper(comp.Category) == "PENDAMPINGAN" {
 			continue
 		}
-		if comp.ServiceType != "" && comp.ServiceType != "BOTH" && comp.ServiceType != "ALL" && comp.ServiceType != sub.ServiceType {
+		if !isCompServiceTypeMatch(comp) {
 			continue
 		}
 
@@ -707,13 +791,27 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 			}
 		} else {
 			score := 0
-			if comp.DistrictID != nil { score += 1000 }
-			if comp.RegencyID != nil { score += 100 }
-			if comp.ProvinceID != nil { score += 10 }
-			if comp.SalesSchemeID != nil { score += 8 }
-			if comp.BusinessScaleID != nil { score += 5 }
-			if comp.ProductCategoryID != nil { score += 2 }
-			if comp.BusinessTypeID != nil { score += 1 }
+			if comp.DistrictID != nil {
+				score += 1000
+			}
+			if comp.RegencyID != nil {
+				score += 100
+			}
+			if comp.ProvinceID != nil {
+				score += 10
+			}
+			if comp.SalesSchemeID != nil {
+				score += 8
+			}
+			if comp.BusinessScaleID != nil {
+				score += 5
+			}
+			if comp.ProductCategoryID != nil {
+				score += 2
+			}
+			if comp.BusinessTypeID != nil {
+				score += 1
+			}
 
 			cat := strings.ToUpper(comp.Category)
 			existing, exists := mandatoryCategoryMap[cat]
@@ -937,7 +1035,7 @@ func getMultiplierFromBreakdown(breakdown []map[string]interface{}, name string)
 func (uc *submissionWorkflowUsecase) checkFacilitationQuota() error {
 	limitStr := "1000"
 	usedStr := "0"
-	
+
 	limitSetting, err := uc.SettingRepo.GetSetting("facilitation_quota_limit")
 	if err == nil && limitSetting != nil {
 		limitStr = limitSetting.Value
@@ -946,11 +1044,11 @@ func (uc *submissionWorkflowUsecase) checkFacilitationQuota() error {
 	if err == nil && usedSetting != nil {
 		usedStr = usedSetting.Value
 	}
-	
+
 	limit, _ := strconv.Atoi(limitStr)
 	used, _ := strconv.Atoi(usedStr)
-	
-	if limit - used <= 0 {
+
+	if limit-used <= 0 {
 		return errors.New("tidak ada fasilitasi pembiayaan. Silahkan ajukan melalui skema self declare mandiri")
 	}
 	return nil
@@ -964,11 +1062,9 @@ func (uc *submissionWorkflowUsecase) incrementFacilitationQuotaUsed() {
 	}
 	used, _ := strconv.Atoi(usedStr)
 	used++
-	
+
 	_ = uc.SettingRepo.UpdateSetting(&domain.SystemSetting{
 		Key:   "facilitation_quota_used",
 		Value: strconv.Itoa(used),
 	})
 }
-
-

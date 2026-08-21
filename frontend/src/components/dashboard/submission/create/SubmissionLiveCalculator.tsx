@@ -373,7 +373,22 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
                                 ? 'bg-amber-50/60 border-amber-200 text-amber-900 font-semibold'
                                 : 'bg-gray-50 border-gray-150 text-gray-700'
                         }`}>
-                            <span className="truncate max-w-[200px]" title={item.name}>{item.name}</span>
+                            <div className="flex items-center gap-2 truncate max-w-[220px]">
+                                <span className="truncate" title={item.name}>{item.name}</span>
+                                {item.category && item.category !== 'SELF_DECLARE' && (
+                                    <span className={`text-[8px] px-1 py-0.5 rounded font-bold uppercase shrink-0 ${
+                                        item.category === 'LPH' ? 'bg-purple-100 text-purple-700' :
+                                        item.category === 'PENDAMPINGAN' ? 'bg-emerald-100 text-emerald-700' :
+                                        item.category === 'BPJPH' ? 'bg-indigo-100 text-indigo-700' :
+                                        item.category === 'MUI' ? 'bg-amber-100 text-amber-700' :
+                                        item.category === 'PERSYARATAN_LAIN' ? 'bg-blue-100 text-blue-700' :
+                                        item.category === 'DISKON' ? 'bg-rose-100 text-rose-700' :
+                                        'bg-gray-200 text-gray-700'
+                                    }`}>
+                                        {item.category === 'PERSYARATAN_LAIN' ? 'PERSYARATAN LAIN' : item.category}
+                                    </span>
+                                )}
+                            </div>
                             <span className={`font-mono font-bold whitespace-nowrap ${
                                 item.total < 0 ? 'text-emerald-600' : 'text-gray-900'
                             }`}>

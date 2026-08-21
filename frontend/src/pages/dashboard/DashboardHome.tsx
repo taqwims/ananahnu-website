@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, FileText, CheckCircle, Clock, Loader2, ShieldCheck } from 'lucide-react';
+import { Users, FileText, CheckCircle, Clock, Loader2, ShieldCheck, ArrowRight, Award, MessageSquare } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import StatsCard from '../../components/ui/StatsCard';
@@ -74,201 +74,347 @@ export default function DashboardHome() {
 
     if (user?.role === 'CLIENT') {
         if (loadingClient) {
-            return <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-brand-600 w-8 h-8" /></div>;
+            return <div className="h-full flex items-center justify-center py-24"><Loader2 className="animate-spin text-brand-600 w-8 h-8" /></div>;
         }
 
-        const activeSub = clientSubmissions[0];
+        const activeSub = clientSubmissions.find(s => s.status !== 'SH_TERBIT' && s.status !== 'CANCELLED') || clientSubmissions[0];
+        
+        // Calculate statistics
+        const totalAktif = clientSubmissions.filter(s => s.status !== 'SH_TERBIT' && s.status !== 'CANCELLED').length;
+        const totalMenunggu = clientSubmissions.filter(s => s.status === 'DRAFT' || s.status === 'WAITING_PAYMENT' || s.status === 'REVISION').length;
+        const totalSertifikat = clientSubmissions.filter(s => s.status === 'SH_TERBIT').length;
+        const totalDitolak = clientSubmissions.filter(s => s.status === 'REVISION' || s.status === 'CANCELLED').length;
+
+        const getStatusBadge = (status: string) => {
+            switch (status) {
+                case 'SH_TERBIT':
+                    return <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold">Selesai</span>;
+                case 'REVISION':
+                case 'CANCELLED':
+                    return <span className="px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-lg text-xs font-bold">Perlu Revisi</span>;
+                default:
+                    return <span className="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold">Proses</span>;
+            }
+        };
+
+        const getTahapName = (status: string) => {
+            switch (status) {
+                case 'DRAFT': return 'Input Data Pengajuan';
+                case 'VERVAL_PENDAMPING': return 'Verifikasi Dokumen oleh Halal Advisor';
+                case 'WAITING_PAYMENT': return 'Menunggu Pembayaran Tagihan';
+                case 'QC_OFFICER':
+                case 'DRAFTER':
+                case 'QC_REVIEW': return 'Penyusunan Berkas & QC';
+                case 'SIDANG_FATWA': return 'Sidang Fatwa MUI';
+                case 'SH_TERBIT': return 'Sertifikat Terbit 🎉';
+                default: return status.replace(/_/g, ' ');
+            }
+        };
 
         return (
-            <div className="space-y-8 max-w-5xl mx-auto px-4 py-6">
-                {/* Welcome Banner */}
-                <div className="glass-panel p-8 bg-brand-900 text-white relative overflow-hidden rounded-[24px]">
-                    <div className="absolute top-0 right-0 w-[40%] h-full bg-brand-800 rounded-full blur-[100px] opacity-35"></div>
-                    <div className="relative z-10 space-y-3">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-800 text-gold-400 text-[10px] font-black uppercase tracking-widest">
-                            <span className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-pulse"></span>
-                            Portal Klien HalalCore
+            <div className="space-y-8 max-w-[1440px] mx-auto px-4 sm:px-6 py-4">
+                {/* Top Welcome Title */}
+                <div>
+                    <h1 className="text-3xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+                        Selamat datang, {user.full_name} <span className="text-2xl">👋</span>
+                    </h1>
+                    <p className="text-gray-500 font-medium mt-1">
+                        Kelola pengajuan Sertifikat Halal usaha Anda dengan mudah bersama HalalCore.
+                    </p>
+                </div>
+
+                {/* 4 Stat Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                    <div className="glass-panel p-5 bg-white border border-gray-150 rounded-2xl flex items-center gap-4 shadow-sm">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+                            <FileText className="w-6 h-6" />
                         </div>
-                        <h1 className="text-3xl font-black tracking-tight">Selamat Datang, {user.full_name}</h1>
-                        <p className="text-brand-100 max-w-xl text-sm leading-relaxed">
-                            Pantau status dan lengkapi pengajuan sertifikasi halal usaha Anda langsung dari dashboard pribadi Anda.
-                        </p>
+                        <div>
+                            <p className="text-2xl font-black text-gray-900">{totalAktif}</p>
+                            <p className="text-xs font-bold text-gray-700">Pengajuan Aktif</p>
+                            <p className="text-[10px] text-gray-400 font-medium">Sedang dalam proses</p>
+                        </div>
+                    </div>
+
+                    <div className="glass-panel p-5 bg-white border border-gray-150 rounded-2xl flex items-center gap-4 shadow-sm">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100">
+                            <Clock className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-black text-gray-900">{totalMenunggu}</p>
+                            <p className="text-xs font-bold text-gray-700">Menunggu Tindakan</p>
+                            <p className="text-[10px] text-gray-400 font-medium">Menunggu kelengkapan</p>
+                        </div>
+                    </div>
+
+                    <div className="glass-panel p-5 bg-white border border-gray-150 rounded-2xl flex items-center gap-4 shadow-sm">
+                        <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                            <CheckCircle className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-black text-gray-900">{totalSertifikat}</p>
+                            <p className="text-xs font-bold text-gray-700">Sertifikat Terbit</p>
+                            <p className="text-[10px] text-gray-400 font-medium">Total sertifikat halal</p>
+                        </div>
+                    </div>
+
+                    <div className="glass-panel p-5 bg-white border border-gray-150 rounded-2xl flex items-center gap-4 shadow-sm">
+                        <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100">
+                            <ShieldCheck className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-black text-gray-900">{totalDitolak}</p>
+                            <p className="text-xs font-bold text-gray-700">Pengajuan Ditolak</p>
+                            <p className="text-[10px] text-gray-400 font-medium">Perlu diperbaiki</p>
+                        </div>
                     </div>
                 </div>
 
-                {!activeSub ? (
-                    /* Welcome / No Submission State */
-                    <div className="glass-panel p-8 border border-brand-100 flex flex-col md:flex-row items-center gap-8 bg-white">
-                        <div className="flex-1 space-y-4">
-                            <h3 className="text-2xl font-black text-brand-900 tracking-tight">Mulai Sertifikasi Halal Anda</h3>
-                            <p className="text-gray-500 text-sm leading-relaxed">
-                                Usaha Anda telah berhasil diverifikasi oleh tim telemarketing kami. Langkah berikutnya adalah menunggu berkas pengajuan Anda diaktifkan oleh pendamping halal kami.
-                            </p>
-                            <div className="flex flex-wrap gap-4 pt-2">
-                                <span className="text-sm font-bold text-amber-600 bg-amber-50/50 border border-amber-100 px-4 py-3 rounded-xl">
-                                    Pengajuan Anda sedang dipersiapkan oleh tim pendamping kami. Silakan hubungi admin jika terdapat kendala.
-                                </span>
-                            </div>
-                        </div>
-                        
-                        {/* Process Stepper Visual */}
-                        <div className="w-full md:w-80 space-y-4 bg-gray-50/50 p-6 rounded-2xl border border-gray-150">
-                            <h4 className="text-xs font-black uppercase tracking-widest text-brand-700 mb-2">Alur Sertifikasi</h4>
-                            {[
-                                "Isi Data & Dokumen Usaha",
-                                "Verifikasi & Pembuatan Berkas",
-                                "Sidang Fatwa",
-                                "Penerbitan Sertifikat Halal"
-                            ].map((step, idx) => (
-                                <div key={idx} className="flex gap-3 items-start">
-                                    <div className="w-6 h-6 rounded-lg bg-brand-50 border border-brand-105 flex items-center justify-center text-[10px] font-bold text-brand-700 shrink-0">
-                                        {idx + 1}
-                                    </div>
-                                    <span className="text-xs text-gray-700 font-bold">{step}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                ) : (
-                    /* Active Submission State */
-                    <div className="space-y-6">
-                        {/* Progress Stepper */}
-                        <div className="glass-panel p-6 border border-brand-100 bg-white">
-                            <div className="flex justify-between items-center mb-6">
-                                <div>
-                                    <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest">No. Tracking</h3>
-                                    <p className="text-xl font-mono font-bold text-brand-900">{activeSub.tracking_number || "Draft / Belum Diajukan"}</p>
-                                </div>
-                                <span className={`text-xs px-3.5 py-1.5 rounded-full font-black border uppercase tracking-wider ${
-                                    activeSub.status === 'SH_TERBIT' ? 'bg-green-50 text-green-700 border-green-200' :
-                                    activeSub.status === 'REVISION' ? 'bg-red-50 text-red-700 border-red-200 animate-pulse' :
-                                    activeSub.status === 'DRAFT' ? 'bg-gray-100 text-gray-600 border-gray-200' :
-                                    'bg-blue-50 text-blue-700 border-blue-200'
-                                }`}>
-                                    Status: {activeSub.status.replace('_', ' ')}
-                                </span>
+                {/* Main Content Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    {/* Left Column: Ajukan Layanan Baru & Daftar Ajuan Terbaru */}
+                    <div className="lg:col-span-8 space-y-8">
+                        {/* Section: Ajukan Layanan Baru */}
+                        <div className="space-y-4">
+                            <div>
+                                <h3 className="text-lg font-black text-gray-900">Ajukan Layanan Baru</h3>
+                                <p className="text-xs text-gray-500 font-medium">Pilih jenis layanan pendampingan halal yang sesuai dengan kebutuhan usaha Anda.</p>
                             </div>
 
-                            {/* Revision Alert */}
-                            {activeSub.status === 'REVISION' && activeSub.reject_note && (
-                                <div className="p-4 bg-red-50 border border-red-150 rounded-2xl mb-6 flex gap-3 items-start">
-                                    <div className="w-2 h-2 rounded-full bg-red-600 mt-2 shrink-0 animate-pulse"></div>
-                                    <div className="space-y-1">
-                                        <h4 className="text-xs font-black text-red-900 uppercase tracking-wider">Perlu Revisi Dokumen</h4>
-                                        <p className="text-xs text-red-700 leading-relaxed font-medium">{activeSub.reject_note}</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div className="p-5 rounded-2xl bg-white border border-gray-150 hover:border-brand-200 transition-all flex flex-col justify-between shadow-sm">
+                                    <div className="space-y-3">
+                                        <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center border border-brand-100">
+                                            <Users className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-black text-sm text-gray-900">Reguler</h4>
+                                            <p className="text-[11px] text-gray-500 leading-relaxed mt-1">
+                                                Pendampingan pembuatan Sertifikat Halal melalui proses reguler bersama Halal Advisor profesional.
+                                            </p>
+                                        </div>
                                     </div>
+                                    <button
+                                        onClick={() => navigate('/dashboard/pengajuan?service=REGULER')}
+                                        className="mt-4 w-full py-2.5 bg-gray-50 hover:bg-brand-50 hover:text-brand-700 text-gray-700 rounded-xl text-xs font-bold border border-gray-200 transition-all flex items-center justify-center gap-1.5"
+                                    >
+                                        Pilih Layanan <ArrowRight className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+
+                                <div className="p-5 rounded-2xl bg-white border border-gray-150 hover:border-emerald-200 transition-all flex flex-col justify-between shadow-sm">
+                                    <div className="space-y-3">
+                                        <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                                            <ShieldCheck className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-black text-sm text-gray-900">Self Declare (Fasilitasi)</h4>
+                                            <p className="text-[11px] text-gray-500 leading-relaxed mt-1">
+                                                Fasilitasi pendaftaran Self Declare dengan biaya Rp0 (disubsidi BPJPH).
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => navigate('/dashboard/pengajuan?service=SELF_DECLARE')}
+                                        className="mt-4 w-full py-2.5 bg-gray-50 hover:bg-emerald-50 hover:text-emerald-700 text-gray-700 rounded-xl text-xs font-bold border border-gray-200 transition-all flex items-center justify-center gap-1.5"
+                                    >
+                                        Pilih Layanan <ArrowRight className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+
+                                <div className="p-5 rounded-2xl bg-white border border-gray-150 hover:border-amber-200 transition-all flex flex-col justify-between shadow-sm">
+                                    <div className="space-y-3">
+                                        <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
+                                            <Award className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-black text-sm text-gray-900">Self Declare (Mandiri)</h4>
+                                            <p className="text-[11px] text-gray-500 leading-relaxed mt-1">
+                                                Pendampingan Self Declare Mandiri untuk pelaku usaha yang ingin proses lebih mandiri.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => navigate('/dashboard/pengajuan?service=SELF_DECLARE_MANDIRI')}
+                                        className="mt-4 w-full py-2.5 bg-gray-50 hover:bg-amber-50 hover:text-amber-700 text-gray-700 rounded-xl text-xs font-bold border border-gray-200 transition-all flex items-center justify-center gap-1.5"
+                                    >
+                                        Pilih Layanan <ArrowRight className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Section: Daftar Ajuan Terbaru */}
+                        <div className="glass-panel p-6 bg-white border border-gray-150 rounded-3xl space-y-4 shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-base font-black text-gray-900">Daftar Ajuan Terbaru</h3>
+                                <button
+                                    onClick={() => navigate('/dashboard/submissions')}
+                                    className="text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1"
+                                >
+                                    Lihat Semua <ArrowRight className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+
+                            {clientSubmissions.length === 0 ? (
+                                <div className="p-8 text-center bg-gray-50/60 rounded-2xl border border-dashed border-gray-200 space-y-3">
+                                    <p className="text-xs text-gray-500 font-medium">Belum ada pengajuan sertifikasi halal.</p>
+                                    <button
+                                        onClick={() => navigate('/dashboard/pengajuan')}
+                                        className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
+                                    >
+                                        Buat Pengajuan Sekarang
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-xs">
+                                        <thead className="bg-gray-50/80 text-gray-400 font-black uppercase text-[10px] tracking-wider border-b border-gray-100">
+                                            <tr>
+                                                <th className="py-3 px-4">No. Ajuan</th>
+                                                <th className="py-3 px-4">Layanan</th>
+                                                <th className="py-3 px-4">Tanggal Ajuan</th>
+                                                <th className="py-3 px-4">Status</th>
+                                                <th className="py-3 px-4">Tahap Saat Ini</th>
+                                                <th className="py-3 px-4 text-center">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {clientSubmissions.slice(0, 5).map((sub) => (
+                                                <tr key={sub.id} className="hover:bg-gray-50/50 transition-colors">
+                                                    <td className="py-3 px-4 font-mono font-bold text-gray-800">
+                                                        {sub.tracking_number || sub.id.slice(0, 8)}
+                                                    </td>
+                                                    <td className="py-3 px-4 font-bold text-gray-700">
+                                                        {sub.service_type === 'REGULER' ? 'Reguler' : sub.service_type === 'SELF_DECLARE_MANDIRI' ? 'Self Declare (Mandiri)' : 'Self Declare (Fasilitasi)'}
+                                                    </td>
+                                                    <td className="py-3 px-4 text-gray-500">
+                                                        {new Date(sub.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        {getStatusBadge(sub.status)}
+                                                    </td>
+                                                    <td className="py-3 px-4 text-gray-600 font-medium">
+                                                        {getTahapName(sub.status)}
+                                                    </td>
+                                                    <td className="py-3 px-4 text-center">
+                                                        <button
+                                                            onClick={() => navigate(`/dashboard/submissions/${sub.id}`)}
+                                                            className="p-1.5 bg-gray-100 hover:bg-brand-50 hover:text-brand-600 text-gray-500 rounded-lg transition-colors"
+                                                            title="Lihat Detail"
+                                                        >
+                                                            <ArrowRight className="w-4 h-4" />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             )}
 
-                            {/* Visual Progress Steps */}
-                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 pt-4 border-t border-gray-150">
-                                {[
-                                    { label: 'Drafting Data', status: ['DRAFT', 'REVISION'] },
-                                    { label: 'Verifikasi Berkas', status: ['VERVAL_PENDAMPING', 'WAITING_PAYMENT'] },
-                                    { label: 'Penyusunan Berkas & QC', status: ['QC_OFFICER', 'DRAFTER', 'QC_REVIEW'] },
-                                    { label: 'Sidang Fatwa', status: ['SIDANG_FATWA'] },
-                                    { label: 'Sertifikat Terbit 🎉', status: ['SH_TERBIT'] }
-                                ].map((step, idx) => {
-                                    const currentIdx = [
-                                        ['DRAFT', 'REVISION'],
-                                        ['VERVAL_PENDAMPING', 'WAITING_PAYMENT'],
-                                        ['QC_OFFICER', 'DRAFTER', 'QC_REVIEW'],
-                                        ['SIDANG_FATWA'],
-                                        ['SH_TERBIT']
-                                    ].findIndex(arr => arr.includes(activeSub.status));
-
-                                    const isActive = idx === currentIdx;
-                                    const isCompleted = idx < currentIdx;
-
-                                    return (
-                                        <div key={idx} className={`p-4 rounded-xl border flex flex-col justify-between h-24 transition-all ${
-                                            isActive ? 'bg-brand-50/50 border-brand-200 ring-2 ring-brand-600/10' :
-                                            isCompleted ? 'bg-green-50/40 border-green-100' :
-                                            'bg-white/50 border-gray-150 opacity-60'
-                                        }`}>
-                                            <div className="flex justify-between items-center">
-                                                <span className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold ${
-                                                    isActive ? 'bg-brand-600 text-white' :
-                                                    isCompleted ? 'bg-green-600 text-white' :
-                                                    'bg-gray-100 text-gray-400 border border-gray-250'
-                                                }`}>
-                                                    {idx + 1}
-                                                </span>
-                                                {isCompleted && <span className="text-[10px] font-black uppercase text-green-600 tracking-wider">Selesai</span>}
-                                                {isActive && <span className="text-[10px] font-black uppercase text-brand-600 tracking-wider animate-pulse">Aktif</span>}
-                                            </div>
-                                            <p className={`text-xs font-black leading-tight ${
-                                                isActive ? 'text-brand-900' :
-                                                isCompleted ? 'text-green-800 font-bold' :
-                                                'text-gray-500'
-                                            }`}>{step.label}</p>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* Detail Usaha & Quick Actions */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="glass-panel p-6 border border-brand-100 bg-white md:col-span-2 space-y-4">
-                                <h3 className="text-lg font-black text-brand-900 flex items-center gap-2">
-                                    <div className="w-1.5 h-6 bg-brand-600 rounded-full"></div>
-                                    Detail Profil Usaha
-                                </h3>
-                                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                                    {[
-                                        ['Nama Usaha', activeSub.client?.business_name],
-                                        ['Nama Pemilik', activeSub.client?.client_name],
-                                        ['NIB', activeSub.client?.nib],
-                                        ['NIK', activeSub.client?.nik],
-                                        ['Produk Utama', activeSub.client?.product_name],
-                                        ['CP / Telepon', activeSub.client?.phone],
-                                    ].map(([label, val]) => (
-                                        <div key={label} className="p-3 bg-gray-50/50 rounded-xl border border-gray-100">
-                                            <dt className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</dt>
-                                            <dd className="font-bold text-gray-700">{val || '-'}</dd>
-                                        </div>
-                                    ))}
-                                </dl>
-                            </div>
-
-                            <div className="glass-panel p-6 border border-brand-100 bg-white space-y-4">
-                                <h3 className="text-lg font-black text-brand-900 flex items-center gap-2">
-                                    <div className="w-1.5 h-6 bg-brand-600 rounded-full"></div>
-                                    Tindakan Cepat
-                                </h3>
-                                <div className="space-y-3">
-                                    <button 
-                                        onClick={() => navigate(`/dashboard/submissions/${activeSub.id}`)}
-                                        className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-black text-xs shadow-lg shadow-brand-100 transition-all flex items-center justify-center gap-2"
+                            {clientSubmissions.length > 0 && (
+                                <div className="pt-2 text-center">
+                                    <button
+                                        onClick={() => navigate('/dashboard/submissions')}
+                                        className="text-xs font-bold text-brand-600 hover:underline flex items-center justify-center gap-1 mx-auto"
                                     >
-                                        Detail & Dokumen Pengajuan
+                                        Lihat Semua Ajuan <ArrowRight className="w-3.5 h-3.5" />
                                     </button>
-                                    
-                                    {activeSub.status === 'SH_TERBIT' && activeSub.sh_url && (
-                                        <a 
-                                            href={`${import.meta.env.VITE_API_URL}${activeSub.sh_url}`}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-black text-xs shadow-lg shadow-green-100 transition-all flex items-center justify-center gap-2 text-center font-bold"
-                                        >
-                                            Unduh Sertifikat Halal (SH)
-                                        </a>
-                                    )}
-
-                                    {activeSub.status === 'WAITING_PAYMENT' && (
-                                        <button 
-                                            onClick={() => navigate(`/dashboard/submissions/${activeSub.id}`)}
-                                            className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-black text-xs shadow-lg shadow-amber-100 transition-all flex items-center justify-center gap-2"
-                                        >
-                                            Bayar Tagihan Sertifikasi
-                                        </button>
-                                    )}
                                 </div>
-                            </div>
+                            )}
                         </div>
                     </div>
-                )}
+
+                    {/* Right Column: Quick Banner, Active Stepper, Support */}
+                    <div className="lg:col-span-4 space-y-6">
+                        {/* Ajukan Sertifikat Halal Promo Card */}
+                        <div className="p-6 rounded-3xl bg-gradient-to-br from-brand-700 to-brand-900 text-white space-y-4 shadow-xl shadow-brand-900/10 relative overflow-hidden">
+                            <div className="relative z-10 space-y-2">
+                                <h4 className="text-xl font-black tracking-tight">Ajukan Sertifikat Halal</h4>
+                                <p className="text-xs text-brand-100/90 font-medium leading-relaxed">
+                                    Proses mudah, cepat, dan sesuai ketentuan BPJPH Kementerian Agama.
+                                </p>
+                                <button
+                                    onClick={() => navigate('/dashboard/pengajuan')}
+                                    className="mt-2 px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-xs shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2 active:scale-95"
+                                >
+                                    Ajukan Sekarang <ArrowRight className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Pengajuan Aktif Stepper Card */}
+                        {activeSub && (
+                            <div className="glass-panel p-6 bg-white border border-gray-150 rounded-3xl space-y-4 shadow-sm">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-sm font-black text-gray-900">Pengajuan Aktif</h4>
+                                    <button
+                                        onClick={() => navigate(`/dashboard/submissions/${activeSub.id}`)}
+                                        className="text-[11px] font-bold text-brand-600 hover:underline"
+                                    >
+                                        Lihat Detail →
+                                    </button>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <span className="px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase">
+                                        {activeSub.service_type === 'REGULER' ? 'Reguler' : 'Self Declare'}
+                                    </span>
+                                    <h5 className="text-sm font-black text-gray-900 leading-tight">
+                                        {activeSub.client?.business_name || user.full_name} – {activeSub.client?.product_name || 'Produk Usaha'}
+                                    </h5>
+                                    <p className="text-[10px] text-gray-400 font-mono">
+                                        No. Ajuan: {activeSub.tracking_number || activeSub.id.slice(0, 8)}
+                                    </p>
+                                </div>
+
+                                <div className="pt-2 border-t border-gray-100 space-y-2">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Tahap Saat Ini</p>
+                                    <p className="text-xs font-bold text-brand-700">
+                                        {getTahapName(activeSub.status)}
+                                    </p>
+                                </div>
+
+                                {/* Mini Stepper */}
+                                <div className="grid grid-cols-5 gap-1 pt-3">
+                                    {['Pengajuan', 'Verifikasi', 'Pendampingan', 'SIHALAL', 'Selesai'].map((step, idx) => {
+                                        const currentStepIdx = ['DRAFT', 'VERVAL_PENDAMPING', 'WAITING_PAYMENT', 'SIDANG_FATWA', 'SH_TERBIT'].findIndex(s => s === activeSub.status);
+                                        const isDone = idx <= (currentStepIdx >= 0 ? currentStepIdx : 0);
+
+                                        return (
+                                            <div key={idx} className="flex flex-col items-center gap-1 text-center">
+                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black ${
+                                                    isDone ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-400'
+                                                }`}>
+                                                    {isDone ? '✓' : idx + 1}
+                                                </div>
+                                                <span className="text-[8px] font-bold text-gray-500 leading-tight">{step}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Butuh Bantuan Card */}
+                        <div className="glass-panel p-6 bg-white border border-gray-150 rounded-3xl space-y-4 shadow-sm">
+                            <div>
+                                <h4 className="text-sm font-black text-gray-900">Butuh Bantuan?</h4>
+                                <p className="text-xs text-gray-500 font-medium mt-0.5">Tim HalalCore siap membantu Anda.</p>
+                            </div>
+                            <a
+                                href="https://wa.me/6281234567890"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="w-full py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 active:scale-95"
+                            >
+                                <MessageSquare className="w-4 h-4 text-emerald-600" />
+                                Hubungi Kami via WhatsApp
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     }

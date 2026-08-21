@@ -56,8 +56,9 @@ type BillingComponent struct {
 	DistrictID        *int64    
 	BusinessTypeID    *int64    
 	ProductCategoryID *int64    
+	ServiceType       string    `gorm:"default:'REGULER'"`
 	
-	CreatedAt       time.Time 
+	CreatedAt         time.Time 
 	UpdatedAt       time.Time 
 }
 
@@ -138,12 +139,12 @@ func main() {
 
 	// 5. Seed Billing Components
 	components := []BillingComponent{
-		{Name: "Biaya Registrasi Dasar", Category: "REGISTRASI", Type: "FIXED", BaseAmount: 500000, IsMandatory: true},
-		{Name: "Biaya Audit LPH (Umum)", Category: "LPH", Type: "PER_CABANG", BaseAmount: 3000000, IsMandatory: true},
-		{Name: "Biaya Audit LPH (Khusus Jakarta)", Category: "LPH", Type: "PER_CABANG", BaseAmount: 4500000, IsMandatory: true, ProvinceID: dkiId},
-		{Name: "Biaya Sidang MUI", Category: "MUI", Type: "FIXED", BaseAmount: 1500000, IsMandatory: true},
-		{Name: "Sertifikat BPJPH", Category: "BPJPH", Type: "FIXED", BaseAmount: 1000000, IsMandatory: true},
-		{Name: "Sertifikat BPJPH (Khusus Kosmetik)", Category: "BPJPH", Type: "FIXED", BaseAmount: 2000000, IsMandatory: true, BusinessTypeID: &bTypes[1].ID},
+		{Name: "Biaya Pendaftaran BPJPH", Category: "BPJPH", Type: "FIXED", BaseAmount: 500000, IsMandatory: true, ServiceType: "REGULER"},
+		{Name: "Biaya Audit LPH (Umum)", Category: "LPH", Type: "PER_CABANG", BaseAmount: 3000000, IsMandatory: true, ServiceType: "REGULER"},
+		{Name: "Biaya Audit LPH (Khusus Jakarta)", Category: "LPH", Type: "PER_CABANG", BaseAmount: 4500000, IsMandatory: true, ProvinceID: dkiId, ServiceType: "REGULER"},
+		{Name: "Biaya Sidang MUI", Category: "MUI", Type: "FIXED", BaseAmount: 1500000, IsMandatory: true, ServiceType: "REGULER"},
+		{Name: "Sertifikat BPJPH", Category: "BPJPH", Type: "FIXED", BaseAmount: 1000000, IsMandatory: true, ServiceType: "REGULER"},
+		{Name: "Sertifikat BPJPH (Khusus Kosmetik)", Category: "BPJPH", Type: "FIXED", BaseAmount: 2000000, IsMandatory: true, BusinessTypeID: &bTypes[1].ID, ServiceType: "REGULER"},
 	}
 	for _, c := range components {
 		db.FirstOrCreate(&c, BillingComponent{Name: c.Name})

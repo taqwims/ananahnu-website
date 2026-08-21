@@ -1159,16 +1159,16 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                                             {item.name}
                                         </p>
                                         <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-bold ${
-                                            item.category === 'REGISTRASI' ? 'bg-blue-100 text-blue-600' :
-                                            item.category === 'PENETAPAN' ? 'bg-purple-100 text-purple-600' :
-                                            item.category === 'PENDAMPINGAN' || item.category === 'LPH' ? 'bg-green-100 text-green-600' :
-                                            item.category === 'BPJPH' ? 'bg-indigo-100 text-indigo-600' :
-                                            item.category === 'MUI' ? 'bg-amber-100 text-amber-600' :
-                                            item.category === 'DISKON' ? 'bg-red-100 text-red-600' :
-                                            item.category === 'BASE_PRICE' ? 'bg-brand-100 text-brand-600' :
-                                            'bg-gray-100 text-gray-600'
+                                            item.category === 'LPH' ? 'bg-purple-100 text-purple-700' :
+                                            item.category === 'PENDAMPINGAN' ? 'bg-emerald-100 text-emerald-700' :
+                                            item.category === 'BPJPH' ? 'bg-indigo-100 text-indigo-700' :
+                                            item.category === 'MUI' ? 'bg-amber-100 text-amber-700' :
+                                            item.category === 'PERSYARATAN_LAIN' ? 'bg-blue-100 text-blue-700' :
+                                            item.category === 'DISKON' ? 'bg-rose-100 text-rose-700' :
+                                            item.category === 'BASE_PRICE' ? 'bg-brand-100 text-brand-700' :
+                                            'bg-gray-100 text-gray-700'
                                         }`}>
-                                            {item.category}
+                                            {item.category === 'PERSYARATAN_LAIN' ? 'PERSYARATAN LAIN' : item.category}
                                         </span>
                                     </div>
                                     <div className="col-span-5 text-right">

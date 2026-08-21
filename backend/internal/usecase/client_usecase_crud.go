@@ -4,10 +4,9 @@ import (
 	"ananahnu/internal/domain"
 	"errors"
 	"log"
-	
+
 	"github.com/google/uuid"
 )
-
 
 type ClientUsecase interface {
 	GetClients(filter map[string]interface{}, page, limit int) ([]domain.Client, int64, error)
@@ -70,7 +69,7 @@ func (uc *clientUsecase) checkVerification(userID uuid.UUID) error {
 		log.Printf("[DEBUG] Consultant check for user %s: ProfileVerified=%v, IsGraduated=%v", userID, profile.IsVerified, isGraduated)
 
 		if !profile.IsVerified && !isGraduated {
-			return errors.New("Akses Dibatasi: Akun Anda belum diverifikasi admin DAN Anda belum dinyatakan lulus pelatihan.")
+			return errors.New("Akses Dibatasi: Akun Anda belum diverifikasi admin dan Anda belum dinyatakan lulus pelatihan.")
 		}
 		if !profile.IsVerified {
 			return errors.New("Akses Dibatasi: Akun Anda belum diverifikasi oleh admin. Silakan lengkapi dokumen di Profil Advisor.")

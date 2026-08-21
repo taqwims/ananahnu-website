@@ -106,6 +106,22 @@ class SubmissionService extends BaseService {
         }
     }
 
+    async submitSJPH(id: string, data: { sjph_url: string; notes?: string }): Promise<void> {
+        try {
+            await this.api.post(`/submissions/${id}/submit-sjph`, data);
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    async approveSJPH(id: string): Promise<void> {
+        try {
+            await this.api.post(`/submissions/${id}/approve-sjph`);
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
     async submit(id: string): Promise<void> {
         try {
             await this.api.post(`/submissions/${id}/submit`);
@@ -194,6 +210,29 @@ class SubmissionService extends BaseService {
             link.href = url;
             const contentDisposition = response.headers['content-disposition'];
             let fileName = `Kontrak_Layanan.${format}`;
+            if (contentDisposition) {
+                const fileNameMatch = contentDisposition.match(/filename=(.+)/);
+                if (fileNameMatch) fileName = fileNameMatch[1].replace(/['"]/g, '');
+            }
+            link.setAttribute('download', fileName);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    async downloadSJPH(id: string): Promise<void> {
+        try {
+            const response = await this.api.get(`/documents/submissions/${id}/sjph`, {
+                responseType: 'blob'
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            const contentDisposition = response.headers['content-disposition'];
+            let fileName = 'Dokumen_SJPH.pdf';
             if (contentDisposition) {
                 const fileNameMatch = contentDisposition.match(/filename=(.+)/);
                 if (fileNameMatch) fileName = fileNameMatch[1].replace(/['"]/g, '');

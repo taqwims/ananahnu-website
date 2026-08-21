@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Mail, Lock, Phone, MapPin, Loader2, ArrowRight, ArrowLeft, CheckCircle2, ShieldCheck, Star, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Lock, Phone, MapPin, Loader2, ArrowRight, ArrowLeft, CheckCircle2, ShieldCheck, Star, Eye, EyeOff, Store, UserCheck } from 'lucide-react';
 import api from '../../services/api';
 import Logo from '../../components/ui/Logo';
 import loginBg from '../../assets/login.png';
@@ -14,7 +14,7 @@ const registerSchema = z.object({
     email: z.string().email("Email tidak valid"),
     password: z.string().min(6, "Password minimal 6 karakter"),
     confirm_password: z.string().min(6, "Konfirmasi password harus diisi"),
-    role: z.literal("HALAL_ADVISOR"),
+    role: z.enum(["HALAL_ADVISOR", "CLIENT"]),
     province_id: z.string().min(1, "Provinsi harus dipilih"),
     regency_id: z.string().min(1, "Kota/Kabupaten harus dipilih"),
     address: z.string().min(5, "Alamat lengkap harus diisi"),
@@ -27,10 +27,18 @@ const registerSchema = z.object({
         }
         return cleaned;
     }),
-    referral_code: z.string().min(1, "Kode referral wajib diisi"),
+    referral_code: z.string().optional(),
 }).refine((data) => data.password === data.confirm_password, {
     message: "Password tidak cocok",
     path: ["confirm_password"],
+}).refine((data) => {
+    if (data.role === 'HALAL_ADVISOR') {
+        return !!data.referral_code && data.referral_code.trim().length > 0;
+    }
+    return true;
+}, {
+    message: "Kode referral wajib diisi untuk Pendamping Halal",
+    path: ["referral_code"],
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -48,10 +56,12 @@ export default function RegisterPage() {
     const { register, handleSubmit, watch, setValue, trigger, formState: { errors } } = useForm<RegisterFormValues>({
         resolver: zodResolver(registerSchema),
         defaultValues: {
-            role: 'HALAL_ADVISOR'
+            role: 'HALAL_ADVISOR',
+            referral_code: ''
         }
     });
 
+    const selectedRole = watch('role');
     const selectedProvince = watch('province_id');
 
     useEffect(() => {
@@ -69,8 +79,10 @@ export default function RegisterPage() {
 
     const nextStep = async () => {
         let fieldsToValidate: (keyof RegisterFormValues)[] = [];
-        if (currentStep === 1) fieldsToValidate = ['full_name', 'email', 'password', 'confirm_password'];
-        if (currentStep === 2) fieldsToValidate = ['phone'];
+        if (currentStep === 1) fieldsToValidate = ['full_name', 'email', 'password', 'confirm_password', 'role'];
+        if (currentStep === 2) {
+            fieldsToValidate = selectedRole === 'HALAL_ADVISOR' ? ['phone', 'referral_code'] : ['phone'];
+        }
 
         const isStepValid = await trigger(fieldsToValidate);
         if (isStepValid) setCurrentStep(prev => prev + 1);
@@ -84,6 +96,9 @@ export default function RegisterPage() {
         try {
             // Strip confirm_password — backend tidak mengharapkan field ini
             const { confirm_password: _omit, ...payload } = data;
+            if (payload.role === 'CLIENT') {
+                delete payload.referral_code;
+            }
             await api.post('/auth/register', payload);
             setSuccess(true);
             setTimeout(() => navigate('/login'), 3000);
@@ -107,7 +122,7 @@ export default function RegisterPage() {
                     </div>
                     <h2 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">Registrasi Berhasil!</h2>
                     <p className="text-gray-500 font-medium leading-relaxed mb-8">
-                        Akun Anda telah berhasil dibuat. Kami sedang menyiapkan dashboard untuk Anda. Mohon tunggu sebentar...
+                        Akun Anda telah berhasil dibuat sebagai <span className="font-bold text-brand-700">{selectedRole === 'HALAL_ADVISOR' ? 'Pendamping Halal' : 'Pelaku Usaha (Client)'}</span>. Kami sedang menyiapkan dashboard untuk Anda. Mohon tunggu sebentar...
                     </p>
                     <div className="flex flex-col items-center gap-4">
                         <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
@@ -140,27 +155,44 @@ export default function RegisterPage() {
 
                     <div className="space-y-6 text-center flex flex-col items-center">
                         <motion.h1
+                            key={selectedRole}
                             initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}
                             className="text-5xl font-black text-white leading-[1.1] tracking-tight"
                         >
-                            Daftar <br />
-                            <span className="text-gold-400 font-serif italic font-normal">Pendamping Halal</span> <br />
-                            Nasional.
+                            {selectedRole === 'HALAL_ADVISOR' ? (
+                                <>
+                                    Daftar <br />
+                                    <span className="text-gold-400 font-serif italic font-normal">Pendamping Halal</span> <br />
+                                    Nasional.
+                                </>
+                            ) : (
+                                <>
+                                    Daftar <br />
+                                    <span className="text-gold-400 font-serif italic font-normal">Pelaku Usaha</span> <br />
+                                    Sertifikasi Halal.
+                                </>
+                            )}
                         </motion.h1>
                         <p className="text-brand-50 text-lg font-medium leading-relaxed max-w-sm">
-                            Platform ekosistem halal terintegrasi untuk mendukung pertumbuhan ekonomi umat.
+                            {selectedRole === 'HALAL_ADVISOR'
+                                ? "Platform ekosistem halal terintegrasi untuk mendukung pertumbuhan ekonomi umat."
+                                : "Kemudahan sertifikasi halal produk Anda dengan pendampingan profesional terpercaya."}
                         </p>
                     </div>
                 </div>
 
                 <div className="relative z-10 space-y-8 flex flex-col items-center">
                     <div className="space-y-4 w-full max-w-xs">
-                        {[
+                        {(selectedRole === 'HALAL_ADVISOR' ? [
                             { icon: CheckCircle2, text: "Jaringan 10.000+ Pelaku Usaha" },
                             { icon: ShieldCheck, text: "Sistem Verifikasi Digital Terpadu" },
                             { icon: Star, text: "Insentif & Sertifikasi Profesional" }
-                        ].map((item, i) => (
+                        ] : [
+                            { icon: CheckCircle2, text: "Proses Cepat, Mudah & Sesuai BPJPH" },
+                            { icon: ShieldCheck, text: "Didampingi Pendamping Halal Berlisensi" },
+                            { icon: Star, text: "Pilihan Skema Self Declare & Reguler" }
+                        ]).map((item, i) => (
                             <motion.div
                                 key={i}
                                 initial={{ opacity: 0, y: 10 }}
@@ -186,7 +218,7 @@ export default function RegisterPage() {
                                 ))}
                             </div>
                             <div className="text-left">
-                                <p className="text-white font-black text-sm">500+ Advisor</p>
+                                <p className="text-white font-black text-sm">{selectedRole === 'HALAL_ADVISOR' ? '500+ Advisor' : '10.000+ Pelaku Usaha'}</p>
                                 <p className="text-brand-200 text-[10px] font-bold uppercase tracking-widest">Telah Bergabung</p>
                             </div>
                         </div>
@@ -207,7 +239,7 @@ export default function RegisterPage() {
                         Kembali ke Beranda
                     </Link>
 
-                    <div className="mb-12 text-center">
+                    <div className="mb-8 text-center">
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 border border-brand-100 text-brand-600 text-[10px] font-black uppercase tracking-widest mb-4 mx-auto">
                             <span className="w-1.5 h-1.5 rounded-full bg-brand-600 animate-pulse"></span>
                             Portal Pendaftaran
@@ -216,8 +248,54 @@ export default function RegisterPage() {
                         <p className="text-gray-500 font-medium">Langkah mudah untuk menjadi bagian dari Halal Core.</p>
                     </div>
 
+                    {/* Step 1 Role Selector */}
+                    {currentStep === 1 && (
+                        <div className="mb-8 space-y-2">
+                            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                                Daftar Sebagai <span className="text-red-500">*</span>
+                            </label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setValue('role', 'HALAL_ADVISOR')}
+                                    className={`p-4 rounded-2xl border text-left transition-all flex flex-col items-start gap-2 ${
+                                        selectedRole === 'HALAL_ADVISOR'
+                                            ? 'bg-brand-50 border-brand-600 ring-2 ring-brand-600/20 text-brand-900 shadow-sm'
+                                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                                    }`}
+                                >
+                                    <div className={`p-2 rounded-xl ${selectedRole === 'HALAL_ADVISOR' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                        <UserCheck className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <p className="font-black text-xs">Pendamping Halal</p>
+                                        <p className="text-[10px] text-gray-500 font-medium leading-tight mt-0.5">Halal Advisor / Konsultan</p>
+                                    </div>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setValue('role', 'CLIENT')}
+                                    className={`p-4 rounded-2xl border text-left transition-all flex flex-col items-start gap-2 ${
+                                        selectedRole === 'CLIENT'
+                                            ? 'bg-brand-50 border-brand-600 ring-2 ring-brand-600/20 text-brand-900 shadow-sm'
+                                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                                    }`}
+                                >
+                                    <div className={`p-2 rounded-xl ${selectedRole === 'CLIENT' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                        <Store className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <p className="font-black text-xs">Pelaku Usaha</p>
+                                        <p className="text-[10px] text-gray-500 font-medium leading-tight mt-0.5">Klien / Pemilik Usaha</p>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Step Indicator */}
-                    <div className="flex items-center gap-3 mb-12">
+                    <div className="flex items-center gap-3 mb-8">
                         {[1, 2, 3].map(s => (
                             <div key={s} className="flex items-center gap-3">
                                 <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black transition-all duration-500 ${currentStep === s
@@ -244,7 +322,7 @@ export default function RegisterPage() {
                         </motion.div>
                     )}
 
-                    <form onSubmit={handleSubmit(onSubmit)} className="min-h-[400px] flex flex-col">
+                    <form onSubmit={handleSubmit(onSubmit)} className="min-h-[380px] flex flex-col">
                         <AnimatePresence mode="wait">
                             {currentStep === 1 && (
                                 <motion.div
@@ -334,15 +412,17 @@ export default function RegisterPage() {
                                         {errors.phone && <p className="text-red-500 text-[10px] mt-2 font-bold ml-1">{errors.phone.message}</p>}
                                     </div>
 
-                                    <div>
-                                        <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">Kode Referral <span className="text-red-500">*wajib</span></label>
-                                        <div className="relative group">
-                                            <Star className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 group-focus-within:text-brand-600 transition-colors" />
-                                            <input {...register('referral_code')} placeholder="Masukkan kode referral rekan Anda" className="glass-input pl-12 h-14 bg-white/50" />
+                                    {selectedRole === 'HALAL_ADVISOR' && (
+                                        <div>
+                                            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">Kode Referral <span className="text-red-500">*wajib</span></label>
+                                            <div className="relative group">
+                                                <Star className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 group-focus-within:text-brand-600 transition-colors" />
+                                                <input {...register('referral_code')} placeholder="Masukkan kode referral rekan Anda" className="glass-input pl-12 h-14 bg-white/50" />
+                                            </div>
+                                            {errors.referral_code && <p className="text-red-500 text-[10px] mt-2 font-bold ml-1">{errors.referral_code.message}</p>}
+                                            <p className="text-[10px] text-gray-400 mt-2 font-medium ml-1">Gunakan kode referral dari Halal Manager / Coordinator yang merekrut Anda.</p>
                                         </div>
-                                        {errors.referral_code && <p className="text-red-500 text-[10px] mt-2 font-bold ml-1">{errors.referral_code.message}</p>}
-                                        <p className="text-[10px] text-gray-400 mt-2 font-medium ml-1">Gunakan kode referral dari Halal Manager / Coordinator yang merekrut Anda.</p>
-                                    </div>
+                                    )}
 
                                     <div className="p-6 rounded-2xl bg-gold-50 border border-gold-100 shadow-sm shadow-gold-100">
                                         <div className="flex items-center gap-2 mb-2 text-gold-700">
@@ -350,7 +430,7 @@ export default function RegisterPage() {
                                             <h4 className="text-xs font-black uppercase tracking-wider">Verifikasi Keamanan</h4>
                                         </div>
                                         <p className="text-[11px] text-gold-700/80 leading-relaxed font-medium">
-                                            Pastikan nomor WhatsApp aktif untuk menerima kode verifikasi status pendaftaran Anda secara real-time.
+                                            Pastikan nomor WhatsApp aktif untuk menerima kode verifikasi dan notifikasi status pengajuan Anda secara real-time.
                                         </p>
                                     </div>
                                 </motion.div>
@@ -402,7 +482,9 @@ export default function RegisterPage() {
                                             <h4 className="text-xs font-black uppercase tracking-wider">Hampir Selesai!</h4>
                                         </div>
                                         <p className="text-[11px] text-brand-700/80 leading-relaxed font-medium">
-                                            Dengan menekan tombol daftar, Anda menyetujui syarat dan ketentuan sebagai Advisor Pendamping Halal.
+                                            {selectedRole === 'HALAL_ADVISOR'
+                                                ? "Dengan menekan tombol daftar, Anda menyetujui syarat dan ketentuan sebagai Pendamping Halal."
+                                                : "Dengan menekan tombol daftar, Anda menyetujui syarat dan ketentuan layanan HalalCore sebagai Pelaku Usaha."}
                                         </p>
                                     </div>
                                 </motion.div>
@@ -459,3 +541,4 @@ export default function RegisterPage() {
         </div>
     );
 }
+

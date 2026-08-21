@@ -50,8 +50,8 @@ type BusinessScale struct {
 // Admin can configure base prices per business type and product category.
 type BillingComponent struct {
 	ID              int64     `gorm:"primaryKey" json:"id"`
-	Name            string    `gorm:"not null" json:"name"` // e.g., "Biaya Pendaftaran", "Biaya Penetapan"
-	Category        string    `gorm:"not null;default:'OPSIONAL'" json:"category"` // REGISTRASI, PENETAPAN, PENDAMPINGAN, BPJPH, MUI, OPSIONAL
+	Name            string    `gorm:"not null" json:"name"` // e.g., "Biaya Pendaftaran BPJPH", "Biaya Audit LPH"
+	Category        string    `gorm:"not null;default:'PERSYARATAN_LAIN'" json:"category"` // LPH, PENDAMPINGAN, BPJPH, MUI, PERSYARATAN_LAIN
 	Type            string    `gorm:"not null" json:"type"` // FIXED, PER_MANDAY, PER_CABANG, PER_PRODUK
 	BaseAmount      float64   `gorm:"not null" json:"base_amount"`
 	IsMandatory     bool      `gorm:"default:false" json:"is_mandatory"`

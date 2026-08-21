@@ -67,7 +67,17 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
     let breakdown: any[] = [];
     try {
         if (submission.cost_detail?.cost_breakdown_data) {
-            breakdown = JSON.parse(submission.cost_detail.cost_breakdown_data);
+            const raw = JSON.parse(submission.cost_detail.cost_breakdown_data);
+            if (Array.isArray(raw)) {
+                breakdown = raw.filter((item: any) => {
+                    if (!item) return false;
+                    const cat = item.category?.toUpperCase();
+                    if (submission.service_type === 'SELF_DECLARE_MANDIRI') {
+                        if (cat === 'LPH' || cat === 'MUI') return false;
+                    }
+                    return true;
+                });
+            }
         }
     } catch (e) {
         console.error(e);
@@ -78,9 +88,25 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
     };
 
-    const totalAmount = submission.cost_detail?.total_amount 
-        || submission.invoice?.amount 
-        || (submission.invoices && submission.invoices.length > 0 ? submission.invoices[0].amount : 0);
+    const calculatedTotal = breakdown.reduce((sum, item) => sum + (typeof item.total === 'number' ? item.total : 0), 0);
+    const totalAmount = calculatedTotal > 0 
+        ? calculatedTotal 
+        : (submission.cost_detail?.total_amount 
+            || submission.invoice?.amount 
+            || (submission.invoices && submission.invoices.length > 0 ? submission.invoices[0].amount : (submission.service_type === 'SELF_DECLARE_MANDIRI' ? 230000 : 0)));
+
+    if (breakdown.length === 0) {
+        if (submission.service_type === 'SELF_DECLARE_MANDIRI') {
+            breakdown = [
+                {
+                    name: 'Biaya Self Declare Mandiri',
+                    category: 'PENDAMPINGAN',
+                    unit_cost: totalAmount > 0 ? totalAmount : 230000,
+                    total: totalAmount > 0 ? totalAmount : 230000,
+                }
+            ];
+        }
+    }
     const today = new Date();
     const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
     const months = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
@@ -107,8 +133,8 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
             {/* Top Action Bar */}
             <div className="flex justify-between items-center bg-indigo-50/80 p-3 sm:p-4 rounded-xl border border-indigo-100 font-sans no-print">
                 <div>
-                    <span className="text-xs font-bold text-indigo-950 block">Draf Perjanjian Layanan Pendampingan</span>
-                    <span className="text-[11px] text-indigo-700">Unduh langsung dokumen Perjanjian Layanan (PDF) atau cetak draf.</span>
+                    <span className="text-xs font-bold text-indigo-950 block">Dokumen Kontrak Layanan Pendampingan & SJPH</span>
+                    <span className="text-[11px] text-indigo-700">Unduh dokumen Kontrak Layanan & Lampiran Data (PDF) atau cetak draf.</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <button
@@ -118,7 +144,7 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
                         className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 shadow-sm shrink-0 disabled:opacity-50"
                     >
                         {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                        <span>Download Kontrak (PDF)</span>
+                        <span>Download PDF</span>
                     </button>
                     <button
                         type="button"
@@ -489,16 +515,12 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
                                     </tr>
                                 ))
                             ) : (
-                                <>
-                                    <tr>
-                                        <td className="border border-gray-200 p-2.5">Jasa Pendampingan</td>
-                                        <td className="border border-gray-200 p-2.5 text-right">{formatRupiah(0)}</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="border border-gray-200 p-2.5">Biaya Pihak Ketiga & Persyaratan Lain</td>
-                                        <td className="border border-gray-200 p-2.5 text-right">{formatRupiah(0)}</td>
-                                    </tr>
-                                </>
+                                <tr>
+                                    <td className="border border-gray-200 p-2.5">
+                                        {submission.service_type === 'SELF_DECLARE_MANDIRI' ? 'Biaya Self Declare Mandiri' : 'Jasa Pendampingan'}
+                                    </td>
+                                    <td className="border border-gray-200 p-2.5 text-right">{formatRupiah(totalAmount)}</td>
+                                </tr>
                             )}
                             <tr className="bg-sky-50 font-bold text-sky-900 text-sm">
                                 <td className="border border-gray-200 p-2.5">TOTAL</td>
@@ -568,6 +590,111 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            {/* Lampiran 3: Dokumen, Foto Persyaratan & Data Usaha (SJPH) */}
+            <div className="border-t-2 border-dashed border-gray-200 pt-8 space-y-6 font-sans text-xs text-gray-700">
+                <div>
+                    <h3 className="text-sm font-bold text-sky-900 uppercase">LAMPIRAN 3</h3>
+                    <h4 className="text-xs font-bold text-gray-600 uppercase">DOKUMEN, FOTO PERSYARATAN & DATA USAHA (SJPH)</h4>
+                    <p className="text-[11px] text-gray-500 mt-1">
+                        Kumpulan dokumen legalitas, foto persyaratan, dan rincian data yang diunggah oleh pelaku usaha untuk pendampingan sertifikasi halal.
+                    </p>
+                </div>
+
+                {/* Grid Dokumen & Foto */}
+                <div className="space-y-4">
+                    <h5 className="font-bold text-sky-900 text-xs uppercase">A. DOKUMEN & FOTO PERSYARATAN</h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        {/* 1. File NIB */}
+                        {client.nib_file_url && (
+                            <div className="p-3 border border-gray-200 rounded-xl bg-slate-50/50 space-y-2">
+                                <span className="text-[10px] font-black text-sky-900 uppercase block">Dokumen NIB</span>
+                                {client.nib_file_url.match(/\.(jpeg|jpg|png|webp)$/i) ? (
+                                    <div className="rounded-lg overflow-hidden border border-gray-200 h-36 bg-white flex items-center justify-center">
+                                        <img 
+                                            src={client.nib_file_url.startsWith('http') ? client.nib_file_url : `${import.meta.env.VITE_API_URL}${client.nib_file_url}`} 
+                                            alt="Dokumen NIB" 
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="h-36 rounded-lg bg-indigo-50 border border-indigo-100 flex flex-col items-center justify-center text-indigo-700 p-2 text-center">
+                                        <span className="font-bold text-xs">📄 File NIB (.PDF)</span>
+                                    </div>
+                                )}
+                                <a 
+                                    href={client.nib_file_url.startsWith('http') ? client.nib_file_url : `${import.meta.env.VITE_API_URL}${client.nib_file_url}`} 
+                                    target="_blank" 
+                                    rel="noreferrer"
+                                    className="text-[10px] text-indigo-600 font-bold underline block truncate"
+                                >
+                                    Lihat / Unduh File
+                                </a>
+                            </div>
+                        )}
+
+                        {/* 2. File dari Form Fields */}
+                        {submission.field_values?.filter(fv => fv.file_url || (fv.text_value && (fv.text_value.startsWith('/uploads') || fv.text_value.startsWith('http')))).map((fv, idx) => {
+                            const fileUrl = fv.file_url || fv.text_value || '';
+                            const isImg = fileUrl.match(/\.(jpeg|jpg|png|webp)$/i);
+                            const label = fv.form_field?.field_label || fv.form_field?.field_key || `Lampiran ${idx + 1}`;
+                            return (
+                                <div key={idx} className="p-3 border border-gray-200 rounded-xl bg-slate-50/50 space-y-2">
+                                    <span className="text-[10px] font-black text-sky-900 uppercase block truncate" title={label}>{label}</span>
+                                    {isImg ? (
+                                        <div className="rounded-lg overflow-hidden border border-gray-200 h-36 bg-white flex items-center justify-center">
+                                            <img 
+                                                src={fileUrl.startsWith('http') ? fileUrl : `${import.meta.env.VITE_API_URL}${fileUrl}`} 
+                                                alt={label} 
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="h-36 rounded-lg bg-indigo-50 border border-indigo-100 flex flex-col items-center justify-center text-indigo-700 p-2 text-center">
+                                            <span className="font-bold text-xs">📄 Dokumen / Berkas</span>
+                                        </div>
+                                    )}
+                                    <a 
+                                        href={fileUrl.startsWith('http') ? fileUrl : `${import.meta.env.VITE_API_URL}${fileUrl}`} 
+                                        target="_blank" 
+                                        rel="noreferrer"
+                                        className="text-[10px] text-indigo-600 font-bold underline block truncate"
+                                    >
+                                        Lihat File Asli
+                                    </a>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Table Data Isian Form */}
+                {submission.field_values && submission.field_values.filter(fv => fv.text_value && !fv.text_value.startsWith('/uploads') && !fv.text_value.startsWith('http')).length > 0 && (
+                    <div className="space-y-3 pt-2">
+                        <h5 className="font-bold text-sky-900 text-xs uppercase">B. DATA ISIAN PROFIL & PROSES PRODUK</h5>
+                        <table className="w-full text-xs border-collapse border border-gray-200 rounded-lg overflow-hidden">
+                            <thead>
+                                <tr className="bg-sky-50 font-bold text-sky-900 text-left">
+                                    <th className="p-2.5 border border-gray-200 w-1/3">Keterangan / Pertanyaan</th>
+                                    <th className="p-2.5 border border-gray-200">Jawaban / Nilai Isian</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {submission.field_values.filter(fv => fv.text_value && !fv.text_value.startsWith('/uploads') && !fv.text_value.startsWith('http')).map((fv, idx) => (
+                                    <tr key={idx} className="hover:bg-slate-50/40">
+                                        <td className="border border-gray-200 p-2 font-bold text-gray-700 bg-gray-50/30">
+                                            {fv.form_field?.field_label || fv.form_field?.field_key || `Data ${idx + 1}`}
+                                        </td>
+                                        <td className="border border-gray-200 p-2 text-gray-900 font-medium">
+                                            {fv.text_value}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
         </div>
     </div>

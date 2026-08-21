@@ -48,6 +48,7 @@ const GROUPS: SidebarGroup[] = [
         links: [
             { name: 'Dashboard',    pathKey: '',            to: '/dashboard',                    icon: LayoutDashboard },
             { name: 'Profil Saya',  pathKey: 'profile',     to: '/dashboard/profile',            icon: UserCircle },
+            { name: 'Pengajuan',    pathKey: 'pengajuan',   to: '/dashboard/pengajuan',          icon: FileText },
             { name: 'Klien',        pathKey: 'clients',     to: '/dashboard/clients',            icon: Users },
             { name: 'Pengajuan',    pathKey: 'submissions', to: '/dashboard/submissions',        icon: FileText },
             { name: 'Tagihan Self Declare', pathKey: 'my-invoices', to: '/dashboard/my-invoices',        icon: CreditCard },
@@ -126,6 +127,11 @@ const Sidebar = ({ isOpen, toggle }: SidebarProps) => {
     };
 
     const getLinkName = (link: SidebarLink) => {
+        if (role === 'CLIENT') {
+            if (link.pathKey === 'pengajuan') return 'Pengajuan';
+            if (link.pathKey === 'submissions') return 'Daftar Ajuan';
+            if (link.pathKey === 'estimasi') return 'Perhitungan Tarif Reguler';
+        }
         const isHalalAgency = role === 'HALAL_ADVISOR' || role === 'HALAL_MANAGER' || role === 'HALAL_DIRECTOR';
         if (isHalalAgency) {
             if (link.pathKey === 'advisors') return 'Jaringan Halal Advisor';
@@ -223,13 +229,32 @@ const Sidebar = ({ isOpen, toggle }: SidebarProps) => {
                         })}
                     </nav>
 
-                    {/* Footer / Logout */}
-                    <div className="mt-auto p-4 border-t border-glass-border bg-white/20 backdrop-blur-sm">
+                    {/* Footer / Help & Logout */}
+                    <div className="mt-auto p-4 border-t border-glass-border bg-white/20 backdrop-blur-sm space-y-3">
+                        <div className="p-3.5 rounded-2xl bg-gradient-to-br from-brand-50/80 to-white border border-brand-100/80 text-left shadow-sm">
+                            <p className="text-xs font-black text-gray-800 flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                                Butuh Bantuan?
+                            </p>
+                            <p className="text-[10px] text-gray-500 font-medium leading-relaxed mt-1 mb-2.5">
+                                Hubungi tim kami untuk informasi lebih lanjut.
+                            </p>
+                            <a
+                                href="https://wa.me/6281234567890"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-white hover:bg-brand-50 text-brand-700 rounded-xl text-xs font-black border border-brand-200 shadow-sm transition-all w-full active:scale-95 group"
+                            >
+                                <MessageSquare className="w-3.5 h-3.5 text-green-600 group-hover:scale-110 transition-transform" />
+                                Hubungi Kami
+                            </a>
+                        </div>
+
                         <button
                             onClick={handleLogout}
-                            className="flex w-full items-center gap-3 px-4 py-3 text-sm font-black text-red-600 rounded-xl hover:bg-red-50 hover:text-red-700 transition-all active:scale-95 group"
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-xs font-black text-red-600 rounded-xl hover:bg-red-50 hover:text-red-700 transition-all active:scale-95 group"
                         >
-                            <LogOut className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
+                            <LogOut className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
                             Sign Out
                         </button>
                     </div>

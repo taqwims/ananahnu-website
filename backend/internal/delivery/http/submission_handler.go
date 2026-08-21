@@ -24,6 +24,8 @@ func NewSubmissionHandler(r *gin.Engine, uc usecase.SubmissionWorkflowUsecase) {
 		g.POST("/create-full", handler.CreateFull)
 		g.POST("/:id/submit", handler.Submit)
 		g.POST("/:id/approve", handler.Approve)
+		g.POST("/:id/submit-sjph", handler.SubmitSJPH)
+		g.POST("/:id/approve-sjph", handler.ApproveSJPH)
 		g.POST("/:id/issue-sh", handler.IssueSH)
 		g.POST("/:id/revoke-sh", handler.RevokeSH)
 		g.POST("/:id/assign-drafter", handler.AssignDrafter)
@@ -215,6 +217,50 @@ func (h *SubmissionHandler) AssignConsultant(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "assigned to consultant"})
+}
+
+func (h *SubmissionHandler) SubmitSJPH(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var input struct {
+		SJPHURL string `json:"sjph_url"`
+		Notes   string `json:"notes"`
+	}
+	_ = c.ShouldBindJSON(&input)
+
+	userID := middleware.GetUserID(c)
+	role := middleware.GetUserRole(c)
+
+	if err := h.workflowUC.SubmitSJPH(id, userID, role, input.SJPHURL, input.Notes); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "dokumen SJPH berhasil diserahkan ke pelaku usaha"})
+}
+
+func (h *SubmissionHandler) ApproveSJPH(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	role := middleware.GetUserRole(c)
+
+	if err := h.workflowUC.ApproveSJPH(id, userID, role); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "dokumen SJPH berhasil disetujui, berkas diteruskan ke Manager Operasional"})
 }
 
 func (h *SubmissionHandler) BulkAssignDrafter(c *gin.Context) {

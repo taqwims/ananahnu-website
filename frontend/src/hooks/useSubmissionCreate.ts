@@ -14,6 +14,7 @@ export const useSubmissionCreate = () => {
     const [submissionId] = useState(crypto.randomUUID());
     const initialType = searchParams.get('type') || 'SELF_DECLARE';
     const initialName = searchParams.get('name') || '';
+    const initialFacilitator = searchParams.get('facilitator_id') || '';
 
     const [clientData, setClientData] = useState({
         nib: '',
@@ -31,6 +32,7 @@ export const useSubmissionCreate = () => {
         province_id: '',
         regency_id: '',
         district_id: '',
+        facilitator_id: initialFacilitator,
         product_count: 1,
         branch_count: 1,
         selected_optional_ids: [] as number[],
@@ -179,6 +181,7 @@ export const useSubmissionCreate = () => {
                     province_id: clientData.province_id ? parseInt(clientData.province_id) : null,
                     regency_id: clientData.regency_id ? parseInt(clientData.regency_id) : null,
                     district_id: clientData.district_id ? parseInt(clientData.district_id) : null,
+                    facilitator_id: clientData.facilitator_id || undefined,
                     product_count: Number(clientData.product_count || 0),
                     branch_count: Number(clientData.branch_count || 0)
                 },

@@ -4,6 +4,7 @@ import (
 	"ananahnu/internal/domain"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -62,6 +63,9 @@ func (uc *sphUsecase) GenerateSPH(submissionID uuid.UUID) (*domain.SPH, error) {
 		if submission.BusinessTypeID != nil {
 			filter["business_type_id"] = *submission.BusinessTypeID
 		}
+		if submission.ServiceType != "" {
+			filter["service_type"] = submission.ServiceType
+		}
 
 		components, err := uc.BillingConfigRepo.FindAllBillingComponents(filter)
 		if err != nil {
@@ -84,6 +88,21 @@ func (uc *sphUsecase) GenerateSPH(submissionID uuid.UUID) (*domain.SPH, error) {
 		for _, comp := range components {
 			if !comp.IsMandatory {
 				continue // Only include mandatory for SPH
+			}
+
+			compSt := strings.TrimSpace(comp.ServiceType)
+			if submission.ServiceType == "REGULER" {
+				if compSt != "REGULER" && compSt != "BOTH" && compSt != "ALL" && compSt != "" {
+					continue
+				}
+			} else if submission.ServiceType == "SELF_DECLARE_MANDIRI" {
+				if compSt != "SELF_DECLARE_MANDIRI" && compSt != "BOTH" && compSt != "ALL" {
+					continue
+				}
+				cat := strings.ToUpper(comp.Category)
+				if cat == "LPH" || cat == "MUI" {
+					continue
+				}
 			}
 
 			if comp.ProvinceID != nil && (submission.ProvinceID == nil || *comp.ProvinceID != *submission.ProvinceID) {

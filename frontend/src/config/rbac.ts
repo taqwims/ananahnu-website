@@ -52,9 +52,12 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   // ── Semua role bisa akses ──────────────────────────────────────────
   '':                       ALL_ROLES,   // /dashboard (home)
   'profile':                ALL_ROLES,
-  'estimasi':               ['DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'MARKETING', 'HALAL_MANAGER', 'HALAL_DIRECTOR'],
+  'estimasi':               ['DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'MARKETING', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'CLIENT'],
 
   // ── Klien & Pengajuan ─────────────────────────────────────────────
+  'pengajuan': [
+    'CLIENT', 'DIRECTOR'
+  ],
   'clients': [
     'DIRECTOR', 'MANAGER', 'HALAL_DIRECTOR',
     'DRAFTER', 'QC_OFFICER', 'VERIFIKATOR', 'MARKETING',
@@ -68,7 +71,7 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
     'QC_OFFICER', 'VERIFIKATOR', 'DRAFTER', 'MARKETING', 'CLIENT', 'BUSINESS_DEVELOPMENT',
   ],
   'submissions/new': [
-    'DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'MARKETING', 'BUSINESS_DEVELOPMENT',
+    'CLIENT', 'DIRECTOR',
   ],
   // submissions/:id → sama dengan submissions
 

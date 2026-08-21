@@ -41,8 +41,9 @@ const formatIDR = (n: number) =>
 
 const CATEGORY_LABELS: Record<string, string> = {
     PENDAMPINGAN: 'Biaya Pendampingan',
+    LPH: 'Biaya Pemeriksaan LPH',
     BPJPH: 'Biaya BPJPH',
-    MUI: 'Biaya MUI',
+    MUI: 'Biaya Sidang Fatwa MUI',
     PERSYARATAN_LAIN: 'Biaya Persyaratan Lain',
     SKEMA: 'Biaya Skema',
 };

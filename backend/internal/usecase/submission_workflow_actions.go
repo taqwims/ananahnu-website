@@ -29,14 +29,23 @@ func (uc *submissionWorkflowUsecase) Submit(id uuid.UUID, userID uuid.UUID, user
 		}
 	}
 
-	// Transition: DRAFT -> WAITING_PAYMENT or VERVAL_PENDAMPING
-	nextStatus := domain.StatusWaitingPayment
-	if sub.ServiceType == "SELF_DECLARE" {
-		nextStatus = domain.StatusVervalPendamping
+	// Transition: DRAFT -> WAITING_ASSIGNMENT or WAITING_PAYMENT or VERVAL_PENDAMPING
+	var nextStatus domain.SubmissionStatus
+	if sub.ConsultantID == nil {
+		nextStatus = domain.StatusWaitingAssignment
+	} else {
+		nextStatus = domain.StatusWaitingPayment
+		if sub.ServiceType == "SELF_DECLARE" {
+			nextStatus = domain.StatusVervalPendamping
+		}
 	}
 
 	if userRole == "MARKETING" || (sub.DataSource == "TELEMARKETING" && sub.ServiceType == "SELF_DECLARE") {
-		nextStatus = domain.StatusQCOfficer
+		if sub.ConsultantID != nil {
+			nextStatus = domain.StatusVervalPendamping
+		} else {
+			nextStatus = domain.StatusWaitingAssignment
+		}
 	}
 
 	// Generate tracking number if not exists
@@ -139,9 +148,14 @@ func (uc *submissionWorkflowUsecase) Approve(id uuid.UUID, userID uuid.UUID, use
 	var requiredRole string
 
 	switch sub.Status {
+	case domain.StatusWaitingAssignment:
+		return errors.New("pengajuan menunggu penugasan pendamping halal oleh Marketing")
 	case domain.StatusWaitingPayment:
 		requiredRole = "ADMIN"
-		nextStatus = domain.StatusQCOfficer
+		nextStatus = domain.StatusVervalPendamping
+		if sub.ConsultantID == nil {
+			nextStatus = domain.StatusWaitingAssignment
+		}
 		isPaid := false
 		if sub.Invoice != nil && sub.Invoice.Status == domain.InvoiceStatusPaid {
 			isPaid = true
@@ -159,26 +173,13 @@ func (uc *submissionWorkflowUsecase) Approve(id uuid.UUID, userID uuid.UUID, use
 		}
 	case domain.StatusVervalPendamping:
 		requiredRole = "HALAL_ADVISOR"
+		nextStatus = domain.StatusReviewSJPHClient
+	case domain.StatusReviewSJPHClient:
+		requiredRole = "CLIENT"
 		nextStatus = domain.StatusQCOfficer
-		if sub.ServiceType == "REGULER" || sub.ServiceType == "SELF_DECLARE_MANDIRI" {
-			isPaid := false
-			if sub.Invoice != nil && sub.Invoice.Status == domain.InvoiceStatusPaid {
-				isPaid = true
-			}
-			if !isPaid {
-				for _, p := range sub.Payments {
-					if p.Status == domain.PaymentStatusPaid {
-						isPaid = true
-						break
-					}
-				}
-			}
-			if !isPaid {
-				nextStatus = domain.StatusWaitingPayment
-			}
-		}
 	case domain.StatusQCOfficer:
 		requiredRole = "QC_OFFICER"
+		nextStatus = domain.StatusDrafter
 		nextStatus = domain.StatusDrafter
 	case domain.StatusDrafter:
 		requiredRole = "DRAFTER"
@@ -304,12 +305,8 @@ func (uc *submissionWorkflowUsecase) AssignConsultant(id uuid.UUID, userID uuid.
 		return err
 	}
 
-	if userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "HALAL_MANAGER" && userRole != "HALAL_DIRECTOR" && userRole != "QC_OFFICER" && userRole != "VERIFIKATOR" {
+	if userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "HALAL_MANAGER" && userRole != "HALAL_DIRECTOR" && userRole != "QC_OFFICER" && userRole != "VERIFIKATOR" && userRole != "MARKETING" && userRole != "MANAGER" {
 		return errors.New("unauthorized to assign consultant")
-	}
-
-	if sub.DataSource == "MARKETING" && userRole == "MARKETING" {
-		return errors.New("marketing cannot assign their own consultant")
 	}
 
 	if err := uc.SubmissionRepo.UpdateConsultant(id, &consultantID); err != nil {
@@ -317,7 +314,10 @@ func (uc *submissionWorkflowUsecase) AssignConsultant(id uuid.UUID, userID uuid.
 	}
 
 	newStatus := sub.Status
-	if (sub.DataSource == "MARKETING" || (sub.DataSource == "TELEMARKETING" && sub.ServiceType == "SELF_DECLARE")) && sub.Status == domain.StatusQCOfficer {
+	if sub.Status == domain.StatusWaitingAssignment || sub.Status == domain.StatusDraft {
+		newStatus = domain.StatusVervalPendamping
+		_ = uc.SubmissionRepo.UpdateStatus(id, newStatus, 0)
+	} else if (sub.DataSource == "MARKETING" || (sub.DataSource == "TELEMARKETING" && sub.ServiceType == "SELF_DECLARE")) && sub.Status == domain.StatusQCOfficer {
 		newStatus = domain.StatusVervalPendamping
 		_ = uc.SubmissionRepo.UpdateStatus(id, newStatus, 0)
 	}
@@ -330,6 +330,74 @@ func (uc *submissionWorkflowUsecase) AssignConsultant(id uuid.UUID, userID uuid.
 			"consultant_name": consultant.FullName,
 			"business_name":   sub.Client.BusinessName,
 		}, consultant.Phone, &consultantID, id, "Penugasan Advisor", "Anda ditunjuk sebagai advisor untuk pengajuan "+sub.Client.BusinessName)
+	}
+
+	return nil
+}
+
+func (uc *submissionWorkflowUsecase) SubmitSJPH(id uuid.UUID, userID uuid.UUID, userRole string, sjphURL string, notes string) error {
+	sub, err := uc.SubmissionRepo.FindByID(id)
+	if err != nil {
+		return err
+	}
+
+	if userRole != "HALAL_ADVISOR" && userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "QC_OFFICER" && userRole != "HALAL_MANAGER" {
+		return fmt.Errorf("unauthorized: role %s cannot submit SJPH document", userRole)
+	}
+
+	if strings.TrimSpace(sjphURL) != "" || strings.TrimSpace(notes) != "" {
+		_ = uc.SubmissionRepo.UpdateSJPH(id, sjphURL, notes)
+	}
+
+	nextStatus := domain.StatusReviewSJPHClient
+	if err := uc.SubmissionRepo.UpdateStatus(id, nextStatus, 0); err != nil {
+		return err
+	}
+
+	uc.logChange(id, userID, "SUBMIT_SJPH", sub.Status, nextStatus, "Dokumen SJPH diserahkan ke Pelaku Usaha: "+notes)
+
+	// Notify Client
+	_ = uc.NotifUC.SendWorkflowNotification("sjph_submitted_client", map[string]string{
+		"client_name":   sub.Client.ClientName,
+		"business_name": sub.Client.BusinessName,
+	}, sub.Client.Phone, nil, id, "Dokumen SJPH Siap Ditinjau", "Halo *"+sub.Client.ClientName+"*, Pendamping Halal telah menyerahkan Dokumen SJPH untuk usaha *"+sub.Client.BusinessName+"*. Silakan login ke portal Anda untuk memeriksa dan menyetujui dokumen.")
+
+	return nil
+}
+
+func (uc *submissionWorkflowUsecase) ApproveSJPH(id uuid.UUID, userID uuid.UUID, userRole string) error {
+	sub, err := uc.SubmissionRepo.FindByID(id)
+	if err != nil {
+		return err
+	}
+
+	if userRole != "CLIENT" && userRole != "ADMIN" && userRole != "DIRECTOR" {
+		return fmt.Errorf("unauthorized: role %s cannot approve SJPH document", userRole)
+	}
+
+	if sub.Status != domain.StatusReviewSJPHClient && sub.Status != domain.StatusVervalPendamping {
+		return errors.New("dokumen SJPH belum diserahkan untuk persetujuan")
+	}
+
+	if err := uc.SubmissionRepo.ApproveSJPH(id, userID); err != nil {
+		return err
+	}
+
+	nextStatus := domain.StatusQCOfficer
+	if err := uc.SubmissionRepo.UpdateStatus(id, nextStatus, 0); err != nil {
+		return err
+	}
+
+	uc.logChange(id, userID, "APPROVE_SJPH", sub.Status, nextStatus, "Persetujuan Dokumen SJPH oleh Pelaku Usaha")
+
+	// Notify QC / Operational Manager
+	qcUsers, _, _ := uc.UserRepo.FindAll(map[string]interface{}{}, 1, 100)
+	for _, u := range qcUsers {
+		if u.Role.Name == "QC_OFFICER" || u.Role.Name == "VERIFIKATOR" || u.Role.Name == "MANAGER" {
+			_ = uc.NotifUC.SendWorkflowNotification("sjph_approved_internal", map[string]string{
+				"business_name": sub.Client.BusinessName,
+			}, u.Phone, &u.ID, id, "SJPH Disetujui Pelaku Usaha", "Halo Tim Operasional, Dokumen SJPH untuk *"+sub.Client.BusinessName+"* telah disetujui Pelaku Usaha dan masuk ke antrean Ruang Kerja QC.")
+		}
 	}
 
 	return nil

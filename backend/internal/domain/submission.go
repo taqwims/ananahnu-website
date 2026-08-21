@@ -10,8 +10,10 @@ type SubmissionStatus string
 
 const (
 	StatusDraft            SubmissionStatus = "DRAFT"
+	StatusWaitingAssignment SubmissionStatus = "WAITING_ASSIGNMENT"
 	StatusWaitingPayment   SubmissionStatus = "WAITING_PAYMENT"
 	StatusVervalPendamping SubmissionStatus = "VERVAL_PENDAMPING"
+	StatusReviewSJPHClient SubmissionStatus = "REVIEW_SJPH_CLIENT"
 	StatusQCOfficer        SubmissionStatus = "QC_OFFICER"
 	StatusDrafter          SubmissionStatus = "DRAFTER"
 	StatusQCReview         SubmissionStatus = "QC_REVIEW"
@@ -55,6 +57,10 @@ type Submission struct {
 	AuditResult1URL     string           `gorm:"column:audit_result_1_url" json:"audit_result_1_url,omitempty"`
 	AuditResult2URL     string           `gorm:"column:audit_result_2_url" json:"audit_result_2_url,omitempty"`
 	SHURL               string           `json:"sh_url,omitempty"`
+	SJPHURL             string           `gorm:"column:sjph_url" json:"sjph_url,omitempty"`
+	SJPHNotes           string           `gorm:"column:sjph_notes" json:"sjph_notes,omitempty"`
+	SJPHApprovedAt      *time.Time       `json:"sjph_approved_at,omitempty"`
+	SJPHApprovedBy      *uuid.UUID       `gorm:"type:uuid" json:"sjph_approved_by,omitempty"`
 	Payments            []Payment             `gorm:"foreignKey:SubmissionID" json:"payments"`
 	Invoice             *Invoice              `gorm:"foreignKey:SubmissionID" json:"invoice,omitempty"` // deprecated: use Invoices
 	Invoices            []Invoice             `gorm:"foreignKey:SubmissionID" json:"invoices,omitempty"`
@@ -87,6 +93,8 @@ type SubmissionRepository interface {
 	UpdateRejectNote(id uuid.UUID, note string) error
 	UpdateHasBeenReturned(id uuid.UUID, returned bool) error
 	UpdateSH(id uuid.UUID, shURL string) error
+	UpdateSJPH(id uuid.UUID, sjphURL string, notes string) error
+	ApproveSJPH(id uuid.UUID, approvedBy uuid.UUID) error
 	UpdateAuditInfo(id uuid.UUID, auditDate *time.Time) error
 	UpdateAuditResult(id uuid.UUID, url1, url2 string) error
 	UpdateTrackingNumber(id uuid.UUID, trackingNumber string) error

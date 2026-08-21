@@ -101,7 +101,7 @@ func (uc *authUsecase) Login(email, password string) (string, string, *domain.Us
 
 func (uc *authUsecase) Register(input RegisterInput) error {
 	// 1. Validate Role
-	if input.Role != "HALAL_ADVISOR" {
+	if input.Role != "HALAL_ADVISOR" && input.Role != "CLIENT" {
 		return errors.New("invalid role for registration")
 	}
 
@@ -125,21 +125,34 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 	// 5. Create User
 	userID := uuid.New()
 	
-	// Handle Referral Code (Mandatory)
+	// Handle Referral Code (Mandatory only for HALAL_ADVISOR)
 	var referredByID *uuid.UUID
 	var leaderID *uuid.UUID
-	if input.ReferralCode == "" {
-		return errors.New("kode referral wajib diisi")
-	}
-	referrer, err := uc.UserRepo.FindByReferralCode(input.ReferralCode)
-	if err != nil || referrer == nil {
-		return errors.New("kode referral tidak valid")
-	}
-	referredByID = &referrer.ID
-	if referrer.Role.Name == "HALAL_ADVISOR" && referrer.LeaderID != nil {
-		leaderID = referrer.LeaderID
-	} else {
-		leaderID = &referrer.ID
+
+	if input.Role == "HALAL_ADVISOR" {
+		if input.ReferralCode == "" {
+			return errors.New("kode referral wajib diisi")
+		}
+		referrer, err := uc.UserRepo.FindByReferralCode(input.ReferralCode)
+		if err != nil || referrer == nil {
+			return errors.New("kode referral tidak valid")
+		}
+		referredByID = &referrer.ID
+		if referrer.Role.Name == "HALAL_ADVISOR" && referrer.LeaderID != nil {
+			leaderID = referrer.LeaderID
+		} else {
+			leaderID = &referrer.ID
+		}
+	} else if input.Role == "CLIENT" && input.ReferralCode != "" {
+		referrer, err := uc.UserRepo.FindByReferralCode(input.ReferralCode)
+		if err == nil && referrer != nil {
+			referredByID = &referrer.ID
+			if referrer.Role.Name == "HALAL_ADVISOR" && referrer.LeaderID != nil {
+				leaderID = referrer.LeaderID
+			} else {
+				leaderID = &referrer.ID
+			}
+		}
 	}
 
 	pID, _ := strconv.ParseInt(input.ProvinceID, 10, 64)
@@ -173,8 +186,8 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 		return err
 	}
 
-	// Automatically create a ConsultantProfile row for the new advisor
-	if uc.ConsultantRepo != nil {
+	// Automatically create a ConsultantProfile row ONLY for HALAL_ADVISOR
+	if input.Role == "HALAL_ADVISOR" && uc.ConsultantRepo != nil {
 		_ = uc.ConsultantRepo.Create(&domain.ConsultantProfile{
 			ID:         uuid.New(),
 			UserID:     userID,
@@ -183,7 +196,7 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 	}
 
 	// Buat komisi REFERRAL untuk referrer jika ada
-	if uc.CommissionRepo != nil {
+	if referredByID != nil && uc.CommissionRepo != nil {
 		_ = uc.CommissionRepo.Create(&domain.Commission{
 			ID:         uuid.New(),
 			Type:       domain.CommissionTypeReferral,

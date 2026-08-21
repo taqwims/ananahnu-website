@@ -125,6 +125,21 @@ func (r *submissionRepository) UpdateSH(id uuid.UUID, shURL string) error {
 	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("sh_url", shURL).Error
 }
 
+func (r *submissionRepository) UpdateSJPH(id uuid.UUID, sjphURL string, notes string) error {
+	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"sjph_url":   sjphURL,
+		"sjph_notes": notes,
+	}).Error
+}
+
+func (r *submissionRepository) ApproveSJPH(id uuid.UUID, approvedBy uuid.UUID) error {
+	now := time.Now()
+	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"sjph_approved_at": &now,
+		"sjph_approved_by": &approvedBy,
+	}).Error
+}
+
 func (r *submissionRepository) UpdateAuditInfo(id uuid.UUID, auditDate *time.Time) error {
 	return r.db.Model(&domain.Submission{}).Where("id = ?", id).Update("audit_date", auditDate).Error
 }

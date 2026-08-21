@@ -178,6 +178,34 @@ export const useSubmission = (id: string | undefined) => {
             setProcessing(false);
         }
     };
+    const submitSJPH = async (sjphUrl: string, notes: string = '') => {
+        if (!id) return;
+        setProcessing(true);
+        try {
+            await submissionService.submitSJPH(id, { sjph_url: sjphUrl, notes });
+            toast.success('Dokumen SJPH berhasil diserahkan ke pelaku usaha');
+            await refresh();
+        } catch (err: any) {
+            toast.error(err.message);
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    const approveSJPH = async () => {
+        if (!id) return;
+        setProcessing(true);
+        try {
+            await submissionService.approveSJPH(id);
+            toast.success('Dokumen SJPH berhasil disetujui, diteruskan ke Manager Operasional');
+            await refresh();
+        } catch (err: any) {
+            toast.error(err.message);
+        } finally {
+            setProcessing(false);
+        }
+    };
+
     return {
         submission,
         history,
@@ -191,6 +219,8 @@ export const useSubmission = (id: string | undefined) => {
         handleAction,
         issueSH,
         revokeSH,
+        submitSJPH,
+        approveSJPH,
         saveAuditInfo,
         saveAuditResult,
         updateBusinessType

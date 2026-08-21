@@ -77,6 +77,7 @@ import BizDevDashboard from './pages/dashboard/BizDevDashboard';
 import SPHForm from './pages/dashboard/SPHForm';
 import EstimasiBiaya from './pages/dashboard/EstimasiBiaya';
 import SHWorkspace from './pages/dashboard/SHWorkspace';
+import ClientPengajuanPage from './pages/dashboard/ClientPengajuanPage';
 
 import { Toaster } from 'react-hot-toast';
 
@@ -108,6 +109,11 @@ function App() {
           {/* Semua role bisa akses */}
           <Route index element={<DashboardHome />} />
           <Route path="profile" element={<ProfilePage />} />
+
+          {/* Pengajuan Klien */}
+          <Route path="pengajuan" element={
+            <RoleRoute path="pengajuan"><ClientPengajuanPage /></RoleRoute>
+          } />
 
           {/* Klien */}
           <Route path="clients" element={

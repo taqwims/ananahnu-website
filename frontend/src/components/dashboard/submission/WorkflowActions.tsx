@@ -17,6 +17,8 @@ interface WorkflowActionsProps {
     onSaveAuditResult: (url1: string, url2: string) => Promise<void>;
     onIssueSH: (shUrl: string) => Promise<void>;
     onRevokeSH?: () => Promise<void>;
+    onSubmitSJPH?: (sjphUrl: string, notes: string) => Promise<void>;
+    onApproveSJPH?: () => Promise<void>;
 }
 
 export const WorkflowActions = ({ 
@@ -27,7 +29,9 @@ export const WorkflowActions = ({
     onSaveAuditInfo, 
     onSaveAuditResult,
     onIssueSH,
-    onRevokeSH
+    onRevokeSH,
+    onSubmitSJPH,
+    onApproveSJPH
 }: WorkflowActionsProps) => {
     const [auditDate, setAuditDate] = useState(submission.audit_date ? new Date(submission.audit_date).toISOString().split('T')[0] : '');
     const [selectedConsultantId, setSelectedConsultantId] = useState('');
@@ -35,6 +39,7 @@ export const WorkflowActions = ({
     const [selectedDrafterId, setSelectedDrafterId] = useState('');
     const [drafters, setDrafters] = useState<{id: string; full_name: string}[]>([]);
     const [shFile, setShFile] = useState<File | null>(null);
+    const [sjphNotes, setSjphNotes] = useState(submission.sjph_notes || '');
     
     // Enhanced Reject Modal states
     const [showRejectModal, setShowRejectModal] = useState(false);
@@ -60,8 +65,8 @@ export const WorkflowActions = ({
         if (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) {
             submissionService.getDrafters().then(setDrafters).catch(() => toast.error('Gagal memuat data drafter'));
         }
-        if ((submission.data_source === 'MARKETING' || submission.data_source === 'TELEMARKETING' || !submission.consultant_id) && 
-            (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER')) {
+        if ((submission.status === 'WAITING_ASSIGNMENT' || submission.data_source === 'MARKETING' || submission.data_source === 'TELEMARKETING' || !submission.consultant_id) && 
+            (user?.role === 'MARKETING' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER' || user?.role === 'MANAGER')) {
             submissionService.getConsultants(submission.province_id || '', submission.regency_id || '')
                 .then(res => {
                     if (res && res.length > 0) {
@@ -326,27 +331,68 @@ export const WorkflowActions = ({
                         </div>
                     )}
 
-                    {submission.status === 'QC_OFFICER' && !submission.consultant_id && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR') && (
-                        <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 space-y-3">
-                            <label className="flex items-center gap-2 text-sm font-black text-purple-800 tracking-tight">
-                                <UserCheck className="w-4 h-4" /> Penunjukan Advisor
+                    {/* Penunjukan Advisor oleh Marketing / Halal Manager jika belum ada pendamping atau berstatus WAITING_ASSIGNMENT */}
+                    {(submission.status === 'WAITING_ASSIGNMENT' || !submission.consultant_id) && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR' || user?.role === 'MARKETING' || user?.role === 'MANAGER') && (
+                        <div className="p-4 bg-purple-50 rounded-2xl border border-purple-200 space-y-3 shadow-sm">
+                            <label className="flex items-center gap-2 text-xs font-black text-purple-900 uppercase tracking-wider">
+                                <UserCheck className="w-4 h-4 text-purple-700" /> Penunjukan Pendamping Halal (Advisor)
                             </label>
+                            <p className="text-[11px] text-purple-700 font-medium leading-relaxed">
+                                Tentukan Pendamping Halal bersertifikat untuk memverifikasi data dan mendampingi pelaku usaha ini.
+                            </p>
                             <select
-                                className="glass-input text-sm w-full"
+                                className="glass-input text-xs font-bold w-full bg-white"
                                 value={selectedConsultantId}
                                 onChange={e => setSelectedConsultantId(e.target.value)}
                             >
-                                <option value="">-- Pilih Advisor --</option>
+                                <option value="">-- Pilih Pendamping Halal --</option>
                                 {consultants.map(c => (
-                                    <option key={c.id} value={c.id}>{c.full_name}</option>
+                                    <option key={c.id} value={c.id}>{c.full_name} ({c.role_name || 'Advisor'})</option>
                                 ))}
                             </select>
                             <button 
                                 onClick={() => onAction('assign_consultant', { consultantId: selectedConsultantId })}
                                 disabled={processing || !selectedConsultantId}
-                                className="w-full py-2 bg-purple-600 text-white rounded-xl font-bold text-xs hover:bg-purple-700 transition-all disabled:opacity-50"
+                                className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-black text-xs transition-all disabled:opacity-50 shadow-md flex items-center justify-center gap-2"
                             >
-                                Tunjuk Advisor
+                                {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+                                Tunjuk Pendamping Halal
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Penyerahan Dokumen SJPH oleh Pendamping Halal saat status VERVAL_PENDAMPING */}
+                    {submission.status === 'VERVAL_PENDAMPING' && (user?.role === 'HALAL_ADVISOR' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER') && (
+                        <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 space-y-3 shadow-sm">
+                            <label className="flex items-center gap-2 text-xs font-black text-emerald-900 uppercase tracking-wider">
+                                📋 Penyerahan Dokumen SJPH
+                            </label>
+                            <p className="text-[11px] text-emerald-700 font-medium leading-relaxed">
+                                Dokumen SJPH dibuat otomatis oleh sistem. Anda dapat memberikan catatan verifikasi kepada pelaku usaha sebelum menyerahkan dokumen.
+                            </p>
+
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-emerald-800 uppercase tracking-wider">Catatan Pendamping (Opsional)</label>
+                                <textarea
+                                    className="w-full p-2.5 rounded-xl border border-emerald-200 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                    rows={2}
+                                    placeholder="Catatan hasil verval untuk pelaku usaha..."
+                                    value={sjphNotes}
+                                    onChange={(e) => setSjphNotes(e.target.value)}
+                                />
+                            </div>
+
+                            <button 
+                                onClick={async () => {
+                                    if (onSubmitSJPH) {
+                                        await onSubmitSJPH('', sjphNotes);
+                                    }
+                                }}
+                                disabled={processing}
+                                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs transition-all disabled:opacity-50 shadow-md flex items-center justify-center gap-2 active:scale-95"
+                            >
+                                {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                Verifikasi & Serahkan Dokumen SJPH
                             </button>
                         </div>
                     )}
@@ -374,6 +420,26 @@ export const WorkflowActions = ({
                                     Akan otomatis menggunakan Drafter saat ini ({submission.assigned_drafter.full_name}) jika tidak diubah.
                                 </p>
                             )}
+                        </div>
+                    )}
+
+                    {submission.status === 'REVIEW_SJPH_CLIENT' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
+                        <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 space-y-3">
+                            <p className="text-xs text-emerald-800 font-bold">
+                                Dokumen SJPH sedang menunggu persetujuan Pelaku Usaha. Sebagai Admin/Director, Anda dapat menyetujui langsung.
+                            </p>
+                            <button
+                                onClick={() => triggerConfirm(
+                                    'Persetujuan SJPH (Admin Override)',
+                                    'Apakah Anda yakin ingin menyetujui Dokumen SJPH dan meneruskan berkas ke Manager Operasional?',
+                                    () => onApproveSJPH && onApproveSJPH()
+                                )}
+                                disabled={processing}
+                                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2"
+                            >
+                                <CheckCircle className="w-4 h-4" />
+                                Setujui SJPH (Admin Override)
+                            </button>
                         </div>
                     )}
 

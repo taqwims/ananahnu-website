@@ -25,7 +25,7 @@ export const useSubmissionList = () => {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
-    const [isGrouped, setIsGrouped] = useState(true);
+    const [isGrouped, setIsGrouped] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newSub, setNewSub] = useState({ businessName: '', serviceType: 'SELF_DECLARE' });
     const [isVerified, setIsVerified] = useState<boolean | null>(null);
@@ -63,7 +63,7 @@ export const useSubmissionList = () => {
 
     useEffect(() => {
         fetchSubmissions();
-        if (user?.role === 'CLIENT') {
+        if (user?.role === 'CLIENT' || user?.role === 'HALAL_ADVISOR') {
             setIsGrouped(false);
         }
         const checkVerification = async () => {

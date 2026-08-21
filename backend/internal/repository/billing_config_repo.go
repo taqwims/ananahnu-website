@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"fmt"
+
 	"ananahnu/internal/domain"
 
 	"github.com/google/uuid"
@@ -127,7 +129,12 @@ func (r *billingConfigRepo) FindAllBillingComponents(filter map[string]interface
 		query = query.Where("data_source = ? OR data_source = 'BOTH'", val)
 	}
 	if val, ok := filter["service_type"]; ok && val != "" {
-		query = query.Where("service_type = ? OR service_type = 'BOTH' OR service_type = 'ALL' OR service_type = '' OR service_type IS NULL", val)
+		st := fmt.Sprintf("%v", val)
+		if st == "REGULER" {
+			query = query.Where("service_type = 'REGULER' OR service_type = 'BOTH' OR service_type = 'ALL' OR service_type = '' OR service_type IS NULL")
+		} else {
+			query = query.Where("service_type = ? OR service_type = 'BOTH' OR service_type = 'ALL'", st)
+		}
 	}
 	resolveGeo, _ := filter["resolve_geography"].(bool)
 

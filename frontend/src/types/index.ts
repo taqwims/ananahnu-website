@@ -47,7 +47,7 @@ export interface Client {
     updated_at?: string;
 }
 
-export type SubmissionStatus = 'DRAFT' | 'WAITING_PAYMENT' | 'VERVAL_PENDAMPING' | 'QC_OFFICER' | 'DRAFTER' | 'QC_REVIEW' | 'SUBMITTED_TO_BPJPH' | 'SIDANG_FATWA' | 'SH_TERBIT' | 'REJECTED' | 'REVISION' | 'REVISION_ADVISOR' | 'REVISION_DRAFTER';
+export type SubmissionStatus = 'DRAFT' | 'WAITING_ASSIGNMENT' | 'WAITING_PAYMENT' | 'VERVAL_PENDAMPING' | 'REVIEW_SJPH_CLIENT' | 'QC_OFFICER' | 'DRAFTER' | 'QC_REVIEW' | 'SUBMITTED_TO_BPJPH' | 'SIDANG_FATWA' | 'SH_TERBIT' | 'REJECTED' | 'REVISION' | 'REVISION_ADVISOR' | 'REVISION_DRAFTER';
 
 export interface Payment {
     id: number;
@@ -91,6 +91,10 @@ export interface Submission {
     reject_note?: string;
     has_been_returned?: boolean;
     sh_url?: string;
+    sjph_url?: string;
+    sjph_notes?: string;
+    sjph_approved_at?: string;
+    sjph_approved_by?: string;
     tracking_number?: string;
     contract_number?: string;
     audit_date?: string;

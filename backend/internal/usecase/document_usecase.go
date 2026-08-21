@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +24,7 @@ type DocumentUsecase interface {
 	GenerateSPH(submissionID uuid.UUID) ([]byte, string, error)
 	GenerateTeleAgreementPDF(agreementID uuid.UUID) ([]byte, string, error)
 	GenerateInvoicePDF(submissionID uuid.UUID) ([]byte, string, error)
+	GenerateSJPH(submissionID uuid.UUID) ([]byte, string, error)
 }
 
 type DocumentUsecaseDeps struct {
@@ -50,8 +52,8 @@ func (uc *documentUsecase) GenerateContract(submissionID uuid.UUID, format strin
 		return nil, "", err
 	}
 
-	if submission.ServiceType != "REGULER" {
-		return nil, "", fmt.Errorf("contract generation only supported for REGULER service")
+	if submission.ServiceType != "REGULER" && submission.ServiceType != "SELF_DECLARE_MANDIRI" {
+		return nil, "", fmt.Errorf("contract generation only supported for REGULER and SELF_DECLARE_MANDIRI service")
 	}
 
 	// Fetch Settings
@@ -197,13 +199,32 @@ func (uc *documentUsecase) GenerateContract(submissionID uuid.UUID, format strin
 	if submission.CostDetail != nil && submission.CostDetail.TotalAmount > 0 {
 		totalAmount = submission.CostDetail.TotalAmount
 		vars["[CostBreakdownJSON]"] = submission.CostDetail.CostBreakdownData
+	} else if costDetail, err := uc.BillingConfigRepo.GetSubmissionCostDetail(submissionID); err == nil && costDetail != nil && costDetail.TotalAmount > 0 {
+		totalAmount = costDetail.TotalAmount
+		vars["[CostBreakdownJSON]"] = costDetail.CostBreakdownData
 	} else if submission.Invoice != nil && submission.Invoice.Amount > 0 {
 		totalAmount = submission.Invoice.Amount
 	} else if len(submission.Invoices) > 0 && submission.Invoices[0].Amount > 0 {
 		totalAmount = submission.Invoices[0].Amount
-	} else if costDetail, err := uc.BillingConfigRepo.GetSubmissionCostDetail(submissionID); err == nil && costDetail != nil && costDetail.TotalAmount > 0 {
-		totalAmount = costDetail.TotalAmount
-		vars["[CostBreakdownJSON]"] = costDetail.CostBreakdownData
+	} else if submission.ServiceType == "SELF_DECLARE_MANDIRI" {
+		totalAmount = 230000.0
+		if sysVal := uc.getSetting(settingMap, "SD_MANDIRI_COST", "230000"); sysVal != "" {
+			if v, err := strconv.ParseFloat(sysVal, 64); err == nil && v > 0 {
+				totalAmount = v
+			}
+		}
+		sdBreakdown := []map[string]interface{}{
+			{
+				"name":        "Biaya Self Declare Mandiri",
+				"category":    "PENDAMPINGAN",
+				"unit_cost":   totalAmount,
+				"total":       totalAmount,
+				"is_optional": false,
+			},
+		}
+		if bdBytes, err := json.Marshal(sdBreakdown); err == nil {
+			vars["[CostBreakdownJSON]"] = string(bdBytes)
+		}
 	}
 	vars["{{total_contract_amount_formatted}}"] = uc.formatIDR(totalAmount)
 	vars["{{total_contract_amount_words}}"] = utils.TerbilangRupiah(totalAmount)
@@ -733,12 +754,13 @@ func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 	}
 
 	if len(breakdown) == 0 {
-		pdf.CellFormat(120, 7, "  Jasa Pendampingan", "1", 0, "L", true, 0, "")
-		pdf.CellFormat(50, 7, vars["[Jasa Pendampingan]"]+"  ", "1", 1, "R", true, 0, "")
-		pdf.CellFormat(120, 7, "  Biaya Pihak Ketiga", "1", 0, "L", true, 0, "")
-		pdf.CellFormat(50, 7, vars["[Biaya Pihak Ketiga]"]+"  ", "1", 1, "R", true, 0, "")
-		pdf.CellFormat(120, 7, "  Diskon", "1", 0, "L", true, 0, "")
-		pdf.CellFormat(50, 7, "("+vars["[Diskon]"]+")  ", "1", 1, "R", true, 0, "")
+		if vars["{{service_scheme}}"] == "SELF_DECLARE_MANDIRI" {
+			pdf.CellFormat(120, 7, "  Biaya Self Declare Mandiri", "1", 0, "L", true, 0, "")
+			pdf.CellFormat(50, 7, vars["{{total_contract_amount_formatted}}"]+"  ", "1", 1, "R", true, 0, "")
+		} else {
+			pdf.CellFormat(120, 7, "  Jasa Pendampingan", "1", 0, "L", true, 0, "")
+			pdf.CellFormat(50, 7, vars["{{total_contract_amount_formatted}}"]+"  ", "1", 1, "R", true, 0, "")
+		}
 	}
 
 	// Total Row
@@ -1279,6 +1301,162 @@ func (uc *documentUsecase) GenerateInvoicePDF(submissionID uuid.UUID) ([]byte, s
 	}
 
 	filename := fmt.Sprintf("Invoice_%s.pdf", strings.ReplaceAll(businessName, " ", "_"))
+	return buf.Bytes(), filename, nil
+}
+
+func (uc *documentUsecase) GenerateSJPH(submissionID uuid.UUID) ([]byte, string, error) {
+	submission, err := uc.SubmissionRepo.FindByID(submissionID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	client := submission.Client
+	businessName := client.BusinessName
+	if businessName == "" {
+		businessName = client.ClientName
+	}
+	if businessName == "" {
+		businessName = "Pelaku Usaha"
+	}
+
+	clientName := client.ClientName
+	if clientName == "" {
+		clientName = businessName
+	}
+
+	nib := client.NIB
+	if strings.HasPrefix(nib, "DRAFT-") {
+		nib = "-"
+	}
+	nik := client.NIK
+	if nik == "" {
+		nik = "-"
+	}
+	address := client.Address
+	if address == "" {
+		address = "-"
+	}
+
+	productName := client.ProductName
+	if productName == "" {
+		productName = "-"
+	}
+
+	advisorName := "Tim Pendamping Halal"
+	if submission.Consultant != nil && submission.Consultant.FullName != "" {
+		advisorName = submission.Consultant.FullName
+	}
+
+	now := time.Now()
+	months := []string{"", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"}
+	dateStr := fmt.Sprintf("%d %s %d", now.Day(), months[now.Month()], now.Year())
+
+	pdf := fpdf.New("P", "mm", "A4", "")
+	pdf.SetMargins(20, 20, 20)
+	pdf.SetAutoPageBreak(true, 20)
+	pdf.AddPage()
+
+	// Header / Kop
+	pdf.SetFont("Arial", "B", 14)
+	pdf.CellFormat(170, 7, cleanPDFText("MANUAL SISTEM JAMINAN PRODUK HALAL (SJPH)"), "", 1, "C", false, 0, "")
+	pdf.SetFont("Arial", "B", 11)
+	pdf.CellFormat(170, 6, cleanPDFText(strings.ToUpper(businessName)), "", 1, "C", false, 0, "")
+	pdf.SetFont("Arial", "", 9)
+	pdf.CellFormat(170, 5, cleanPDFText("Berdasarkan Standar Badan Penyelenggara Jaminan Produk Halal (BPJPH) Kemenag RI"), "B", 1, "C", false, 0, "")
+	pdf.Ln(5)
+
+	// Profil Usaha Box
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(170, 6, cleanPDFText("INFORMASI PELAKU USAHA"), "1", 1, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 9)
+
+	drawRow := func(label, val string) {
+		pdf.CellFormat(55, 6, cleanPDFText(label), "1", 0, "L", false, 0, "")
+		pdf.CellFormat(115, 6, cleanPDFText(val), "1", 1, "L", false, 0, "")
+	}
+
+	drawRow("Nama Usaha / Merk", businessName)
+	drawRow("Penanggung Jawab / Pimpinan", clientName)
+	drawRow("Nomor Induk Berusaha (NIB)", nib)
+	drawRow("Nomor Induk Kependudukan (NIK)", nik)
+	drawRow("Alamat Fasilitas Produksi", address)
+	drawRow("Kelompok Produk / Jenis Produk", productName)
+	drawRow("Pendamping PPH", advisorName)
+	drawRow("Tanggal Penyusunan", dateStr)
+	pdf.Ln(4)
+
+	// BAB I
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(170, 6, cleanPDFText("BAB I. KOMITMEN DAN TANGGUNG JAWAB"), "", 1, "L", false, 0, "")
+	pdf.SetFont("Arial", "B", 9)
+	pdf.CellFormat(170, 5, cleanPDFText("1.1 Kebijakan Halal"), "", 1, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 9)
+	pdf.MultiCell(170, 4.5, cleanPDFText("Kami berkomitmen untuk senantiasa memproduksi produk halal secara konsisten sesuai dengan syariat Islam dan ketentuan peraturan perundang-undangan Jaminan Produk Halal (JPH). Seluruh bahan, peralatan, fasilitas, dan proses produksi dijamin kehalalan, kebersihan, dan kesuciannya."), "", "J", false)
+	pdf.Ln(2)
+
+	pdf.SetFont("Arial", "B", 9)
+	pdf.CellFormat(170, 5, cleanPDFText("1.2 Tanggung Jawab Manajemen & Sumber Daya Manusia"), "", 1, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 9)
+	pdf.MultiCell(170, 4.5, cleanPDFText("Pimpinan usaha menunjuk Penyelia Halal / Tim Manajemen Halal internal untuk mengawasi dan memastikan seluruh operasional produksi berjalan sesuai panduan SJPH, serta memberikan sosialisasi pemahaman halal kepada seluruh pekerja."), "", "J", false)
+	pdf.Ln(4)
+
+	// BAB II
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(170, 6, cleanPDFText("BAB II. BAHAN DAN PROSES PRODUK HALAL (PPH)"), "", 1, "L", false, 0, "")
+	pdf.SetFont("Arial", "B", 9)
+	pdf.CellFormat(170, 5, cleanPDFText("2.1 Kriteria Bahan"), "", 1, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 9)
+	pdf.MultiCell(170, 4.5, cleanPDFText("1. Bahan baku, bahan tambahan, dan bahan penolong yang digunakan berasal dari bahan halal, tidak mengandung babi, turunan babi, khamr, maupun bahan najis/haram lainnya.\n2. Bahan yang memiliki titik kritis wajib dilengkapi dokumen pendukung (Sertifikat Halal resmi yang masih berlaku)."), "", "L", false)
+	pdf.Ln(2)
+
+	pdf.SetFont("Arial", "B", 9)
+	pdf.CellFormat(170, 5, cleanPDFText("2.2 Fasilitas, Peralatan, dan Alur Produksi"), "", 1, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 9)
+	pdf.MultiCell(170, 4.5, cleanPDFText("1. Lokasi dan tempat produksi dijaga kebersihannya, terbebas dari najis, hewan peliharaan, dan kontaminasi silang.\n2. Peralatan produksi hanya digunakan khusus untuk mengolah bahan dan produk halal.\n3. Alur proses pengolahan, pencucian, pengemasan, dan penyimpanan produk terjamin kehalalan dan higienitasnya."), "", "L", false)
+	pdf.Ln(4)
+
+	// BAB III
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(170, 6, cleanPDFText("BAB III. PEMANTAUAN, EVALUASI, DAN PENANGANAN KETIDAKSESUAIAN"), "", 1, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 9)
+	pdf.MultiCell(170, 4.5, cleanPDFText("1. Pemeriksaan internal pelaksanaan SJPH dilakukan secara berkala minimal 1 (satu) kali setahun atau setiap ada perubahan bahan/fasilitas.\n2. Apabila ditemukan bahan atau produk yang tidak memenuhi kriteria halal, produk tersebut segera dikarantina, tidak boleh dijual/didistribusikan, dan dimusnahkan secara tercatat."), "", "L", false)
+	pdf.Ln(6)
+
+	// Tanda Tangan
+	pdf.SetFont("Arial", "", 9)
+	pdf.CellFormat(85, 5, cleanPDFText("Ditetapkan di: "+address), "", 0, "L", false, 0, "")
+	pdf.CellFormat(85, 5, cleanPDFText("Pada tanggal: "+dateStr), "", 1, "R", false, 0, "")
+	pdf.Ln(4)
+
+	ySig := pdf.GetY()
+	pdf.SetXY(20, ySig)
+	pdf.SetFont("Arial", "B", 9)
+	pdf.CellFormat(80, 5, cleanPDFText("Pimpinan Pelaku Usaha,"), "", 1, "C", false, 0, "")
+	pdf.Ln(18)
+	pdf.SetX(20)
+	pdf.SetFont("Arial", "B", 9)
+	pdf.CellFormat(80, 5, cleanPDFText(clientName), "B", 1, "C", false, 0, "")
+	pdf.SetX(20)
+	pdf.SetFont("Arial", "", 8)
+	pdf.CellFormat(80, 4, cleanPDFText("Penanggung Jawab Usaha"), "", 1, "C", false, 0, "")
+
+	pdf.SetXY(110, ySig)
+	pdf.SetFont("Arial", "B", 9)
+	pdf.CellFormat(80, 5, cleanPDFText("Pendamping Proses Produk Halal (PPH),"), "", 1, "C", false, 0, "")
+	pdf.Ln(18)
+	pdf.SetX(110)
+	pdf.SetFont("Arial", "B", 9)
+	pdf.CellFormat(80, 5, cleanPDFText(advisorName), "B", 1, "C", false, 0, "")
+	pdf.SetX(110)
+	pdf.SetFont("Arial", "", 8)
+	pdf.CellFormat(80, 4, cleanPDFText("Pendamping Halal Terverifikasi"), "", 1, "C", false, 0, "")
+
+	var buf bytes.Buffer
+	if err := pdf.Output(&buf); err != nil {
+		return nil, "", err
+	}
+
+	filename := fmt.Sprintf("Dokumen_SJPH_%s.pdf", strings.ReplaceAll(businessName, " ", "_"))
 	return buf.Bytes(), filename, nil
 }
 
