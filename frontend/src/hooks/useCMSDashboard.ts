@@ -22,8 +22,13 @@ export const useCMSDashboard = () => {
         setLoading(true);
         try {
             if (activeTab === 'news') {
-                const res = await api.get('/public/cms/news');
-                setNews(res.data || []);
+                try {
+                    const res = await api.get('/admin/cms/news');
+                    setNews(res.data?.data || res.data || []);
+                } catch {
+                    const res = await api.get('/public/cms/news');
+                    setNews(res.data?.data || res.data || []);
+                }
             } else if (activeTab === 'blocks') {
                 const res = await api.get('/public/cms/blocks');
                 setBlocks(res.data || []);
@@ -71,13 +76,14 @@ export const useCMSDashboard = () => {
             setShowModal(false);
             fetchData();
             toast.success('Berhasil disimpan');
-        } catch (err) {
-            toast.error("Gagal menyimpan");
+        } catch (err: any) {
+            const msg = err?.response?.data?.error || 'Gagal menyimpan data';
+            toast.error(msg);
         }
     };
 
     const handleDelete = async (id: number) => {
-        if (!window.confirm('Hapus item ini?')) return;
+        if (!window.confirm('Hapus item ini? Tindakan tidak dapat dibatalkan.')) return;
         try {
             if (activeTab === 'news') await api.delete(`/admin/cms/news/${id}`);
             else if (activeTab === 'affiliates') await api.delete(`/admin/cms/affiliates/${id}`);
@@ -89,12 +95,65 @@ export const useCMSDashboard = () => {
         }
     };
 
+    const handleToggleNewsStatus = async (id: number, currentStatus: boolean) => {
+        try {
+            await api.patch(`/admin/cms/news/${id}/status`, { is_published: !currentStatus });
+            fetchData();
+            toast.success(!currentStatus ? 'Artikel berhasil dipublikasikan' : 'Artikel diubah menjadi draf');
+        } catch (err) {
+            toast.error('Gagal mengubah status publikasi');
+        }
+    };
+
+    const handleToggleFeatured = async (id: number, currentStatus: boolean) => {
+        try {
+            await api.patch(`/admin/cms/news/${id}/featured`, { is_featured: !currentStatus });
+            fetchData();
+            toast.success(!currentStatus ? '⭐ Artikel dijadikan Highlight Utama' : 'Status Highlight dinonaktifkan');
+        } catch (err) {
+            toast.error('Gagal mengubah status Highlight');
+        }
+    };
+
+    const handleToggleLanding = async (id: number, currentStatus: boolean) => {
+        try {
+            await api.patch(`/admin/cms/news/${id}/landing`, { show_on_landing: !currentStatus });
+            fetchData();
+            toast.success(!currentStatus ? '🏠 Artikel diatur tampil di Beranda' : 'Artikel tidak ditampilkan di Beranda');
+        } catch (err) {
+            toast.error('Gagal mengubah status tampilan Beranda');
+        }
+    };
+
     const openCreate = () => {
         setEditingItem(null);
-        if (activeTab === 'news') setFormData({ title: '', slug: '', content: '', thumbnail_url: '', tags: '' });
-        else if (activeTab === 'affiliates') setFormData({ name: '', logo_url: '', website_url: '' });
-        else if (activeTab === 'products') setFormData({ name: '', company_name: '', certificate_number: '', valid_until: '', photo_url: '' });
-        else setFormData({});
+        if (activeTab === 'news') {
+            setFormData({
+                title: '',
+                slug: '',
+                excerpt: '',
+                content: '',
+                category: 'Sertifikasi Halal',
+                thumbnail_url: '',
+                tags: '',
+                author_name: 'Tim Halal Core',
+                reading_time: 3,
+                meta_title: '',
+                meta_description: '',
+                meta_keywords: '',
+                is_published: true,
+                is_featured: false,
+                show_on_landing: true,
+                views: 0,
+                published_at: new Date().toISOString(),
+            });
+        } else if (activeTab === 'affiliates') {
+            setFormData({ name: '', logo_url: '', website_url: '' });
+        } else if (activeTab === 'products') {
+            setFormData({ name: '', company_name: '', certificate_number: '', valid_until: '', photo_url: '' });
+        } else {
+            setFormData({});
+        }
         setShowModal(true);
     };
 
@@ -111,7 +170,7 @@ export const useCMSDashboard = () => {
         showModal, setShowModal,
         editingItem,
         formData, setFormData,
-        handleSave, handleDelete, openCreate, openEdit,
+        handleSave, handleDelete, handleToggleNewsStatus, handleToggleFeatured, handleToggleLanding, openCreate, openEdit,
         fetchData
     };
 };

@@ -4,8 +4,12 @@ import (
 	"ananahnu/internal/delivery/middleware"
 	"ananahnu/internal/domain"
 	"ananahnu/internal/usecase"
+	"fmt"
+	"html"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,20 +25,34 @@ func NewCMSHandler(r *gin.Engine, uc usecase.CMSUsecase) {
 	public := r.Group("/public/cms")
 	{
 		public.GET("/news", handler.GetNews)
+		public.GET("/news/categories", handler.GetNewsCategories)
+		public.GET("/news/sitemap", handler.GetNewsSitemap)
+		public.GET("/news/:slug", handler.GetNewsDetail)
+		public.GET("/news/:slug/share", handler.GetNewsShareHTML)
+		public.GET("/news/:slug/og", handler.GetNewsShareHTML)
 		public.GET("/blocks/:key", handler.GetBlock)
 		public.GET("/blocks", handler.ListBlocks)
 		public.GET("/affiliates", handler.ListAffiliates)
 		public.GET("/products", handler.ListProducts)
 	}
 
+	// Root share shortcut for bots
+	r.GET("/share/news/:slug", handler.GetNewsShareHTML)
+
 	// Admin endpoints (auth required)
 	admin := r.Group("/admin/cms")
 	admin.Use(middleware.AuthMiddleware())
-	admin.Use(middleware.RoleMiddleware("DIRECTOR", "MANAGER"))
+	admin.Use(middleware.RoleMiddleware("DIRECTOR", "MANAGER", "MARKETING", "BUSINESS_DEVELOPMENT", "ADMIN_PELATIHAN"))
 	{
 		// News
+		admin.GET("/news", handler.AdminListNews)
+		admin.GET("/news/categories", handler.GetNewsCategories)
+		admin.GET("/news/:id", handler.AdminGetNewsByID)
 		admin.POST("/news", handler.CreateNews)
 		admin.PUT("/news/:id", handler.UpdateNews)
+		admin.PATCH("/news/:id/status", handler.ToggleNewsStatus)
+		admin.PATCH("/news/:id/featured", handler.ToggleNewsFeatured)
+		admin.PATCH("/news/:id/landing", handler.ToggleNewsLanding)
 		admin.DELETE("/news/:id", handler.DeleteNews)
 
 		// Content Blocks
@@ -55,9 +73,207 @@ func NewCMSHandler(r *gin.Engine, uc usecase.CMSUsecase) {
 // --- News ---
 
 func (h *CMSHandler) GetNews(c *gin.Context) {
-	news, err := h.cmsUC.GetNews()
+	search := c.Query("search")
+	category := c.Query("category")
+	landingOnly := c.Query("landing_only") == "true"
+	featuredOnly := c.Query("featured_only") == "true"
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "12"))
+
+	news, total, err := h.cmsUC.ListNews(search, category, true, landingOnly, featuredOnly, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"data":  news,
+		"total": total,
+		"page":  page,
+		"limit": limit,
+	})
+}
+
+func (h *CMSHandler) GetNewsDetail(c *gin.Context) {
+	slugOrID := c.Param("slug")
+	news, related, err := h.cmsUC.GetNewsDetail(slugOrID, true)
+	if err != nil || news == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Artikel tidak ditemukan"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"data":    news,
+		"related": related,
+	})
+}
+
+// GetNewsShareHTML generates fully-rendered OpenGraph HTML for Social Media Crawlers (WhatsApp, Facebook, Twitter, LinkedIn)
+func (h *CMSHandler) GetNewsShareHTML(c *gin.Context) {
+	slugOrID := c.Param("slug")
+	news, _, err := h.cmsUC.GetNewsDetail(slugOrID, false)
+	if err != nil || news == nil {
+		c.String(http.StatusNotFound, "Artikel tidak ditemukan")
+		return
+	}
+
+	siteURL := os.Getenv("FRONTEND_URL")
+	if siteURL == "" {
+		siteURL = os.Getenv("APP_FRONTEND_URL")
+	}
+	if siteURL == "" {
+		siteURL = "https://halalcore.id"
+	}
+	if strings.Contains(siteURL, ",") {
+		siteURL = strings.Split(siteURL, ",")[0]
+	}
+	siteURL = strings.TrimRight(siteURL, "/")
+
+	apiURL := os.Getenv("API_BASE_URL")
+	if apiURL == "" {
+		apiURL = siteURL
+	}
+	apiURL = strings.TrimRight(apiURL, "/")
+
+	title := news.MetaTitle
+	if title == "" {
+		title = news.Title
+	}
+
+	desc := news.MetaDescription
+	if desc == "" {
+		desc = news.Excerpt
+	}
+
+	rawImg := news.OGImageURL
+	if rawImg == "" {
+		rawImg = news.ThumbnailURL
+	}
+
+	imgURL := rawImg
+	if imgURL == "" {
+		imgURL = siteURL + "/icon.png"
+	} else if !strings.HasPrefix(imgURL, "http://") && !strings.HasPrefix(imgURL, "https://") {
+		if !strings.HasPrefix(imgURL, "/") {
+			imgURL = "/" + imgURL
+		}
+		imgURL = apiURL + imgURL
+	}
+
+	articleURL := fmt.Sprintf("%s/news/%s", siteURL, news.Slug)
+
+	safeTitle := html.EscapeString(title)
+	safeDesc := html.EscapeString(desc)
+	safeImg := html.EscapeString(imgURL)
+	safeURL := html.EscapeString(articleURL)
+
+	htmlContent := fmt.Sprintf(`<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>%s | Halal Core</title>
+    <meta name="description" content="%s">
+
+    <!-- Open Graph / Facebook / WhatsApp -->
+    <meta property="og:site_name" content="Halal Core">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="%s">
+    <meta property="og:title" content="%s">
+    <meta property="og:description" content="%s">
+    <meta property="og:image" content="%s">
+    <meta property="og:image:secure_url" content="%s">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:locale" content="id_ID">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="%s">
+    <meta name="twitter:title" content="%s">
+    <meta name="twitter:description" content="%s">
+    <meta name="twitter:image" content="%s">
+
+    <!-- Immediate Redirect for Human Browsers -->
+    <meta http-equiv="refresh" content="0; url=%s">
+    <script>window.location.replace("%s");</script>
+</head>
+<body style="font-family: sans-serif; padding: 2rem; text-align: center; color: #333;">
+    <h2>%s</h2>
+    <p>%s</p>
+    <p style="color: #666; font-size: 0.9rem;">Mengarahkan Anda ke halaman artikel...</p>
+    <p><a href="%s" style="color: #005a48; font-weight: bold;">Klik di sini jika halaman tidak berpindah secara otomatis</a></p>
+</body>
+</html>`,
+		safeTitle, safeDesc,
+		safeURL, safeTitle, safeDesc, safeImg, safeImg,
+		safeURL, safeTitle, safeDesc, safeImg,
+		safeURL, safeURL,
+		safeTitle, safeDesc, safeURL,
+	)
+
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.String(http.StatusOK, htmlContent)
+}
+
+func (h *CMSHandler) GetNewsCategories(c *gin.Context) {
+	categories, err := h.cmsUC.GetNewsCategories()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, categories)
+}
+
+func (h *CMSHandler) GetNewsSitemap(c *gin.Context) {
+	news, _, err := h.cmsUC.ListNews("", "", true, false, false, 1, 1000)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	var sitemapItems []gin.H
+	for _, item := range news {
+		sitemapItems = append(sitemapItems, gin.H{
+			"slug":          item.Slug,
+			"title":         item.Title,
+			"category":      item.Category,
+			"published_at":  item.PublishedAt,
+			"updated_at":    item.UpdatedAt,
+			"thumbnail_url": item.ThumbnailURL,
+			"url":           fmt.Sprintf("/news/%s", item.Slug),
+		})
+	}
+	c.JSON(http.StatusOK, sitemapItems)
+}
+
+func (h *CMSHandler) AdminListNews(c *gin.Context) {
+	search := c.Query("search")
+	category := c.Query("category")
+	landingOnly := c.Query("landing_only") == "true"
+	featuredOnly := c.Query("featured_only") == "true"
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+
+	news, total, err := h.cmsUC.ListNews(search, category, false, landingOnly, featuredOnly, page, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"data":  news,
+		"total": total,
+		"page":  page,
+		"limit": limit,
+	})
+}
+
+func (h *CMSHandler) AdminGetNewsByID(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	news, err := h.cmsUC.GetNewsByID(id)
+	if err != nil || news == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Artikel tidak ditemukan"})
 		return
 	}
 	c.JSON(http.StatusOK, news)
@@ -73,7 +289,7 @@ func (h *CMSHandler) CreateNews(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"message": "news created", "id": input.ID})
+	c.JSON(http.StatusCreated, gin.H{"message": "news created", "data": input})
 }
 
 func (h *CMSHandler) UpdateNews(c *gin.Context) {
@@ -93,7 +309,73 @@ func (h *CMSHandler) UpdateNews(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "news updated"})
+	c.JSON(http.StatusOK, gin.H{"message": "news updated", "data": input})
+}
+
+func (h *CMSHandler) ToggleNewsStatus(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var body struct {
+		IsPublished bool `json:"is_published"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.cmsUC.ToggleNewsStatus(id, body.IsPublished); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "status updated", "is_published": body.IsPublished})
+}
+
+func (h *CMSHandler) ToggleNewsFeatured(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var body struct {
+		IsFeatured bool `json:"is_featured"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.cmsUC.ToggleNewsFeatured(id, body.IsFeatured); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "featured status updated", "is_featured": body.IsFeatured})
+}
+
+func (h *CMSHandler) ToggleNewsLanding(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var body struct {
+		ShowOnLanding bool `json:"show_on_landing"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.cmsUC.ToggleNewsLanding(id, body.ShowOnLanding); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "landing status updated", "show_on_landing": body.ShowOnLanding})
 }
 
 func (h *CMSHandler) DeleteNews(c *gin.Context) {

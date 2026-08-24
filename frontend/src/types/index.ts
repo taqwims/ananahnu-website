@@ -129,10 +129,25 @@ export interface News {
     id: number;
     title: string;
     slug: string;
+    excerpt?: string;
     content: string;
+    category?: string;
     thumbnail_url: string;
-    published_at: string;
-    tags: string;
+    tags?: string;
+    author_name?: string;
+    reading_time?: number;
+    meta_title?: string;
+    meta_description?: string;
+    meta_keywords?: string;
+    canonical_url?: string;
+    og_image_url?: string;
+    is_published: boolean;
+    is_featured?: boolean;
+    show_on_landing?: boolean;
+    views?: number;
+    published_at?: string;
+    created_at?: string;
+    updated_at?: string;
 }
 
 export interface ContentBlock {
@@ -355,25 +370,6 @@ export interface BillingComponent {
     form_field_config?: FormFieldConfig;
 }
 
-// --- CMS ---
-
-export interface News {
-    id: number;
-    title: string;
-    content: string;
-    category: string;
-    image_url?: string;
-    is_published: boolean;
-    created_at: string;
-}
-
-export interface ContentBlock {
-    id: number;
-    slug: string;
-    title: string;
-    content: string;
-    updated_at: string;
-}
 
 export interface Commission {
     id: string;

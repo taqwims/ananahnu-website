@@ -42,9 +42,9 @@ func (h *MediaHandler) Upload(c *gin.Context) {
 		return
 	}
 
-	// 2. Validate size (Max 2MB)
-	if file.Size > 2*1024*1024 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "File size exceeds 2MB limit"})
+	// 2. Validate size (Max 10MB)
+	if file.Size > 10*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File size exceeds 10MB limit"})
 		return
 	}
 

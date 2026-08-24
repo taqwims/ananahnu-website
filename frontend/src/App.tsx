@@ -45,6 +45,8 @@ import DistributionAdmin from './pages/dashboard/DistributionAdmin';
 import DrafterMonitoring from './pages/dashboard/DrafterMonitoring';
 import PublicLayout from './components/layout/PublicLayout';
 import LandingPage from './pages/landing/LandingPage';
+import NewsListPage from './pages/public/NewsListPage';
+import NewsDetailPage from './pages/public/NewsDetailPage';
 
 import FormConfigAdmin from './pages/dashboard/FormConfigAdmin';
 import BillingConfigAdmin from './pages/dashboard/BillingConfigAdmin';
@@ -296,6 +298,8 @@ function App() {
         {/* Public Routes */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/news" element={<NewsListPage />} />
+          <Route path="/news/:slug" element={<NewsDetailPage />} />
           <Route path="/track" element={<TrackSubmission />} />
           <Route path="/verify-invoice/:id" element={<VerifyInvoice />} />
           <Route path="/verify/agreement/:id/:token" element={<VerifyAgreement />} />

@@ -5,6 +5,7 @@ import { NewsList } from '../../components/dashboard/cms/NewsList';
 import { ContentBlocksList } from '../../components/dashboard/cms/ContentBlocksList';
 import { AffiliatesList } from '../../components/dashboard/cms/AffiliatesList';
 import { ProductsList } from '../../components/dashboard/cms/ProductsList';
+import { NewsEditorView } from '../../components/dashboard/cms/NewsEditorView';
 import { CMSModal } from '../../components/dashboard/cms/CMSModal';
 
 export default function CMSDashboard() {
@@ -15,7 +16,7 @@ export default function CMSDashboard() {
         showModal, setShowModal,
         editingItem,
         formData, setFormData,
-        handleSave, handleDelete, openCreate, openEdit
+        handleSave, handleDelete, handleToggleNewsStatus, handleToggleFeatured, handleToggleLanding, openCreate, openEdit
     } = useCMSDashboard();
 
     const tabLabels: Record<string, string> = {
@@ -42,12 +43,25 @@ export default function CMSDashboard() {
                 ) : (
                     <>
                         {activeTab === 'news' && (
-                            <NewsList 
-                                news={news} 
-                                onAdd={openCreate} 
-                                onEdit={openEdit} 
-                                onDelete={handleDelete} 
-                            />
+                            showModal ? (
+                                <NewsEditorView
+                                    editingItem={editingItem}
+                                    formData={formData}
+                                    setFormData={setFormData}
+                                    onSave={handleSave}
+                                    onCancel={() => setShowModal(false)}
+                                />
+                            ) : (
+                                <NewsList 
+                                    news={news} 
+                                    onAdd={openCreate} 
+                                    onEdit={openEdit} 
+                                    onDelete={handleDelete} 
+                                    onToggleStatus={handleToggleNewsStatus}
+                                    onToggleFeatured={handleToggleFeatured}
+                                    onToggleLanding={handleToggleLanding}
+                                />
+                            )
                         )}
 
                         {activeTab === 'blocks' && (
@@ -78,7 +92,7 @@ export default function CMSDashboard() {
                 )}
             </div>
 
-            {showModal && (
+            {showModal && activeTab !== 'news' && (
                 <CMSModal 
                     activeTab={activeTab}
                     editingItem={editingItem}

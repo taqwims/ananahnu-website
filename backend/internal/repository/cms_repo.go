@@ -18,10 +18,69 @@ func NewCMSRepository(db *gorm.DB) domain.CMSRepository {
 
 func (r *cmsRepository) FindAllNews(filter map[string]interface{}) ([]domain.News, error) {
 	var news []domain.News
-	if err := r.db.Order("published_at DESC").Find(&news).Error; err != nil {
+	query := r.db.Model(&domain.News{}).Order("published_at DESC, created_at DESC")
+	if filter != nil {
+		query = query.Where(filter)
+	}
+	if err := query.Find(&news).Error; err != nil {
 		return nil, err
 	}
 	return news, nil
+}
+
+func (r *cmsRepository) FindAllNewsWithFilter(search string, category string, isPublishedOnly bool, landingOnly bool, featuredOnly bool, limit int, offset int) ([]domain.News, int64, error) {
+	var news []domain.News
+	var total int64
+
+	query := r.db.Model(&domain.News{})
+
+	if isPublishedOnly {
+		query = query.Where("is_published = ?", true)
+	}
+	if landingOnly {
+		query = query.Where("show_on_landing = ?", true)
+	}
+	if featuredOnly {
+		query = query.Where("is_featured = ?", true)
+	}
+	if category != "" && category != "Semua" && category != "all" {
+		query = query.Where("category = ?", category)
+	}
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		query = query.Where("title LIKE ? OR content LIKE ? OR tags LIKE ? OR meta_keywords LIKE ?", searchTerm, searchTerm, searchTerm, searchTerm)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	query = query.Order("is_featured DESC, published_at DESC, created_at DESC")
+	if limit > 0 {
+		query = query.Limit(limit).Offset(offset)
+	}
+
+	if err := query.Find(&news).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return news, total, nil
+}
+
+func (r *cmsRepository) FindNewsBySlug(slug string) (*domain.News, error) {
+	var news domain.News
+	if err := r.db.Where("slug = ?", slug).First(&news).Error; err != nil {
+		return nil, err
+	}
+	return &news, nil
+}
+
+func (r *cmsRepository) FindNewsByID(id int64) (*domain.News, error) {
+	var news domain.News
+	if err := r.db.Where("id = ?", id).First(&news).Error; err != nil {
+		return nil, err
+	}
+	return &news, nil
 }
 
 func (r *cmsRepository) CreateNews(news *domain.News) error {
@@ -34,6 +93,37 @@ func (r *cmsRepository) UpdateNews(news *domain.News) error {
 
 func (r *cmsRepository) DeleteNews(id int64) error {
 	return r.db.Delete(&domain.News{}, id).Error
+}
+
+func (r *cmsRepository) IncrementNewsViews(id int64) error {
+	return r.db.Model(&domain.News{}).Where("id = ?", id).UpdateColumn("views", gorm.Expr("views + 1")).Error
+}
+
+func (r *cmsRepository) GetNewsCategories() ([]string, error) {
+	var categories []string
+	if err := r.db.Model(&domain.News{}).
+		Where("is_published = ?", true).
+		Where("category != '' AND category IS NOT NULL").
+		Distinct("category").
+		Pluck("category", &categories).Error; err != nil {
+		return nil, err
+	}
+	return categories, nil
+}
+
+func (r *cmsRepository) FindRelatedNews(category string, excludeID int64, limit int) ([]domain.News, error) {
+	var news []domain.News
+	if limit <= 0 {
+		limit = 3
+	}
+	query := r.db.Where("is_published = ? AND id != ?", true, excludeID)
+	if category != "" {
+		query = query.Where("category = ?", category)
+	}
+	if err := query.Order("published_at DESC").Limit(limit).Find(&news).Error; err != nil {
+		return nil, err
+	}
+	return news, nil
 }
 
 // --- Content Blocks ---

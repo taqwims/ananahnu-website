@@ -56,7 +56,7 @@ export default function PublicLayout() {
                             <a href="/#home" className="text-gray-600 hover:text-brand-600 font-medium transition-colors">Home</a>
                             <a href="/#about" className="text-gray-600 hover:text-brand-600 font-medium transition-colors">About</a>
                             <a href="/#services" className="text-gray-600 hover:text-brand-600 font-medium transition-colors">Services</a>
-                            <a href="/#news" className="text-gray-600 hover:text-brand-600 font-medium transition-colors">News</a>
+                            <Link to="/news" className="text-gray-600 hover:text-brand-600 font-medium transition-colors">Berita & Edukasi</Link>
                             <a href="/#contact" className="text-gray-600 hover:text-brand-600 font-medium transition-colors">Contact</a>
                             <a href={`${TELEMARKETING_URL}/form`} className="text-amber-600 hover:text-amber-700 font-bold transition-colors">Sertifikasi Halal</a>
                             
@@ -150,7 +150,7 @@ export default function PublicLayout() {
                             <a href="/#home" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-600 hover:bg-brand-50">Home</a>
                             <a href="/#about" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-600 hover:bg-brand-50">About</a>
                             <a href="/#services" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-600 hover:bg-brand-50">Services</a>
-                            <a href="/#news" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-600 hover:bg-brand-50">News</a>
+                            <Link to="/news" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-600 hover:bg-brand-50">Berita & Edukasi</Link>
                             <a href="/#contact" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-brand-600 hover:bg-brand-50">Contact</a>
                             <a href={`${TELEMARKETING_URL}/form`} className="block px-3 py-2 rounded-md text-base font-bold text-amber-600 hover:text-amber-700 hover:bg-brand-50">Sertifikasi Halal</a>
                             
@@ -207,10 +207,10 @@ export default function PublicLayout() {
                             <h4 className="font-bold text-lg mb-6 text-gold-400">Quick Links</h4>
                             <ul className="space-y-3 text-brand-100/60">
                                 <li><a href={`${TELEMARKETING_URL}/form`} className="text-gold-400 font-bold hover:text-gold-300 transition-colors">Daftar Sertifikasi Halal</a></li>
+                                <li><Link to="/news" className="hover:text-gold-400 transition-colors">Berita & Edukasi Halal</Link></li>
+                                <li><Link to="/track" className="hover:text-gold-400 transition-colors">Lacak Status Pengajuan</Link></li>
                                 <li><a href="#" className="hover:text-gold-400 transition-colors">Privacy Policy</a></li>
                                 <li><a href="#" className="hover:text-gold-400 transition-colors">Terms of Service</a></li>
-                                <li><a href="#" className="hover:text-gold-400 transition-colors">Verify Certificate</a></li>
-                                <li><a href="#" className="hover:text-gold-400 transition-colors">Halal Standards</a></li>
                             </ul>
                         </div>
 

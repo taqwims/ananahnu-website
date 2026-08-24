@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle, Newspaper, ArrowUpRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import api from '../../services/api';
 import type { News, ContentBlock } from '../../types';
+import { getMediaUrl } from '../../utils/media';
 
 export default function LandingPage() {
     const [news, setNews] = useState<News[]>([]);
@@ -14,14 +16,17 @@ export default function LandingPage() {
 
         const loadData = async () => {
             const [newsRes, welcomeRes, aboutRes] = await Promise.allSettled([
-                api.get('/public/cms/news').catch(() => ({ data: [] })),
+                api.get('/public/cms/news?landing_only=true&limit=3').catch(() => ({ data: [] })),
                 api.get('/public/cms/blocks/welcome_message').catch(() => ({ data: null })),
                 api.get('/public/cms/blocks/about_us').catch(() => ({ data: null })),
             ]);
 
             if (cancelled) return;
 
-            if (newsRes.status === 'fulfilled') setNews(newsRes.value.data ?? []);
+            if (newsRes.status === 'fulfilled') {
+                const data = newsRes.value.data?.data || newsRes.value.data || [];
+                setNews(data);
+            }
             if (welcomeRes.status === 'fulfilled') setWelcomeBlock(welcomeRes.value.data);
             if (aboutRes.status === 'fulfilled') setAboutBlock(aboutRes.value.data);
         };
@@ -52,7 +57,7 @@ export default function LandingPage() {
                         className="max-w-3xl"
                     >
                         <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight mb-6 leading-tight">
-                            {welcomeBlock?.content || "Building Halal Business Excellence"}
+                            {welcomeBlock?.body || welcomeBlock?.title || "Building Halal Business Excellence"}
                         </h1>
                         <p className="text-xl text-brand-100/80 mb-10 max-w-2xl leading-relaxed">
                             Empowering the global Halal ecosystem through professional advisory, specialized training, and integrated certification systems.
@@ -85,7 +90,7 @@ export default function LandingPage() {
                             <span className="text-gold-600 font-bold uppercase tracking-wider text-sm mb-2 block">Our Mission</span>
                             <h2 className="text-4xl font-bold text-gray-900 mb-6">About Halal Core</h2>
                             <div className="prose prose-lg text-gray-600 mb-8 leading-relaxed">
-                                {aboutBlock?.content || "Halal Core is a premier institution focused on elevating Halal standards globally. We provide a comprehensive ecosystem for businesses to navigate the complexities of Halal certification and operational excellence."}
+                                {aboutBlock?.body || "Halal Core is a premier institution focused on elevating Halal standards globally. We provide a comprehensive ecosystem for businesses to navigate the complexities of Halal certification and operational excellence."}
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 {[
@@ -113,7 +118,9 @@ export default function LandingPage() {
                             <span className="text-brand-600 font-bold uppercase tracking-wider text-sm mb-2 block">Insights</span>
                             <h2 className="text-4xl font-bold text-gray-900">Knowledge Center</h2>
                         </div>
-                        <a href="#" className="hidden md:flex items-center gap-2 text-brand-600 font-bold hover:underline">View All Articles <ArrowUpRight className="w-5 h-5" /></a>
+                        <Link to="/news" className="hidden md:flex items-center gap-2 text-brand-600 font-bold hover:underline">
+                            View All Articles <ArrowUpRight className="w-5 h-5" />
+                        </Link>
                     </div>
 
                     {news.length === 0 ? (
@@ -124,14 +131,34 @@ export default function LandingPage() {
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                             {news.map(article => (
-                                <div key={article.id} className="group cursor-pointer bg-white p-4 rounded-2xl border border-transparent hover:border-brand-100 hover:shadow-xl transition-all">
-                                    <div className="h-48 bg-gray-200 rounded-xl mb-4 overflow-hidden relative">
-                                        <img src={`https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=800&sig=${article.id}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="News" />
+                                <Link
+                                    key={article.id}
+                                    to={`/news/${article.slug}`}
+                                    className="group bg-white p-4 rounded-2xl border border-transparent hover:border-brand-100 hover:shadow-xl transition-all flex flex-col justify-between"
+                                >
+                                    <div>
+                                        <div className="h-48 bg-gray-200 rounded-xl mb-4 overflow-hidden relative">
+                                            <img 
+                                                src={getMediaUrl(article.thumbnail_url) || `https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=800&sig=${article.id}`} 
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                                                alt={article.title} 
+                                            />
+                                        </div>
+                                        <span className="text-xs font-bold text-gold-600 bg-gold-50 px-2 py-1 rounded mb-2 inline-block uppercase tracking-wider">
+                                            {article.category || 'Berita'}
+                                        </span>
+                                        <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-brand-600 transition-colors line-clamp-2">
+                                            {article.title}
+                                        </h3>
+                                        <p className="text-gray-500 line-clamp-2 text-sm">
+                                            {article.excerpt || article.content?.replace(/<[^>]*>/g, '')}
+                                        </p>
                                     </div>
-                                    <span className="text-xs font-bold text-gold-600 bg-gold-50 px-2 py-1 rounded mb-2 inline-block uppercase tracking-wider">{article.category}</span>
-                                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-brand-600 transition-colors">{article.title}</h3>
-                                    <p className="text-gray-500 line-clamp-2 text-sm">{article.content}</p>
-                                </div>
+                                    <div className="pt-4 mt-2 border-t border-gray-50 flex items-center justify-between text-xs text-brand-600 font-bold">
+                                        <span>Baca Selengkapnya</span>
+                                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                    </div>
+                                </Link>
                             ))}
                         </div>
                     )}

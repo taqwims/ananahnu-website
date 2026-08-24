@@ -165,6 +165,9 @@ func main() {
 	// 4.6 Seed Operational Manager & Staff Users (Idempotent)
 	seedOperationalData(db)
 
+	// 4.7 Seed Sample News Articles for SEO (Idempotent)
+	_ = seeder.SeedNewsData(db)
+
 	// 5. Setup Repositories
 	userRepo := repository.NewUserRepository(db)
 	roleRepo := repository.NewRoleRepository(db)
