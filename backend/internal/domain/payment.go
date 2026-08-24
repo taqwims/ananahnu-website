@@ -11,6 +11,7 @@ type PaymentMethod string
 const (
 	PaymentMethodManual   PaymentMethod = "MANUAL"
 	PaymentMethodMidtrans PaymentMethod = "MIDTRANS"
+	PaymentMethodMayar    PaymentMethod = "MAYAR"
 )
 
 type PaymentStatus string

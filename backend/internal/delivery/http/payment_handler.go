@@ -23,7 +23,9 @@ func NewPaymentHandler(r *gin.Engine, uc usecase.PaymentUsecase) {
 	g.Use(middleware.AuthMiddleware())
 	{
 		g.POST("/manual", handler.CreateManual)
+		g.POST("/online", handler.CreateOnline)
 		g.POST("/midtrans", handler.CreateMidtrans)
+		g.POST("/mayar", handler.CreateMayar)
 		g.GET("/submission/:submissionId", handler.GetBySubmission)
 		g.GET("/", handler.ListAll)
 		g.PUT("/:id/verify", handler.VerifyManual)
@@ -31,8 +33,9 @@ func NewPaymentHandler(r *gin.Engine, uc usecase.PaymentUsecase) {
 		g.POST("/:id/cancel", handler.CancelPayment)
 	}
 
-	// Public webhook endpoint — Midtrans calls this, no auth required
+	// Public webhook endpoints — Midtrans & Mayar call these, no auth required
 	r.POST("/payments/midtrans/webhook", handler.MidtransWebhook)
+	r.POST("/payments/mayar/webhook", handler.MayarWebhook)
 }
 
 // CreateManual handles manual payment creation with proof upload.
@@ -59,6 +62,43 @@ func (h *PaymentHandler) CreateManual(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"message": "payment proof submitted, waiting for verification"})
+}
+
+// CreateOnline initiates an online payment using the currently active gateway (Midtrans or Mayar).
+func (h *PaymentHandler) CreateOnline(c *gin.Context) {
+	var input struct {
+		SubmissionID string  `json:"submission_id" binding:"required"`
+		Amount       float64 `json:"amount" binding:"required,gt=0"`
+		Email        string  `json:"email" binding:"required,email"`
+		CustomerName string  `json:"customer_name"`
+		Phone        string  `json:"phone"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	subID, err := uuid.Parse(input.SubmissionID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid submission_id"})
+		return
+	}
+
+	result, err := h.paymentUC.CreateOnlinePayment(subID, input.Amount, input.Email, input.CustomerName, input.Phone)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"gateway":        result.Gateway,
+		"snap_token":     result.SnapToken,
+		"snap_url":       result.SnapURL,
+		"payment_url":    result.PaymentURL,
+		"order_id":       result.OrderID,
+		"invoice_id":     result.InvoiceID,
+		"transaction_id": result.TransactionID,
+	})
 }
 
 // CreateMidtrans initiates a Midtrans Snap payment and returns the token + redirect URL.
@@ -88,9 +128,47 @@ func (h *PaymentHandler) CreateMidtrans(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
+		"gateway":    "MIDTRANS",
 		"snap_token": result.SnapToken,
 		"snap_url":   result.SnapURL,
 		"order_id":   result.OrderID,
+	})
+}
+
+// CreateMayar initiates a Mayar.id payment invoice and returns the checkout link.
+func (h *PaymentHandler) CreateMayar(c *gin.Context) {
+	var input struct {
+		SubmissionID string  `json:"submission_id" binding:"required"`
+		Amount       float64 `json:"amount" binding:"required,gt=0"`
+		Email        string  `json:"email" binding:"required,email"`
+		CustomerName string  `json:"customer_name"`
+		Phone        string  `json:"phone"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	subID, err := uuid.Parse(input.SubmissionID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid submission_id"})
+		return
+	}
+
+	result, err := h.paymentUC.CreateMayarPayment(subID, input.Amount, input.Email, input.CustomerName, input.Phone)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"gateway":        "MAYAR",
+		"invoice_id":     result.InvoiceID,
+		"transaction_id": result.TransactionID,
+		"payment_url":    result.PaymentURL,
+		"snap_url":       result.PaymentURL,
+		"snap_token":     result.InvoiceID,
+		"order_id":       result.OrderID,
 	})
 }
 
@@ -100,13 +178,13 @@ func (h *PaymentHandler) CreateMidtrans(c *gin.Context) {
 func (h *PaymentHandler) MidtransWebhook(c *gin.Context) {
 	var payload map[string]interface{}
 	if err := json.NewDecoder(c.Request.Body).Decode(&payload); err != nil {
-		log.Printf("[WEBHOOK] Failed to decode payload: %v", err)
+		log.Printf("[WEBHOOK MIDTRANS] Failed to decode payload: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
 		return
 	}
 
 	if err := h.paymentUC.HandleMidtransNotification(payload); err != nil {
-		log.Printf("[WEBHOOK] Error processing notification: %v", err)
+		log.Printf("[WEBHOOK MIDTRANS] Error processing notification: %v", err)
 		// Still return 200 for signature errors to avoid Midtrans retries on fraud attempts
 		// Only return 500 for actual internal errors
 		if err.Error() == "invalid notification signature" {
@@ -118,6 +196,25 @@ func (h *PaymentHandler) MidtransWebhook(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// MayarWebhook handles incoming Mayar.id notification callbacks.
+// This endpoint is PUBLIC — Mayar calls it directly.
+func (h *PaymentHandler) MayarWebhook(c *gin.Context) {
+	var payload map[string]interface{}
+	if err := json.NewDecoder(c.Request.Body).Decode(&payload); err != nil {
+		log.Printf("[WEBHOOK MAYAR] Failed to decode payload: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+
+	if err := h.paymentUC.HandleMayarNotification(payload); err != nil {
+		log.Printf("[WEBHOOK MAYAR] Error processing notification: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "Mayar notification processed"})
 }
 
 // GetBySubmission returns all payments for a specific submission.

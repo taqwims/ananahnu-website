@@ -3,6 +3,7 @@ package usecase
 import (
 	"ananahnu/internal/domain"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -64,4 +65,47 @@ func (uc *paymentUsecase) GetAllPayments(filter map[string]interface{}, page, li
 	// Auto cleanup before listing
 	go uc.CleanupExpiredPayments()
 	return uc.PaymentRepo.FindAll(filter, page, limit)
+}
+
+func (uc *paymentUsecase) GetActivePaymentGateway() string {
+	if uc.SettingRepo != nil {
+		setting, err := uc.SettingRepo.GetSetting("PAYMENT_GATEWAY_ACTIVE")
+		if err == nil && setting != nil && strings.TrimSpace(setting.Value) != "" {
+			return strings.ToUpper(strings.TrimSpace(setting.Value))
+		}
+	}
+	return "MIDTRANS"
+}
+
+func (uc *paymentUsecase) CreateOnlinePayment(submissionID uuid.UUID, amount float64, email, customerName, phone string) (*OnlinePaymentResult, error) {
+	activeGW := uc.GetActivePaymentGateway()
+
+	if activeGW == "MAYAR" {
+		res, err := uc.CreateMayarPayment(submissionID, amount, email, customerName, phone)
+		if err != nil {
+			return nil, err
+		}
+		return &OnlinePaymentResult{
+			Gateway:       "MAYAR",
+			PaymentURL:    res.PaymentURL,
+			SnapURL:       res.PaymentURL,
+			SnapToken:     res.InvoiceID,
+			OrderID:       res.OrderID,
+			InvoiceID:     res.InvoiceID,
+			TransactionID: res.TransactionID,
+		}, nil
+	}
+
+	// Default: Midtrans
+	res, err := uc.CreateMidtransPayment(submissionID, amount, email, customerName, phone)
+	if err != nil {
+		return nil, err
+	}
+	return &OnlinePaymentResult{
+		Gateway:    "MIDTRANS",
+		SnapToken:  res.SnapToken,
+		SnapURL:    res.SnapURL,
+		PaymentURL: res.SnapURL,
+		OrderID:    res.OrderID,
+	}, nil
 }

@@ -49,3 +49,20 @@ export const formatRoleName = (role: string): string => {
     };
     return labels[role.toUpperCase()] || role.replace(/_/g, ' ');
 };
+
+/**
+ * Converts a raw phone number (from COMPANY_PHONE in system settings)
+ * into a valid WhatsApp click-to-chat URL (wa.me) with prefilled message.
+ */
+export const formatWhatsAppUrl = (phone?: string, text?: string): string => {
+    const rawNumber = (phone && phone.trim()) ? phone : '6281564955280';
+    let cleanNumber = rawNumber.replace(/\D/g, '');
+    if (cleanNumber.startsWith('0')) {
+        cleanNumber = '62' + cleanNumber.slice(1);
+    } else if (!cleanNumber.startsWith('62') && cleanNumber.length > 0) {
+        cleanNumber = '62' + cleanNumber;
+    }
+    const defaultText = text || "Halo HalalCore, saya ingin konsultasi mengenai pengurusan Sertifikat Halal.";
+    return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(defaultText)}`;
+};
+

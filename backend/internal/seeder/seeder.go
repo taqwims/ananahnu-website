@@ -131,6 +131,9 @@ func PerformResetAndSeed(db *gorm.DB) error {
 	// 10. Seed Kalkulator & Cost config components
 	seedKalkulatorData(db)
 
+	// 11. Seed System Settings (Payment Gateway, Company info)
+	seedSystemSettings(db)
+
 	log.Println("=== Wiping & Seeding COMPLETED successfully! ===")
 	return nil
 }
@@ -456,6 +459,31 @@ func seedKalkulatorData(db *gorm.DB) {
 	for _, m := range defaultMappings {
 		db.Where("role_name = ?", m.RoleName).FirstOrCreate(&m)
 	}
+}
+
+func seedSystemSettings(db *gorm.DB) {
+	settings := []domain.SystemSetting{
+		{Key: "PAYMENT_GATEWAY_ACTIVE", Value: "MIDTRANS"},
+		{Key: "PAYMENT_MANUAL_ENABLED", Value: "true"},
+		{Key: "PAYMENT_ONLINE_ENABLED", Value: "true"},
+		{Key: "PAYMENT_BANK_NAME", Value: "BNI"},
+		{Key: "PAYMENT_BANK_ACCOUNT_NO", Value: "1825073247"},
+		{Key: "PAYMENT_BANK_ACCOUNT_NAME", Value: "PT. Ana Nahnu Indonesia"},
+		{Key: "MIDTRANS_IS_PRODUCTION", Value: "false"},
+		{Key: "MAYAR_IS_PRODUCTION", Value: "false"},
+		{Key: "COMPANY_NAME", Value: "PT Ana Nahnu Indonesia"},
+		{Key: "COMPANY_EMAIL", Value: "info@ananahnu.id"},
+		{Key: "COMPANY_PHONE", Value: "+62 812-3456-7890"},
+		{Key: "COMPANY_ADDRESS", Value: "Jl. Raya Ana Nahnu No. 1, Jakarta"},
+	}
+
+	for _, s := range settings {
+		var existing domain.SystemSetting
+		if err := db.Where("key = ?", s.Key).First(&existing).Error; err != nil {
+			db.Create(&s)
+		}
+	}
+	log.Println("✓ System settings seeded.")
 }
 
 func removeVowels(s string) string {

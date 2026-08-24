@@ -14,6 +14,7 @@ import (
 	"ananahnu/internal/seeder"
 	"ananahnu/pkg/database"
 	"ananahnu/pkg/email"
+	"ananahnu/pkg/mayar"
 	"ananahnu/pkg/midtrans"
 	"ananahnu/pkg/whatsapp"
 
@@ -203,6 +204,7 @@ func main() {
 	// Services
 	emailSender := email.NewGmailSender()
 	midtransGateway := midtrans.NewMidtransGateway()
+	mayarGateway := mayar.NewMayarGateway()
 
 	// WhatsApp Sender with dynamic token from SystemSetting
 	waSender := whatsapp.NewFonnteSender(func() string {
@@ -309,6 +311,7 @@ func main() {
 		SubmissionRepo: submissionRepo,
 		AuditRepo:      auditRepo,
 		Midtrans:       midtransGateway,
+		Mayar:          mayarGateway,
 		InvoiceRepo:    invoiceRepo,
 		BillingUC:      billingUC,
 		NotifUC:        notificationUC,

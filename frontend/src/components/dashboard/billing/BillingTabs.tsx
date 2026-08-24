@@ -1,4 +1,4 @@
-import { Plus, Tag } from 'lucide-react';
+import { Plus, Tag, CreditCard } from 'lucide-react';
 import type { MainTab, TabKey } from '../../../hooks/useBillingConfig';
 import { useAuthStore } from '../../../store/authStore';
 
@@ -20,6 +20,7 @@ export const BillingTabs = ({
 
     const tabs = [
         { key: 'components', label: 'Biaya', icon: Plus },
+        { key: 'payment_gateway', label: 'Gateway Pembayaran', icon: CreditCard },
         { key: 'discounts', label: 'Diskon Jasa Pendampingan', icon: Tag },
         { key: 'role_scheme', label: 'Pemetaan Role-Skema', icon: Tag },
         ...(isDirector ? [{ key: 'quota', label: 'Kuota Fasilitasi', icon: Tag }] : []),

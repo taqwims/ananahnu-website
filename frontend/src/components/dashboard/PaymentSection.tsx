@@ -18,7 +18,7 @@ interface PaymentSectionProps {
 
 export default function PaymentSection({ submission, fieldValues: _fieldValues = [], onPaymentSuccess, invoiceType = 'DP' }: PaymentSectionProps) {
     const [loading, setLoading] = useState(false);
-    const [method, setMethod] = useState<'MANUAL' | 'MIDTRANS'>('MIDTRANS');
+    const [method, setMethod] = useState<'MANUAL' | 'MIDTRANS' | 'MAYAR'>('MIDTRANS');
     const [proofUrl, setProofUrl] = useState('');
     const [amount, setAmount] = useState(0);
     const [snapLoading, setSnapLoading] = useState(false);
@@ -26,11 +26,40 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
     const [paymentHistory, setPaymentHistory] = useState<Payment[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
     const [loadingConfig, setLoadingConfig] = useState(false);
+    const [activeGateway, setActiveGateway] = useState<'MIDTRANS' | 'MAYAR'>('MIDTRANS');
+    const [manualEnabled, setManualEnabled] = useState(true);
+    const [bankDetails, setBankDetails] = useState({
+        bankName: 'BNI',
+        accountNo: '1825073247',
+        accountName: 'PT. Ana Nahnu Indonesia'
+    });
     // Mode pembayaran: DP (70%) atau Full (100%) — hanya untuk DP invoice
     const [paymentMode, setPaymentMode] = useState<'DP' | 'FULL'>('DP');
 
     const user = useAuthStore((state) => state.user);
     const isEditable = user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR';
+
+    // Load active payment settings on mount
+    useEffect(() => {
+        api.get('/system-settings/public')
+            .then(res => {
+                const data = res.data || {};
+                if (data.PAYMENT_GATEWAY_ACTIVE) {
+                    const gw = data.PAYMENT_GATEWAY_ACTIVE.toUpperCase() === 'MAYAR' ? 'MAYAR' : 'MIDTRANS';
+                    setActiveGateway(gw);
+                    setMethod(gw);
+                }
+                if (data.PAYMENT_MANUAL_ENABLED !== undefined) {
+                    setManualEnabled(data.PAYMENT_MANUAL_ENABLED !== 'false');
+                }
+                setBankDetails({
+                    bankName: data.PAYMENT_BANK_NAME || 'BNI',
+                    accountNo: data.PAYMENT_BANK_ACCOUNT_NO || '1825073247',
+                    accountName: data.PAYMENT_BANK_ACCOUNT_NAME || 'PT. Ana Nahnu Indonesia'
+                });
+            })
+            .catch(err => console.error("Failed to load public payment settings:", err));
+    }, []);
 
     // Resolve the correct invoice based on invoiceType
     const resolvedInvoice = (() => {
@@ -135,7 +164,7 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
 
         const interval = setInterval(async () => {
             try {
-                if (pending.method === 'MIDTRANS') {
+                if (pending.method === 'MIDTRANS' || pending.method === 'MAYAR') {
                     await api.post(`/payments/${pending.id}/sync`);
                 }
                 await loadHistory();
@@ -148,9 +177,9 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
         return () => clearInterval(interval);
     }, [paymentHistory, loadHistory, onPaymentSuccess]);
 
-    // Pre-load Snap.js when MIDTRANS method is selected
+    // Pre-load Snap.js when MIDTRANS is active
     useEffect(() => {
-        if (method === 'MIDTRANS' && !isSnapReady()) {
+        if ((method === 'MIDTRANS' || activeGateway === 'MIDTRANS') && !isSnapReady()) {
             setSnapLoading(true);
             loadSnapJs()
                 .then(() => {
@@ -162,7 +191,7 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
                     setSnapError(err.message);
                 });
         }
-    }, [method]);
+    }, [method, activeGateway]);
 
     const handlePay = async () => {
         setLoading(true);
@@ -176,45 +205,48 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
                 }
             }
 
-            if (method === 'MIDTRANS') {
-                // Ensure Snap.js is loaded
-                if (!isSnapReady()) {
-                    await loadSnapJs();
-                }
-
-                const res = await api.post('/payments/midtrans', {
+            if (method === 'MIDTRANS' || method === 'MAYAR') {
+                const res = await api.post('/payments/online', {
                     submission_id: submission.id,
                     amount: amount,
-                    email: user?.email || 'admin@ananahnu.id', // Ensure valid email format
+                    email: user?.email || 'admin@ananahnu.id',
                     customer_name: user?.full_name || submission.client?.business_name || 'Customer',
                     phone: submission.client?.phone || '08123456789',
                 });
 
-                const { snap_token: snapToken, snap_url: snapUrl } = res.data;
+                const { gateway, snap_token: snapToken, snap_url: snapUrl, payment_url: paymentUrl } = res.data;
 
-                // Try Snap popup first
-                if (isSnapReady()) {
-                    window.snap.pay(snapToken, {
-                        onSuccess: function (_result: Record<string, unknown>) {
-                            onPaymentSuccess();
-                            loadHistory();
-                        },
-                        onPending: function (_result: Record<string, unknown>) {
-                            toast.success('Pembayaran sedang diproses. Status akan diperbarui secara otomatis.');
-                            loadHistory();
-                        },
-                        onError: function (_result: Record<string, unknown>) {
-                            toast.error('Pembayaran gagal. Silakan coba lagi.');
-                            loadHistory();
-                        },
-                        onClose: function () {
-                            // Customer closed the popup without finishing payment
-                            loadHistory();
-                        },
-                    });
-                } else if (snapUrl) {
-                    // Fallback: redirect to Midtrans payment page
-                    window.open(snapUrl, '_blank');
+                if (gateway === 'MAYAR') {
+                    const targetUrl = paymentUrl || snapUrl;
+                    if (targetUrl) {
+                        window.open(targetUrl, '_blank');
+                        toast.success('Halaman pembayaran Mayar.id telah dibuka di tab baru.');
+                    }
+                    onPaymentSuccess();
+                    loadHistory();
+                } else {
+                    // Midtrans flow
+                    if (isSnapReady() && snapToken) {
+                        window.snap.pay(snapToken, {
+                            onSuccess: function (_result: Record<string, unknown>) {
+                                onPaymentSuccess();
+                                loadHistory();
+                            },
+                            onPending: function (_result: Record<string, unknown>) {
+                                toast.success('Pembayaran sedang diproses. Status akan diperbarui secara otomatis.');
+                                loadHistory();
+                            },
+                            onError: function (_result: Record<string, unknown>) {
+                                toast.error('Pembayaran gagal. Silakan coba lagi.');
+                                loadHistory();
+                            },
+                            onClose: function () {
+                                loadHistory();
+                            },
+                        });
+                    } else if (snapUrl) {
+                        window.open(snapUrl, '_blank');
+                    }
                 }
             } else {
                 // Manual payment
@@ -362,31 +394,50 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
         );
     }
 
-    // Show "Midtrans Payment Pending" state
-    if (pendingPayment && pendingPayment.method === 'MIDTRANS') {
-        const handleOpenSnap = () => {
-            if (pendingPayment.snap_token && isSnapReady()) {
-                window.snap.pay(pendingPayment.snap_token, {
-                    onSuccess: () => { onPaymentSuccess(); loadHistory(); },
-                    onPending: () => { toast.success('Pembayaran sedang diproses.'); loadHistory(); },
-                    onError: () => { toast.error('Pembayaran gagal.'); loadHistory(); },
-                    onClose: () => { loadHistory(); }
-                });
-            } else if (pendingPayment.snap_url) {
-                window.open(pendingPayment.snap_url, '_blank');
+    // Show "Online Payment Pending" state (Midtrans or Mayar)
+    if (pendingPayment && (pendingPayment.method === 'MIDTRANS' || pendingPayment.method === 'MAYAR')) {
+        const isMayar = pendingPayment.method === 'MAYAR';
+        const handleOpenOnlinePayment = () => {
+            if (isMayar) {
+                if (pendingPayment.snap_url) {
+                    window.open(pendingPayment.snap_url, '_blank');
+                } else if (pendingPayment.proof_url) {
+                    window.open(pendingPayment.proof_url, '_blank');
+                }
+            } else {
+                if (pendingPayment.snap_token && isSnapReady()) {
+                    window.snap.pay(pendingPayment.snap_token, {
+                        onSuccess: () => { onPaymentSuccess(); loadHistory(); },
+                        onPending: () => { toast.success('Pembayaran sedang diproses.'); loadHistory(); },
+                        onError: () => { toast.error('Pembayaran gagal.'); loadHistory(); },
+                        onClose: () => { loadHistory(); }
+                    });
+                } else if (pendingPayment.snap_url) {
+                    window.open(pendingPayment.snap_url, '_blank');
+                }
             }
         };
 
         return (
-            <div className="glass-panel p-6 bg-gradient-to-br from-blue-50 to-indigo-50/50 border border-blue-200/80 rounded-3xl space-y-5 shadow-md">
+            <div className={`glass-panel p-6 rounded-3xl space-y-5 shadow-md border ${
+                isMayar
+                    ? 'bg-gradient-to-br from-emerald-50 to-teal-50/50 border-emerald-200/80'
+                    : 'bg-gradient-to-br from-blue-50 to-indigo-50/50 border-blue-200/80'
+            }`}>
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 text-blue-900">
-                        <div className="p-2.5 bg-blue-100/80 rounded-2xl text-blue-700">
+                    <div className={`flex items-center gap-3 ${isMayar ? 'text-emerald-900' : 'text-blue-900'}`}>
+                        <div className={`p-2.5 rounded-2xl ${isMayar ? 'bg-emerald-100/80 text-emerald-700' : 'bg-blue-100/80 text-blue-700'}`}>
                             <CreditCard className="w-6 h-6" />
                         </div>
                         <div>
-                            <h3 className="text-base font-black">Pembayaran Midtrans Online Berlangsung</h3>
-                            <p className="text-xs text-blue-700 font-medium">Virtual Account (BCA, Mandiri, BRI, BNI), QRIS, atau E-Wallet</p>
+                            <h3 className="text-base font-black">
+                                Pembayaran {isMayar ? 'Mayar.id' : 'Midtrans'} Online Berlangsung
+                            </h3>
+                            <p className={`text-xs font-medium ${isMayar ? 'text-emerald-700' : 'text-blue-700'}`}>
+                                {isMayar
+                                    ? 'QRIS Real-time, Virtual Account Seluruh Bank, E-Wallet & Kartu Kredit'
+                                    : 'Virtual Account (BCA, Mandiri, BRI, BNI), QRIS, atau E-Wallet'}
+                            </p>
                         </div>
                     </div>
                     <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-black uppercase tracking-wider animate-pulse">
@@ -394,14 +445,16 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
                     </span>
                 </div>
 
-                <div className="p-4 bg-white/90 rounded-2xl border border-blue-100 space-y-2">
+                <div className={`p-4 bg-white/90 rounded-2xl border space-y-2 ${isMayar ? 'border-emerald-100' : 'border-blue-100'}`}>
                     <div className="flex justify-between items-center text-xs">
                         <span className="text-gray-500 font-bold">Total Tagihan:</span>
                         <span className="text-base font-black text-brand-600">{formatRupiah(pendingPayment.amount)}</span>
                     </div>
                     {pendingPayment.external_id && (
                         <div className="flex justify-between items-center text-xs">
-                            <span className="text-gray-500 font-medium">Order ID Midtrans:</span>
+                            <span className="text-gray-500 font-medium">
+                                {isMayar ? 'Order / Invoice ID Mayar:' : 'Order ID Midtrans:'}
+                            </span>
                             <span className="font-mono font-bold text-gray-700">{pendingPayment.external_id}</span>
                         </div>
                     )}
@@ -409,17 +462,21 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
 
                 <div className="flex flex-wrap gap-2 pt-1">
                     <button
-                        onClick={handleOpenSnap}
-                        className="flex-1 py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-brand-100 flex items-center justify-center gap-2"
+                        onClick={handleOpenOnlinePayment}
+                        className={`flex-1 py-3 px-4 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 ${
+                            isMayar
+                                ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'
+                                : 'bg-brand-600 hover:bg-brand-700 shadow-brand-100'
+                        }`}
                     >
                         <Zap className="w-4 h-4" />
-                        <span>Buka Menu Pembayaran (VA / QRIS / Snap)</span>
+                        <span>Buka Menu Pembayaran ({isMayar ? 'Mayar.id' : 'Snap / QRIS / VA'})</span>
                     </button>
                     
                     <button
                         onClick={() => handleSync(pendingPayment.id)}
                         disabled={loading}
-                        className="py-3 px-4 bg-white hover:bg-blue-50 border border-blue-200 text-blue-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
+                        className="py-3 px-4 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
                         title="Cek Status Pembayaran"
                     >
                         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
@@ -560,7 +617,7 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
                                     try {
                                         const breakdown = JSON.parse(submission.cost_detail.cost_breakdown_data);
                                         return breakdown.map((item: any, idx: number) => (
-                                            <tr key={idx} className="hover:bg-gray-50/50">
+                                             <tr key={idx} className="hover:bg-gray-50/50">
                                                 <td className="py-2 px-3 text-gray-800">{item.name || item.category || item.item_name}</td>
                                                 <td className="py-2 px-3 text-gray-600 text-center">{item.multiplier || item.quantity || 1}</td>
                                                 <td className="py-2 px-3 text-gray-600 text-right">{formatRupiah(item.unit_cost !== undefined ? item.unit_cost : (item.amount || item.unit_price || 0))}</td>
@@ -578,39 +635,45 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
             )}
 
             {/* Method selector */}
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
                 <button
-                    onClick={() => setMethod('MIDTRANS')}
-                    className={`flex-1 p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${method === 'MIDTRANS'
+                    onClick={() => setMethod(activeGateway)}
+                    className={`flex-1 p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${method === 'MIDTRANS' || method === 'MAYAR'
                         ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-sm'
                         : 'border-gray-200 hover:border-gray-300 text-gray-600'
                         }`}
                 >
                     <CreditCard className="w-6 h-6" />
-                    <span className="font-medium text-sm">Bayar Online</span>
-                    <span className="text-xs opacity-70">QRIS, Transfer, E-Wallet</span>
+                    <span className="font-medium text-sm">
+                        Bayar Online ({activeGateway === 'MAYAR' ? 'Mayar.id' : 'Midtrans'})
+                    </span>
+                    <span className="text-xs opacity-70">
+                        {activeGateway === 'MAYAR' ? 'QRIS, Virtual Account, E-Wallet' : 'QRIS, Transfer, E-Wallet'}
+                    </span>
                 </button>
-                <button
-                    onClick={() => setMethod('MANUAL')}
-                    className={`flex-1 p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${method === 'MANUAL'
-                        ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-sm'
-                        : 'border-gray-200 hover:border-gray-300 text-gray-600'
-                        }`}
-                >
-                    <Upload className="w-6 h-6" />
-                    <span className="font-medium text-sm">Transfer Manual</span>
-                    <span className="text-xs opacity-70">Upload bukti transfer</span>
-                </button>
+                {manualEnabled && (
+                    <button
+                        onClick={() => setMethod('MANUAL')}
+                        className={`flex-1 p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${method === 'MANUAL'
+                            ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-sm'
+                            : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                            }`}
+                    >
+                        <Upload className="w-6 h-6" />
+                        <span className="font-medium text-sm">Transfer Manual</span>
+                        <span className="text-xs opacity-70">Upload bukti transfer</span>
+                    </button>
+                )}
             </div>
 
-            {/* Snap.js loading indicator */}
-            {method === 'MIDTRANS' && snapLoading && (
+            {/* Snap.js loading indicator for Midtrans */}
+            {(method === 'MIDTRANS' || (method !== 'MANUAL' && activeGateway === 'MIDTRANS')) && snapLoading && (
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                     <Loader2 className="animate-spin w-4 h-4" />
                     Memuat sistem pembayaran...
                 </div>
             )}
-            {method === 'MIDTRANS' && snapError && (
+            {(method === 'MIDTRANS' || (method !== 'MANUAL' && activeGateway === 'MIDTRANS')) && snapError && (
                 <div className="flex items-center gap-2 text-sm text-red-600">
                     <AlertCircle className="w-4 h-4" />
                     {snapError}. Anda akan diarahkan ke halaman pembayaran Midtrans.
@@ -624,13 +687,13 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
                         <p className="font-black text-xs uppercase tracking-wider text-brand-750">Rekening Tujuan Transfer</p>
                         <div className="grid grid-cols-3 gap-2 text-xs font-semibold">
                             <span className="text-brand-600">Bank:</span>
-                            <span className="col-span-2 text-gray-850">BNI</span>
+                            <span className="col-span-2 text-gray-850">{bankDetails.bankName}</span>
                             
                             <span className="text-brand-600">Nomor Rekening:</span>
-                            <span className="col-span-2 text-gray-850 font-mono font-bold select-all">1825073247</span>
+                            <span className="col-span-2 text-gray-850 font-mono font-bold select-all">{bankDetails.accountNo}</span>
                             
                             <span className="text-brand-600">Atas Nama:</span>
-                            <span className="col-span-2 text-gray-850">PT. Ana Nahnu Indonesia</span>
+                            <span className="col-span-2 text-gray-850">{bankDetails.accountName}</span>
                         </div>
                     </div>
                     <label className="block text-sm font-medium text-gray-700">Bukti Pembayaran (Transfer)</label>

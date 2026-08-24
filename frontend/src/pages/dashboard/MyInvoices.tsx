@@ -120,10 +120,6 @@ export default function MyInvoices() {
 
     const handlePay = async () => {
         if (selectedIds.length === 0) return;
-        if (!isSnapReady()) {
-            toast.error("Midtrans belum siap. Silakan refresh halaman.");
-            return;
-        }
 
         setPaying(true);
         try {
@@ -131,36 +127,57 @@ export default function MyInvoices() {
                 invoice_ids: selectedIds
             });
 
+            const method = res.data.method;
             const snapToken = res.data.snap_token;
+            const snapUrl = res.data.snap_url;
             const paymentId = res.data.id;
-            (window as any).snap.pay(snapToken, {
-                onSuccess: async () => {
-                    toast.success("Pembayaran berhasil!");
-                    try {
-                        await api.post(`/payments/${paymentId}/sync`);
-                    } catch (e) {
-                        console.error("Failed to sync payment status", e);
-                    }
-                    fetchInvoices(activeTab);
-                    setSelectedIds([]);
-                },
-                onPending: async () => {
-                    toast("Menunggu pembayaran...", { icon: '⏳' });
-                    try {
-                        await api.post(`/payments/${paymentId}/sync`);
-                    } catch (e) {
-                        console.error("Failed to sync payment status", e);
-                    }
-                    fetchInvoices(activeTab);
-                    setSelectedIds([]);
-                },
-                onError: () => {
-                    toast.error("Pembayaran gagal.");
-                },
-                onClose: () => {
-                    setPaying(false);
+
+            if (method === 'MAYAR') {
+                if (snapUrl) {
+                    window.open(snapUrl, '_blank');
+                    toast.success("Halaman pembayaran Mayar.id telah dibuka di tab baru.");
                 }
-            });
+                fetchInvoices(activeTab);
+                setSelectedIds([]);
+            } else {
+                // Midtrans Snap flow
+                if (!isSnapReady()) {
+                    await loadSnapJs();
+                }
+
+                if ((window as any).snap && snapToken) {
+                    (window as any).snap.pay(snapToken, {
+                        onSuccess: async () => {
+                            toast.success("Pembayaran berhasil!");
+                            try {
+                                await api.post(`/payments/${paymentId}/sync`);
+                            } catch (e) {
+                                console.error("Failed to sync payment status", e);
+                            }
+                            fetchInvoices(activeTab);
+                            setSelectedIds([]);
+                        },
+                        onPending: async () => {
+                            toast("Menunggu pembayaran...", { icon: '⏳' });
+                            try {
+                                await api.post(`/payments/${paymentId}/sync`);
+                            } catch (e) {
+                                console.error("Failed to sync payment status", e);
+                            }
+                            fetchInvoices(activeTab);
+                            setSelectedIds([]);
+                        },
+                        onError: () => {
+                            toast.error("Pembayaran gagal.");
+                        },
+                        onClose: () => {
+                            setPaying(false);
+                        }
+                    });
+                } else if (snapUrl) {
+                    window.open(snapUrl, '_blank');
+                }
+            }
         } catch (err: any) {
             toast.error(err.response?.data?.error || "Gagal memproses pembayaran");
         } finally {

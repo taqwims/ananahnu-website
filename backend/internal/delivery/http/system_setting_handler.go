@@ -91,6 +91,15 @@ func (h *SystemSettingHandler) GetPublicSettings(c *gin.Context) {
 		"COMPANY_EMAIL":              true,
 		"facilitation_quota_limit":   true,
 		"facilitation_quota_used":    true,
+		"PAYMENT_GATEWAY_ACTIVE":     true,
+		"PAYMENT_MANUAL_ENABLED":     true,
+		"PAYMENT_ONLINE_ENABLED":     true,
+		"PAYMENT_BANK_NAME":          true,
+		"PAYMENT_BANK_ACCOUNT_NO":    true,
+		"PAYMENT_BANK_ACCOUNT_NAME":  true,
+		"MIDTRANS_CLIENT_KEY":        true,
+		"MIDTRANS_IS_PRODUCTION":     true,
+		"MAYAR_IS_PRODUCTION":        true,
 	}
 
 	settingMap := make(map[string]string)

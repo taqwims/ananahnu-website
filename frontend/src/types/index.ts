@@ -54,12 +54,13 @@ export interface Payment {
     id: number;
     submission_id: string;
     amount: number;
-    method: 'MANUAL' | 'MIDTRANS';
+    method: 'MANUAL' | 'MIDTRANS' | 'MAYAR';
     status: 'PENDING' | 'PAID' | 'FAILED';
     proof_url?: string;
     external_id?: string;
     snap_token?: string;
     snap_url?: string;
+    payment_url?: string;
     midtrans_id?: string;
     payment_type?: string;
     paid_at?: string;

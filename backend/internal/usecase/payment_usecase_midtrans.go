@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -134,7 +135,7 @@ func (uc *paymentUsecase) HandleMidtransNotification(payload map[string]interfac
 	return nil
 }
 
-// SyncPaymentStatus manually queries Midtrans API to update the local payment status.
+// SyncPaymentStatus manually queries Midtrans or Mayar API to update the local payment status.
 func (uc *paymentUsecase) SyncPaymentStatus(paymentID int64) error {
 	payment, err := uc.PaymentRepo.FindByID(paymentID)
 	if err != nil {
@@ -145,13 +146,65 @@ func (uc *paymentUsecase) SyncPaymentStatus(paymentID int64) error {
 		return nil
 	}
 
+	previousStatus := payment.Status
+
+	if payment.Method == domain.PaymentMethodMayar {
+		if uc.Mayar == nil {
+			return errors.New("mayar gateway is not initialized")
+		}
+
+		apiKey, isProd := uc.getMayarConfig()
+		invoiceID := payment.SnapToken
+		if invoiceID == "" {
+			invoiceID = payment.ExternalID
+		}
+
+		statusRes, err := uc.Mayar.GetInvoiceStatus(invoiceID, apiKey, isProd)
+		if err != nil {
+			log.Printf("[MAYAR SYNC] Failed to check status for %s: %v", invoiceID, err)
+			return fmt.Errorf("failed to check mayar status: %w", err)
+		}
+
+		normalizedStatus := strings.ToUpper(strings.TrimSpace(statusRes.Status))
+		switch normalizedStatus {
+		case "PAID", "SUCCESS", "SETTLED", "COMPLETED", "SETTLEMENT":
+			payment.Status = domain.PaymentStatusPaid
+			now := time.Now()
+			payment.PaidAt = &now
+		case "FAILED", "CANCELLED", "DENY":
+			payment.Status = domain.PaymentStatusFailed
+		case "EXPIRED":
+			return uc.PaymentRepo.Delete(payment.ID)
+		}
+
+		if statusRes.PaymentMethod != "" {
+			payment.PaymentType = statusRes.PaymentMethod
+		}
+		if statusRes.TransactionID != "" {
+			payment.MidtransID = statusRes.TransactionID
+		}
+
+		if err := uc.PaymentRepo.Update(payment); err != nil {
+			return err
+		}
+
+		if payment.Status == domain.PaymentStatusPaid && previousStatus != domain.PaymentStatusPaid {
+			_ = uc.updateLinkedInvoices(payment.ID)
+
+			if payment.SubmissionID != nil {
+				_ = uc.WorkflowUC.HandlePaymentSuccess(*payment.SubmissionID, payment.Amount)
+			}
+		}
+
+		return nil
+	}
+
+	// Midtrans default sync
 	txStatus, err := uc.Midtrans.CheckTransactionStatus(payment.ExternalID)
 	if err != nil {
 		return err
 	}
 
-	previousStatus := payment.Status
-	
 	switch txStatus.TransactionStatus {
 	case "capture", "settlement":
 		payment.Status = domain.PaymentStatusPaid
@@ -166,7 +219,7 @@ func (uc *paymentUsecase) SyncPaymentStatus(paymentID int64) error {
 		payment.PaidAt = &now
 		payment.PaymentType = txStatus.PaymentType
 		payment.MidtransID = txStatus.TransactionID
-		
+
 		if err := uc.PaymentRepo.Update(payment); err != nil {
 			return err
 		}
