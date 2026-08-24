@@ -3,6 +3,7 @@ package usecase
 import (
 	"ananahnu/internal/domain"
 	"ananahnu/pkg/whatsapp"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -18,6 +19,7 @@ type NotificationUsecase interface {
 	
 	// Workflow specific
 	SendWorkflowNotification(key string, replacements map[string]string, targetPhone string, userID *uuid.UUID, entityID uuid.UUID, title, fallbackMsg string) error
+	TestWhatsApp(target string, message string) (string, error)
 }
 
 type NotificationUsecaseDeps struct {
@@ -68,6 +70,27 @@ func (uc *notificationUsecase) SendWhatsAppNotification(target string, message s
 	}
 	
 	return uc.WASender.Send(target, message)
+}
+
+func (uc *notificationUsecase) TestWhatsApp(target string, message string) (string, error) {
+	if uc.WASender == nil {
+		return "", fmt.Errorf("WhatsApp sender belum diinisialisasi")
+	}
+
+	target = strings.ReplaceAll(target, " ", "")
+	target = strings.ReplaceAll(target, "-", "")
+	target = strings.ReplaceAll(target, "+", "")
+	if strings.HasPrefix(target, "0") {
+		target = "62" + target[1:]
+	} else if !strings.HasPrefix(target, "62") {
+		target = "62" + target
+	}
+
+	if message == "" {
+		message = "Halo! Ini adalah pesan pengujian notifikasi WhatsApp dari HalalCore Ananahnu."
+	}
+
+	return uc.WASender.SendSync(target, message)
 }
 
 func (uc *notificationUsecase) SendWorkflowNotification(key string, replacements map[string]string, targetPhone string, userID *uuid.UUID, entityID uuid.UUID, title, fallbackMsg string) error {

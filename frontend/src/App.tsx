@@ -78,6 +78,15 @@ import SPHForm from './pages/dashboard/SPHForm';
 import EstimasiBiaya from './pages/dashboard/EstimasiBiaya';
 import SHWorkspace from './pages/dashboard/SHWorkspace';
 import ClientPengajuanPage from './pages/dashboard/ClientPengajuanPage';
+import OperationalSubmissions from './pages/dashboard/OperationalSubmissions';
+import OperationalQCQueue from './pages/dashboard/OperationalQCQueue';
+import OperationalHDOQueue from './pages/dashboard/OperationalHDOQueue';
+import OperationalSelfDeclare from './pages/dashboard/OperationalSelfDeclare';
+import OperationalAuditManagement from './pages/dashboard/OperationalAuditManagement';
+import OperationalReports from './pages/dashboard/OperationalReports';
+import OperationalNotifications from './pages/dashboard/OperationalNotifications';
+import OperationalSettings from './pages/dashboard/OperationalSettings';
+import OperationalHelp from './pages/dashboard/OperationalHelp';
 
 import { Toaster } from 'react-hot-toast';
 
@@ -252,6 +261,35 @@ function App() {
           {/* SPH */}
           <Route path="sph/:id" element={
             <RoleRoute path="sph"><SPHForm /></RoleRoute>
+          } />
+
+          {/* Modul Manajer Operasional */}
+          <Route path="pengajuan-masuk" element={
+            <RoleRoute path="pengajuan-masuk"><OperationalSubmissions /></RoleRoute>
+          } />
+          <Route path="antrean-qc" element={
+            <RoleRoute path="antrean-qc"><OperationalQCQueue /></RoleRoute>
+          } />
+          <Route path="antrean-hdo" element={
+            <RoleRoute path="antrean-hdo"><OperationalHDOQueue /></RoleRoute>
+          } />
+          <Route path="verifikasi-self-declare" element={
+            <RoleRoute path="verifikasi-self-declare"><OperationalSelfDeclare /></RoleRoute>
+          } />
+          <Route path="manajemen-audit" element={
+            <RoleRoute path="manajemen-audit"><OperationalAuditManagement /></RoleRoute>
+          } />
+          <Route path="laporan-operasional" element={
+            <RoleRoute path="laporan-operasional"><OperationalReports /></RoleRoute>
+          } />
+          <Route path="notifikasi-operasional" element={
+            <RoleRoute path="notifikasi-operasional"><OperationalNotifications /></RoleRoute>
+          } />
+          <Route path="pengaturan-operasional" element={
+            <RoleRoute path="pengaturan-operasional"><OperationalSettings /></RoleRoute>
+          } />
+          <Route path="bantuan" element={
+            <RoleRoute path="bantuan"><OperationalHelp /></RoleRoute>
           } />
         </Route>
 

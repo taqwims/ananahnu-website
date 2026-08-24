@@ -21,6 +21,9 @@ import (
 	"ananahnu/internal/repository"
 	"ananahnu/internal/usecase"
 	"os"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -106,6 +109,10 @@ func main() {
 		&domain.TeleForm{},
 		&domain.TeleMeeting{},
 		&domain.TeleAgreement{},
+		// Operational Manager
+		&domain.LPHPartner{},
+		&domain.AuditorPartner{},
+		&domain.DailyQuota{},
 	)
 	if err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
@@ -155,6 +162,9 @@ func main() {
 		}
 	}
 
+	// 4.6 Seed Operational Manager & Staff Users (Idempotent)
+	seedOperationalData(db)
+
 	// 5. Setup Repositories
 	userRepo := repository.NewUserRepository(db)
 	roleRepo := repository.NewRoleRepository(db)
@@ -185,6 +195,7 @@ func main() {
 	teleMeetingRepo := repository.NewTeleMeetingRepository(db)
 	teleAgreementRepo := repository.NewTeleAgreementRepository(db)
 	promotionRepo := repository.NewPromotionRepository(db)
+	operationalRepo := repository.NewOperationalRepository(db)
 
 	// Services
 	emailSender := email.NewGmailSender()
@@ -371,6 +382,15 @@ func main() {
 		UserRepo:       userRepo,
 	})
 
+	operationalUC := usecase.NewOperationalUsecase(usecase.OperationalUsecaseDeps{
+		Repo:        operationalRepo,
+		SubRepo:     submissionRepo,
+		AuditRepo:   auditRepo,
+		UserRepo:    userRepo,
+		NotifUC:     notificationUC,
+		SettingRepo: settingRepo,
+	})
+
 	// 7. Setup Router & Handlers
 	r := gin.Default()
 
@@ -429,6 +449,7 @@ func main() {
 	httpDelivery.NewFinanceHandler(r, financeUC)
 	httpDelivery.NewBizDevHandler(r, bizDevUC)
 	httpDelivery.NewTelemarketingHandler(r, teleUC)
+	httpDelivery.NewOperationalHandler(r, operationalUC)
 
 	// Static files
 	r.Static("/uploads", "./uploads")
@@ -480,5 +501,460 @@ func main() {
 	// 9. Run
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("Failed to run server: %v", err)
+	}
+}
+
+func seedOperationalData(db *gorm.DB) {
+	log.Println("Seeding Operational Users, Partners & Submissions...")
+	hashed, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+
+	// Roles
+	var managerRole, qcoRole, drafterRole, verifRole, advisorRole domain.Role
+	db.Where("name = ?", "MANAGER").First(&managerRole)
+	db.Where("name = ?", "QC_OFFICER").First(&qcoRole)
+	db.Where("name = ?", "DRAFTER").First(&drafterRole)
+	db.Where("name = ?", "VERIFIKATOR").First(&verifRole)
+	db.Where("name = ?", "HALAL_ADVISOR").First(&advisorRole)
+
+	// 1. Manager
+	if managerRole.ID != 0 {
+		var mgr domain.User
+		if err := db.Where("email = ?", "operasional@halalcore.id").First(&mgr).Error; err != nil {
+			db.Create(&domain.User{
+				Email:        "operasional@halalcore.id",
+				Username:     "manajer_operasional",
+				FullName:     "Manajer Operasional",
+				Phone:        "081234567800",
+				PasswordHash: string(hashed),
+				RoleID:       managerRole.ID,
+				ReferralCode: "REF-MGR-OPS",
+			})
+		}
+	}
+
+	// 2. QCO Staff
+	var qco1, qco2, qco3 domain.User
+	if qcoRole.ID != 0 {
+		if err := db.Where("email = ?", "qco1@ananahnu.id").First(&qco1).Error; err != nil {
+			qco1 = domain.User{
+				Email:        "qco1@ananahnu.id",
+				Username:     "sarah_qco",
+				FullName:     "Sarah Fatimah, S.TP",
+				Phone:        "08122334455",
+				PasswordHash: string(hashed),
+				RoleID:       qcoRole.ID,
+				ReferralCode: "REF-QCO-01",
+			}
+			db.Create(&qco1)
+		}
+		if err := db.Where("email = ?", "qco2@ananahnu.id").First(&qco2).Error; err != nil {
+			qco2 = domain.User{
+				Email:        "qco2@ananahnu.id",
+				Username:     "dimas_qco",
+				FullName:     "Dimas Wicaksono, S.Si",
+				Phone:        "08133445566",
+				PasswordHash: string(hashed),
+				RoleID:       qcoRole.ID,
+				ReferralCode: "REF-QCO-02",
+			}
+			db.Create(&qco2)
+		}
+		if err := db.Where("email = ?", "qco3@ananahnu.id").First(&qco3).Error; err != nil {
+			qco3 = domain.User{
+				Email:        "qco3@ananahnu.id",
+				Username:     "nadia_qco",
+				FullName:     "Nadia Putri, S.Gz",
+				Phone:        "08144556677",
+				PasswordHash: string(hashed),
+				RoleID:       qcoRole.ID,
+				ReferralCode: "REF-QCO-03",
+			}
+			db.Create(&qco3)
+		}
+	}
+
+	// 3. Drafter Staff (HDO)
+	var d1, d2, d3 domain.User
+	if drafterRole.ID != 0 {
+		if err := db.Where("email = ?", "drafter1@ananahnu.id").First(&d1).Error; err != nil {
+			d1 = domain.User{
+				Email:        "drafter1@ananahnu.id",
+				Username:     "hendra_drafter",
+				FullName:     "Hendra Pratama",
+				Phone:        "08155667788",
+				PasswordHash: string(hashed),
+				RoleID:       drafterRole.ID,
+				ReferralCode: "REF-DFT-01",
+			}
+			db.Create(&d1)
+		}
+		if err := db.Where("email = ?", "drafter2@ananahnu.id").First(&d2).Error; err != nil {
+			d2 = domain.User{
+				Email:        "drafter2@ananahnu.id",
+				Username:     "ayu_drafter",
+				FullName:     "Ayu Lestari",
+				Phone:        "08166778899",
+				PasswordHash: string(hashed),
+				RoleID:       drafterRole.ID,
+				ReferralCode: "REF-DFT-02",
+			}
+			db.Create(&d2)
+		}
+		if err := db.Where("email = ?", "drafter3@ananahnu.id").First(&d3).Error; err != nil {
+			d3 = domain.User{
+				Email:        "drafter3@ananahnu.id",
+				Username:     "budi_drafter",
+				FullName:     "Budi Setiawan",
+				Phone:        "08177889900",
+				PasswordHash: string(hashed),
+				RoleID:       drafterRole.ID,
+				ReferralCode: "REF-DFT-03",
+			}
+			db.Create(&d3)
+		}
+	}
+
+	// 4. Verifikator Staff (Self Declare)
+	var v1, v2 domain.User
+	if verifRole.ID != 0 {
+		if err := db.Where("email = ?", "verifikator1@ananahnu.id").First(&v1).Error; err != nil {
+			v1 = domain.User{
+				Email:        "verifikator1@ananahnu.id",
+				Username:     "nurul_verif",
+				FullName:     "Nurul Hidayah, S.Pd",
+				Phone:        "08188990011",
+				PasswordHash: string(hashed),
+				RoleID:       verifRole.ID,
+				ReferralCode: "REF-VRF-01",
+			}
+			db.Create(&v1)
+		}
+		if err := db.Where("email = ?", "verifikator2@ananahnu.id").First(&v2).Error; err != nil {
+			v2 = domain.User{
+				Email:        "verifikator2@ananahnu.id",
+				Username:     "rizky_verif",
+				FullName:     "Rizky Ramadhan",
+				Phone:        "08199001122",
+				PasswordHash: string(hashed),
+				RoleID:       verifRole.ID,
+				ReferralCode: "REF-VRF-02",
+			}
+			db.Create(&v2)
+		}
+	}
+
+	// 5. Halal Advisor
+	var adv1, adv2 domain.User
+	if advisorRole.ID != 0 {
+		if err := db.Where("email = ?", "advisor1@ananahnu.id").First(&adv1).Error; err != nil {
+			adv1 = domain.User{
+				Email:        "advisor1@ananahnu.id",
+				Username:     "siti_advisor",
+				FullName:     "Siti Aisyah",
+				Phone:        "081234567890",
+				PasswordHash: string(hashed),
+				RoleID:       advisorRole.ID,
+				ReferralCode: "REF-ADV-01",
+			}
+			db.Create(&adv1)
+		}
+		if err := db.Where("email = ?", "advisor2@ananahnu.id").First(&adv2).Error; err != nil {
+			adv2 = domain.User{
+				Email:        "advisor2@ananahnu.id",
+				Username:     "fauzan_advisor",
+				FullName:     "Fauzan Arifin",
+				Phone:        "081298765432",
+				PasswordHash: string(hashed),
+				RoleID:       advisorRole.ID,
+				ReferralCode: "REF-ADV-02",
+			}
+			db.Create(&adv2)
+		}
+	}
+
+	// 6. Seed LPH Partners & Auditors
+	var lphCount int64
+	db.Model(&domain.LPHPartner{}).Count(&lphCount)
+	if lphCount == 0 {
+		lph1 := domain.LPHPartner{
+			Name:   "LPH LPPOM MUI",
+			Code:   "LPH-001",
+			Region: "Nasional",
+			Phone:  "021-8796291",
+			Email:  "info@halalmui.org",
+			Status: "Aktif",
+		}
+		lph2 := domain.LPHPartner{
+			Name:   "LPH Sucofindo",
+			Code:   "LPH-002",
+			Region: "Nasional",
+			Phone:  "021-7983666",
+			Email:  "halal@sucofindo.co.id",
+			Status: "Aktif",
+		}
+		lph3 := domain.LPHPartner{
+			Name:   "LPH Surveyor Indonesia",
+			Code:   "LPH-003",
+			Region: "Nasional",
+			Phone:  "021-5265526",
+			Email:  "halal@ptsi.co.id",
+			Status: "Aktif",
+		}
+		lph4 := domain.LPHPartner{
+			Name:   "LPH PERSIS",
+			Code:   "LPH-004",
+			Region: "Jawa Barat",
+			Phone:  "022-4201234",
+			Email:  "info@lphpersis.or.id",
+			Status: "Aktif",
+		}
+		db.Create(&lph1)
+		db.Create(&lph2)
+		db.Create(&lph3)
+		db.Create(&lph4)
+
+		// Seed Auditors
+		db.Create(&domain.AuditorPartner{
+			Name:    "Dr. Ir. Budi Santoso, M.Si",
+			Code:    "AUD-001",
+			LPHID:   &lph1.ID,
+			LPHName: lph1.Name,
+			Phone:   "081234567890",
+			Email:   "budi.santoso@auditor.id",
+			Status:  "Aktif",
+		})
+		db.Create(&domain.AuditorPartner{
+			Name:    "Rina Wijayanti, S.Si",
+			Code:    "AUD-002",
+			LPHID:   &lph1.ID,
+			LPHName: lph1.Name,
+			Phone:   "081298765432",
+			Email:   "rina.wijaya@auditor.id",
+			Status:  "Aktif",
+		})
+		db.Create(&domain.AuditorPartner{
+			Name:    "Ahmad Fauzi, M.T",
+			Code:    "AUD-003",
+			LPHID:   &lph2.ID,
+			LPHName: lph2.Name,
+			Phone:   "081377889900",
+			Email:   "ahmad.fauzi@auditor.id",
+			Status:  "Aktif",
+		})
+		db.Create(&domain.AuditorPartner{
+			Name:    "Dewi Sartika, S.TP",
+			Code:    "AUD-004",
+			LPHID:   &lph3.ID,
+			LPHName: lph3.Name,
+			Phone:   "081488990011",
+			Email:   "dewi.sartika@auditor.id",
+			Status:  "Aktif",
+		})
+		db.Create(&domain.AuditorPartner{
+			Name:    "Rizky Fadlan, M.Si",
+			Code:    "AUD-005",
+			LPHID:   &lph4.ID,
+			LPHName: lph4.Name,
+			Phone:   "081599001122",
+			Email:   "rizky.fadlan@auditor.id",
+			Status:  "Aktif",
+		})
+	}
+
+	// 7. Seed Daily Quota (SEHATI)
+	var quotaCount int64
+	db.Model(&domain.DailyQuota{}).Count(&quotaCount)
+	if quotaCount == 0 {
+		todayStr := time.Now().Format("2006-01-02")
+		quotas := []domain.DailyQuota{
+			{Date: todayStr, Region: "DKI Jakarta", Allocated: 3000, PrevUsed: 1942, UsedToday: 32, UpdatedBy: "Sistem"},
+			{Date: todayStr, Region: "Jawa Barat", Allocated: 3500, PrevUsed: 2318, UsedToday: 41, UpdatedBy: "Sistem"},
+			{Date: todayStr, Region: "Jawa Tengah", Allocated: 2500, PrevUsed: 1705, UsedToday: 28, UpdatedBy: "Sistem"},
+			{Date: todayStr, Region: "Jawa Timur", Allocated: 2000, PrevUsed: 1384, UsedToday: 19, UpdatedBy: "Sistem"},
+			{Date: todayStr, Region: "Banten", Allocated: 1500, PrevUsed: 765, UsedToday: 6, UpdatedBy: "Sistem"},
+			{Date: todayStr, Region: "DI Yogyakarta", Allocated: 1000, PrevUsed: 420, UsedToday: 8, UpdatedBy: "Sistem"},
+		}
+		for _, q := range quotas {
+			db.Create(&q)
+		}
+	}
+
+	// 8. Seed Sample Submissions if needed
+	var subCount int64
+	db.Model(&domain.Submission{}).Count(&subCount)
+	if subCount < 5 {
+		seedSampleSubmissions(db, adv1.ID, qco1.ID, d1.ID)
+	}
+
+	log.Println("✓ Operational Users, Partners & Submissions seeded successfully.")
+}
+
+func seedSampleSubmissions(db *gorm.DB, advisorID, qcoID, drafterID uuid.UUID) {
+	now := time.Now()
+	deadline1 := now.AddDate(0, 0, 3)
+	deadline2 := now.AddDate(0, 0, 5)
+	auditDate := now.AddDate(0, 0, 14)
+
+	clients := []struct {
+		ClientName   string
+		BusinessName string
+		NIB          string
+		Address      string
+		Phone        string
+		ServiceType  string
+		SDType       string
+		Status       domain.SubmissionStatus
+		Priority     string
+		Sihal        string
+		LPH          string
+		Auditor      string
+		AssignedID   *uuid.UUID
+		AuditTime    *time.Time
+		Tracking     string
+	}{
+		{
+			ClientName:   "Hj. Siti Mariam",
+			BusinessName: "Dapoer Zuhra Snack & Bakery",
+			NIB:          "0220108920191",
+			Address:      "Jl. Buah Batu No. 120, Kota Bandung, Jawa Barat",
+			Phone:        "081234567891",
+			ServiceType:  "REGULER",
+			Status:       domain.StatusQCOfficer,
+			Priority:     "HIGH",
+			Sihal:        "SH-2026-0801",
+			AssignedID:   &qcoID,
+			Tracking:     "HC-2608-00101",
+		},
+		{
+			ClientName:   "Budi Hartono",
+			BusinessName: "PT Pangan Sejahtera Mandiri",
+			NIB:          "0220108920192",
+			Address:      "Kawasan Industri Jababeka Blok C-12, Cikarang, Jawa Barat",
+			Phone:        "081234567892",
+			ServiceType:  "REGULER",
+			Status:       domain.StatusQCReview,
+			Priority:     "URGENT",
+			Sihal:        "SH-2026-0802",
+			AssignedID:   &qcoID,
+			Tracking:     "HC-2608-00102",
+		},
+		{
+			ClientName:   "Dedi Kurniawan",
+			BusinessName: "Kenangan Cake & Pastry",
+			NIB:          "0220108920193",
+			Address:      "Jl. Malioboro No. 45, Yogyakarta",
+			Phone:        "081234567893",
+			ServiceType:  "REGULER",
+			Status:       domain.StatusWaitingAssignment,
+			Priority:     "NORMAL",
+			Sihal:        "",
+			Tracking:     "HC-2608-00103",
+		},
+		{
+			ClientName:   "Ahmad Rifai",
+			BusinessName: "Alam Segar Sari Buah",
+			NIB:          "0220108920194",
+			Address:      "Jl. Raya Tajur No. 88, Kota Bogor, Jawa Barat",
+			Phone:        "081234567894",
+			ServiceType:  "REGULER",
+			Status:       domain.StatusDrafter,
+			Priority:     "HIGH",
+			Sihal:        "SH-2026-0804",
+			AssignedID:   &drafterID,
+			Tracking:     "HC-2608-00104",
+		},
+		{
+			ClientName:   "Eko Prasetyo",
+			BusinessName: "Keripik Singkong Barokah",
+			NIB:          "0220108920195",
+			Address:      "Desa Sukamaju RT 03/02, Kab. Garut, Jawa Barat",
+			Phone:        "081234567895",
+			ServiceType:  "SELF_DECLARE",
+			SDType:       "GRATIS",
+			Status:       domain.StatusVervalPendamping,
+			Priority:     "NORMAL",
+			Tracking:     "HC-2608-00105",
+		},
+		{
+			ClientName:   "Ratna Sari",
+			BusinessName: "Madu Murni Al-Barokah",
+			NIB:          "0220108920196",
+			Address:      "Jl. Ahmad Yani No. 12, Kota Surabaya, Jawa Timur",
+			Phone:        "081234567896",
+			ServiceType:  "SELF_DECLARE",
+			SDType:       "MANDIRI",
+			Status:       domain.StatusVervalPendamping,
+			Priority:     "NORMAL",
+			Tracking:     "HC-2608-00106",
+		},
+		{
+			ClientName:   "Dr. Hendra Wijaya",
+			BusinessName: "PT Boga Halal Perkasa",
+			NIB:          "0220108920197",
+			Address:      "Jl. Gatot Subroto No. 200, Jakarta Selatan",
+			Phone:        "081234567897",
+			ServiceType:  "REGULER",
+			Status:       domain.StatusQCReview,
+			Priority:     "HIGH",
+			Sihal:        "SH-2026-0807",
+			LPH:          "LPH LPPOM MUI",
+			Auditor:      "Dr. Ir. Budi Santoso, M.Si",
+			AuditTime:    &auditDate,
+			Tracking:     "HC-2608-00107",
+		},
+		{
+			ClientName:   "H. Slamet Riyadi",
+			BusinessName: "Bakso Halal Juara",
+			NIB:          "0220108920198",
+			Address:      "Jl. Pahlawan No. 55, Kota Semarang, Jawa Tengah",
+			Phone:        "081234567898",
+			ServiceType:  "REGULER",
+			Status:       domain.StatusSHTerbit,
+			Priority:     "NORMAL",
+			Sihal:        "ID33110002345670824",
+			Tracking:     "HC-2608-00108",
+		},
+	}
+
+	for _, c := range clients {
+		client := domain.Client{
+			NIB:             c.NIB,
+			BusinessName:    c.BusinessName,
+			ClientName:      c.ClientName,
+			Address:         c.Address,
+			Phone:           c.Phone,
+			ServiceType:     c.ServiceType,
+			SelfDeclareType: c.SDType,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		if err := db.Create(&client).Error; err == nil {
+			var advUID *uuid.UUID
+			if advisorID != uuid.Nil {
+				advUID = &advisorID
+			}
+
+			sub := domain.Submission{
+				ClientID:          client.ID,
+				Status:            c.Status,
+				ServiceType:       c.ServiceType,
+				SelfDeclareType:   c.SDType,
+				Priority:          c.Priority,
+				SihalNumber:       c.Sihal,
+				LPHName:           c.LPH,
+				AuditorName:       c.Auditor,
+				AuditDate:         c.AuditTime,
+				TargetDeadline:    &deadline1,
+				AssignedDrafterID: c.AssignedID,
+				ConsultantID:      advUID,
+				TrackingNumber:    &c.Tracking,
+				CreatedAt:         now,
+				UpdatedAt:         now,
+			}
+			if c.Priority == "URGENT" {
+				sub.TargetDeadline = &deadline2
+			}
+			db.Create(&sub)
+		}
 	}
 }

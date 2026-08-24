@@ -129,6 +129,17 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
 
   // ── SPH ────────────────────────────────────────────────────────────
   'sph':                   ['DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'ADMIN_KEUANGAN'],
+
+  // ── Modul Manajer Operasional ───────────────────────────────────────
+  'pengajuan-masuk':       ['DIRECTOR', 'MANAGER'],
+  'antrean-qc':            ['DIRECTOR', 'MANAGER', 'QC_OFFICER', 'VERIFIKATOR'],
+  'antrean-hdo':           ['DIRECTOR', 'MANAGER', 'DRAFTER', 'DRAFT_MANAGER'],
+  'verifikasi-self-declare': ['DIRECTOR', 'MANAGER', 'VERIFIKATOR'],
+  'manajemen-audit':       ['DIRECTOR', 'MANAGER'],
+  'laporan-operasional':   ['DIRECTOR', 'MANAGER'],
+  'notifikasi-operasional':['DIRECTOR', 'MANAGER'],
+  'pengaturan-operasional':['DIRECTOR', 'MANAGER'],
+  'bantuan':               ALL_ROLES,
 };
 
 /**

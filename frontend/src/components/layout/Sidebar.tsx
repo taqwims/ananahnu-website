@@ -111,6 +111,43 @@ const GROUPS: SidebarGroup[] = [
             { name: 'Dashboard BD',        pathKey: 'bizdev',                to: '/dashboard/bizdev',                icon: BarChart3 },
         ],
     },
+    {
+        name: 'Manajer Operasional',
+        links: [
+            { name: 'Pengajuan Masuk',         pathKey: 'pengajuan-masuk',       to: '/dashboard/pengajuan-masuk',       icon: FileText },
+            { name: 'Antrean QC',              pathKey: 'antrean-qc',            to: '/dashboard/antrean-qc',            icon: ShieldCheck },
+            { name: 'Antrean HDO',             pathKey: 'antrean-hdo',           to: '/dashboard/antrean-hdo',           icon: Users },
+            { name: 'Verifikasi Self Declare', pathKey: 'verifikasi-self-declare', to: '/dashboard/verifikasi-self-declare', icon: Shield },
+            { name: 'Manajemen Audit',         pathKey: 'manajemen-audit',       to: '/dashboard/manajemen-audit',       icon: Award },
+            { name: 'Laporan Operasional',     pathKey: 'laporan-operasional',   to: '/dashboard/laporan-operasional',   icon: BarChart3 },
+            { name: 'Notifikasi Operasional',  pathKey: 'notifikasi-operasional',to: '/dashboard/notifikasi-operasional',icon: MessageSquare },
+            { name: 'Pengaturan Operasional',  pathKey: 'pengaturan-operasional',to: '/dashboard/pengaturan-operasional',icon: Settings },
+            { name: 'Pusat Bantuan',           pathKey: 'bantuan',               to: '/dashboard/bantuan',               icon: BookOpen },
+        ],
+    },
+];
+
+const OPERATIONAL_MANAGER_GROUPS: SidebarGroup[] = [
+    {
+        name: 'Main Menu',
+        links: [
+            { name: 'Dashboard',               pathKey: '',                      to: '/dashboard',                      icon: LayoutDashboard },
+            { name: 'Pengajuan Masuk',         pathKey: 'pengajuan-masuk',       to: '/dashboard/pengajuan-masuk',       icon: FileText },
+            { name: 'Antrean QC',              pathKey: 'antrean-qc',            to: '/dashboard/antrean-qc',            icon: ShieldCheck },
+            { name: 'Antrean HDO',             pathKey: 'antrean-hdo',           to: '/dashboard/antrean-hdo',           icon: Users },
+            { name: 'Verifikasi Self Declare', pathKey: 'verifikasi-self-declare', to: '/dashboard/verifikasi-self-declare', icon: Shield },
+            { name: 'Manajemen Audit',         pathKey: 'manajemen-audit',       to: '/dashboard/manajemen-audit',       icon: Award },
+            { name: 'Laporan',                 pathKey: 'laporan-operasional',   to: '/dashboard/laporan-operasional',   icon: BarChart3 },
+        ],
+    },
+    {
+        name: 'Pendukung',
+        links: [
+            { name: 'Notifikasi',              pathKey: 'notifikasi-operasional',to: '/dashboard/notifikasi-operasional',icon: MessageSquare },
+            { name: 'Pengaturan',              pathKey: 'pengaturan-operasional',to: '/dashboard/pengaturan-operasional',icon: Settings },
+            { name: 'Bantuan',                 pathKey: 'bantuan',               to: '/dashboard/bantuan',               icon: BookOpen },
+        ],
+    },
 ];
 
 interface SidebarProps {
@@ -196,7 +233,7 @@ const Sidebar = ({ isOpen, toggle }: SidebarProps) => {
 
                     {/* Navigation */}
                     <nav className="flex-1 overflow-y-auto py-6 px-3 custom-scrollbar">
-                        {GROUPS.map((group) => {
+                        {(role === 'MANAGER' ? OPERATIONAL_MANAGER_GROUPS : GROUPS).map((group) => {
                             // Filter link berdasarkan RBAC — hanya tampilkan yang boleh diakses
                             const visibleLinks = group.links.filter(l => canAccess(role, l.pathKey));
                             if (visibleLinks.length === 0) return null;

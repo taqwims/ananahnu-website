@@ -71,6 +71,12 @@ type Submission struct {
 	BPJPHAmount         float64          `gorm:"default:0" json:"bpjph_amount"`
 	BPJPHPaidAt         *time.Time       `json:"bpjph_paid_at,omitempty"`
 	HasBeenReturned     bool             `gorm:"default:false" json:"has_been_returned"`
+	Priority            string           `gorm:"default:'NORMAL'" json:"priority"` // NORMAL, HIGH, URGENT, CRITICAL
+	SihalNumber         string           `gorm:"column:sihal_number" json:"sihal_number,omitempty"`
+	LPHName             string           `gorm:"column:lph_name" json:"lph_name,omitempty"`
+	AuditorName         string           `gorm:"column:auditor_name" json:"auditor_name,omitempty"`
+	TargetDeadline      *time.Time       `json:"target_deadline,omitempty"`
+	SubmissionFiles     []SubmissionFile `gorm:"foreignKey:SubmissionID" json:"submission_files,omitempty"`
 	CreatedAt           time.Time        `json:"created_at"`
 	UpdatedAt           time.Time        `json:"updated_at"`
 }

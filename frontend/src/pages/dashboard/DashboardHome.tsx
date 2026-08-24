@@ -7,6 +7,7 @@ import StatsCard from '../../components/ui/StatsCard';
 import api from '../../services/api';
 import { formatNumber } from '../../utils/format';
 import type { AuditLog } from '../../types';
+import OperationalManagerDashboard from './OperationalManagerDashboard';
 
 interface DashboardStats {
     total_clients: number;
@@ -71,6 +72,10 @@ export default function DashboardHome() {
         if (diffHours < 24) return `${diffHours}h ago`;
         return `${diffDays}d ago`;
     };
+
+    if (user?.role === 'MANAGER') {
+        return <OperationalManagerDashboard />;
+    }
 
     if (user?.role === 'CLIENT') {
         if (loadingClient) {

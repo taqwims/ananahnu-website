@@ -21,6 +21,7 @@ func NewNotificationHandler(r *gin.Engine, uc usecase.NotificationUsecase) {
 	{
 		g.GET("", handler.GetMyNotifications)
 		g.PUT("/:id/read", handler.MarkAsRead)
+		g.POST("/test-whatsapp", handler.TestWhatsApp)
 	}
 }
 
@@ -51,4 +52,28 @@ func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "marked as read"})
+}
+
+type TestWhatsAppInput struct {
+	Target  string `json:"target" binding:"required"`
+	Message string `json:"message"`
+}
+
+func (h *NotificationHandler) TestWhatsApp(c *gin.Context) {
+	var input TestWhatsAppInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nomor WhatsApp target wajib diisi"})
+		return
+	}
+
+	res, err := h.notifUC.TestWhatsApp(input.Target, input.Message)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Pesan WhatsApp berhasil dikirim!",
+		"result":  res,
+	})
 }

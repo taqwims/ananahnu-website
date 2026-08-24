@@ -24,8 +24,8 @@ func NewSystemSettingHandler(r *gin.Engine, settingUsecase usecase.SystemSetting
 	{
 		settings.GET("", handler.GetAllSettings)
 		settings.GET("/:key", handler.GetSetting)
-		// PUT (write) hanya DIRECTOR
-		settings.PUT("", middleware.RoleMiddleware("DIRECTOR"), handler.UpdateSetting)
+		// PUT (write) DIRECTOR & MANAGER
+		settings.PUT("", middleware.RoleMiddleware("DIRECTOR", "MANAGER"), handler.UpdateSetting)
 	}
 }
 

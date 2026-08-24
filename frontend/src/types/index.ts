@@ -1,6 +1,7 @@
 export interface User {
     id: string;
     email: string;
+    username?: string;
     full_name: string;
     phone?: string;
     address?: string;
@@ -88,6 +89,12 @@ export interface Submission {
     invoices?: Invoice[]; // all invoices (DP + PELUNASAN)
     field_values?: FormFieldValue[];
     cost_detail?: SubmissionCostDetail;
+    priority?: string;
+    sihal_number?: string;
+    lph_name?: string;
+    auditor_name?: string;
+    target_deadline?: string;
+    submission_files?: any[];
     reject_note?: string;
     has_been_returned?: boolean;
     sh_url?: string;
