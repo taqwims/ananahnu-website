@@ -7,29 +7,34 @@ import (
 )
 
 type LPHPartner struct {
-	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	Name      string    `gorm:"not null" json:"name"`
-	Code      string    `gorm:"uniqueIndex;not null" json:"code"`
-	Region    string    `json:"region"`
-	Phone     string    `json:"phone"`
-	Email     string    `json:"email"`
-	Status    string    `gorm:"default:'Aktif'" json:"status"` // Aktif, Nonaktif
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID                uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	Name              string    `gorm:"not null" json:"name"`
+	Code              string    `gorm:"uniqueIndex;not null" json:"code"`
+	Region            string    `json:"region"`
+	Phone             string    `json:"phone"`
+	Email             string    `json:"email"`
+	Status            string    `gorm:"default:'Aktif'" json:"status"` // Aktif, Nonaktif
+	ActiveAuditors    int       `gorm:"default:0" json:"active_auditors"`
+	MonthlyCapacity   int       `gorm:"default:50" json:"monthly_capacity"`
+	ActiveAssignments int       `gorm:"default:0" json:"active_assignments"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 type AuditorPartner struct {
-	ID        uuid.UUID   `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	Name      string      `gorm:"not null" json:"name"`
-	Code      string      `gorm:"uniqueIndex;not null" json:"code"`
-	LPHID     *uuid.UUID  `gorm:"type:uuid" json:"lph_id,omitempty"`
-	LPH       *LPHPartner `gorm:"foreignKey:LPHID" json:"lph,omitempty"`
-	LPHName   string      `json:"lph_name"`
-	Phone     string      `json:"phone"`
-	Email     string      `json:"email"`
-	Status    string      `gorm:"default:'Aktif'" json:"status"` // Aktif, Nonaktif
-	CreatedAt time.Time   `json:"created_at"`
-	UpdatedAt time.Time   `json:"updated_at"`
+	ID              uuid.UUID   `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	Name            string      `gorm:"not null" json:"name"`
+	Code            string      `gorm:"uniqueIndex;not null" json:"code"`
+	LPHID           *uuid.UUID  `gorm:"type:uuid" json:"lph_id,omitempty"`
+	LPH             *LPHPartner `gorm:"foreignKey:LPHID" json:"lph,omitempty"`
+	LPHName         string      `json:"lph_name"`
+	Phone           string      `json:"phone"`
+	Email           string      `json:"email"`
+	Status          string      `gorm:"default:'Aktif'" json:"status"` // Aktif, Nonaktif
+	ActiveAudits    int         `gorm:"default:0" json:"active_audits"`
+	MonthlyCapacity int         `gorm:"default:15" json:"monthly_capacity"`
+	CreatedAt       time.Time   `json:"created_at"`
+	UpdatedAt       time.Time   `json:"updated_at"`
 }
 
 type DailyQuota struct {
@@ -117,6 +122,52 @@ type UpdatePriorityInput struct {
 	Priority string `json:"priority"` // NORMAL, HIGH, URGENT, CRITICAL
 }
 
+type OperationalReportData struct {
+	TotalSubmissions    int64                    `json:"total_submissions"`
+	SHTerbitCount       int64                    `json:"sh_terbit_count"`
+	AvgSLADays          float64                  `json:"avg_sla_days"`
+	RejectedCount       int64                    `json:"rejected_count"`
+	RejectionRate       float64                  `json:"rejection_rate"`
+	GrowthPercentage    float64                  `json:"growth_percentage"`
+	TrendData           []ReportTrendItem        `json:"trend_data"`
+	ServiceDistribution []ReportDistributionItem `json:"service_distribution"`
+	StatusBreakdown     []ReportStatusItem       `json:"status_breakdown"`
+	TeamPerformance     []TeamPerformanceItem    `json:"team_performance"`
+}
+
+type ReportTrendItem struct {
+	Date           string `json:"date"`
+	PengajuanMasuk int64  `json:"Pengajuan Masuk"`
+	SHTerbit       int64  `json:"SH Terbit"`
+	Ditolak        int64  `json:"Ditolak"`
+}
+
+type ReportDistributionItem struct {
+	Name       string `json:"name"`
+	Value      int64  `json:"value"`
+	Percentage string `json:"percentage"`
+	Color      string `json:"color"`
+}
+
+type ReportStatusItem struct {
+	Label      string `json:"label"`
+	Count      int64  `json:"count"`
+	Percentage string `json:"percentage"`
+	Color      string `json:"color"`
+}
+
+type TeamPerformanceItem struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Role     string `json:"role"`
+	Initial  string `json:"initial"`
+	In       int64  `json:"in"`
+	Sh       int64  `json:"sh"`
+	Process  int64  `json:"process"`
+	Rejected int64  `json:"rejected"`
+	SLA      string `json:"sla"`
+}
+
 type ScheduleAuditInput struct {
 	SubmissionID string `json:"submission_id"`
 	AuditDate    string `json:"audit_date"`
@@ -148,6 +199,22 @@ type OperationalRepository interface {
 	// Quota
 	GetDailyQuota(date string) ([]DailyQuota, error)
 	SaveDailyQuota(quotas []DailyQuota) error
+
+	// Geography
+	GetProvinces() ([]Province, error)
+
+	// Reports
+	GetReportsSummary(period string) (*OperationalReportData, error)
+}
+
+type SendReminderInput struct {
+	SubmissionID  string `json:"submission_id"`
+	RecipientType string `json:"recipient_type"` // ADVISOR, CLIENT, QCO, AUDITOR, DRAFTER
+	RecipientName string `json:"recipient_name"`
+	Phone         string `json:"phone"`
+	TemplateType  string `json:"template_type"` // REVISI_BERKAS, TENGGAT_SLA, KONFIRMASI_AUDIT, KELENGKAPAN_DOKUMEN, CUSTOM
+	Message       string `json:"message"`
+	Channel       string `json:"channel"` // WHATSAPP, IN_APP, ALL
 }
 
 type OperationalUsecase interface {
@@ -158,6 +225,7 @@ type OperationalUsecase interface {
 	ReturnToAdvisor(id uuid.UUID, note string, managerID uuid.UUID) error
 	UpdatePriority(id uuid.UUID, priority string, managerID uuid.UUID) error
 	ScheduleAudit(input ScheduleAuditInput, managerID uuid.UUID) error
+	SendReminder(input SendReminderInput, managerID uuid.UUID) error
 	GetStaffList() ([]User, error)
 	
 	GetLPHPartners() ([]LPHPartner, error)
@@ -169,8 +237,12 @@ type OperationalUsecase interface {
 	UpdateAuditorPartner(auditor *AuditorPartner) error
 	DeleteAuditorPartner(id uuid.UUID) error
 
+	// Geography
+	GetProvinces() ([]Province, error)
+
 	GetDailyQuota(date string) ([]DailyQuota, error)
 	SaveDailyQuota(quotas []DailyQuota, updaterName string) error
-	GetReportsSummary(period string) (map[string]interface{}, error)
+	GetReportsSummary(period string) (*OperationalReportData, error)
 	TestWhatsApp(target, message string) (string, error)
 }
+

@@ -40,6 +40,44 @@ export interface OperationalStats {
     }[];
 }
 
+export interface OperationalReportData {
+    total_submissions: number;
+    sh_terbit_count: number;
+    avg_sla_days: number;
+    rejected_count: number;
+    rejection_rate: number;
+    growth_percentage?: number;
+    trend_data: {
+        date: string;
+        'Pengajuan Masuk': number;
+        'SH Terbit': number;
+        Ditolak: number;
+    }[];
+    service_distribution: {
+        name: string;
+        value: number;
+        percentage: string;
+        color: string;
+    }[];
+    status_breakdown: {
+        label: string;
+        count: number;
+        percentage: string;
+        color: string;
+    }[];
+    team_performance: {
+        id: string;
+        name: string;
+        role: string;
+        initial: string;
+        in: number;
+        sh: number;
+        process: number;
+        rejected: number;
+        sla: string;
+    }[];
+}
+
 export interface LPHPartner {
     id: string;
     name: string;
@@ -48,6 +86,9 @@ export interface LPHPartner {
     phone: string;
     email: string;
     status: string;
+    active_auditors?: number;
+    monthly_capacity?: number;
+    active_assignments?: number;
 }
 
 export interface AuditorPartner {
@@ -59,6 +100,8 @@ export interface AuditorPartner {
     phone: string;
     email: string;
     status: string;
+    active_audits?: number;
+    monthly_capacity?: number;
 }
 
 export interface DailyQuota {
@@ -97,6 +140,16 @@ export interface ScheduleAuditPayload {
     lph_name: string;
     auditor_name: string;
     notes?: string;
+}
+
+export interface SendReminderPayload {
+    submission_id?: string;
+    recipient_type: 'ADVISOR' | 'CLIENT' | 'QCO' | 'AUDITOR' | 'DRAFTER';
+    recipient_name: string;
+    phone?: string;
+    template_type?: string;
+    message: string;
+    channel?: 'WHATSAPP' | 'IN_APP' | 'ALL';
 }
 
 class OperationalService extends BaseService {
@@ -168,6 +221,14 @@ class OperationalService extends BaseService {
     async scheduleAudit(payload: ScheduleAuditPayload): Promise<void> {
         try {
             await this.api.post('/operational/audit/schedule', payload);
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    async sendReminder(payload: SendReminderPayload): Promise<void> {
+        try {
+            await this.api.post('/operational/reminders/send', payload);
         } catch (error) {
             this.handleError(error);
         }
@@ -291,6 +352,15 @@ class OperationalService extends BaseService {
         try {
             const response = await this.api.post('/operational/test-whatsapp', { target, message });
             return response.data;
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    async getProvinces(): Promise<{ id: number; name: string }[]> {
+        try {
+            const response = await this.api.get('/operational/provinces');
+            return response.data || [];
         } catch (error) {
             this.handleError(error);
         }

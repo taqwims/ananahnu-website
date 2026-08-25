@@ -315,79 +315,181 @@ func (u *operationalUsecase) GetDailyQuota(date string) ([]domain.DailyQuota, er
 	if date == "" {
 		date = time.Now().Format("2006-01-02")
 	}
+
+	// Fetch current Master Limit and Master Used from System Settings
+	limit := 12500
+	used := 0
+	if u.settingRepo != nil {
+		if s, err := u.settingRepo.GetSetting("facilitation_quota_limit"); err == nil && s != nil {
+			var val int
+			if _, err := fmt.Sscanf(s.Value, "%d", &val); err == nil && val > 0 {
+				limit = val
+			}
+		}
+		if s, err := u.settingRepo.GetSetting("facilitation_quota_used"); err == nil && s != nil {
+			var val int
+			if _, err := fmt.Sscanf(s.Value, "%d", &val); err == nil && val >= 0 {
+				used = val
+			}
+		}
+	}
+
 	quotas, err := u.repo.GetDailyQuota(date)
 	if err != nil {
 		return nil, err
 	}
 
-	// Default regions if not seeded yet
+	// If no quotas stored for date or if database table is empty, distribute master quota across REAL provinces from DB
 	if len(quotas) == 0 {
-		defaultRegions := []struct {
-			region    string
-			allocated int
-			prevUsed  int
-			today     int
-		}{
-			{"DKI Jakarta", 3000, 1942, 32},
-			{"Jawa Barat", 3500, 2318, 41},
-			{"Jawa Tengah", 2500, 1705, 28},
-			{"Jawa Timur", 2000, 1384, 19},
-			{"Banten", 1500, 765, 6},
+		provinces, _ := u.repo.GetProvinces()
+		var provinceNames []string
+		for _, p := range provinces {
+			provinceNames = append(provinceNames, p.Name)
 		}
-		for _, dr := range defaultRegions {
+		if len(provinceNames) == 0 {
+			provinceNames = []string{"DKI Jakarta", "Jawa Barat", "Jawa Tengah", "Jawa Timur", "Banten"}
+		}
+
+		numProvinces := len(provinceNames)
+		allocBase := limit / numProvinces
+		allocRem := limit % numProvinces
+
+		usedBase := used / numProvinces
+		usedRem := used % numProvinces
+
+		for i, prov := range provinceNames {
+			alloc := allocBase
+			if i < allocRem {
+				alloc++
+			}
+			provUsed := usedBase
+			if i < usedRem {
+				provUsed++
+			}
+			if provUsed > alloc {
+				provUsed = alloc
+			}
+
 			quotas = append(quotas, domain.DailyQuota{
 				Date:      date,
-				Region:    dr.region,
-				Allocated: dr.allocated,
-				PrevUsed:  dr.prevUsed,
-				UsedToday: dr.today,
+				Region:    prov,
+				Allocated: alloc,
+				PrevUsed:  provUsed,
+				UsedToday: 0,
 			})
 		}
 	}
+
 	return quotas, nil
 }
 
+func (u *operationalUsecase) GetProvinces() ([]domain.Province, error) {
+	return u.repo.GetProvinces()
+}
+
 func (u *operationalUsecase) SaveDailyQuota(quotas []domain.DailyQuota, updaterName string) error {
+	totalAllocated := 0
+	totalUsed := 0
+
 	for i := range quotas {
 		quotas[i].UpdatedBy = updaterName
 		if quotas[i].Date == "" {
 			quotas[i].Date = time.Now().Format("2006-01-02")
 		}
+		totalAllocated += quotas[i].Allocated
+		totalUsed += (quotas[i].PrevUsed + quotas[i].UsedToday)
 	}
-	return u.repo.SaveDailyQuota(quotas)
+
+	// 1. Save regional daily breakdown
+	if err := u.repo.SaveDailyQuota(quotas); err != nil {
+		return err
+	}
+
+	// 2. Synchronize Master Biaya limit & used in system_settings
+	if u.settingRepo != nil && totalAllocated > 0 {
+		_ = u.settingRepo.UpdateSetting(&domain.SystemSetting{
+			Key:   "facilitation_quota_limit",
+			Value: fmt.Sprintf("%d", totalAllocated),
+		})
+		_ = u.settingRepo.UpdateSetting(&domain.SystemSetting{
+			Key:   "facilitation_quota_used",
+			Value: fmt.Sprintf("%d", totalUsed),
+		})
+	}
+
+	return nil
 }
 
-func (u *operationalUsecase) GetReportsSummary(period string) (map[string]interface{}, error) {
-	stats, err := u.repo.GetStats()
-	if err != nil {
-		return nil, err
+func (u *operationalUsecase) GetReportsSummary(period string) (*domain.OperationalReportData, error) {
+	return u.repo.GetReportsSummary(period)
+}
+
+func (u *operationalUsecase) SendReminder(input domain.SendReminderInput, managerID uuid.UUID) error {
+	msg := input.Message
+	if msg == "" {
+		msg = fmt.Sprintf("Halo %s, ini adalah pengingat dari Manajer Operasional terkait pengajuan sertifikasi halal. Mohon segera dicek dan ditindaklanjuti.", input.RecipientName)
 	}
 
-	// Calculate trend data (last 7 days / weeks)
-	trendData := []map[string]interface{}{
-		{"date": "24 Jul", "submissions": 8, "completed": 6},
-		{"date": "25 Jul", "submissions": 12, "completed": 9},
-		{"date": "26 Jul", "submissions": 10, "completed": 11},
-		{"date": "27 Jul", "submissions": 15, "completed": 14},
-		{"date": "28 Jul", "submissions": 11, "completed": 8},
-		{"date": "29 Jul", "submissions": 14, "completed": 12},
-		{"date": "30 Jul", "submissions": 16, "completed": 15},
+	// 1. Send WhatsApp if phone number provided or fetch phone from submission / user
+	targetPhone := input.Phone
+	var parsedSubID uuid.UUID
+	if input.SubmissionID != "" {
+		if subID, err := uuid.Parse(input.SubmissionID); err == nil && subID != uuid.Nil {
+			parsedSubID = subID
+			sub, _ := u.subRepo.FindByID(subID)
+			if sub != nil {
+				if input.RecipientType == "ADVISOR" && sub.ConsultantID != nil {
+					user, _ := u.userRepo.FindByID(*sub.ConsultantID)
+					if user != nil && user.Phone != "" && targetPhone == "" {
+						targetPhone = user.Phone
+					}
+				} else if input.RecipientType == "CLIENT" && sub.ClientID != uuid.Nil {
+					user, _ := u.userRepo.FindByID(sub.ClientID)
+					if user != nil && user.Phone != "" && targetPhone == "" {
+						targetPhone = user.Phone
+					}
+				}
+			}
+		}
 	}
 
-	serviceDist := []map[string]interface{}{
-		{"name": "Self Declare Fasilitasi", "value": 54, "color": "#10b981"},
-		{"name": "Self Declare Mandiri", "value": 32, "color": "#3b82f6"},
-		{"name": "Reguler", "value": 14, "color": "#f59e0b"},
+	if targetPhone != "" {
+		_, _ = u.TestWhatsApp(targetPhone, msg)
 	}
 
-	return map[string]interface{}{
-		"stats":        stats,
-		"trend_data":   trendData,
-		"service_dist": serviceDist,
-		"period":       period,
-	}, nil
+	// 2. Send in-app notification if recipient user exists
+	if parsedSubID != uuid.Nil {
+		sub, _ := u.subRepo.FindByID(parsedSubID)
+		if sub != nil {
+			var targetUserID *uuid.UUID
+			if input.RecipientType == "ADVISOR" {
+				targetUserID = sub.ConsultantID
+			} else if input.RecipientType == "CLIENT" && sub.ClientID != uuid.Nil {
+				targetUserID = &sub.ClientID
+			} else if input.RecipientType == "QCO" || input.RecipientType == "DRAFTER" {
+				targetUserID = sub.AssignedDrafterID
+			}
+
+			if targetUserID != nil && *targetUserID != uuid.Nil {
+				_ = u.notifUC.CreateNotification(*targetUserID, "Pengingat Pengajuan Halal", msg, parsedSubID)
+			}
+		}
+	}
+
+	// 3. Log into Audit Log
+	_ = u.auditRepo.Create(&domain.AuditLog{
+		UserID:     &managerID,
+		Action:     "SEND_REMINDER",
+		EntityType: "Submission",
+		EntityID:   input.SubmissionID,
+		Notes:      fmt.Sprintf("Kirim pengingat ke %s (%s): %s", input.RecipientName, input.RecipientType, msg),
+		CreatedAt:  time.Now(),
+	})
+
+	return nil
 }
 
 func (u *operationalUsecase) TestWhatsApp(target, message string) (string, error) {
 	return u.notifUC.TestWhatsApp(target, message)
 }
+

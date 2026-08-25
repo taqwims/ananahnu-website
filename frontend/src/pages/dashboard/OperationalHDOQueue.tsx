@@ -4,37 +4,22 @@ import {
     RotateCcw,
     Download,
     MoreVertical,
-    ChevronLeft,
-    ChevronRight,
     Send,
     AlertCircle,
     CheckCircle2,
     Clock,
     FileText,
     RefreshCw,
-    X,
     UserPlus
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { operationalService } from '../../services/operationalService';
 import type { User } from '../../types';
-
-interface HDOQueueItem {
-    id: string;
-    no: string;
-    businessName: string;
-    serviceType: 'Self Declare Fasilitasi' | 'Reguler' | 'Self Declare Mandiri';
-    advisor: string;
-    hdo: string;
-    statusHDO: 'Menunggu Penyusunan' | 'Sedang Disusun' | 'Menunggu Data Tambahan' | 'Siap Submit SIHALAL' | 'Dikembalikan SIHALAL' | 'Selesai HDO';
-    progress: number;
-    sihalalNo: string;
-    age: string;
-    slaDays: string;
-    slaPercentage: string;
-    slaIsOver: boolean;
-    priority: 'Normal' | 'Tinggi' | 'Mendesak' | 'Kritis';
-}
+import type { HDOQueueItem } from '../../types/operational';
+import { ServiceTypeBadge } from '../../components/operational/common/OperationalBadges';
+import { OperationalPagination } from '../../components/operational/common/OperationalPagination';
+import { SingleAssignModal } from '../../components/operational/modals/SingleAssignModal';
+import { ReturnAdvisorModal } from '../../components/operational/modals/ReturnAdvisorModal';
 
 const INITIAL_HDO_DATA: HDOQueueItem[] = [
     {
@@ -114,13 +99,13 @@ export default function OperationalHDOQueue() {
     const [priorityFilter, setPriorityFilter] = useState('Semua');
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
-    // Modal state for Reassign HDO
+    // Modal state
     const [reassignModalItem, setReassignModalItem] = useState<HDOQueueItem | null>(null);
-    const [targetHdo, setTargetHdo] = useState('');
-
-    // Modal state for Return to Advisor
     const [returnModalItem, setReturnModalItem] = useState<HDOQueueItem | null>(null);
-    const [returnNote, setReturnNote] = useState('');
+
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage, setPerPage] = useState(10);
 
     const loadHDOData = async () => {
         try {
@@ -132,7 +117,6 @@ export default function OperationalHDOQueue() {
 
             if (staffRes && staffRes.length > 0) {
                 setStaffList(staffRes);
-                setTargetHdo(staffRes[0].full_name || staffRes[0].username || '');
             }
 
             if (subsRes?.data && subsRes.data.length > 0) {
@@ -211,49 +195,6 @@ export default function OperationalHDOQueue() {
                 return <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Selesai HDO</span>;
             default:
                 return null;
-        }
-    };
-
-    const getServiceTypeBadge = (service: string) => {
-        switch (service) {
-            case 'Self Declare Fasilitasi':
-                return <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-50 text-blue-700">Self Declare Fasilitasi</span>;
-            case 'Self Declare Mandiri':
-                return <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700">Self Declare Mandiri</span>;
-            default:
-                return <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-purple-50 text-purple-700">Reguler</span>;
-        }
-    };
-
-    const handleReassignSubmit = async () => {
-        if (!reassignModalItem) return;
-        const staffObj = staffList.find(s => s.full_name === targetHdo || s.username === targetHdo) || staffList[0];
-        try {
-            if (staffObj) {
-                await operationalService.assignSubmission(reassignModalItem.id, {
-                    assignee_id: staffObj.id,
-                    target_role: 'DRAFTER',
-                    notes: `Dialihkan ke ${targetHdo}`,
-                });
-            }
-            setHdoData(prev => prev.map(item => item.id === reassignModalItem.id ? { ...item, hdo: targetHdo } : item));
-            toast.success(`Pengajuan ${reassignModalItem.no} berhasil dialihkan ke ${targetHdo}`);
-            setReassignModalItem(null);
-        } catch (err) {
-            toast.error('Gagal mengalihkan HDO');
-        }
-    };
-
-    const handleReturnAdvisorSubmit = async () => {
-        if (!returnModalItem) return;
-        try {
-            await operationalService.returnToAdvisor(returnModalItem.id, returnNote);
-            toast.success(`Pengajuan ${returnModalItem.no} berhasil dikembalikan ke Halal Advisor.`);
-            setHdoData(prev => prev.map(i => i.id === returnModalItem.id ? { ...i, statusHDO: 'Menunggu Data Tambahan' } : i));
-            setReturnModalItem(null);
-            setReturnNote('');
-        } catch (err) {
-            toast.error('Gagal mengembalikan pengajuan');
         }
     };
 
@@ -478,11 +419,13 @@ export default function OperationalHDOQueue() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {filteredData.map((item) => (
+                            {filteredData
+                                .slice((currentPage - 1) * perPage, currentPage * perPage)
+                                .map((item) => (
                                 <tr key={item.id} className="hover:bg-gray-50/50">
                                     <td className="py-3 px-3 font-mono font-bold text-gray-800">{item.no}</td>
                                     <td className="py-3 px-3 font-bold text-gray-900">{item.businessName}</td>
-                                    <td className="py-3 px-3">{getServiceTypeBadge(item.serviceType)}</td>
+                                    <td className="py-3 px-3"><ServiceTypeBadge service={item.serviceType} /></td>
                                     <td className="py-3 px-3 text-gray-600">{item.advisor}</td>
                                     <td className="py-3 px-3 font-bold text-gray-800">{item.hdo}</td>
                                     <td className="py-3 px-3">{getStatusHDOBadge(item.statusHDO)}</td>
@@ -541,7 +484,6 @@ export default function OperationalHDOQueue() {
                                                         onClick={() => {
                                                             setActiveDropdown(null);
                                                             setReturnModalItem(item);
-                                                            setReturnNote('');
                                                         }}
                                                         className="w-full px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"
                                                     >
@@ -557,125 +499,50 @@ export default function OperationalHDOQueue() {
                     </table>
                 </div>
 
-                {/* Pagination */}
-                <div className="flex flex-col sm:flex-row items-center justify-between pt-4 border-t border-gray-100 gap-3 text-xs text-gray-500">
-                    <span>Menampilkan {filteredData.length} dari {hdoData.length} data</span>
-                    <div className="flex items-center gap-1">
-                        <button className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-30">
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <button className="px-3 py-1 rounded-lg bg-brand-700 text-white font-bold">1</button>
-                        <button className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50">
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
-                    </div>
-                </div>
+                {/* Shared Pagination */}
+                <OperationalPagination
+                    currentPage={currentPage}
+                    totalPages={Math.ceil(filteredData.length / perPage) || 1}
+                    totalItems={filteredData.length}
+                    perPage={perPage}
+                    onPageChange={setCurrentPage}
+                    onPerPageChange={(newP) => {
+                        setPerPage(newP);
+                        setCurrentPage(1);
+                    }}
+                />
             </div>
 
             {/* Modal: Alihkan Petugas HDO */}
-            {reassignModalItem && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-150 space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-base font-black text-gray-900">Alihkan Petugas HDO</h3>
-                            <button onClick={() => setReassignModalItem(null)} className="p-1 hover:bg-gray-100 rounded-lg text-gray-400">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <p className="text-xs text-gray-600">
-                            Pilih petugas HDO baru untuk menangani <strong>{reassignModalItem.no}</strong>:
-                        </p>
-
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1.5">Pilih Petugas HDO</label>
-                            <select
-                                value={targetHdo}
-                                onChange={(e) => setTargetHdo(e.target.value)}
-                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-brand-500"
-                            >
-                                {staffList.map(s => (
-                                    <option key={s.id} value={s.full_name || s.username}>{s.full_name || s.username}</option>
-                                ))}
-                                {staffList.length === 0 && (
-                                    <>
-                                        <option value="Hendra Pratama">Hendra Pratama</option>
-                                        <option value="Ayu Lestari">Ayu Lestari</option>
-                                    </>
-                                )}
-                            </select>
-                        </div>
-
-                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
-                            <button
-                                type="button"
-                                onClick={() => setReassignModalItem(null)}
-                                className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50 rounded-xl border border-gray-200"
-                            >
-                                Batal
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleReassignSubmit}
-                                className="px-4 py-2 text-xs font-black text-white bg-brand-700 hover:bg-brand-800 rounded-xl shadow-sm"
-                            >
-                                Simpan Pengalihan
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <SingleAssignModal
+                isOpen={!!reassignModalItem}
+                onClose={() => setReassignModalItem(null)}
+                submissionId={reassignModalItem?.id || ''}
+                submissionNo={reassignModalItem?.no || ''}
+                businessName={reassignModalItem?.businessName || ''}
+                currentStage="Penyusunan HDO"
+                staffList={staffList}
+                onSuccess={(assignedName) => {
+                    if (reassignModalItem) {
+                        setHdoData(prev => prev.map(item => item.id === reassignModalItem.id ? { ...item, hdo: assignedName } : item));
+                    }
+                }}
+            />
 
             {/* Modal: Kembalikan ke Advisor */}
-            {returnModalItem && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-gray-150 space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-red-600">
-                                <RotateCcw className="w-5 h-5" />
-                                <h3 className="text-base font-black text-gray-900">Kembalikan ke Advisor</h3>
-                            </div>
-                            <button onClick={() => setReturnModalItem(null)} className="p-1 hover:bg-gray-100 rounded-lg text-gray-400">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <p className="text-xs text-gray-600">
-                            Pengajuan <strong>{returnModalItem.no}</strong> ({returnModalItem.businessName}) akan dikembalikan ke Halal Advisor untuk melengkapi dokumen.
-                        </p>
-
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1.5">Catatan Perbaikan / Data Tambahan *</label>
-                            <textarea
-                                rows={3}
-                                value={returnNote}
-                                onChange={(e) => setReturnNote(e.target.value)}
-                                placeholder="Contoh: Dokumen spesifikasi bahan belum lengkap, sertifikat penyelia halal perlu diperbarui..."
-                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-red-500"
-                                required
-                            />
-                        </div>
-
-                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
-                            <button
-                                type="button"
-                                onClick={() => setReturnModalItem(null)}
-                                className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50 rounded-xl border border-gray-200"
-                            >
-                                Batal
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleReturnAdvisorSubmit}
-                                disabled={!returnNote.trim()}
-                                className="px-4 py-2 text-xs font-black text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-xl shadow-sm"
-                            >
-                                Kembalikan Berkas
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ReturnAdvisorModal
+                isOpen={!!returnModalItem}
+                onClose={() => setReturnModalItem(null)}
+                submissionId={returnModalItem?.id || ''}
+                submissionNo={returnModalItem?.no || ''}
+                businessName={returnModalItem?.businessName || ''}
+                advisorName={returnModalItem?.advisor || ''}
+                onSuccess={() => {
+                    if (returnModalItem) {
+                        setHdoData(prev => prev.map(i => i.id === returnModalItem.id ? { ...i, statusHDO: 'Menunggu Data Tambahan' } : i));
+                    }
+                }}
+            />
         </div>
     );
 }

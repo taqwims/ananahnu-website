@@ -115,12 +115,21 @@ func (h *CMSHandler) GetNewsShareHTML(c *gin.Context) {
 		return
 	}
 
+	// 1. Determine base protocol & host dynamically
+	scheme := "https"
+	if c.Request.TLS == nil && c.GetHeader("X-Forwarded-Proto") != "https" {
+		if strings.HasPrefix(c.Request.Host, "localhost") || strings.HasPrefix(c.Request.Host, "127.0.0.1") {
+			scheme = "http"
+		}
+	}
+	currentOrigin := fmt.Sprintf("%s://%s", scheme, c.Request.Host)
+
 	siteURL := os.Getenv("FRONTEND_URL")
 	if siteURL == "" {
 		siteURL = os.Getenv("APP_FRONTEND_URL")
 	}
 	if siteURL == "" {
-		siteURL = "https://halalcore.id"
+		siteURL = currentOrigin
 	}
 	if strings.Contains(siteURL, ",") {
 		siteURL = strings.Split(siteURL, ",")[0]
@@ -129,7 +138,7 @@ func (h *CMSHandler) GetNewsShareHTML(c *gin.Context) {
 
 	apiURL := os.Getenv("API_BASE_URL")
 	if apiURL == "" {
-		apiURL = siteURL
+		apiURL = currentOrigin
 	}
 	apiURL = strings.TrimRight(apiURL, "/")
 
@@ -142,10 +151,19 @@ func (h *CMSHandler) GetNewsShareHTML(c *gin.Context) {
 	if desc == "" {
 		desc = news.Excerpt
 	}
+	if desc == "" && news.Content != "" {
+		clean := strings.ReplaceAll(news.Content, "#", "")
+		clean = strings.ReplaceAll(clean, "*", "")
+		if len(clean) > 160 {
+			clean = clean[:160] + "..."
+		}
+		desc = clean
+	}
 
-	rawImg := news.OGImageURL
+	// Priority: OG Image -> Thumbnail URL -> Fallback Icon
+	rawImg := strings.TrimSpace(news.OGImageURL)
 	if rawImg == "" {
-		rawImg = news.ThumbnailURL
+		rawImg = strings.TrimSpace(news.ThumbnailURL)
 	}
 
 	imgURL := rawImg
@@ -158,6 +176,16 @@ func (h *CMSHandler) GetNewsShareHTML(c *gin.Context) {
 		imgURL = apiURL + imgURL
 	}
 
+	imgType := "image/jpeg"
+	lowerImg := strings.ToLower(imgURL)
+	if strings.Contains(lowerImg, ".png") {
+		imgType = "image/png"
+	} else if strings.Contains(lowerImg, ".webp") {
+		imgType = "image/webp"
+	} else if strings.Contains(lowerImg, ".gif") {
+		imgType = "image/gif"
+	}
+
 	articleURL := fmt.Sprintf("%s/news/%s", siteURL, news.Slug)
 
 	safeTitle := html.EscapeString(title)
@@ -166,12 +194,13 @@ func (h *CMSHandler) GetNewsShareHTML(c *gin.Context) {
 	safeURL := html.EscapeString(articleURL)
 
 	htmlContent := fmt.Sprintf(`<!DOCTYPE html>
-<html lang="id">
+<html lang="id" prefix="og: https://ogp.me/ns#">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>%s | Halal Core</title>
     <meta name="description" content="%s">
+    <link rel="canonical" href="%s">
 
     <!-- Open Graph / Facebook / WhatsApp -->
     <meta property="og:site_name" content="Halal Core">
@@ -181,33 +210,38 @@ func (h *CMSHandler) GetNewsShareHTML(c *gin.Context) {
     <meta property="og:description" content="%s">
     <meta property="og:image" content="%s">
     <meta property="og:image:secure_url" content="%s">
+    <meta property="og:image:type" content="%s">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="%s">
     <meta property="og:locale" content="id_ID">
 
-    <!-- Twitter -->
+    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="%s">
     <meta name="twitter:title" content="%s">
     <meta name="twitter:description" content="%s">
     <meta name="twitter:image" content="%s">
+    <meta name="twitter:image:alt" content="%s">
 
-    <!-- Immediate Redirect for Human Browsers -->
+    <!-- Immediate Redirect for Human Visitors -->
     <meta http-equiv="refresh" content="0; url=%s">
     <script>window.location.replace("%s");</script>
 </head>
-<body style="font-family: sans-serif; padding: 2rem; text-align: center; color: #333;">
-    <h2>%s</h2>
-    <p>%s</p>
-    <p style="color: #666; font-size: 0.9rem;">Mengarahkan Anda ke halaman artikel...</p>
-    <p><a href="%s" style="color: #005a48; font-weight: bold;">Klik di sini jika halaman tidak berpindah secara otomatis</a></p>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 2rem; text-align: center; color: #1e293b; background: #f8fafc;">
+    <div style="max-width: 600px; margin: 0 auto; background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+        <img src="%s" alt="%s" style="max-width: 100%%; height: auto; border-radius: 0.75rem; margin-bottom: 1.5rem; max-height: 300px; object-fit: cover;">
+        <h2 style="margin-top: 0; color: #0f172a; font-size: 1.25rem;">%s</h2>
+        <p style="color: #64748b; font-size: 0.95rem; line-height: 1.5;">%s</p>
+        <p style="margin-top: 1.5rem;"><a href="%s" style="display: inline-block; padding: 0.75rem 1.5rem; background: #005a48; color: white; text-decoration: none; border-radius: 0.5rem; font-weight: bold;">Baca Artikel Selengkapnya &rarr;</a></p>
+    </div>
 </body>
 </html>`,
-		safeTitle, safeDesc,
-		safeURL, safeTitle, safeDesc, safeImg, safeImg,
-		safeURL, safeTitle, safeDesc, safeImg,
-		safeURL, safeURL,
 		safeTitle, safeDesc, safeURL,
+		safeURL, safeTitle, safeDesc, safeImg, safeImg, imgType, safeTitle,
+		safeURL, safeTitle, safeDesc, safeImg, safeTitle,
+		safeURL, safeURL,
+		safeImg, safeTitle, safeTitle, safeDesc, safeURL,
 	)
 
 	c.Header("Content-Type", "text/html; charset=utf-8")

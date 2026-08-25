@@ -22,15 +22,15 @@ import {
     Cell
 } from 'recharts';
 import toast from 'react-hot-toast';
-import { operationalService } from '../../services/operationalService';
+import { operationalService, type OperationalReportData } from '../../services/operationalService';
 
 export default function OperationalReports() {
     const [period, setPeriod] = useState<'daily' | 'monthly'>('daily');
     const [loading, setLoading] = useState<boolean>(false);
-    const [stats, setStats] = useState<any>(null);
+    const [reportData, setReportData] = useState<OperationalReportData | null>(null);
 
-    // Trend chart dynamic/mock data
-    const trendData = [
+    // Fallback trend data if none exists
+    const fallbackTrend = [
         { date: '01 Jul', 'Pengajuan Masuk': 60, 'SH Terbit': 25, Ditolak: 8 },
         { date: '06 Jul', 'Pengajuan Masuk': 58, 'SH Terbit': 22, Ditolak: 12 },
         { date: '11 Jul', 'Pengajuan Masuk': 80, 'SH Terbit': 38, Ditolak: 6 },
@@ -40,46 +40,38 @@ export default function OperationalReports() {
         { date: '30 Jul', 'Pengajuan Masuk': 50, 'SH Terbit': 26, Ditolak: 5 },
     ];
 
-    // Service distribution data
-    const serviceDistribution = [
-        { name: 'Self Declare Fasilitasi', value: stats?.pipeline_stages?.self_declare_fasilitasi || 142, percentage: '44%', color: '#10b981' },
-        { name: 'Self Declare Mandiri', value: stats?.pipeline_stages?.self_declare_mandiri || 96, percentage: '30%', color: '#3b82f6' },
-        { name: 'Reguler', value: stats?.pipeline_stages?.reguler || 71, percentage: '22%', color: '#f59e0b' },
-        { name: 'Lainnya', value: 12, percentage: '4%', color: '#a855f7' },
+    // Fallback service distribution data
+    const fallbackService = [
+        { name: 'Self Declare Fasilitasi', value: 142, percentage: '44%', color: '#10b981' },
+        { name: 'Self Declare Mandiri', value: 96, percentage: '30%', color: '#3b82f6' },
+        { name: 'Reguler', value: 71, percentage: '22%', color: '#f59e0b' },
     ];
 
-    // Status breakdown
-    const statusBreakdown = [
+    // Fallback status breakdown
+    const fallbackStatus = [
         { label: 'Menunggu Pemeriksaan', count: 48, percentage: '15%', color: 'bg-blue-500' },
         { label: 'Sedang Diperiksa', count: 62, percentage: '19%', color: 'bg-amber-500' },
         { label: 'Perlu Perbaikan', count: 35, percentage: '11%', color: 'bg-rose-500' },
         { label: 'Menunggu Perbaikan Advisor', count: 41, percentage: '13%', color: 'bg-purple-500' },
-        { label: 'Lolos QC', count: 126, percentage: '39%', color: 'bg-emerald-500' },
+        { label: 'Lolos QC / Selesai', count: 126, percentage: '39%', color: 'bg-emerald-500' },
         { label: 'Ditolak', count: 9, percentage: '3%', color: 'bg-red-500' },
     ];
 
-    // Team Performance
-    const teamPerformance = stats?.team_workload ? stats.team_workload.map((t: any) => ({
-        name: t.staff_name,
-        role: t.role,
-        initial: t.staff_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase(),
-        in: t.capacity,
-        sh: t.completed,
-        process: t.active_tasks,
-        rejected: 2,
-        sla: '2.4 hari',
-    })) : [
-        { name: 'Sarah Fatimah', role: 'QC Officer', initial: 'SF', in: 96, sh: 48, process: 38, rejected: 10, sla: '2.4 hari' },
-        { name: 'Dimas Wicaksono', role: 'QCO', initial: 'DW', in: 88, sh: 41, process: 36, rejected: 11, sla: '2.1 hari' },
-        { name: 'Hendra Pratama', role: 'HDO', initial: 'HP', in: 73, sh: 35, process: 28, rejected: 6, sla: '3.2 hari' },
-        { name: 'Ayu Lestari', role: 'HDO', initial: 'AL', in: 64, sh: 32, process: 17, rejected: 5, sla: '2.7 hari' },
+    // Fallback Team Performance
+    const fallbackTeam = [
+        { id: '1', name: 'Sarah Fatimah', role: 'QC Officer', initial: 'SF', in: 96, sh: 48, process: 38, rejected: 10, sla: '2.4 hari' },
+        { id: '2', name: 'Dimas Wicaksono', role: 'QCO', initial: 'DW', in: 88, sh: 41, process: 36, rejected: 11, sla: '2.1 hari' },
+        { id: '3', name: 'Hendra Pratama', role: 'HDO', initial: 'HP', in: 73, sh: 35, process: 28, rejected: 6, sla: '3.2 hari' },
+        { id: '4', name: 'Ayu Lestari', role: 'HDO', initial: 'AL', in: 64, sh: 32, process: 17, rejected: 5, sla: '2.7 hari' },
     ];
 
     const loadReports = async () => {
         try {
             setLoading(true);
             const res = await operationalService.getReportsSummary(period);
-            setStats(res);
+            if (res) {
+                setReportData(res);
+            }
         } catch (err) {
             console.error('Failed to load reports summary', err);
         } finally {
@@ -91,8 +83,13 @@ export default function OperationalReports() {
         loadReports();
     }, [period]);
 
+    const trendData = (reportData?.trend_data && reportData.trend_data.length > 0) ? reportData.trend_data : fallbackTrend;
+    const serviceDistribution = (reportData?.service_distribution && reportData.service_distribution.length > 0) ? reportData.service_distribution : fallbackService;
+    const statusBreakdown = (reportData?.status_breakdown && reportData.status_breakdown.length > 0) ? reportData.status_breakdown : fallbackStatus;
+    const teamPerformance = (reportData?.team_performance && reportData.team_performance.length > 0) ? reportData.team_performance : fallbackTeam;
+
     const handleDownloadReport = (title: string) => {
-        const headers = 'Nama Petugas,Peran,Kapasitas,Selesai SH,Dalam Proses,Ditolak,Avg SLA\n';
+        const headers = 'Nama Petugas,Peran,Berkas Masuk,Selesai SH,Dalam Proses,Ditolak,Avg SLA\n';
         const rows = teamPerformance.map((t: any) => 
             `"${t.name}",${t.role},${t.in},${t.sh},${t.process},${t.rejected},${t.sla}`
         ).join('\n');
@@ -164,8 +161,8 @@ export default function OperationalReports() {
                         <FileText className="w-4 h-4" />
                     </div>
                     <p className="text-[11px] font-bold text-gray-500">Total Pengajuan Masuk</p>
-                    <p className="text-2xl font-black text-gray-900">{stats?.total_new_submissions || 321}</p>
-                    <p className="text-[10px] text-emerald-600 font-bold mt-1">+14% dari periode sebelumnya</p>
+                    <p className="text-2xl font-black text-gray-900">{reportData?.total_submissions ?? 0}</p>
+                    <p className="text-[10px] text-emerald-600 font-bold mt-1">Data riil pengajuan terdaftar</p>
                 </div>
 
                 <div className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm">
@@ -173,8 +170,8 @@ export default function OperationalReports() {
                         <Award className="w-4 h-4" />
                     </div>
                     <p className="text-[11px] font-bold text-gray-500">Total SH Terbit</p>
-                    <p className="text-2xl font-black text-gray-900">{stats?.sh_terbit_count || 126}</p>
-                    <p className="text-[10px] text-emerald-600 font-bold mt-1">+28% efisiensi kelulusan</p>
+                    <p className="text-2xl font-black text-gray-900">{reportData?.sh_terbit_count ?? 0}</p>
+                    <p className="text-[10px] text-emerald-600 font-bold mt-1">Sertifikat berhasil terbit</p>
                 </div>
 
                 <div className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm">
@@ -182,8 +179,8 @@ export default function OperationalReports() {
                         <Clock className="w-4 h-4" />
                     </div>
                     <p className="text-[11px] font-bold text-gray-500">Rata-rata SLA Keseluruhan</p>
-                    <p className="text-2xl font-black text-gray-900">3.2 hari</p>
-                    <p className="text-[10px] text-emerald-600 font-bold mt-1">-0.8 hari lebih cepat</p>
+                    <p className="text-2xl font-black text-gray-900">{reportData?.avg_sla_days ? `${reportData.avg_sla_days.toFixed(1)} hari` : '2.8 hari'}</p>
+                    <p className="text-[10px] text-emerald-600 font-bold mt-1">Rata-rata pemrosesan berkas</p>
                 </div>
 
                 <div className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm">
@@ -191,8 +188,8 @@ export default function OperationalReports() {
                         <XCircle className="w-4 h-4" />
                     </div>
                     <p className="text-[11px] font-bold text-gray-500">Total Ditolak / Tidak Lolos</p>
-                    <p className="text-2xl font-black text-gray-900">9</p>
-                    <p className="text-[10px] text-gray-400 font-bold mt-1">2.8% rejection rate</p>
+                    <p className="text-2xl font-black text-gray-900">{reportData?.rejected_count ?? 0}</p>
+                    <p className="text-[10px] text-gray-400 font-bold mt-1">{reportData?.rejection_rate ? `${reportData.rejection_rate.toFixed(1)}%` : '0%'} rejection rate</p>
                 </div>
             </div>
 
@@ -202,7 +199,7 @@ export default function OperationalReports() {
                 <div className="lg:col-span-2 bg-white border border-gray-150 rounded-3xl p-6 shadow-sm space-y-4">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h2 className="text-sm font-black text-gray-900">Tren Pengajuan & Kelulusan SH</h2>
+                            <h2 className="text-sm font-black text-gray-900">Tren Pengajuan & Kelulusan SH ({period === 'daily' ? '7 Hari Terakhir' : '6 Bulan Terakhir'})</h2>
                             <p className="text-xs text-gray-500 font-medium">Grafik perbandingan pengajuan masuk vs sertifikat halal terbit</p>
                         </div>
                     </div>
@@ -326,7 +323,7 @@ export default function OperationalReports() {
                         </thead>
                         <tbody className="divide-y divide-gray-100 font-medium">
                             {teamPerformance.map((user: any, idx: number) => (
-                                <tr key={idx} className="hover:bg-gray-50/50">
+                                <tr key={user.id || idx} className="hover:bg-gray-50/50">
                                     <td className="py-3 px-3">
                                         <div className="flex items-center gap-2.5">
                                             <div className="w-7 h-7 rounded-full bg-brand-100 text-brand-700 font-black text-xs flex items-center justify-center">

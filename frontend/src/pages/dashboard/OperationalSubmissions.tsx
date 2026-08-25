@@ -21,26 +21,22 @@ import {
     Layers,
     Tag,
     RefreshCw,
-    X
+    MessageSquare
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { operationalService } from '../../services/operationalService';
 import type { User } from '../../types';
-
-interface SubmissionItem {
-    id: string;
-    no: string;
-    date: string;
-    businessName: string;
-    serviceType: 'Reguler' | 'Self Declare Mandiri' | 'Self Declare Fasilitasi';
-    advisor: string;
-    region: string;
-    completeness: 'Lengkap' | 'Perlu Validasi' | 'Data Kurang';
-    assignStatus: 'Belum Ditugaskan' | 'Ditugaskan ke QCO' | 'Menunggu Review';
-    priority: 'Tinggi' | 'Normal' | 'Mendesak' | 'Kritis';
-    age: string;
-    sla: 'Dalam SLA' | 'Mendekati SLA' | 'Melewati SLA';
-}
+import type { SubmissionItem } from '../../types/operational';
+import {
+    PriorityBadge,
+    CompletenessBadge,
+    AssignStatusBadge,
+    SlaBadge
+} from '../../components/operational/common/OperationalBadges';
+import { SingleAssignModal } from '../../components/operational/modals/SingleAssignModal';
+import { SendReminderModal } from '../../components/operational/modals/SendReminderModal';
+import { ReturnAdvisorModal } from '../../components/operational/modals/ReturnAdvisorModal';
+import { ChangePriorityModal } from '../../components/operational/modals/ChangePriorityModal';
 
 const INITIAL_SUBMISSIONS: SubmissionItem[] = [
     {
@@ -65,7 +61,7 @@ const INITIAL_SUBMISSIONS: SubmissionItem[] = [
         serviceType: 'Self Declare Mandiri',
         advisor: 'Rahmat Hidayat',
         region: 'Ciamis',
-        completeness: 'Perlu Validasi',
+        completeness: 'Perlu Perbaikan',
         assignStatus: 'Ditugaskan ke QCO',
         priority: 'Normal',
         age: '1 hari',
@@ -93,7 +89,7 @@ const INITIAL_SUBMISSIONS: SubmissionItem[] = [
         serviceType: 'Reguler',
         advisor: 'Dimas Fajar',
         region: 'Tasikmalaya',
-        completeness: 'Data Kurang',
+        completeness: 'Belum Lengkap',
         assignStatus: 'Menunggu Review',
         priority: 'Normal',
         age: '3 hari',
@@ -119,10 +115,10 @@ const INITIAL_SUBMISSIONS: SubmissionItem[] = [
         date: '26/07/2026',
         businessName: 'Kopi Nusantara',
         serviceType: 'Reguler',
-        advisor: 'Rahmat Hidayat',
-        region: 'Bandung',
-        completeness: 'Lengkap',
-        assignStatus: 'Belum Ditugaskan',
+        advisor: 'Ayu Lestari',
+        region: 'Cimahi',
+        completeness: 'Perlu Perbaikan',
+        assignStatus: 'Ditugaskan ke QCO',
         priority: 'Tinggi',
         age: '5 hari',
         sla: 'Melewati SLA',
@@ -156,11 +152,12 @@ export default function OperationalSubmissions() {
     const [priorityFilter, setPriorityFilter] = useState('Semua');
     const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
-    // Return to advisor & Priority Modals
+    // Return to advisor, Priority, Single Assign & Reminder Modals
     const [returnModalSub, setReturnModalSub] = useState<SubmissionItem | null>(null);
-    const [returnNote, setReturnNote] = useState('');
     const [priorityModalSub, setPriorityModalSub] = useState<SubmissionItem | null>(null);
-    const [selectedPriority, setSelectedPriority] = useState<string>('Tinggi');
+    const [singleAssignModalSub, setSingleAssignModalSub] = useState<SubmissionItem | null>(null);
+    const [reminderModalSub, setReminderModalSub] = useState<SubmissionItem | null>(null);
+
 
     // Modal Views
     const [viewMode, setViewMode] = useState<'list' | 'batch-assign' | 'detail'>('list');
@@ -213,7 +210,7 @@ export default function OperationalSubmissions() {
                         serviceType: st,
                         advisor: s.consultant?.full_name || 'Halal Advisor',
                         region: s.client?.address ? s.client.address.split(',')[0] : 'Bandung',
-                        completeness: s.field_values && s.field_values.length > 3 ? 'Lengkap' : 'Perlu Validasi',
+                        completeness: s.field_values && s.field_values.length > 3 ? 'Lengkap' : 'Belum Lengkap',
                         assignStatus: aStat,
                         priority: pVal,
                         age: '2 hari',
@@ -245,6 +242,16 @@ export default function OperationalSubmissions() {
         const matchPriority = priorityFilter === 'Semua' || item.priority === priorityFilter;
         return matchSearch && matchService && matchRegion && matchAdvisor && matchCompleteness && matchPriority;
     });
+
+    // Computed stats from real data
+    const statsTotal = submissions.length;
+    const statsBelumDitugaskan = submissions.filter(s => s.assignStatus === 'Belum Ditugaskan').length;
+    const statsLengkap = submissions.filter(s => s.completeness === 'Lengkap').length;
+    const statsPerluValidasi = submissions.filter(s => s.completeness === 'Belum Lengkap' || s.completeness === 'Perlu Perbaikan').length;
+    const statsPrioritasTinggi = submissions.filter(s => s.priority === 'Tinggi' || s.priority === 'Mendesak' || s.priority === 'Kritis').length;
+    const statsSelfDeclare = submissions.filter(s => s.serviceType.startsWith('Self Declare')).length;
+    const statsReguler = submissions.filter(s => s.serviceType === 'Reguler').length;
+    const statsSiapDitugaskan = submissions.filter(s => s.assignStatus === 'Belum Ditugaskan' && s.completeness === 'Lengkap').length;
 
     const toggleSelectAll = () => {
         if (selectedIds.length === filteredData.length) {
@@ -287,33 +294,7 @@ export default function OperationalSubmissions() {
         }
     };
 
-    const handleReturnAdvisorSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!returnModalSub) return;
-        try {
-            await operationalService.returnToAdvisor(returnModalSub.id, returnNote);
-            toast.success(`Pengajuan ${returnModalSub.no} berhasil dikembalikan ke Halal Advisor.`);
-            setSubmissions(prev => prev.map(s => s.id === returnModalSub.id ? { ...s, assignStatus: 'Menunggu Review', priority: 'Kritis' } : s));
-            setReturnModalSub(null);
-            setReturnNote('');
-        } catch (err) {
-            toast.error('Gagal mengembalikan pengajuan');
-        }
-    };
 
-    const handlePrioritySubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!priorityModalSub) return;
-        try {
-            const pCode = selectedPriority === 'Kritis' ? 'CRITICAL' : selectedPriority === 'Mendesak' ? 'URGENT' : selectedPriority === 'Tinggi' ? 'HIGH' : 'NORMAL';
-            await operationalService.updatePriority(priorityModalSub.id, pCode);
-            toast.success(`Prioritas pengajuan ${priorityModalSub.no} berhasil diubah.`);
-            setSubmissions(prev => prev.map(s => s.id === priorityModalSub.id ? { ...s, priority: selectedPriority as any } : s));
-            setPriorityModalSub(null);
-        } catch (err) {
-            toast.error('Gagal memperbarui prioritas');
-        }
-    };
 
     const handleExportCSV = () => {
         const headers = 'No,No Pengajuan,Tanggal,Nama Usaha,Layanan,Advisor,Wilayah,Kelengkapan,Status,Prioritas\n';
@@ -345,51 +326,6 @@ export default function OperationalSubmissions() {
         setPriorityFilter('Semua');
     };
 
-    const getPriorityBadge = (priority: string) => {
-        switch (priority) {
-            case 'Kritis':
-                return <span className="px-2.5 py-0.5 rounded-lg text-xs font-black bg-red-100 text-red-700 border border-red-200">Kritis</span>;
-            case 'Mendesak':
-                return <span className="px-2.5 py-0.5 rounded-lg text-xs font-black bg-rose-100 text-rose-700 border border-rose-200">Mendesak</span>;
-            case 'Tinggi':
-                return <span className="px-2.5 py-0.5 rounded-lg text-xs font-black bg-amber-100 text-amber-700 border border-amber-200">Tinggi</span>;
-            default:
-                return <span className="px-2.5 py-0.5 rounded-lg text-xs font-black bg-emerald-100 text-emerald-700 border border-emerald-200">Normal</span>;
-        }
-    };
-
-    const getCompletenessBadge = (status: string) => {
-        switch (status) {
-            case 'Lengkap':
-                return <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Lengkap</span>;
-            case 'Perlu Validasi':
-                return <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">Perlu Validasi</span>;
-            default:
-                return <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-red-50 text-red-700 border border-red-200">Data Kurang</span>;
-        }
-    };
-
-    const getAssignStatusBadge = (status: string) => {
-        switch (status) {
-            case 'Ditugaskan ke QCO':
-                return <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">Ditugaskan ke QCO</span>;
-            case 'Menunggu Review':
-                return <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">Menunggu Review</span>;
-            default:
-                return <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-red-50 text-red-700 border border-red-200">Belum Ditugaskan</span>;
-        }
-    };
-
-    const getSlaBadge = (sla: string) => {
-        switch (sla) {
-            case 'Melewati SLA':
-                return <span className="px-2 py-0.5 rounded-md text-[11px] font-black bg-red-100 text-red-700">Melewati SLA</span>;
-            case 'Mendekati SLA':
-                return <span className="px-2 py-0.5 rounded-md text-[11px] font-black bg-amber-100 text-amber-700">Mendekati SLA</span>;
-            default:
-                return <span className="px-2 py-0.5 rounded-md text-[11px] font-black bg-emerald-100 text-emerald-700">Dalam SLA</span>;
-        }
-    };
 
     // ==========================================
     // VIEW: DETAIL PENGAJUAN
@@ -719,7 +655,7 @@ export default function OperationalSubmissions() {
                             <FileText className="w-4 h-4" />
                         </div>
                         <p className="text-[11px] font-bold text-gray-400">Total Dipilih</p>
-                        <p className="text-2xl font-black text-gray-900">{selectedIds.length > 0 ? selectedIds.length : 24}</p>
+                        <p className="text-2xl font-black text-gray-900">{selectedIds.length > 0 ? selectedIds.length : statsTotal}</p>
                     </div>
 
                     <div className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm">
@@ -727,7 +663,7 @@ export default function OperationalSubmissions() {
                             <Users className="w-4 h-4" />
                         </div>
                         <p className="text-[11px] font-bold text-gray-400">Siap Ditugaskan</p>
-                        <p className="text-2xl font-black text-gray-900">20</p>
+                        <p className="text-2xl font-black text-gray-900">{statsSiapDitugaskan}</p>
                     </div>
 
                     <div className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm">
@@ -735,7 +671,7 @@ export default function OperationalSubmissions() {
                             <AlertCircle className="w-4 h-4" />
                         </div>
                         <p className="text-[11px] font-bold text-gray-400">Prioritas Tinggi</p>
-                        <p className="text-2xl font-black text-gray-900">5</p>
+                        <p className="text-2xl font-black text-gray-900">{statsPrioritasTinggi}</p>
                     </div>
 
                     <div className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm">
@@ -743,7 +679,7 @@ export default function OperationalSubmissions() {
                             <Shield className="w-4 h-4" />
                         </div>
                         <p className="text-[11px] font-bold text-gray-400">Self Declare</p>
-                        <p className="text-2xl font-black text-gray-900">15</p>
+                        <p className="text-2xl font-black text-gray-900">{statsSelfDeclare}</p>
                     </div>
 
                     <div className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm">
@@ -751,7 +687,7 @@ export default function OperationalSubmissions() {
                             <Layers className="w-4 h-4" />
                         </div>
                         <p className="text-[11px] font-bold text-gray-400">Reguler</p>
-                        <p className="text-2xl font-black text-gray-900">9</p>
+                        <p className="text-2xl font-black text-gray-900">{statsReguler}</p>
                     </div>
                 </div>
 
@@ -761,7 +697,7 @@ export default function OperationalSubmissions() {
                     <div className="lg:col-span-7 bg-white border border-gray-150 rounded-3xl p-6 shadow-sm space-y-4">
                         <div className="flex items-center justify-between">
                             <h2 className="text-sm font-black text-gray-900">Daftar Pengajuan Terpilih</h2>
-                            <span className="text-xs font-bold text-gray-400">24 data</span>
+                            <span className="text-xs font-bold text-gray-400">{selectedIds.length > 0 ? selectedIds.length : statsTotal} data</span>
                         </div>
 
                         <div className="overflow-x-auto">
@@ -788,7 +724,7 @@ export default function OperationalSubmissions() {
                                             <td className="py-3 px-3 font-bold text-gray-800">{item.businessName}</td>
                                             <td className="py-3 px-3 text-gray-600">{item.serviceType}</td>
                                             <td className="py-3 px-3 text-gray-600">{item.advisor}</td>
-                                            <td className="py-3 px-3">{getPriorityBadge(item.priority)}</td>
+                                            <td className="py-3 px-3"><PriorityBadge priority={item.priority} /></td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -983,9 +919,9 @@ export default function OperationalSubmissions() {
                     <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
                         <FileText className="w-4 h-4" />
                     </div>
-                    <p className="text-[11px] font-bold text-gray-500">Total Pengajuan Baru</p>
-                    <p className="text-2xl font-black text-gray-900">25</p>
-                    <p className="text-[10px] text-emerald-600 font-bold mt-1">+12% dari kemarin</p>
+                    <p className="text-[11px] font-bold text-gray-500">Total Pengajuan</p>
+                    <p className="text-2xl font-black text-gray-900">{statsTotal}</p>
+                    <p className="text-[10px] text-gray-400 font-bold mt-1">{filteredData.length} setelah filter</p>
                 </div>
 
                 <div className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm">
@@ -993,8 +929,8 @@ export default function OperationalSubmissions() {
                         <Users className="w-4 h-4" />
                     </div>
                     <p className="text-[11px] font-bold text-gray-500">Belum Ditugaskan</p>
-                    <p className="text-2xl font-black text-gray-900">8</p>
-                    <p className="text-[10px] text-red-600 font-bold mt-1">+33% dari kemarin</p>
+                    <p className="text-2xl font-black text-gray-900">{statsBelumDitugaskan}</p>
+                    <p className="text-[10px] text-amber-600 font-bold mt-1">{statsTotal > 0 ? Math.round((statsBelumDitugaskan / statsTotal) * 100) : 0}% dari total</p>
                 </div>
 
                 <div className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm">
@@ -1002,8 +938,8 @@ export default function OperationalSubmissions() {
                         <CheckCircle2 className="w-4 h-4" />
                     </div>
                     <p className="text-[11px] font-bold text-gray-500">Lengkap</p>
-                    <p className="text-2xl font-black text-gray-900">15</p>
-                    <p className="text-[10px] text-emerald-600 font-bold mt-1">+7% dari kemarin</p>
+                    <p className="text-2xl font-black text-gray-900">{statsLengkap}</p>
+                    <p className="text-[10px] text-emerald-600 font-bold mt-1">{statsTotal > 0 ? Math.round((statsLengkap / statsTotal) * 100) : 0}% dari total</p>
                 </div>
 
                 <div className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm">
@@ -1011,8 +947,8 @@ export default function OperationalSubmissions() {
                         <AlertCircle className="w-4 h-4" />
                     </div>
                     <p className="text-[11px] font-bold text-gray-500">Perlu Validasi</p>
-                    <p className="text-2xl font-black text-gray-900">6</p>
-                    <p className="text-[10px] text-amber-600 font-bold mt-1">+20% dari kemarin</p>
+                    <p className="text-2xl font-black text-gray-900">{statsPerluValidasi}</p>
+                    <p className="text-[10px] text-amber-600 font-bold mt-1">{statsTotal > 0 ? Math.round((statsPerluValidasi / statsTotal) * 100) : 0}% dari total</p>
                 </div>
 
                 <div className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm">
@@ -1020,8 +956,8 @@ export default function OperationalSubmissions() {
                         <Clock className="w-4 h-4" />
                     </div>
                     <p className="text-[11px] font-bold text-gray-500">Prioritas Tinggi</p>
-                    <p className="text-2xl font-black text-gray-900">3</p>
-                    <p className="text-[10px] text-red-600 font-bold mt-1">+33% dari kemarin</p>
+                    <p className="text-2xl font-black text-gray-900">{statsPrioritasTinggi}</p>
+                    <p className="text-[10px] text-red-600 font-bold mt-1">{statsPrioritasTinggi > 0 ? 'Perlu segera ditugaskan' : 'Semua normal'}</p>
                 </div>
             </div>
 
@@ -1205,11 +1141,11 @@ export default function OperationalSubmissions() {
                                     <td className="py-3 px-3 text-gray-600">{item.serviceType}</td>
                                     <td className="py-3 px-3 text-gray-600">{item.advisor}</td>
                                     <td className="py-3 px-3 text-gray-600">{item.region}</td>
-                                    <td className="py-3 px-3">{getCompletenessBadge(item.completeness)}</td>
-                                    <td className="py-3 px-3">{getAssignStatusBadge(item.assignStatus)}</td>
-                                    <td className="py-3 px-3">{getPriorityBadge(item.priority)}</td>
+                                    <td className="py-3 px-3"><CompletenessBadge status={item.completeness} /></td>
+                                    <td className="py-3 px-3"><AssignStatusBadge status={item.assignStatus} /></td>
+                                    <td className="py-3 px-3"><PriorityBadge priority={item.priority} /></td>
                                     <td className="py-3 px-3 font-medium text-gray-700">{item.age}</td>
-                                    <td className="py-3 px-3">{getSlaBadge(item.sla)}</td>
+                                    <td className="py-3 px-3"><SlaBadge sla={item.sla} /></td>
                                     <td className="py-3 px-3 text-center">
                                         <div className="flex items-center justify-center gap-1.5 relative">
                                             <button
@@ -1219,11 +1155,8 @@ export default function OperationalSubmissions() {
                                                 Detail
                                             </button>
                                             <button
-                                                onClick={() => {
-                                                    toast.success(`Pengajuan ${item.no} berhasil ditugaskan.`);
-                                                    setSubmissions(prev => prev.map(s => s.id === item.id ? { ...s, assignStatus: 'Ditugaskan ke QCO' } : s));
-                                                }}
-                                                className="px-2.5 py-1 bg-brand-700 hover:bg-brand-800 text-white rounded-lg text-xs font-bold shadow-sm"
+                                                onClick={() => setSingleAssignModalSub(item)}
+                                                className="px-2.5 py-1 bg-brand-700 hover:bg-brand-800 text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer"
                                             >
                                                 Tugaskan
                                             </button>
@@ -1231,36 +1164,44 @@ export default function OperationalSubmissions() {
                                             {/* Dropdown Toggle */}
                                             <button
                                                 onClick={() => setActiveDropdown(activeDropdown === item.id ? null : item.id)}
-                                                className="p-1 hover:bg-gray-100 rounded-lg text-gray-500"
+                                                className="p-1 hover:bg-gray-100 rounded-lg text-gray-500 cursor-pointer"
                                             >
                                                 <MoreVertical className="w-4 h-4" />
                                             </button>
 
                                             {/* 3-dots Dropdown Menu */}
                                             {activeDropdown === item.id && (
-                                                <div className="absolute right-0 top-8 z-30 w-48 bg-white rounded-2xl shadow-xl border border-gray-150 py-2 text-left text-xs font-bold text-gray-700">
+                                                <div className="absolute right-0 top-8 z-30 w-52 bg-white rounded-2xl shadow-xl border border-gray-150 py-2 text-left text-xs font-bold text-gray-700">
                                                     <button
                                                         onClick={() => { setActiveDropdown(null); handleOpenDetail(item); }}
-                                                        className="w-full px-4 py-2 hover:bg-gray-50 flex items-center gap-2"
+                                                        className="w-full px-4 py-2 hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
                                                     >
                                                         <Eye className="w-3.5 h-3.5 text-gray-400" /> Lihat Detail
                                                     </button>
                                                     <button
                                                         onClick={() => {
                                                             setActiveDropdown(null);
-                                                            setSelectedIds([item.id]);
-                                                            setViewMode('batch-assign');
+                                                            setSingleAssignModalSub(item);
                                                         }}
-                                                        className="w-full px-4 py-2 hover:bg-gray-50 flex items-center gap-2"
+                                                        className="w-full px-4 py-2 hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
                                                     >
                                                         <UserPlus className="w-3.5 h-3.5 text-gray-400" /> Tugaskan
                                                     </button>
                                                     <button
                                                         onClick={() => {
                                                             setActiveDropdown(null);
+                                                            setReminderModalSub(item);
+                                                        }}
+                                                        className="w-full px-4 py-2 hover:bg-emerald-50 text-emerald-700 flex items-center gap-2 cursor-pointer"
+                                                    >
+                                                        <MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> Kirim Pengingat
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            setActiveDropdown(null);
                                                             toast.success('Mode edit data dibuka.');
                                                         }}
-                                                        className="w-full px-4 py-2 hover:bg-gray-50 flex items-center gap-2"
+                                                        className="w-full px-4 py-2 hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
                                                     >
                                                         <FileText className="w-3.5 h-3.5 text-gray-400" /> Edit Data
                                                     </button>
@@ -1268,9 +1209,8 @@ export default function OperationalSubmissions() {
                                                         onClick={() => {
                                                             setActiveDropdown(null);
                                                             setReturnModalSub(item);
-                                                            setReturnNote('');
                                                         }}
-                                                        className="w-full px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2"
+                                                        className="w-full px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2 cursor-pointer"
                                                     >
                                                         <RotateCcw className="w-3.5 h-3.5 text-red-500" /> Kembalikan ke Advisor
                                                     </button>
@@ -1278,9 +1218,8 @@ export default function OperationalSubmissions() {
                                                         onClick={() => {
                                                             setActiveDropdown(null);
                                                             setPriorityModalSub(item);
-                                                            setSelectedPriority(item.priority);
                                                         }}
-                                                        className="w-full px-4 py-2 hover:bg-gray-50 flex items-center gap-2"
+                                                        className="w-full px-4 py-2 hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
                                                     >
                                                         <Tag className="w-3.5 h-3.5 text-gray-400" /> Tandai Prioritas
                                                     </button>
@@ -1337,7 +1276,7 @@ export default function OperationalSubmissions() {
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                         <div>
                             <p className="font-bold text-gray-800 text-[11px]">Foto Produk</p>
-                            <p className="text-[9px] text-gray-500">Jelas & terbaru</p>
+                            <p className="text-[9px] text-gray-500">Jelas &amp; terbaru</p>
                         </div>
                     </div>
 
@@ -1353,7 +1292,7 @@ export default function OperationalSubmissions() {
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                         <div>
                             <p className="font-bold text-gray-800 text-[11px]">Daftar Bahan</p>
-                            <p className="text-[9px] text-gray-500">Lengkap & jelas</p>
+                            <p className="text-[9px] text-gray-500">Lengkap &amp; jelas</p>
                         </div>
                     </div>
 
@@ -1368,114 +1307,60 @@ export default function OperationalSubmissions() {
             </div>
 
             {/* Modal: Kembalikan ke Advisor */}
-            {returnModalSub && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-gray-150 space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-red-600">
-                                <RotateCcw className="w-5 h-5" />
-                                <h3 className="text-base font-black text-gray-900">Kembalikan ke Advisor</h3>
-                            </div>
-                            <button onClick={() => setReturnModalSub(null)} className="p-1 hover:bg-gray-100 rounded-lg text-gray-400">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <p className="text-xs text-gray-600">
-                            Pengajuan <strong>{returnModalSub.no}</strong> ({returnModalSub.businessName}) akan dikembalikan ke Halal Advisor (<strong>{returnModalSub.advisor}</strong>) untuk perbaikan data.
-                        </p>
-
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1.5">Catatan Perbaikan / Alasan Pengembalian *</label>
-                            <textarea
-                                rows={3}
-                                value={returnNote}
-                                onChange={(e) => setReturnNote(e.target.value)}
-                                placeholder="Contoh: Dokumen NIB belum terlampir, foto produk kurang jelas..."
-                                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-red-500"
-                                required
-                            />
-                        </div>
-
-                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
-                            <button
-                                type="button"
-                                onClick={() => setReturnModalSub(null)}
-                                className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50 rounded-xl border border-gray-200"
-                            >
-                                Batal
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleReturnAdvisorSubmit}
-                                disabled={!returnNote.trim()}
-                                className="px-4 py-2 text-xs font-black text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-xl shadow-sm"
-                            >
-                                Kembalikan Berkas
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ReturnAdvisorModal
+                isOpen={!!returnModalSub}
+                onClose={() => setReturnModalSub(null)}
+                submissionId={returnModalSub?.id || ''}
+                submissionNo={returnModalSub?.no || ''}
+                businessName={returnModalSub?.businessName || ''}
+                advisorName={returnModalSub?.advisor || ''}
+                onSuccess={() => {
+                    if (returnModalSub) {
+                        setSubmissions(prev => prev.map(s => s.id === returnModalSub.id ? { ...s, assignStatus: 'Menunggu Review', priority: 'Kritis' } : s));
+                    }
+                }}
+            />
 
             {/* Modal: Tandai Prioritas */}
-            {priorityModalSub && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-150 space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-brand-600">
-                                <Tag className="w-5 h-5" />
-                                <h3 className="text-base font-black text-gray-900">Ubah Prioritas</h3>
-                            </div>
-                            <button onClick={() => setPriorityModalSub(null)} className="p-1 hover:bg-gray-100 rounded-lg text-gray-400">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
+            <ChangePriorityModal
+                isOpen={!!priorityModalSub}
+                onClose={() => setPriorityModalSub(null)}
+                submissionId={priorityModalSub?.id || ''}
+                submissionNo={priorityModalSub?.no || ''}
+                currentPriority={priorityModalSub?.priority || 'Normal'}
+                onSuccess={(newPriority) => {
+                    if (priorityModalSub) {
+                        setSubmissions(prev => prev.map(s => s.id === priorityModalSub.id ? { ...s, priority: newPriority } : s));
+                    }
+                }}
+            />
 
-                        <p className="text-xs text-gray-600">
-                            Pilih tingkat prioritas penanganan untuk <strong>{priorityModalSub.no}</strong>:
-                        </p>
+            {/* Modal: Tugaskan Satuan */}
+            <SingleAssignModal
+                isOpen={!!singleAssignModalSub}
+                onClose={() => setSingleAssignModalSub(null)}
+                submissionId={singleAssignModalSub?.id || ''}
+                submissionNo={singleAssignModalSub?.no || ''}
+                businessName={singleAssignModalSub?.businessName || ''}
+                currentStage="Verifikasi QCO"
+                staffList={staffList}
+                onSuccess={() => {
+                    if (singleAssignModalSub) {
+                        setSubmissions(prev => prev.map(s => s.id === singleAssignModalSub.id ? { ...s, assignStatus: 'Ditugaskan ke QCO' } : s));
+                    }
+                }}
+            />
 
-                        <div className="space-y-2">
-                            {['Normal', 'Tinggi', 'Mendesak', 'Kritis'].map((p) => (
-                                <label
-                                    key={p}
-                                    onClick={() => setSelectedPriority(p)}
-                                    className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${
-                                        selectedPriority === p ? 'bg-brand-50 border-brand-500 font-black text-brand-900' : 'bg-gray-50 border-gray-200 text-gray-700'
-                                    }`}
-                                >
-                                    <span className="text-xs">{p}</span>
-                                    <input
-                                        type="radio"
-                                        name="priorityOption"
-                                        checked={selectedPriority === p}
-                                        onChange={() => setSelectedPriority(p)}
-                                        className="text-brand-600"
-                                    />
-                                </label>
-                            ))}
-                        </div>
-
-                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
-                            <button
-                                type="button"
-                                onClick={() => setPriorityModalSub(null)}
-                                className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50 rounded-xl border border-gray-200"
-                            >
-                                Batal
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handlePrioritySubmit}
-                                className="px-4 py-2 text-xs font-black text-white bg-brand-700 hover:bg-brand-800 rounded-xl shadow-sm"
-                            >
-                                Simpan Prioritas
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Modal: Kirim Pengingat */}
+            <SendReminderModal
+                isOpen={!!reminderModalSub}
+                onClose={() => setReminderModalSub(null)}
+                submissionId={reminderModalSub?.id || ''}
+                submissionNo={reminderModalSub?.no || ''}
+                businessName={reminderModalSub?.businessName || ''}
+                advisorName={reminderModalSub?.advisor || ''}
+                defaultRecipient="ADVISOR"
+            />
         </div>
     );
 }

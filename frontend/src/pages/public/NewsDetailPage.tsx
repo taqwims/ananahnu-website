@@ -88,7 +88,9 @@ export default function NewsDetailPage() {
 
     // Copy link helper
     const handleCopyLink = () => {
-        navigator.clipboard.writeText(window.location.href);
+        const shareBaseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://halalcore.id';
+        const linkToCopy = article?.slug ? `${shareBaseUrl}/share/news/${article.slug}` : window.location.href;
+        navigator.clipboard.writeText(linkToCopy);
         setCopied(true);
         toast.success('Tautan artikel berhasil disalin!');
         setTimeout(() => setCopied(false), 2000);
@@ -185,7 +187,8 @@ export default function NewsDetailPage() {
 
     if (!article) return null;
 
-    const pageUrl = window.location.href;
+    const shareBaseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://halalcore.id';
+    const shareUrl = `${shareBaseUrl}/share/news/${article.slug}`;
     const shareText = `${article.title} - Baca selengkapnya di Halal Core:`;
 
     return (
@@ -365,7 +368,7 @@ export default function NewsDetailPage() {
                     <div className="flex items-center gap-2">
                         {/* WhatsApp */}
                         <a
-                            href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${pageUrl}`)}`}
+                            href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="px-3.5 py-2 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-transform hover:scale-105"
@@ -375,7 +378,7 @@ export default function NewsDetailPage() {
 
                         {/* Facebook */}
                         <a
-                            href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(pageUrl)}`}
+                            href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-2.5 bg-[#1877F2] hover:bg-[#166fe5] text-white rounded-xl transition-transform hover:scale-105 shadow-sm"
@@ -386,7 +389,7 @@ export default function NewsDetailPage() {
 
                         {/* Twitter */}
                         <a
-                            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(pageUrl)}`}
+                            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-2.5 bg-black hover:bg-gray-800 text-white rounded-xl transition-transform hover:scale-105 shadow-sm"
@@ -397,7 +400,7 @@ export default function NewsDetailPage() {
 
                         {/* LinkedIn */}
                         <a
-                            href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(pageUrl)}`}
+                            href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-2.5 bg-[#0A66C2] hover:bg-[#095196] text-white rounded-xl transition-transform hover:scale-105 shadow-sm"

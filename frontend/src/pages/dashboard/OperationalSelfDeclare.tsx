@@ -3,8 +3,6 @@ import {
     Search,
     RotateCcw,
     Download,
-    ChevronLeft,
-    ChevronRight,
     Send,
     AlertCircle,
     CheckCircle2,
@@ -13,29 +11,15 @@ import {
     Award,
     Gavel,
     RefreshCw,
-    X,
     UserPlus
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { operationalService } from '../../services/operationalService';
 import type { User } from '../../types';
-
-interface SDItem {
-    id: string;
-    no: string;
-    sihalalNo: string;
-    businessName: string;
-    ownerName: string;
-    verifikator: string;
-    advisor: string;
-    fundingType: 'Fasilitasi BPJPH' | 'Mandiri';
-    status: 'Menunggu Verifikasi' | 'Sedang Diverifikasi' | 'Perlu Perbaikan' | 'Menunggu Perbaikan Pelaku Usaha' | 'Lolos Verifikasi' | 'Menunggu Penetapan Halal';
-    processPosition: string;
-    processAge: string;
-    slaDays: string;
-    slaPercentage: string;
-    actionType: string;
-}
+import type { SDItem } from '../../types/operational';
+import { OperationalPagination } from '../../components/operational/common/OperationalPagination';
+import { SingleAssignModal } from '../../components/operational/modals/SingleAssignModal';
+import { SendReminderModal } from '../../components/operational/modals/SendReminderModal';
 
 const INITIAL_SD_DATA: SDItem[] = [
     {
@@ -114,9 +98,13 @@ export default function OperationalSelfDeclare() {
     const [verifikatorFilter, setVerifikatorFilter] = useState('Semua');
     const [advisorFilter, setAdvisorFilter] = useState('Semua');
 
-    // Reassign Verifikator Modal
+    // Modals
     const [reassignModalItem, setReassignModalItem] = useState<SDItem | null>(null);
-    const [targetVerifikator, setTargetVerifikator] = useState('');
+    const [reminderModalItem, setReminderModalItem] = useState<SDItem | null>(null);
+
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage, setPerPage] = useState(10);
 
     const loadSDData = async () => {
         try {
@@ -128,7 +116,6 @@ export default function OperationalSelfDeclare() {
 
             if (staffRes && staffRes.length > 0) {
                 setStaffList(staffRes);
-                setTargetVerifikator(staffRes[0].full_name || staffRes[0].username || '');
             }
 
             if (subsRes?.data && subsRes.data.length > 0) {
@@ -199,29 +186,6 @@ export default function OperationalSelfDeclare() {
                 return <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">Menunggu Penetapan</span>;
             default:
                 return null;
-        }
-    };
-
-    const handleActionClick = (item: SDItem) => {
-        toast.success(`Pengingat berhasil dikirimkan ke ${item.verifikator} dan pelaku usaha (${item.businessName}).`);
-    };
-
-    const handleReassignSubmit = async () => {
-        if (!reassignModalItem) return;
-        const staffObj = staffList.find(s => s.full_name === targetVerifikator || s.username === targetVerifikator) || staffList[0];
-        try {
-            if (staffObj) {
-                await operationalService.assignSubmission(reassignModalItem.id, {
-                    assignee_id: staffObj.id,
-                    target_role: 'VERIFIKATOR',
-                    notes: `Dialihkan ke ${targetVerifikator}`,
-                });
-            }
-            setSdData(prev => prev.map(item => item.id === reassignModalItem.id ? { ...item, verifikator: targetVerifikator } : item));
-            toast.success(`Verifikator berhasil dialihkan ke ${targetVerifikator}`);
-            setReassignModalItem(null);
-        } catch (err) {
-            toast.error('Gagal mengalihkan verifikator');
         }
     };
 
@@ -447,7 +411,9 @@ export default function OperationalSelfDeclare() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {filteredData.map((item) => (
+                            {filteredData
+                                .slice((currentPage - 1) * perPage, currentPage * perPage)
+                                .map((item) => (
                                 <tr key={item.id} className="hover:bg-gray-50/50">
                                     <td className="py-3 px-3 font-mono font-bold text-gray-800">{item.no}</td>
                                     <td className="py-3 px-3 font-mono text-gray-600">{item.sihalalNo}</td>
@@ -475,7 +441,7 @@ export default function OperationalSelfDeclare() {
                                     </td>
                                     <td className="py-3 px-3 text-center">
                                         <button
-                                            onClick={() => handleActionClick(item)}
+                                            onClick={() => setReminderModalItem(item)}
                                             className="px-3 py-1 bg-brand-700 hover:bg-brand-800 text-white rounded-lg text-xs font-bold shadow-sm flex items-center gap-1 mx-auto"
                                         >
                                             <Send className="w-3 h-3" />
@@ -488,74 +454,46 @@ export default function OperationalSelfDeclare() {
                     </table>
                 </div>
 
-                {/* Pagination */}
-                <div className="flex flex-col sm:flex-row items-center justify-between pt-4 border-t border-gray-100 gap-3 text-xs text-gray-500">
-                    <span>Menampilkan {filteredData.length} dari {sdData.length} data</span>
-                    <div className="flex items-center gap-1">
-                        <button className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-30">
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <button className="px-3 py-1 rounded-lg bg-brand-700 text-white font-bold">1</button>
-                        <button className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50">
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
-                    </div>
-                </div>
+                {/* Shared Pagination */}
+                <OperationalPagination
+                    currentPage={currentPage}
+                    totalPages={Math.ceil(filteredData.length / perPage) || 1}
+                    totalItems={filteredData.length}
+                    perPage={perPage}
+                    onPageChange={setCurrentPage}
+                    onPerPageChange={(newP) => {
+                        setPerPage(newP);
+                        setCurrentPage(1);
+                    }}
+                />
             </div>
 
             {/* Modal: Alihkan Verifikator */}
-            {reassignModalItem && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-150 space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-base font-black text-gray-900">Alihkan Verifikator</h3>
-                            <button onClick={() => setReassignModalItem(null)} className="p-1 hover:bg-gray-100 rounded-lg text-gray-400">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
+            <SingleAssignModal
+                isOpen={!!reassignModalItem}
+                onClose={() => setReassignModalItem(null)}
+                submissionId={reassignModalItem?.id || ''}
+                submissionNo={reassignModalItem?.no || ''}
+                businessName={reassignModalItem?.businessName || ''}
+                currentStage="Verifikasi Self Declare"
+                staffList={staffList}
+                onSuccess={(assignedName) => {
+                    if (reassignModalItem) {
+                        setSdData(prev => prev.map(item => item.id === reassignModalItem.id ? { ...item, verifikator: assignedName } : item));
+                    }
+                }}
+            />
 
-                        <p className="text-xs text-gray-600">
-                            Pilih verifikator baru untuk menangani <strong>{reassignModalItem.no}</strong> ({reassignModalItem.businessName}):
-                        </p>
-
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1.5">Pilih Verifikator</label>
-                            <select
-                                value={targetVerifikator}
-                                onChange={(e) => setTargetVerifikator(e.target.value)}
-                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-brand-500"
-                            >
-                                {staffList.map(s => (
-                                    <option key={s.id} value={s.full_name || s.username}>{s.full_name || s.username}</option>
-                                ))}
-                                {staffList.length === 0 && (
-                                    <>
-                                        <option value="Ayu Lestari">Ayu Lestari</option>
-                                        <option value="Hendra Pratama">Hendra Pratama</option>
-                                    </>
-                                )}
-                            </select>
-                        </div>
-
-                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
-                            <button
-                                type="button"
-                                onClick={() => setReassignModalItem(null)}
-                                className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50 rounded-xl border border-gray-200"
-                            >
-                                Batal
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleReassignSubmit}
-                                className="px-4 py-2 text-xs font-black text-white bg-brand-700 hover:bg-brand-800 rounded-xl shadow-sm"
-                            >
-                                Simpan Pengalihan
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Modal: Kirim Pengingat */}
+            <SendReminderModal
+                isOpen={!!reminderModalItem}
+                onClose={() => setReminderModalItem(null)}
+                submissionId={reminderModalItem?.id || ''}
+                submissionNo={reminderModalItem?.no || ''}
+                businessName={reminderModalItem?.businessName || ''}
+                advisorName={reminderModalItem?.advisor || ''}
+                defaultRecipient="ADVISOR"
+            />
         </div>
     );
 }

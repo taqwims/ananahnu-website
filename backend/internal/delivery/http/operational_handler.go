@@ -34,6 +34,8 @@ func NewOperationalHandler(r *gin.Engine, uc domain.OperationalUsecase) {
 		g.PUT("/submissions/:id/priority", handler.UpdatePriority)
 		g.POST("/audit/schedule", handler.ScheduleAudit)
 		g.POST("/submissions/schedule-audit", handler.ScheduleAudit)
+		g.POST("/reminders/send", handler.SendReminder)
+		g.POST("/submissions/:id/reminder", handler.SendReminder)
 		g.GET("/staff", handler.GetStaffList)
 
 		// LPH & Auditor
@@ -53,6 +55,9 @@ func NewOperationalHandler(r *gin.Engine, uc domain.OperationalUsecase) {
 
 		// Reports
 		g.GET("/reports/summary", handler.GetReportsSummary)
+
+		// Geography (Provinces)
+		g.GET("/provinces", handler.GetProvinces)
 
 		// Test WhatsApp
 		g.POST("/test-whatsapp", handler.TestWhatsApp)
@@ -84,6 +89,9 @@ func (h *OperationalHandler) GetSubmissions(c *gin.Context) {
 	}
 	if stage := c.Query("stage"); stage != "" {
 		filter["stage"] = stage
+	}
+	if province := c.Query("province"); province != "" {
+		filter["province"] = province
 	}
 	if pageStr := c.Query("page"); pageStr != "" {
 		if page, err := strconv.Atoi(pageStr); err == nil {
@@ -207,6 +215,26 @@ func (h *OperationalHandler) ScheduleAudit(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Jadwal audit berhasil disimpan"})
+}
+
+func (h *OperationalHandler) SendReminder(c *gin.Context) {
+	var input domain.SendReminderInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if idStr := c.Param("id"); idStr != "" && input.SubmissionID == "" {
+		input.SubmissionID = idStr
+	}
+
+	managerID := middleware.GetUserID(c)
+	if err := h.operationalUC.SendReminder(input, managerID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Pengingat berhasil dikirim"})
 }
 
 func (h *OperationalHandler) GetStaffList(c *gin.Context) {
@@ -406,4 +434,13 @@ func (h *OperationalHandler) TestWhatsApp(c *gin.Context) {
 		"message": "Pesan WhatsApp berhasil dikirim!",
 		"result":  res,
 	})
+}
+
+func (h *OperationalHandler) GetProvinces(c *gin.Context) {
+	provinces, err := h.operationalUC.GetProvinces()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, provinces)
 }
