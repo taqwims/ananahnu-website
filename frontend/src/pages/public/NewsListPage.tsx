@@ -88,25 +88,41 @@ export default function NewsListPage() {
         return news;
     }, [news, featuredArticle]);
 
-    // Structured Data (JSON-LD Breadcrumbs)
-    const breadcrumbSchema = {
-        '@context': 'https://schema.org',
-        '@type': 'BreadcrumbList',
-        'itemListElement': [
-            {
+    // Structured Data (JSON-LD Breadcrumbs & ItemList)
+    const pageSchemas = useMemo(() => {
+        const breadcrumbs = {
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            'itemListElement': [
+                {
+                    '@type': 'ListItem',
+                    'position': 1,
+                    'name': 'Beranda',
+                    'item': 'https://halalcore.id/'
+                },
+                {
+                    '@type': 'ListItem',
+                    'position': 2,
+                    'name': 'Berita & Artikel Halal',
+                    'item': 'https://halalcore.id/news'
+                }
+            ]
+        };
+
+        const itemList = {
+            '@context': 'https://schema.org',
+            '@type': 'ItemList',
+            'name': 'Pusat Berita & Edukasi Sertifikasi Halal',
+            'itemListElement': news.slice(0, 10).map((article, index) => ({
                 '@type': 'ListItem',
-                'position': 1,
-                'name': 'Beranda',
-                'item': 'https://halalcore.id/'
-            },
-            {
-                '@type': 'ListItem',
-                'position': 2,
-                'name': 'Berita & Artikel Halal',
-                'item': 'https://halalcore.id/news'
-            }
-        ]
-    };
+                'position': index + 1,
+                'url': `https://halalcore.id/news/${article.slug}`,
+                'name': article.title
+            }))
+        };
+
+        return [breadcrumbs, itemList];
+    }, [news]);
 
     return (
         <div className="min-h-screen bg-slate-50 text-gray-800">
@@ -116,7 +132,7 @@ export default function NewsListPage() {
                 keywords="berita halal indonesia, regulasi bpjph 2026, panduan sertifikasi halal, syarat sertifikat halal, sihalal, tips umkm halal"
                 ogType="website"
                 canonicalUrl="https://halalcore.id/news"
-                schema={breadcrumbSchema}
+                schema={pageSchemas}
             />
 
             {/* Hero Section */}
@@ -223,6 +239,8 @@ export default function NewsListPage() {
                                         src={getMediaUrl(featuredArticle.thumbnail_url) || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=1200'}
                                         alt={featuredArticle.title}
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                        fetchPriority="high"
+                                        decoding="async"
                                     />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent lg:hidden"></div>
                                     <div className="absolute top-4 left-4">
@@ -302,6 +320,7 @@ export default function NewsListPage() {
                                                 alt={article.title}
                                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                                 loading="lazy"
+                                                decoding="async"
                                             />
                                             <span className="absolute top-3 left-3 px-2.5 py-1 bg-white/90 backdrop-blur-md rounded-lg text-[10px] font-black uppercase tracking-wider text-brand-800 shadow-sm">
                                                 {article.category || 'Berita Halal'}

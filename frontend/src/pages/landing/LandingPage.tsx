@@ -5,7 +5,7 @@ import {
     FileText, MessageSquare, ClipboardList, Monitor, Award,
     Store, Utensils, Sparkles, Briefcase, Factory, MoreHorizontal,
     Star, Headphones, ShieldCheck, Users, UserCheck, Check,
-    PhoneCall, X
+    PhoneCall, X, ChevronDown, HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../services/api';
@@ -14,6 +14,31 @@ import { getMediaUrl } from '../../utils/media';
 import { formatWhatsAppUrl } from '../../utils/format';
 import heroAdvisorImg from '../../assets/hero-advisors.jpg';
 import HalalIndonesiaBadge from '../../components/ui/HalalIndonesiaBadge';
+import SEOHead from '../../components/seo/SEOHead';
+
+// FAQ data for Google Search rich snippets & user trust
+const LANDING_FAQS = [
+    {
+        q: "Apa itu Sertifikasi Halal Self Declare dan apakah benar biayanya Rp0?",
+        a: "Sertifikasi Halal Self Declare adalah program sertifikasi pernyataan halal khusus bagi pelaku Usaha Mikro dan Kecil (UMK) dengan produk berisiko rendah dan bahan yang sudah dipastikan kehalalannya. Melalui program SEHATI dari BPJPH Kementerian Agama, biaya pendaftaran difasilitasi 100% (subsidi pemerintah) sehingga Rp0 atau gratis bagi UMK yang memenuhi syarat."
+    },
+    {
+        q: "Berapa lama estimasi proses pembuatan Sertifikat Halal sampai terbit?",
+        a: "Untuk jalur Self Declare (Fasilitasi & Mandiri), proses verifikasi dokumen hingga penerbitan Sertifikat Halal memakan waktu rata-rata 12–21 hari kerja sejak berkas dinyatakan lengkap di SIHALAL. Untuk jalur Reguler (melalui LPH dan Sidang Fatwa MUI), proses berkisar antara 21–35 hari kerja."
+    },
+    {
+        q: "Dokumen apa saja yang diperlukan untuk mengajukan Sertifikasi Halal?",
+        a: "Persyaratan utama meliputi: NIB (Nomor Induk Berusaha) berbasis risiko, data identitas KTP pemilik usaha, daftar nama produk dan bahan baku yang digunakan, uraian alur proses produksi halal, serta foto produk. Halal Advisor kami akan mendampingi penyusunan dokumen manual SJPH (Sistem Jaminan Produk Halal)."
+    },
+    {
+        q: "Apa perbedaan sertifikasi halal jalur Reguler dan Self Declare?",
+        a: "Jalur Self Declare diperuntukkan bagi UMK dengan bahan baku sederhana dan non-kritis (tanpa sembelihan hewan yang rumit). Sedangkan jalur Reguler terbuka untuk semua skala usaha (mikro, kecil, menengah, besar, hingga manufaktur pabrik) yang memiliki bahan kritis, fasilitas restoran, katering, atau jasa penyembelihan RPH."
+    },
+    {
+        q: "Apakah sertifikat halal yang diproses resmi dari BPJPH Kemenag?",
+        a: "Ya, 100% resmi. Seluruh sertifikasi halal yang didampingi oleh Halal Core diterbitkan langsung oleh Badan Penyelenggara Jaminan Produk Halal (BPJPH) Kementerian Agama Republik Indonesia dengan Ketetapan Halal resmi dari Komite Fatwa Produk Halal / Majelis Ulama Indonesia (MUI)."
+    }
+];
 
 // Testimonials data
 const TESTIMONIALS = [
@@ -95,6 +120,7 @@ export default function LandingPage() {
     const [publicSettings, setPublicSettings] = useState<Record<string, string>>({});
     const [testimonialIndex, setTestimonialIndex] = useState(0);
     const [selectedService, setSelectedService] = useState<typeof SERVICES_DATA[0] | null>(null);
+    const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
     // Auto rotate testimonials
     useEffect(() => {
@@ -137,8 +163,60 @@ export default function LandingPage() {
         "Halo HalalCore, saya ingin konsultasi mengenai pengurusan Sertifikat Halal."
     );
 
+    // SEO Structured Data (Organization + WebSite + Service + FAQPage)
+    const landingSchemas = [
+        {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Halal Core",
+            "url": "https://halalcore.id/",
+            "logo": "https://halalcore.id/icon.png",
+            "description": "Platform ekosistem halal global terpercaya. Layanan pendampingan sertifikasi halal online BPJPH, pelatihan profesional, dan konsultasi bisnis halal.",
+            "sameAs": [
+                "https://www.instagram.com/halalcore.id",
+                "https://www.tiktok.com/@halalcore.id"
+            ],
+            "contactPoint": {
+                "@type": "ContactPoint",
+                "contactType": "customer support",
+                "telephone": publicSettings['COMPANY_PHONE'] || "+62-811-0000-0000",
+                "availableLanguage": ["Indonesian", "English"]
+            }
+        },
+        {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Halal Core Indonesia",
+            "url": "https://halalcore.id/",
+            "potentialAction": {
+                "@type": "SearchAction",
+                "target": "https://halalcore.id/news?search={search_term_string}",
+                "query-input": "required name=search_term_string"
+            }
+        },
+        {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": LANDING_FAQS.map(faq => ({
+                "@type": "Question",
+                "name": faq.q,
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": faq.a
+                }
+            }))
+        }
+    ];
+
     return (
         <div className="overflow-hidden">
+            <SEOHead
+                title="Halal Core | Platform Pendampingan Sertifikasi Halal Resmi BPJPH"
+                description="Halal Core membantu pelaku usaha dan UMKM mendapatkan Sertifikat Halal resmi BPJPH dengan mudah, cepat, dan terpercaya. Layanan Self Declare Rp0, Reguler, dan Pelatihan Halal."
+                keywords="sertifikasi halal, halal core, pendampingan halal online, sertifikat halal bpjph, halal indonesia, syarat sertifikat halal, sihalal, biaya sertifikasi halal"
+                canonicalUrl="https://halalcore.id/"
+                schema={landingSchemas}
+            />
             {/* 1. HERO SECTION */}
             <section id="home" className="relative pt-8 pb-14 sm:pt-12 sm:pb-16 lg:pt-16 lg:pb-24 bg-white overflow-hidden">
                 {/* Subtle Islamic circular pattern on the left */}
@@ -555,6 +633,8 @@ export default function LandingPage() {
                                                 src={TESTIMONIALS[testimonialIndex].avatar}
                                                 alt={TESTIMONIALS[testimonialIndex].author}
                                                 className="w-11 h-11 rounded-full object-cover border-2 border-emerald-100"
+                                                loading="lazy"
+                                                decoding="async"
                                             />
                                             <div>
                                                 <div className="text-sm font-bold text-gray-900">
@@ -624,6 +704,8 @@ export default function LandingPage() {
                                                 src={getMediaUrl(article.thumbnail_url) || `https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=800&sig=${article.id}`}
                                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                                 alt={article.title}
+                                                loading="lazy"
+                                                decoding="async"
                                             />
                                         </div>
                                         <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full mb-2 inline-block uppercase tracking-wider">
@@ -644,6 +726,67 @@ export default function LandingPage() {
                             ))}
                         </div>
                     )}
+                </div>
+            </section>
+
+            {/* 6.5 FAQ SECTION (SEO & USER TRUST) */}
+            <section id="faq" className="py-16 sm:py-20 bg-slate-50 border-t border-gray-100">
+                <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center mb-12">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold uppercase tracking-wider mb-3">
+                            <HelpCircle className="w-3.5 h-3.5" />
+                            Tanya Jawab Seputar Sertifikasi Halal
+                        </div>
+                        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 tracking-tight">
+                            Pertanyaan yang Sering Diajukan (FAQ)
+                        </h2>
+                        <p className="text-sm sm:text-base text-gray-600 mt-2 max-w-xl mx-auto">
+                            Informasi lengkap seputar persyaratan, alur, biaya, dan regulasi sertifikat halal BPJPH 2026.
+                        </p>
+                    </div>
+
+                    <div className="space-y-4">
+                        {LANDING_FAQS.map((faq, index) => {
+                            const isOpen = openFaqIndex === index;
+                            return (
+                                <div
+                                    key={index}
+                                    className="bg-white rounded-2xl border border-gray-200/80 overflow-hidden shadow-sm hover:border-emerald-200 transition-colors"
+                                >
+                                    <button
+                                        onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                                        className="w-full px-6 py-5 text-left flex items-center justify-between gap-4 font-bold text-base text-gray-900 hover:text-emerald-800 transition-colors"
+                                        aria-expanded={isOpen}
+                                    >
+                                        <span className="flex items-center gap-3">
+                                            <span className="w-7 h-7 rounded-full bg-emerald-50 text-emerald-700 text-xs flex items-center justify-center font-black flex-shrink-0">
+                                                {index + 1}
+                                            </span>
+                                            {faq.q}
+                                        </span>
+                                        <ChevronDown
+                                            className={`w-5 h-5 text-gray-400 flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-emerald-600' : ''}`}
+                                        />
+                                    </button>
+                                    <AnimatePresence initial={false}>
+                                        {isOpen && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                transition={{ duration: 0.2 }}
+                                                className="overflow-hidden"
+                                            >
+                                                <div className="px-6 pb-5 pt-1 text-sm text-gray-600 leading-relaxed border-t border-gray-50 pl-16">
+                                                    {faq.a}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </section>
 

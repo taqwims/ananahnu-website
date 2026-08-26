@@ -1,5 +1,23 @@
 User-agent: *
 Allow: /
+Allow: /news
+Allow: /news/*
+Allow: /track
+Allow: /login
+Allow: /register
 
-# Sitemaps
+# Disallow private and administrative portals
+Disallow: /dashboard/
+Disallow: /dashboard/*
+Disallow: /admin/
+Disallow: /admin/*
+Disallow: /api/
+Disallow: /api/*
+
+# Crawl Delay for aggressive bots
+Crawl-delay: 1
+
+# Dynamic XML Sitemaps & Feeds
 Sitemap: https://halalcore.id/sitemap.xml
+Sitemap: https://halalcore.id/sitemap-news.xml
+Sitemap: https://halalcore.id/rss.xml

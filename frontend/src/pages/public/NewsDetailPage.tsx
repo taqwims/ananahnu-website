@@ -303,6 +303,7 @@ export default function NewsDetailPage() {
                             src={getMediaUrl(article.thumbnail_url)}
                             alt={article.title}
                             className="w-full h-full object-cover max-h-[500px]"
+                            fetchPriority="high"
                         />
                     </div>
                 )}
@@ -473,6 +474,8 @@ export default function NewsDetailPage() {
                                             src={rel.thumbnail_url || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=600'}
                                             alt={rel.title}
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                            loading="lazy"
+                                            decoding="async"
                                         />
                                         <span className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm text-white rounded text-[10px] font-black uppercase">
                                             {rel.category || 'Berita'}

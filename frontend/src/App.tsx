@@ -1,9 +1,71 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import { useAuthStore } from './store/authStore';
 import RoleRoute from './components/auth/RoleRoute';
+
+// Public pages loaded eagerly for instant first paint
+import PublicLayout from './components/layout/PublicLayout';
+import LandingPage from './pages/landing/LandingPage';
+import NewsListPage from './pages/public/NewsListPage';
+import NewsDetailPage from './pages/public/NewsDetailPage';
+import TrackSubmission from './pages/tracking/TrackSubmission';
+import VerifyInvoice from './pages/tracking/VerifyInvoice';
+import VerifyAgreement from './pages/tracking/VerifyAgreement';
+
+// Lazy loaded heavy dashboard and administrative components
+const DashboardLayout = lazy(() => import('./components/layout/DashboardLayout'));
+const DashboardHome = lazy(() => import('./pages/dashboard/DashboardHome'));
+const ClientList = lazy(() => import('./pages/dashboard/ClientList'));
+const ClientForm = lazy(() => import('./pages/dashboard/ClientForm'));
+const ClientDetail = lazy(() => import('./pages/dashboard/ClientDetail'));
+const SubmissionList = lazy(() => import('./pages/dashboard/SubmissionList'));
+const SubmissionCreate = lazy(() => import('./pages/dashboard/SubmissionCreate'));
+const SubmissionDetail = lazy(() => import('./pages/dashboard/SubmissionDetail'));
+const CoordinatorRates = lazy(() => import('./pages/dashboard/CoordinatorRates'));
+const MyInvoices = lazy(() => import('./pages/dashboard/MyInvoices'));
+const CMSDashboard = lazy(() => import('./pages/dashboard/CMSDashboard'));
+const DistributionAdmin = lazy(() => import('./pages/dashboard/DistributionAdmin'));
+const DrafterMonitoring = lazy(() => import('./pages/dashboard/DrafterMonitoring'));
+const FormConfigAdmin = lazy(() => import('./pages/dashboard/FormConfigAdmin'));
+const BillingConfigAdmin = lazy(() => import('./pages/dashboard/BillingConfigAdmin'));
+const ConsultantProfilePage = lazy(() => import('./pages/dashboard/ConsultantProfile'));
+const TrainingAdmin = lazy(() => import('./pages/dashboard/TrainingAdmin'));
+const BillingManagement = lazy(() => import('./pages/dashboard/BillingManagement'));
+const GeographyAdmin = lazy(() => import('./pages/dashboard/GeographyAdmin'));
+const AdvisorsGeo = lazy(() => import('./pages/dashboard/AdvisorsGeo'));
+const CoordinatorDashboard = lazy(() => import('./pages/dashboard/CoordinatorDashboard'));
+const UserManagement = lazy(() => import('./pages/dashboard/UserManagement'));
+const ConsultantVerification = lazy(() => import('./pages/dashboard/ConsultantVerification'));
+const AdvisorPerformance = lazy(() => import('./pages/dashboard/AdvisorPerformance'));
+const ReferralDashboard = lazy(() => import('./pages/dashboard/ReferralDashboard'));
+const AdminReferralDashboard = lazy(() => import('./pages/dashboard/AdminReferralDashboard'));
+const ReferralFeeAdmin = lazy(() => import('./pages/dashboard/ReferralFeeAdmin'));
+const DrafterWorkspace = lazy(() => import('./pages/dashboard/DrafterWorkspace'));
+const QCWorkspace = lazy(() => import('./pages/dashboard/QCWorkspace'));
+const AuditManagerWorkspace = lazy(() => import('./pages/dashboard/AuditManagerWorkspace'));
+const DraftManagerDashboard = lazy(() => import('./pages/dashboard/DraftManagerDashboard'));
+const NotificationSettings = lazy(() => import('./pages/dashboard/NotificationSettings'));
+const ProfilePage = lazy(() => import('./pages/dashboard/Profile'));
+const KarirDashboard = lazy(() => import('./pages/dashboard/KarirDashboard'));
+const AdminPelatihanPromosi = lazy(() => import('./pages/dashboard/AdminPelatihanPromosi'));
+const FinanceDashboard = lazy(() => import('./pages/dashboard/FinanceDashboard'));
+const FeeConfigAdmin = lazy(() => import('./pages/dashboard/FeeConfigAdmin'));
+const BizDevDashboard = lazy(() => import('./pages/dashboard/BizDevDashboard'));
+const SPHForm = lazy(() => import('./pages/dashboard/SPHForm'));
+const EstimasiBiaya = lazy(() => import('./pages/dashboard/EstimasiBiaya'));
+const SHWorkspace = lazy(() => import('./pages/dashboard/SHWorkspace'));
+const ClientPengajuanPage = lazy(() => import('./pages/dashboard/ClientPengajuanPage'));
+const OperationalSubmissions = lazy(() => import('./pages/dashboard/OperationalSubmissions'));
+const OperationalQCQueue = lazy(() => import('./pages/dashboard/OperationalQCQueue'));
+const OperationalHDOQueue = lazy(() => import('./pages/dashboard/OperationalHDOQueue'));
+const OperationalSelfDeclare = lazy(() => import('./pages/dashboard/OperationalSelfDeclare'));
+const OperationalAuditManagement = lazy(() => import('./pages/dashboard/OperationalAuditManagement'));
+const OperationalReports = lazy(() => import('./pages/dashboard/OperationalReports'));
+const OperationalNotifications = lazy(() => import('./pages/dashboard/OperationalNotifications'));
+const OperationalSettings = lazy(() => import('./pages/dashboard/OperationalSettings'));
+const OperationalHelp = lazy(() => import('./pages/dashboard/OperationalHelp'));
 
 // Decode JWT payload tanpa library eksternal
 function getTokenExpiry(token: string): number | null {
@@ -30,65 +92,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-import DashboardLayout from './components/layout/DashboardLayout';
-import DashboardHome from './pages/dashboard/DashboardHome';
-import ClientList from './pages/dashboard/ClientList';
-import ClientForm from './pages/dashboard/ClientForm';
-import ClientDetail from './pages/dashboard/ClientDetail';
-import SubmissionList from './pages/dashboard/SubmissionList';
-import SubmissionCreate from './pages/dashboard/SubmissionCreate';
-import SubmissionDetail from './pages/dashboard/SubmissionDetail';
-import CoordinatorRates from './pages/dashboard/CoordinatorRates';
-import MyInvoices from './pages/dashboard/MyInvoices';
-import CMSDashboard from './pages/dashboard/CMSDashboard';
-import DistributionAdmin from './pages/dashboard/DistributionAdmin';
-import DrafterMonitoring from './pages/dashboard/DrafterMonitoring';
-import PublicLayout from './components/layout/PublicLayout';
-import LandingPage from './pages/landing/LandingPage';
-import NewsListPage from './pages/public/NewsListPage';
-import NewsDetailPage from './pages/public/NewsDetailPage';
-
-import FormConfigAdmin from './pages/dashboard/FormConfigAdmin';
-import BillingConfigAdmin from './pages/dashboard/BillingConfigAdmin';
-import ConsultantProfilePage from './pages/dashboard/ConsultantProfile';
-import TrainingAdmin from './pages/dashboard/TrainingAdmin';
-import BillingManagement from './pages/dashboard/BillingManagement';
-import GeographyAdmin from './pages/dashboard/GeographyAdmin';
-import AdvisorsGeo from './pages/dashboard/AdvisorsGeo';
-import CoordinatorDashboard from './pages/dashboard/CoordinatorDashboard';
-import UserManagement from './pages/dashboard/UserManagement';
-import ConsultantVerification from './pages/dashboard/ConsultantVerification';
-import AdvisorPerformance from './pages/dashboard/AdvisorPerformance';
-import TrackSubmission from './pages/tracking/TrackSubmission';
-import VerifyInvoice from './pages/tracking/VerifyInvoice';
-import VerifyAgreement from './pages/tracking/VerifyAgreement';
-import ReferralDashboard from './pages/dashboard/ReferralDashboard';
-import AdminReferralDashboard from './pages/dashboard/AdminReferralDashboard';
-import ReferralFeeAdmin from './pages/dashboard/ReferralFeeAdmin';
-import DrafterWorkspace from './pages/dashboard/DrafterWorkspace';
-import QCWorkspace from './pages/dashboard/QCWorkspace';
-import AuditManagerWorkspace from './pages/dashboard/AuditManagerWorkspace';
-import DraftManagerDashboard from './pages/dashboard/DraftManagerDashboard';
-import NotificationSettings from './pages/dashboard/NotificationSettings';
-import ProfilePage from './pages/dashboard/Profile';
-import KarirDashboard from './pages/dashboard/KarirDashboard';
-import AdminPelatihanPromosi from './pages/dashboard/AdminPelatihanPromosi';
-import FinanceDashboard from './pages/dashboard/FinanceDashboard';
-import FeeConfigAdmin from './pages/dashboard/FeeConfigAdmin';
-import BizDevDashboard from './pages/dashboard/BizDevDashboard';
-import SPHForm from './pages/dashboard/SPHForm';
-import EstimasiBiaya from './pages/dashboard/EstimasiBiaya';
-import SHWorkspace from './pages/dashboard/SHWorkspace';
-import ClientPengajuanPage from './pages/dashboard/ClientPengajuanPage';
-import OperationalSubmissions from './pages/dashboard/OperationalSubmissions';
-import OperationalQCQueue from './pages/dashboard/OperationalQCQueue';
-import OperationalHDOQueue from './pages/dashboard/OperationalHDOQueue';
-import OperationalSelfDeclare from './pages/dashboard/OperationalSelfDeclare';
-import OperationalAuditManagement from './pages/dashboard/OperationalAuditManagement';
-import OperationalReports from './pages/dashboard/OperationalReports';
-import OperationalNotifications from './pages/dashboard/OperationalNotifications';
-import OperationalSettings from './pages/dashboard/OperationalSettings';
-import OperationalHelp from './pages/dashboard/OperationalHelp';
+const PageLoadingFallback = () => (
+  <div className="min-h-[60vh] bg-slate-50 flex flex-col items-center justify-center p-8">
+    <div className="w-10 h-10 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+    <p className="text-xs font-semibold text-gray-500">Memuat konten...</p>
+  </div>
+);
 
 import { Toaster } from 'react-hot-toast';
 
@@ -108,15 +117,16 @@ function App() {
   return (
     <BrowserRouter>
       <Toaster position="top-right" reverseOrder={false} />
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+      <Suspense fallback={<PageLoadingFallback />}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
-        <Route path="/dashboard" element={
-          <ProtectedRoute>
-            <DashboardLayout />
-          </ProtectedRoute>
-        }>
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }>
           {/* Semua role bisa akses */}
           <Route index element={<DashboardHome />} />
           <Route path="profile" element={<ProfilePage />} />
@@ -305,6 +315,7 @@ function App() {
           <Route path="/verify/agreement/:id/:token" element={<VerifyAgreement />} />
         </Route>
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }
