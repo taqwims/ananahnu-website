@@ -36,25 +36,32 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
 
     // Calculate total contract value (100%) and termin percentages
     const isReguler = invoice.service_type === 'REGULER' || invoice.type === 'DP' || invoice.type === 'PELUNASAN';
-    const isDP = invoice.type === 'DP' || (isReguler && invoice.type !== 'PELUNASAN' && invoice.type !== 'FULL');
+    const paymentScheme = submission?.cost_detail?.payment_scheme || (invoice.type === 'FULL' ? 'FULL' : (isReguler ? 'TERMIN' : 'FULL'));
+    const isTermin = isReguler && paymentScheme !== 'FULL';
+
+    // Dynamic DP percentage (default 70% if termin)
+    const dpPct = submission?.cost_detail?.dp_percentage || invoice.percentage || 70;
+    const pelunasanPct = 100 - dpPct;
+
+    const isDP = invoice.type === 'DP' || (isTermin && invoice.type !== 'PELUNASAN' && invoice.type !== 'FULL');
     const isPelunasan = invoice.type === 'PELUNASAN';
-    const isFull = invoice.type === 'FULL' || invoice.service_type === 'SELF_DECLARE_MANDIRI';
+    const isFull = invoice.type === 'FULL' || paymentScheme === 'FULL' || invoice.service_type === 'SELF_DECLARE_MANDIRI';
     const isFree = invoice.service_type === 'SELF_DECLARE' && (!submission?.self_declare_type || submission?.self_declare_type === 'GRATIS');
 
     // Determine Total Contract Value (100%)
     let totalContractValue = submission?.cost_detail?.total_amount || 0;
     if (totalContractValue === 0) {
         if (isDP && invoice.amount > 0) {
-            totalContractValue = Math.round(invoice.amount / 0.70);
+            totalContractValue = Math.round(invoice.amount / (dpPct / 100));
         } else if (isPelunasan && invoice.amount > 0) {
-            totalContractValue = Math.round(invoice.amount / 0.30);
+            totalContractValue = Math.round(invoice.amount / (pelunasanPct / 100));
         } else {
             totalContractValue = invoice.amount || 0;
         }
     }
 
-    const dpAmount = Math.round(totalContractValue * 0.70);
-    const pelunasanAmount = Math.round(totalContractValue * 0.30);
+    const dpAmount = Math.round(totalContractValue * (dpPct / 100));
+    const pelunasanAmount = Math.round(totalContractValue * (pelunasanPct / 100));
 
     // Parse cost breakdown data if available
     let breakdownItems: any[] = [];
@@ -70,9 +77,8 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
     }
 
     return (
-        <div className={`glass-panel p-6 sm:p-7 shadow-xl border rounded-3xl transition-all space-y-6 ${
-            isPaid ? 'bg-gradient-to-br from-emerald-50/40 via-white to-emerald-50/20 border-emerald-200' : 'bg-gradient-to-br from-amber-50/40 via-white to-amber-50/20 border-amber-200'
-        }`}>
+        <div className={`glass-panel p-6 sm:p-7 shadow-xl border rounded-3xl transition-all space-y-6 ${isPaid ? 'bg-gradient-to-br from-emerald-50/40 via-white to-emerald-50/20 border-emerald-200' : 'bg-gradient-to-br from-amber-50/40 via-white to-amber-50/20 border-amber-200'
+            }`}>
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
                 <div className="flex items-center gap-3.5">
@@ -82,9 +88,9 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
                     <div>
                         <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="text-lg font-black text-gray-900 tracking-tight">Tagihan Layanan</h3>
-                            {isReguler ? (
+                            {isTermin ? (
                                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-800 border border-blue-200">
-                                    Skema Termin Bertahap (70% DP + 30% Pelunasan)
+                                    Skema Termin Bertahap ({dpPct}% DP + {pelunasanPct}% Pelunasan)
                                 </span>
                             ) : isFull ? (
                                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-200">
@@ -97,18 +103,18 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
                             ) : null}
                         </div>
                         <p className="text-xs text-gray-500 font-medium mt-0.5">
-                            {isDP 
-                                ? 'Tagihan Tahap 1: Uang Muka (Down Payment 70%) untuk memulai audit & verifikasi dokumen'
-                                : isPelunasan 
-                                ? 'Tagihan Tahap 2: Pelunasan Akhir (30%) setelah Sertifikat Halal terbit'
-                                : 'Rincian biaya administrasi dan pendampingan sertifikasi halal'}
+                            {isDP
+                                ? `Tagihan Tahap 1: Uang Muka (Down Payment ${dpPct}%) untuk memulai audit & verifikasi dokumen`
+                                : isPelunasan
+                                    ? `Tagihan Tahap 2: Pelunasan Akhir (${pelunasanPct}%) setelah Sertifikat Halal terbit`
+                                    : 'Rincian biaya administrasi dan pendampingan sertifikasi halal'}
                         </p>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-2">
                     {submissionId && (
-                        <button 
+                        <button
                             onClick={handleDownload}
                             className="flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-xl transition-all border border-gray-200 shadow-sm"
                         >
@@ -118,7 +124,7 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
                     )}
                 </div>
             </div>
-            
+
             {/* KPI Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* 1. Tagihan Saat Ini (Nominal Aktif) */}
@@ -131,7 +137,7 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
                             {isDP ? 'DP 70%' : isPelunasan ? 'Pelunasan 30%' : '100%'}
                         </span>
                     </div>
-                    <p className="text-2xl font-black text-brand-700">{formatCurrency(invoice.amount)}</p>
+                    <p className="text-[15px] font-black text-brand-700">{formatCurrency(invoice.amount)}</p>
                     <p className="text-[11px] text-gray-400 font-medium">
                         {isDP ? 'Harus dibayar diawal' : isPelunasan ? 'Harus dibayar saat ini' : 'Nominal yang harus dibayar'}
                     </p>
@@ -142,7 +148,7 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">
                         Total Nilai Kontrak (100%)
                     </span>
-                    <p className="text-2xl font-black text-gray-800">{formatCurrency(totalContractValue)}</p>
+                    <p className="text-[15px] font-black text-gray-800">{formatCurrency(totalContractValue)}</p>
                     <p className="text-[11px] text-gray-400 font-medium">
                         Sesuai tertera di kontrak layanan
                     </p>
@@ -154,7 +160,7 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">
                             {isPelunasan ? 'DP Termin 1 (70%)' : 'Sisa Termin 2 (30%)'}
                         </span>
-                        <p className="text-2xl font-black text-indigo-600">
+                        <p className="text-[15px] font-black text-indigo-600">
                             {formatCurrency(isPelunasan ? dpAmount : pelunasanAmount)}
                         </p>
                         <p className="text-[11px] text-gray-400 font-medium">
@@ -181,9 +187,8 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
                         Status Pembayaran
                     </span>
                     <div>
-                        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${
-                            isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                        }`}>
+                        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider ${isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                            }`}>
                             {isPaid ? <CheckCircle2 className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
                             <span>{isPaid ? 'Lunas Terbayar' : 'Menunggu Bayar'}</span>
                         </div>
@@ -200,9 +205,9 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
                             Penjelasan Skema Pembayaran Layanan Reguler:
                         </p>
                         <p className="text-blue-800 leading-relaxed">
-                            Total nilai kontrak layanan pendampingan sertifikasi halal adalah <strong className="font-black">{formatCurrency(totalContractValue)}</strong>. 
-                            Sesuai ketentuan, pembayaran dibagi dalam 2 termin: 
-                            <strong> Termin 1 (DP 70% = {formatCurrency(dpAmount)})</strong> dibayarkan diawal untuk proses audit & verifikasi berkas, dan 
+                            Total nilai kontrak layanan pendampingan sertifikasi halal adalah <strong className="font-black">{formatCurrency(totalContractValue)}</strong>.
+                            Sesuai ketentuan, pembayaran dibagi dalam 2 termin:
+                            <strong> Termin 1 (DP 70% = {formatCurrency(dpAmount)})</strong> dibayarkan diawal untuk proses audit & verifikasi berkas, dan
                             <strong> Termin 2 (Pelunasan 30% = {formatCurrency(pelunasanAmount)})</strong> dibayarkan saat Sertifikat Halal resmi terbit.
                         </p>
                     </div>

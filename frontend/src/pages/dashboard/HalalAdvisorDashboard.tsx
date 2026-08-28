@@ -46,6 +46,9 @@ export default function HalalAdvisorDashboard() {
         submission: null
     });
     const [selectedServiceType, setSelectedServiceType] = useState<'REGULER' | 'SELF_DECLARE' | 'SELF_DECLARE_MANDIRI'>('REGULER');
+    const [selectedPaymentScheme, setSelectedPaymentScheme] = useState<'TERMIN' | 'FULL'>('TERMIN');
+    const [selectedDPPercentage, setSelectedDPPercentage] = useState<number>(70);
+    const [customDPPercentage, setCustomDPPercentage] = useState<string>('');
     const [consultNotes, setConsultNotes] = useState('');
     const [savingService, setSavingService] = useState(false);
 
@@ -142,6 +145,11 @@ export default function HalalAdvisorDashboard() {
                 ? sub.service_type
                 : 'REGULER'
         );
+        const scheme = sub.cost_detail?.payment_scheme || 'TERMIN';
+        setSelectedPaymentScheme(scheme === 'FULL' ? 'FULL' : 'TERMIN');
+        const dp = sub.cost_detail?.dp_percentage || 70;
+        setSelectedDPPercentage(dp);
+        setCustomDPPercentage(dp !== 50 && dp !== 60 && dp !== 70 && dp !== 80 ? String(dp) : '');
         setConsultNotes('');
     };
 
@@ -154,21 +162,38 @@ export default function HalalAdvisorDashboard() {
         try {
             let actualServiceType: string = selectedServiceType;
             let actualSelfDeclareType = '';
+            let actualPaymentScheme = 'TERMIN';
+            let actualDPPercentage = 70;
 
             if (selectedServiceType === 'SELF_DECLARE_MANDIRI') {
                 actualServiceType = 'SELF_DECLARE_MANDIRI';
                 actualSelfDeclareType = 'MANDIRI';
+                actualPaymentScheme = 'FULL';
+                actualDPPercentage = 100;
             } else if (selectedServiceType === 'SELF_DECLARE') {
                 actualServiceType = 'SELF_DECLARE';
                 actualSelfDeclareType = 'GRATIS';
+                actualPaymentScheme = 'GRATIS';
+                actualDPPercentage = 0;
             } else {
                 actualServiceType = 'REGULER';
+                actualPaymentScheme = selectedPaymentScheme;
+                if (selectedPaymentScheme === 'FULL') {
+                    actualDPPercentage = 100;
+                } else {
+                    const parsedCustom = parseFloat(customDPPercentage);
+                    actualDPPercentage = selectedDPPercentage === -1 
+                        ? (!isNaN(parsedCustom) && parsedCustom > 0 && parsedCustom < 100 ? parsedCustom : 70) 
+                        : selectedDPPercentage;
+                }
             }
 
             await submissionService.setAdvisorServiceType(
                 consultModal.submission.id,
                 actualServiceType,
-                actualSelfDeclareType
+                actualSelfDeclareType,
+                actualPaymentScheme,
+                actualDPPercentage
             );
 
             toast.success("Hasil konsultasi & penetapan jenis layanan berhasil disimpan!");
@@ -638,25 +663,134 @@ export default function HalalAdvisorDashboard() {
                             {/* Option 1: Reguler */}
                             <label 
                                 onClick={() => setSelectedServiceType('REGULER')}
-                                className={`p-4 rounded-2xl border transition-all flex items-start gap-3.5 cursor-pointer ${
+                                className={`p-4 rounded-2xl border transition-all flex flex-col gap-3 cursor-pointer ${
                                     selectedServiceType === 'REGULER'
                                         ? 'bg-brand-50/60 border-brand-500 ring-2 ring-brand-500/20'
                                         : 'bg-white border-gray-200 hover:border-gray-300'
                                 }`}
                             >
-                                <input
-                                    type="radio"
-                                    name="service_type"
-                                    checked={selectedServiceType === 'REGULER'}
-                                    onChange={() => setSelectedServiceType('REGULER')}
-                                    className="mt-1 text-brand-600"
-                                />
-                                <div>
-                                    <p className="text-xs font-black text-gray-900">Jalur Reguler (Pemeriksaan LPH & Audit Mandiri)</p>
-                                    <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
-                                        Untuk usaha menengah/besar atau produk berisiko tinggi dengan pemeriksaan auditor LPH.
-                                    </p>
+                                <div className="flex items-start gap-3.5 w-full">
+                                    <input
+                                        type="radio"
+                                        name="service_type"
+                                        checked={selectedServiceType === 'REGULER'}
+                                        onChange={() => setSelectedServiceType('REGULER')}
+                                        className="mt-1 text-brand-600"
+                                    />
+                                    <div>
+                                        <p className="text-xs font-black text-gray-900">Jalur Reguler (Pemeriksaan LPH & Audit Mandiri)</p>
+                                        <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
+                                            Untuk usaha menengah/besar atau produk berisiko tinggi dengan pemeriksaan auditor LPH.
+                                        </p>
+                                    </div>
                                 </div>
+
+                                {/* Dynamic Payment Scheme & Termin Percentage Selector for Reguler */}
+                                {selectedServiceType === 'REGULER' && (
+                                    <div 
+                                        className="mt-2 p-3.5 bg-white rounded-xl border border-brand-200/80 shadow-xs space-y-3"
+                                        onClick={e => e.stopPropagation()}
+                                    >
+                                        <div>
+                                            <label className="text-[11px] font-black text-gray-800 uppercase tracking-wider block mb-1.5">
+                                                Skema Pembayaran Layanan
+                                            </label>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                <label className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs font-bold cursor-pointer transition-all ${
+                                                    selectedPaymentScheme === 'TERMIN'
+                                                        ? 'bg-blue-50 border-blue-500 text-blue-900'
+                                                        : 'bg-gray-50/70 border-gray-200 text-gray-600 hover:bg-gray-100'
+                                                }`}>
+                                                    <input 
+                                                        type="radio" 
+                                                        name="payment_scheme" 
+                                                        checked={selectedPaymentScheme === 'TERMIN'}
+                                                        onChange={() => setSelectedPaymentScheme('TERMIN')}
+                                                        className="text-blue-600"
+                                                    />
+                                                    <span>Termin Bertahap (DP + Pelunasan)</span>
+                                                </label>
+
+                                                <label className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs font-bold cursor-pointer transition-all ${
+                                                    selectedPaymentScheme === 'FULL'
+                                                        ? 'bg-purple-50 border-purple-500 text-purple-900'
+                                                        : 'bg-gray-50/70 border-gray-200 text-gray-600 hover:bg-gray-100'
+                                                }`}>
+                                                    <input 
+                                                        type="radio" 
+                                                        name="payment_scheme" 
+                                                        checked={selectedPaymentScheme === 'FULL'}
+                                                        onChange={() => setSelectedPaymentScheme('FULL')}
+                                                        className="text-purple-600"
+                                                    />
+                                                    <span>Pembayaran Penuh (100% di Awal)</span>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        {selectedPaymentScheme === 'TERMIN' && (
+                                            <div className="space-y-2 pt-1 border-t border-gray-100">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-[11px] font-bold text-gray-700">
+                                                        Pilihan Persentase Uang Muka (DP):
+                                                    </span>
+                                                    <span className="text-[11px] font-black text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
+                                                        DP {selectedDPPercentage === -1 ? (customDPPercentage || '70') : selectedDPPercentage}% + Pelunasan {100 - (selectedDPPercentage === -1 ? (Number(customDPPercentage) || 70) : selectedDPPercentage)}%
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    {[50, 60, 70, 80].map(pct => (
+                                                        <button
+                                                            key={pct}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSelectedDPPercentage(pct);
+                                                                setCustomDPPercentage('');
+                                                            }}
+                                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                                                selectedDPPercentage === pct
+                                                                    ? 'bg-brand-600 text-white shadow-xs'
+                                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                            }`}
+                                                        >
+                                                            {pct}% DP {pct === 70 ? '(Standar)' : ''}
+                                                        </button>
+                                                    ))}
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedDPPercentage(-1)}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                                            selectedDPPercentage === -1
+                                                                ? 'bg-brand-600 text-white shadow-xs'
+                                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                        }`}
+                                                    >
+                                                        Kustom %
+                                                    </button>
+                                                </div>
+
+                                                {selectedDPPercentage === -1 && (
+                                                    <div className="flex items-center gap-2 mt-2">
+                                                        <input 
+                                                            type="number"
+                                                            min="10"
+                                                            max="90"
+                                                            placeholder="Contoh: 65"
+                                                            value={customDPPercentage}
+                                                            onChange={e => setCustomDPPercentage(e.target.value)}
+                                                            className="w-28 p-2 rounded-lg border border-gray-300 text-xs font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                                                        />
+                                                        <span className="text-xs text-gray-500 font-medium">
+                                                            % DP diawal (Sisa {100 - (Number(customDPPercentage) || 0)}% saat SH Terbit)
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </label>
 
                             {/* Option 2: Self Declare Mandiri */}

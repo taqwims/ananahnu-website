@@ -638,8 +638,10 @@ func (h *SubmissionHandler) SetAdvisorServiceType(c *gin.Context) {
 	}
 
 	var input struct {
-		ServiceType     string `json:"service_type" binding:"required"`
-		SelfDeclareType string `json:"self_declare_type"`
+		ServiceType     string   `json:"service_type" binding:"required"`
+		SelfDeclareType string   `json:"self_declare_type"`
+		PaymentScheme   string   `json:"payment_scheme"`
+		DPPercentage    *float64 `json:"dp_percentage"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -649,7 +651,12 @@ func (h *SubmissionHandler) SetAdvisorServiceType(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	userRole := middleware.GetUserRole(c)
 
-	if err := h.workflowUC.SetAdvisorServiceType(id, input.ServiceType, input.SelfDeclareType, userID, userRole); err != nil {
+	dpPct := 0.0
+	if input.DPPercentage != nil {
+		dpPct = *input.DPPercentage
+	}
+
+	if err := h.workflowUC.SetAdvisorServiceType(id, input.ServiceType, input.SelfDeclareType, input.PaymentScheme, dpPct, userID, userRole); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

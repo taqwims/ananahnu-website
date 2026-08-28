@@ -127,6 +127,9 @@ type SubmissionCostDetail struct {
 	// Storing a JSON blob of the detailed breakdown to freeze the cost calculation history
 	CostBreakdownData string          `gorm:"type:jsonb" json:"cost_breakdown_data"` 
 	
+	PaymentScheme     string          `gorm:"default:'TERMIN'" json:"payment_scheme"` // "TERMIN" or "FULL"
+	DPPercentage      float64         `gorm:"default:70" json:"dp_percentage"`
+	
 	CreatedAt         time.Time       `json:"created_at"`
 	UpdatedAt         time.Time       `json:"updated_at"`
 }

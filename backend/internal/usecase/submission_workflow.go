@@ -33,7 +33,7 @@ type SubmissionWorkflowUsecase interface {
 	UpdateClientInfoAndPricing(id uuid.UUID, input UpdateClientInfoAndPricingInput, userID uuid.UUID, userRole string) error
 	RecalculateAndSaveRegularCost(sub *domain.Submission, selectedOptionalComponentIDs []int64, optionalQuantities map[int64]int, hasExplicitSelection bool) error
 	GetDrafterMonthlyAnalytics() ([]DrafterMonthlyStat, error)
-	SetAdvisorServiceType(id uuid.UUID, serviceType string, selfDeclareType string, userID uuid.UUID, userRole string) error
+	SetAdvisorServiceType(id uuid.UUID, serviceType string, selfDeclareType string, paymentScheme string, dpPercentage float64, userID uuid.UUID, userRole string) error
 	ForwardToOperational(id uuid.UUID, userID uuid.UUID, userRole string) error
 }
 
@@ -108,6 +108,8 @@ type UpdateClientInfoAndPricingInput struct {
 	OptionalQuantities           map[int64]int `json:"optional_quantities"`
 	TotalAmount       *float64 `json:"total_amount,omitempty"`
 	CostBreakdownData *string  `json:"cost_breakdown_data,omitempty"`
+	PaymentScheme     *string  `json:"payment_scheme,omitempty"`
+	DPPercentage      *float64 `json:"dp_percentage,omitempty"`
 }
 
 

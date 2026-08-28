@@ -466,6 +466,15 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 
 	// 5. Trigger automatic pricing calculation or save explicit cost
 	if input.TotalAmount != nil && input.CostBreakdownData != nil && *input.TotalAmount > 0 {
+		paymentScheme := "TERMIN"
+		if input.PaymentScheme != nil && *input.PaymentScheme != "" {
+			paymentScheme = *input.PaymentScheme
+		}
+		dpPercentage := 70.0
+		if input.DPPercentage != nil && *input.DPPercentage > 0 {
+			dpPercentage = *input.DPPercentage
+		}
+
 		costDetail := &domain.SubmissionCostDetail{
 			SubmissionID:      sub.ID,
 			ProductCategoryID: sub.ProductCategoryID,
@@ -478,6 +487,8 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 			BranchCount:       sub.BranchCount,
 			TotalAmount:       *input.TotalAmount,
 			CostBreakdownData: *input.CostBreakdownData,
+			PaymentScheme:     paymentScheme,
+			DPPercentage:      dpPercentage,
 		}
 		if err := uc.BillingConfigRepo.SaveSubmissionCostDetail(costDetail); err != nil {
 			return fmt.Errorf("failed to save cost detail: %w", err)
@@ -485,8 +496,17 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 		// Sync or create invoice
 		invoice, err := uc.InvoiceRepo.FindBySubmissionID(sub.ID)
 		if err == nil && invoice != nil {
-			if invoice.Type == domain.InvoiceTypeDP {
-				invoice.Amount = *input.TotalAmount * 0.70
+			invoice.PaymentScheme = paymentScheme
+			if paymentScheme == "FULL" || invoice.Type == domain.InvoiceTypeFull {
+				invoice.Amount = *input.TotalAmount
+				invoice.Percentage = 100.0
+			} else if invoice.Type == domain.InvoiceTypeDP {
+				invoice.Amount = *input.TotalAmount * (dpPercentage / 100.0)
+				invoice.Percentage = dpPercentage
+			} else if invoice.Type == domain.InvoiceTypePelunasan {
+				pelunasanPct := 100.0 - dpPercentage
+				invoice.Amount = *input.TotalAmount * (pelunasanPct / 100.0)
+				invoice.Percentage = pelunasanPct
 			} else {
 				invoice.Amount = *input.TotalAmount
 			}
@@ -494,6 +514,18 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 			_ = uc.InvoiceRepo.Update(invoice)
 		}
 	} else {
+		if input.PaymentScheme != nil || input.DPPercentage != nil {
+			existingDetail, _ := uc.BillingConfigRepo.GetSubmissionCostDetail(sub.ID)
+			if existingDetail != nil {
+				if input.PaymentScheme != nil && *input.PaymentScheme != "" {
+					existingDetail.PaymentScheme = *input.PaymentScheme
+				}
+				if input.DPPercentage != nil && *input.DPPercentage > 0 {
+					existingDetail.DPPercentage = *input.DPPercentage
+				}
+				_ = uc.BillingConfigRepo.SaveSubmissionCostDetail(existingDetail)
+			}
+		}
 		var selectedIDs []int64
 		hasExplicit := false
 		if input.SelectedOptionalComponentIDs != nil {
@@ -958,6 +990,26 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 		return fmt.Errorf("failed to marshal breakdown: %w", err)
 	}
 
+	// Check existing cost detail to preserve paymentScheme and dpPercentage
+	costDetailExisting, _ := uc.BillingConfigRepo.GetSubmissionCostDetail(sub.ID)
+	paymentScheme := "TERMIN"
+	dpPercentage := 70.0
+	if costDetailExisting != nil {
+		if costDetailExisting.PaymentScheme != "" {
+			paymentScheme = costDetailExisting.PaymentScheme
+		}
+		if costDetailExisting.DPPercentage > 0 {
+			dpPercentage = costDetailExisting.DPPercentage
+		}
+	}
+	if sub.ServiceType == "SELF_DECLARE_MANDIRI" {
+		paymentScheme = "FULL"
+		dpPercentage = 100.0
+	} else if sub.ServiceType == "SELF_DECLARE" {
+		paymentScheme = "GRATIS"
+		dpPercentage = 0.0
+	}
+
 	// Save/update cost detail
 	costDetail := &domain.SubmissionCostDetail{
 		SubmissionID:      sub.ID,
@@ -971,6 +1023,8 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 		BranchCount:       sub.BranchCount,
 		TotalAmount:       total,
 		CostBreakdownData: string(jsonBreakdown),
+		PaymentScheme:     paymentScheme,
+		DPPercentage:      dpPercentage,
 	}
 
 	if err := uc.BillingConfigRepo.SaveSubmissionCostDetail(costDetail); err != nil {
@@ -980,13 +1034,21 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 	// Sync or create invoice
 	invoice, err := uc.InvoiceRepo.FindBySubmissionID(sub.ID)
 	if err == nil && invoice != nil {
-		if sub.ServiceType == "SELF_DECLARE_MANDIRI" {
+		invoice.PaymentScheme = paymentScheme
+		if paymentScheme == "FULL" || sub.ServiceType == "SELF_DECLARE_MANDIRI" {
 			invoice.Amount = total
 			invoice.Type = domain.InvoiceTypeFull
+			invoice.Percentage = 100.0
 		} else if invoice.Type == domain.InvoiceTypeDP {
-			invoice.Amount = total * 0.70
+			invoice.Amount = total * (dpPercentage / 100.0)
+			invoice.Percentage = dpPercentage
+		} else if invoice.Type == domain.InvoiceTypePelunasan {
+			pelunasanPct := 100.0 - dpPercentage
+			invoice.Amount = total * (pelunasanPct / 100.0)
+			invoice.Percentage = pelunasanPct
 		} else {
 			invoice.Amount = total
+			invoice.Percentage = 100.0
 		}
 		invoice.PricingSource = "COST_DETAIL"
 		return uc.InvoiceRepo.Update(invoice)
@@ -994,17 +1056,21 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 
 	if sub.Status != domain.StatusDraft && sub.Status != domain.StatusRevision {
 		invType := domain.InvoiceTypeDP
-		invAmount := total * 0.70
-		notes := "Down Payment 70% Layanan Reguler (Auto-sync from Client Info)"
-		if sub.ServiceType == "SELF_DECLARE_MANDIRI" {
+		invPercentage := dpPercentage
+		invAmount := total * (dpPercentage / 100.0)
+		notes := fmt.Sprintf("Uang Muka (DP %.0f%%) Layanan Reguler (Auto-sync from Client Info)", dpPercentage)
+		if paymentScheme == "FULL" || sub.ServiceType == "SELF_DECLARE_MANDIRI" {
 			invType = domain.InvoiceTypeFull
+			invPercentage = 100.0
 			invAmount = total
-			notes = "Pembayaran Self Declare Mandiri (Auto-sync from Client Info)"
+			notes = fmt.Sprintf("Pembayaran Penuh 100%% %s (Auto-sync from Client Info)", sub.ServiceType)
 		}
 		newInvoice := &domain.Invoice{
 			SubmissionID:  sub.ID,
 			ServiceType:   sub.ServiceType,
 			Type:          invType,
+			PaymentScheme: paymentScheme,
+			Percentage:    invPercentage,
 			Amount:        invAmount,
 			Status:        domain.InvoiceStatusUnpaid,
 			PricingSource: "COST_DETAIL",

@@ -48,6 +48,17 @@ export const WorkflowActions = ({
     const [selectedSelfDeclareType, setSelectedSelfDeclareType] = useState<string>(
         submission.self_declare_type || 'MANDIRI'
     );
+    const [selectedPaymentScheme, setSelectedPaymentScheme] = useState<'TERMIN' | 'FULL'>(
+        submission.cost_detail?.payment_scheme === 'FULL' ? 'FULL' : 'TERMIN'
+    );
+    const [selectedDPPercentage, setSelectedDPPercentage] = useState<number>(
+        submission.cost_detail?.dp_percentage || 70
+    );
+    const [customDPPercentage, setCustomDPPercentage] = useState<string>(
+        submission.cost_detail?.dp_percentage && ![50, 60, 70, 80].includes(submission.cost_detail.dp_percentage)
+            ? String(submission.cost_detail.dp_percentage)
+            : ''
+    );
     const [settingServiceType, setSettingServiceType] = useState(false);
     const [forwardingToOperational, setForwardingToOperational] = useState(false);
 
@@ -172,12 +183,34 @@ export const WorkflowActions = ({
     const handleSetServiceType = async () => {
         setSettingServiceType(true);
         try {
+            let actualPaymentScheme = 'TERMIN';
+            let actualDPPercentage = 70;
+            if (selectedServiceType === 'REGULER') {
+                actualPaymentScheme = selectedPaymentScheme;
+                if (selectedPaymentScheme === 'FULL') {
+                    actualDPPercentage = 100;
+                } else {
+                    const parsed = parseFloat(customDPPercentage);
+                    actualDPPercentage = selectedDPPercentage === -1 
+                        ? (!isNaN(parsed) && parsed > 0 && parsed < 100 ? parsed : 70) 
+                        : selectedDPPercentage;
+                }
+            } else if (selectedServiceType === 'SELF_DECLARE_MANDIRI') {
+                actualPaymentScheme = 'FULL';
+                actualDPPercentage = 100;
+            } else {
+                actualPaymentScheme = 'GRATIS';
+                actualDPPercentage = 0;
+            }
+
             await submissionService.setAdvisorServiceType(
                 submission.id,
                 selectedServiceType,
-                selectedServiceType === 'SELF_DECLARE' ? selectedSelfDeclareType : undefined
+                selectedServiceType === 'SELF_DECLARE' ? selectedSelfDeclareType : undefined,
+                actualPaymentScheme,
+                actualDPPercentage
             );
-            toast.success("Jenis layanan berhasil ditetapkan!");
+            toast.success("Jenis layanan & skema pembayaran berhasil ditetapkan!");
             window.location.reload();
         } catch (err: any) {
             toast.error(err.response?.data?.error || err.message || "Gagal menetapkan jenis layanan");
@@ -429,21 +462,106 @@ export const WorkflowActions = ({
                             </p>
 
                             <div className="space-y-2">
-                                <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                                <label className={`flex flex-col gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
                                     selectedServiceType === 'REGULER' ? 'bg-white border-indigo-600 ring-2 ring-indigo-600/10 shadow-sm' : 'bg-white/60 border-gray-200 hover:bg-white'
                                 }`}>
-                                    <input 
-                                        type="radio" 
-                                        name="advisorServiceType" 
-                                        value="REGULER" 
-                                        checked={selectedServiceType === 'REGULER'} 
-                                        onChange={() => setSelectedServiceType('REGULER')}
-                                        className="text-indigo-600 focus:ring-indigo-500"
-                                    />
-                                    <div>
-                                        <p className="text-xs font-bold text-gray-900">Jalur Reguler (Pemeriksaan LPH & Audit)</p>
-                                        <p className="text-[10px] text-gray-500 font-medium">Untuk usaha dengan omzet &gt; Rp500jt atau produk berisiko / sembelihan</p>
+                                    <div className="flex items-center gap-3">
+                                        <input 
+                                            type="radio" 
+                                            name="advisorServiceType" 
+                                            value="REGULER" 
+                                            checked={selectedServiceType === 'REGULER'} 
+                                            onChange={() => setSelectedServiceType('REGULER')}
+                                            className="text-indigo-600 focus:ring-indigo-500"
+                                        />
+                                        <div>
+                                            <p className="text-xs font-bold text-gray-900">Jalur Reguler (Pemeriksaan LPH & Audit)</p>
+                                            <p className="text-[10px] text-gray-500 font-medium">Untuk usaha dengan omzet &gt; Rp500jt atau produk berisiko / sembelihan</p>
+                                        </div>
                                     </div>
+
+                                    {/* Termin & DP Percentage selector if Reguler */}
+                                    {selectedServiceType === 'REGULER' && (
+                                        <div 
+                                            className="mt-1 p-2.5 bg-indigo-50/50 rounded-lg border border-indigo-100 space-y-2"
+                                            onClick={e => e.stopPropagation()}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-700 cursor-pointer">
+                                                    <input 
+                                                        type="radio"
+                                                        name="wf_payment_scheme"
+                                                        checked={selectedPaymentScheme === 'TERMIN'}
+                                                        onChange={() => setSelectedPaymentScheme('TERMIN')}
+                                                        className="text-indigo-600"
+                                                    />
+                                                    <span>Termin (DP + Pelunasan)</span>
+                                                </label>
+                                                <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-700 cursor-pointer">
+                                                    <input 
+                                                        type="radio"
+                                                        name="wf_payment_scheme"
+                                                        checked={selectedPaymentScheme === 'FULL'}
+                                                        onChange={() => setSelectedPaymentScheme('FULL')}
+                                                        className="text-indigo-600"
+                                                    />
+                                                    <span>100% Penuh di Awal</span>
+                                                </label>
+                                            </div>
+
+                                            {selectedPaymentScheme === 'TERMIN' && (
+                                                <div className="space-y-1.5 pt-1 border-t border-indigo-100/60">
+                                                    <div className="flex items-center justify-between text-[10px] font-bold text-indigo-900">
+                                                        <span>Persentase DP Awal:</span>
+                                                        <span className="bg-white px-1.5 py-0.5 rounded border border-indigo-200">
+                                                            DP {selectedDPPercentage === -1 ? (customDPPercentage || '70') : selectedDPPercentage}% / Pelunasan {100 - (selectedDPPercentage === -1 ? (Number(customDPPercentage) || 70) : selectedDPPercentage)}%
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        {[50, 60, 70, 80].map(pct => (
+                                                            <button
+                                                                key={pct}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setSelectedDPPercentage(pct);
+                                                                    setCustomDPPercentage('');
+                                                                }}
+                                                                className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${
+                                                                    selectedDPPercentage === pct
+                                                                        ? 'bg-indigo-600 text-white'
+                                                                        : 'bg-white text-gray-700 border border-gray-200'
+                                                                }`}
+                                                            >
+                                                                {pct}%
+                                                            </button>
+                                                        ))}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSelectedDPPercentage(-1)}
+                                                            className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${
+                                                                selectedDPPercentage === -1
+                                                                    ? 'bg-indigo-600 text-white'
+                                                                    : 'bg-white text-gray-700 border border-gray-200'
+                                                            }`}
+                                                        >
+                                                            Kustom %
+                                                        </button>
+                                                    </div>
+                                                    {selectedDPPercentage === -1 && (
+                                                        <input 
+                                                            type="number"
+                                                            min="10"
+                                                            max="90"
+                                                            placeholder="DP % (misal 65)"
+                                                            value={customDPPercentage}
+                                                            onChange={e => setCustomDPPercentage(e.target.value)}
+                                                            className="w-full p-1.5 rounded border border-gray-300 text-xs font-bold bg-white"
+                                                        />
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </label>
 
                                 <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${

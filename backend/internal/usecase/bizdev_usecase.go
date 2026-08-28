@@ -103,8 +103,14 @@ func (uc *bizDevUsecase) GetDashboard(month, year int) (*BizDevDashboardData, er
 			dashboard.TotalSHTerbit++
 		}
 
-		// 1. Advisor (Facilitator)
-		adv := s.Client.Facilitator
+		// 1. Advisor (from Consultant or Facilitator)
+		var adv *domain.User
+		if s.Consultant != nil && s.Consultant.ID != uuid.Nil {
+			adv = s.Consultant
+		} else if s.Client.Facilitator != nil && s.Client.Facilitator.ID != uuid.Nil {
+			adv = s.Client.Facilitator
+		}
+
 		if adv != nil && adv.ID != uuid.Nil && adv.FullName != "" {
 			if _, ok := perfMap[adv.ID.String()]; !ok {
 				roleName := "HALAL_ADVISOR"
@@ -123,48 +129,48 @@ func (uc *bizDevUsecase) GetDashboard(month, year int) (*BizDevDashboardData, er
 			} else {
 				perfMap[adv.ID.String()].InProgress++
 			}
-		}
 
-		// 2. Halal Manager (Advisor's Leader)
-		if adv.ID != uuid.Nil && adv.Leader != nil && adv.Leader.ID != uuid.Nil && adv.Leader.FullName != "" {
-			mgr := adv.Leader
-			if _, ok := perfMap[mgr.ID.String()]; !ok {
-				roleName := "HALAL_MANAGER"
-				if mgr.Role.Name != "" {
-					roleName = mgr.Role.Name
-				}
-				perfMap[mgr.ID.String()] = &LeaderPerformanceData{
-					UserID:   mgr.ID.String(),
-					FullName: mgr.FullName,
-					RoleName: roleName,
-				}
-			}
-			perfMap[mgr.ID.String()].TotalSubmissions++
-			if isSH {
-				perfMap[mgr.ID.String()].SHTerbit++
-			} else {
-				perfMap[mgr.ID.String()].InProgress++
-			}
-
-			// 3. Halal Director (Manager's Leader)
-			if mgr.Leader != nil && mgr.Leader.ID != uuid.Nil && mgr.Leader.FullName != "" {
-				dir := mgr.Leader
-				if _, ok := perfMap[dir.ID.String()]; !ok {
-					roleName := "DIRECTOR"
-					if dir.Role.Name != "" {
-						roleName = dir.Role.Name
+			// 2. Halal Manager (Advisor's Leader)
+			if adv.Leader != nil && adv.Leader.ID != uuid.Nil && adv.Leader.FullName != "" {
+				mgr := adv.Leader
+				if _, ok := perfMap[mgr.ID.String()]; !ok {
+					roleName := "HALAL_MANAGER"
+					if mgr.Role.Name != "" {
+						roleName = mgr.Role.Name
 					}
-					perfMap[dir.ID.String()] = &LeaderPerformanceData{
-						UserID:   dir.ID.String(),
-						FullName: dir.FullName,
+					perfMap[mgr.ID.String()] = &LeaderPerformanceData{
+						UserID:   mgr.ID.String(),
+						FullName: mgr.FullName,
 						RoleName: roleName,
 					}
 				}
-				perfMap[dir.ID.String()].TotalSubmissions++
+				perfMap[mgr.ID.String()].TotalSubmissions++
 				if isSH {
-					perfMap[dir.ID.String()].SHTerbit++
+					perfMap[mgr.ID.String()].SHTerbit++
 				} else {
-					perfMap[dir.ID.String()].InProgress++
+					perfMap[mgr.ID.String()].InProgress++
+				}
+
+				// 3. Halal Director (Manager's Leader)
+				if mgr.Leader != nil && mgr.Leader.ID != uuid.Nil && mgr.Leader.FullName != "" {
+					dir := mgr.Leader
+					if _, ok := perfMap[dir.ID.String()]; !ok {
+						roleName := "DIRECTOR"
+						if dir.Role.Name != "" {
+							roleName = dir.Role.Name
+						}
+						perfMap[dir.ID.String()] = &LeaderPerformanceData{
+							UserID:   dir.ID.String(),
+							FullName: dir.FullName,
+							RoleName: roleName,
+						}
+					}
+					perfMap[dir.ID.String()].TotalSubmissions++
+					if isSH {
+						perfMap[dir.ID.String()].SHTerbit++
+					} else {
+						perfMap[dir.ID.String()].InProgress++
+					}
 				}
 			}
 		}
@@ -285,10 +291,17 @@ func (uc *bizDevUsecase) GetMonthlyProgress(year int) ([]MonthlyPerformance, err
 	}
 
 	for _, inv := range invoices {
-		if inv.CreatedAt.Year() != year || inv.Status != domain.InvoiceStatusPaid {
+		if inv.Status != domain.InvoiceStatusPaid {
 			continue
 		}
-		key := inv.CreatedAt.Format("2006-01")
+		date := inv.CreatedAt
+		if inv.PaidAt != nil {
+			date = *inv.PaidAt
+		}
+		if date.Year() != year {
+			continue
+		}
+		key := date.Format("2006-01")
 		if perf, ok := monthlyMap[key]; ok {
 			perf.Revenue += inv.Amount
 		}

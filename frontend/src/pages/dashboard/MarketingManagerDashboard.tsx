@@ -144,7 +144,10 @@ export default function MarketingManagerDashboard() {
         }
         if (sub.invoice?.status === 'PAID') return true;
         if (sub.invoices?.some(inv => inv.status === 'PAID')) return true;
-        if (sub.payments?.some(p => p.status === 'PAID')) return true;
+        if (sub.payments?.some(p => p.status === 'PAID' || (p.status as string) === 'SETTLEMENT' || (p.status as string) === 'SUCCESS')) return true;
+        if (sub.status === 'SH_TERBIT' || sub.status === 'SIDANG_FATWA' || sub.status === 'QC_OFFICER' || sub.status === 'DRAFTER' || sub.status === 'QC_REVIEW' || sub.status === 'SUBMITTED_TO_BPJPH') {
+            return true;
+        }
         return false;
     };
 
@@ -156,12 +159,12 @@ export default function MarketingManagerDashboard() {
     const readyForwardSubmissions = allSubmissions.filter(s => 
         s.consultant_id && 
         isSubmissionPaid(s) && 
-        (s.status === 'WAITING_PAYMENT' || s.status === 'DRAFT' || s.status === 'WAITING_ASSIGNMENT')
+        (s.status === 'WAITING_PAYMENT' || s.status === 'DRAFT' || s.status === 'WAITING_ASSIGNMENT' || s.status === 'VERVAL_PENDAMPING')
     );
 
     const unpaidSubmissions = allSubmissions.filter(s => 
         !isSubmissionPaid(s) && 
-        (s.status === 'WAITING_PAYMENT' || (s.service_type === 'REGULER' && s.status === 'DRAFT'))
+        (s.status === 'WAITING_PAYMENT' || (s.service_type === 'REGULER' && (s.status === 'DRAFT' || s.status === 'WAITING_ASSIGNMENT')))
     );
 
     // Filter displayed items in current active tab
@@ -525,16 +528,27 @@ export default function MarketingManagerDashboard() {
                         </p>
                     </div>
 
-                    {/* Search Bar */}
-                    <div className="relative w-full sm:w-64">
-                        <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                        <input
-                            type="text"
-                            placeholder="Cari nama usaha / klien / no HP..."
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                            className="glass-input text-xs font-bold w-full pl-10 bg-gray-50/50 focus:bg-white"
-                        />
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={loadData}
+                            className="px-3 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold rounded-xl border border-gray-200 transition-all flex items-center gap-1.5"
+                            title="Segarkan Data"
+                        >
+                            <RotateCcw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-brand-600' : ''}`} />
+                            <span className="hidden sm:inline">Segarkan</span>
+                        </button>
+
+                        {/* Search Bar */}
+                        <div className="relative w-full sm:w-64">
+                            <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                            <input
+                                type="text"
+                                placeholder="Cari nama usaha / klien / no HP..."
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                className="glass-input text-xs font-bold w-full pl-10 bg-gray-50/50 focus:bg-white"
+                            />
+                        </div>
                     </div>
                 </div>
 

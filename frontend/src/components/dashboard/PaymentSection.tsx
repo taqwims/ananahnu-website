@@ -71,6 +71,9 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
         return submission.invoice || null;
     })();
 
+    const configuredDPPct = submission.cost_detail?.dp_percentage || resolvedInvoice?.percentage || 70;
+    const configuredPelunasanPct = 100 - configuredDPPct;
+
     // Sync amount from submission.cost_detail (primary source) or resolvedInvoice + paymentMode
     useEffect(() => {
         let total = submission.cost_detail?.total_amount || 0;
@@ -78,9 +81,9 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
         // If cost_detail is not available, infer from resolvedInvoice
         if (total === 0 && resolvedInvoice?.amount) {
             if (resolvedInvoice.type === 'DP') {
-                total = resolvedInvoice.amount / 0.70;
+                total = resolvedInvoice.amount / (configuredDPPct / 100);
             } else if (resolvedInvoice.type === 'PELUNASAN') {
-                total = resolvedInvoice.amount / 0.30;
+                total = resolvedInvoice.amount / (configuredPelunasanPct / 100);
             } else {
                 total = resolvedInvoice.amount;
             }
@@ -88,12 +91,12 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
 
         if (total > 0) {
             if (invoiceType === 'PELUNASAN') {
-                setAmount(Math.round(total * 0.30));
+                setAmount(Math.round(total * (configuredPelunasanPct / 100)));
             } else if (invoiceType === 'DP') {
                 if (paymentMode === 'FULL') {
                     setAmount(Math.round(total));
                 } else {
-                    setAmount(Math.round(total * 0.70));
+                    setAmount(Math.round(total * (configuredDPPct / 100)));
                 }
             } else {
                 setAmount(Math.round(total));
@@ -108,7 +111,7 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
                 .catch(err => console.error("Failed to load cost config", err))
                 .finally(() => setLoadingConfig(false));
         }
-    }, [submission, submission.id, submission.cost_detail?.total_amount, submission.service_type, resolvedInvoice, invoiceType, paymentMode]);
+    }, [submission, submission.id, submission.cost_detail?.total_amount, submission.service_type, resolvedInvoice, invoiceType, paymentMode, configuredDPPct, configuredPelunasanPct]);
 
     // Load payment history for this submission
     const loadHistory = useCallback(async () => {

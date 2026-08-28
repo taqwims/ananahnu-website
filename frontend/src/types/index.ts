@@ -252,7 +252,9 @@ export interface Invoice {
     submission?: Submission;
     payer?: User;
     service_type: string;
-    type: 'DP' | 'PELUNASAN' | 'FULL'; // DP=70% awal, PELUNASAN=30% sebelum download SH
+    type: 'DP' | 'PELUNASAN' | 'FULL'; // DP=termin awal, PELUNASAN=termin akhir, FULL=100%
+    payment_scheme?: 'TERMIN' | 'FULL';
+    percentage?: number;
     amount: number;
     status: 'UNPAID' | 'PAID';
     regency_id?: number;
@@ -346,6 +348,8 @@ export interface SubmissionCostDetail {
     branch_count: number;
     mandays: number;
     total_amount: number;
+    payment_scheme?: 'TERMIN' | 'FULL';
+    dp_percentage?: number;
     cost_breakdown_data: string; // JSON string
 }
 

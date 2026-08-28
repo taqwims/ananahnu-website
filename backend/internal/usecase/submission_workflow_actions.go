@@ -524,17 +524,33 @@ func (uc *submissionWorkflowUsecase) IssueSH(id uuid.UUID, userID uuid.UUID, shU
 		if isFullPaymentMode {
 			// Klien sudah bayar lunas di awal, tidak perlu pelunasan
 		} else {
-			// Mode DP: buat invoice pelunasan 30% jika belum ada
+			// Mode DP / Termin: buat invoice pelunasan jika belum ada
 			if _, err := uc.InvoiceRepo.FindBySubmissionIDAndType(id, domain.InvoiceTypePelunasan); err != nil {
 				var pelunasanAmount float64
-				if dpErr == nil && dpInvoice != nil {
-					totalAmount := dpInvoice.Amount / 0.70
-					pelunasanAmount = totalAmount * 0.30
+				var pelunasanPct float64 = 30.0
+
+				costDetail, _ := uc.BillingConfigRepo.GetSubmissionCostDetail(id)
+				if costDetail != nil && costDetail.PaymentScheme == "FULL" {
+					// Skema Full tidak butuh pelunasan
+					pelunasanAmount = 0
 				} else {
-					if costDetail, err := uc.BillingConfigRepo.GetSubmissionCostDetail(id); err == nil && costDetail != nil {
-						pelunasanAmount = costDetail.TotalAmount * 0.30
+					dpPct := 70.0
+					if costDetail != nil && costDetail.DPPercentage > 0 {
+						dpPct = costDetail.DPPercentage
+					} else if dpInvoice != nil && dpInvoice.Percentage > 0 {
+						dpPct = dpInvoice.Percentage
+					}
+					pelunasanPct = 100.0 - dpPct
+					if pelunasanPct > 0 {
+						if costDetail != nil && costDetail.TotalAmount > 0 {
+							pelunasanAmount = costDetail.TotalAmount * (pelunasanPct / 100.0)
+						} else if dpInvoice != nil && dpInvoice.Amount > 0 {
+							totalAmount := dpInvoice.Amount / (dpPct / 100.0)
+							pelunasanAmount = totalAmount * (pelunasanPct / 100.0)
+						}
 					}
 				}
+
 				if pelunasanAmount > 0 {
 					_ = uc.InvoiceRepo.Create(&domain.Invoice{
 						SubmissionID:  id,
@@ -542,9 +558,11 @@ func (uc *submissionWorkflowUsecase) IssueSH(id uuid.UUID, userID uuid.UUID, shU
 						ServiceType:   "REGULER",
 						Type:          domain.InvoiceTypePelunasan,
 						Amount:        pelunasanAmount,
+						Percentage:    pelunasanPct,
+						PaymentScheme: "TERMIN",
 						Status:        domain.InvoiceStatusUnpaid,
 						PricingSource: "COST_DETAIL",
-						Notes:         "Pelunasan 30% Layanan Reguler (wajib lunas untuk unduh SH)",
+						Notes:         fmt.Sprintf("Pelunasan %.0f%% Layanan Reguler (wajib lunas untuk unduh SH)", pelunasanPct),
 					})
 				}
 			}
@@ -768,7 +786,7 @@ func (uc *submissionWorkflowUsecase) GetDrafterMonthlyAnalytics() ([]DrafterMont
 	return result, nil
 }
 
-func (uc *submissionWorkflowUsecase) SetAdvisorServiceType(id uuid.UUID, serviceType string, selfDeclareType string, userID uuid.UUID, userRole string) error {
+func (uc *submissionWorkflowUsecase) SetAdvisorServiceType(id uuid.UUID, serviceType string, selfDeclareType string, paymentScheme string, dpPercentage float64, userID uuid.UUID, userRole string) error {
 	sub, err := uc.SubmissionRepo.FindByID(id)
 	if err != nil {
 		return err
@@ -795,6 +813,33 @@ func (uc *submissionWorkflowUsecase) SetAdvisorServiceType(id uuid.UUID, service
 		_ = uc.ClientRepo.Update(client)
 	}
 
+	// Determine defaults for paymentScheme and dpPercentage
+	if paymentScheme == "" {
+		if serviceType == "REGULER" {
+			paymentScheme = "TERMIN"
+		} else if serviceType == "SELF_DECLARE_MANDIRI" {
+			paymentScheme = "FULL"
+		} else {
+			paymentScheme = "GRATIS"
+		}
+	}
+	if dpPercentage <= 0 {
+		if paymentScheme == "TERMIN" {
+			dpPercentage = 70.0
+		} else if paymentScheme == "FULL" {
+			dpPercentage = 100.0
+		} else {
+			dpPercentage = 0.0
+		}
+	}
+
+	costDetail, _ := uc.BillingConfigRepo.GetSubmissionCostDetail(id)
+	if costDetail != nil {
+		costDetail.PaymentScheme = paymentScheme
+		costDetail.DPPercentage = dpPercentage
+		_ = uc.BillingConfigRepo.SaveSubmissionCostDetail(costDetail)
+	}
+
 	// If regular or self declare mandiri, generate / recalculate cost detail accordingly and update status to WAITING_PAYMENT
 	newStatus := sub.Status
 	if serviceType == "REGULER" || serviceType == "SELF_DECLARE_MANDIRI" {
@@ -805,7 +850,7 @@ func (uc *submissionWorkflowUsecase) SetAdvisorServiceType(id uuid.UUID, service
 		}
 	}
 
-	uc.logChange(id, userID, "SET_SERVICE_TYPE", sub.Status, newStatus, fmt.Sprintf("Jenis layanan ditetapkan menjadi %s (%s)", serviceType, selfDeclareType))
+	uc.logChange(id, userID, "SET_SERVICE_TYPE", sub.Status, newStatus, fmt.Sprintf("Jenis layanan ditetapkan menjadi %s (%s, Skema: %s, DP: %.0f%%)", serviceType, selfDeclareType, paymentScheme, dpPercentage))
 	return nil
 }
 

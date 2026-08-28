@@ -246,11 +246,19 @@ class SubmissionService extends BaseService {
         }
     }
 
-    async setAdvisorServiceType(id: string, serviceType: string, selfDeclareType?: string): Promise<void> {
+    async setAdvisorServiceType(
+        id: string, 
+        serviceType: string, 
+        selfDeclareType?: string,
+        paymentScheme?: string,
+        dpPercentage?: number
+    ): Promise<void> {
         try {
             await this.api.post(`/submissions/${id}/advisor-service-type`, {
                 service_type: serviceType,
-                self_declare_type: selfDeclareType
+                self_declare_type: selfDeclareType,
+                payment_scheme: paymentScheme,
+                dp_percentage: dpPercentage
             });
         } catch (error) {
             this.handleError(error);
