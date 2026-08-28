@@ -590,7 +590,7 @@ func (uc *telemarketingUsecase) GenerateClientAccount(formID uuid.UUID, telemark
 			ProductName:     form.BusinessType,
 			ServiceType:     serviceType,
 			SelfDeclareType: selfDeclareType,
-			FacilitatorID:   creatorID,
+			FacilitatorID:   &creatorID,
 			CreatedBy:       creatorID,
 			CreatedAt:       time.Now(),
 			UpdatedAt:       time.Now(),

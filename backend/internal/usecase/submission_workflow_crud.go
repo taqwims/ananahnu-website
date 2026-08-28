@@ -136,12 +136,16 @@ func (uc *submissionWorkflowUsecase) CreateDraft(clientID *uuid.UUID, businessNa
 	if clientID != nil && *clientID != uuid.Nil {
 		actualClientID = *clientID
 	} else if businessName != "" {
+		var facilitatorIDPtr *uuid.UUID
+		if facilitatorID != uuid.Nil {
+			facilitatorIDPtr = &facilitatorID
+		}
 		// Create a stub client
 		newClient := &domain.Client{
 			ID:            uuid.New(),
 			BusinessName:  businessName,
 			ServiceType:   serviceType,
-			FacilitatorID: facilitatorID,
+			FacilitatorID: facilitatorIDPtr,
 			CreatedBy:     facilitatorID,
 			NIB:           "DRAFT-" + uuid.New().String()[:8],
 		}
@@ -205,15 +209,26 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 	}
 
 	// 1. Create/Update Client
-	var facilitatorID uuid.UUID
+	var facilitatorIDPtr *uuid.UUID
 	var consultantIDPtr *uuid.UUID
 
-	if input.ClientData.FacilitatorID != nil && *input.ClientData.FacilitatorID != uuid.Nil {
-		facilitatorID = *input.ClientData.FacilitatorID
-		consultantIDPtr = input.ClientData.FacilitatorID
-	} else if userRole != "CLIENT" {
-		facilitatorID = userID
-		consultantIDPtr = &userID
+	if input.ClientData.AdvisorCode != "" {
+		cleanAdvisorCode := strings.TrimSpace(input.ClientData.AdvisorCode)
+		advisor, err := uc.UserRepo.FindByReferralCode(cleanAdvisorCode)
+		if err == nil && advisor != nil {
+			facilitatorIDPtr = &advisor.ID
+			consultantIDPtr = &advisor.ID
+		}
+	}
+
+	if facilitatorIDPtr == nil {
+		if input.ClientData.FacilitatorID != nil && *input.ClientData.FacilitatorID != uuid.Nil {
+			facilitatorIDPtr = input.ClientData.FacilitatorID
+			consultantIDPtr = input.ClientData.FacilitatorID
+		} else if userRole != "CLIENT" && userID != uuid.Nil {
+			facilitatorIDPtr = &userID
+			consultantIDPtr = &userID
+		}
 	}
 
 	userObj, _ := uc.UserRepo.FindByID(userID)
@@ -248,7 +263,7 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 		ServiceType:   input.ClientData.ServiceType,
 		ContactPerson: input.ClientData.ContactPerson,
 		Phone:         phone,
-		FacilitatorID: facilitatorID,
+		FacilitatorID: facilitatorIDPtr,
 		CreatedBy:     userID,
 	}
 
@@ -355,7 +370,7 @@ func (uc *submissionWorkflowUsecase) Delete(id uuid.UUID, userID uuid.UUID, user
 	case "HALAL_ADVISOR", "HALAL_MANAGER", "MARKETING":
 		if sub.Status == domain.StatusDraft {
 			client, _ := uc.ClientRepo.FindByID(sub.ClientID)
-			if client != nil && client.FacilitatorID == userID {
+			if client != nil && client.FacilitatorID != nil && *client.FacilitatorID == userID {
 				canDelete = true
 			}
 		}

@@ -305,7 +305,7 @@ func (uc *submissionWorkflowUsecase) AssignConsultant(id uuid.UUID, userID uuid.
 		return err
 	}
 
-	if userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "HALAL_MANAGER" && userRole != "HALAL_DIRECTOR" && userRole != "QC_OFFICER" && userRole != "VERIFIKATOR" && userRole != "MARKETING" && userRole != "MANAGER" {
+	if userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "HALAL_MANAGER" && userRole != "HALAL_DIRECTOR" && userRole != "QC_OFFICER" && userRole != "VERIFIKATOR" && userRole != "MARKETING" && userRole != "BUSINESS_DEVELOPMENT" && userRole != "MANAGER" {
 		return errors.New("unauthorized to assign consultant")
 	}
 
@@ -564,8 +564,8 @@ func (uc *submissionWorkflowUsecase) IssueSH(id uuid.UUID, userID uuid.UUID, shU
 			
 			if totalAmount > 0 {
 				var payerID *uuid.UUID
-				if sub.Client.FacilitatorID != uuid.Nil {
-					payerID = &sub.Client.FacilitatorID
+				if sub.Client.FacilitatorID != nil && *sub.Client.FacilitatorID != uuid.Nil {
+					payerID = sub.Client.FacilitatorID
 				}
 				_ = uc.InvoiceRepo.Create(&domain.Invoice{
 					SubmissionID:  id,
@@ -766,4 +766,103 @@ func (uc *submissionWorkflowUsecase) GetDrafterMonthlyAnalytics() ([]DrafterMont
 		result = append(result, *stat)
 	}
 	return result, nil
+}
+
+func (uc *submissionWorkflowUsecase) SetAdvisorServiceType(id uuid.UUID, serviceType string, selfDeclareType string, userID uuid.UUID, userRole string) error {
+	sub, err := uc.SubmissionRepo.FindByID(id)
+	if err != nil {
+		return err
+	}
+
+	// Only assigned Advisor or Admin/Director/Marketing Manager can set service type
+	if userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "HALAL_MANAGER" && userRole != "MARKETING" && userRole != "MANAGER" {
+		if sub.ConsultantID == nil || *sub.ConsultantID != userID {
+			return errors.New("unauthorized: hanya Pendamping Halal (Advisor) yang ditunjuk atau Admin yang dapat menetapkan jenis layanan")
+		}
+	}
+
+	sub.ServiceType = serviceType
+	sub.SelfDeclareType = selfDeclareType
+	if err := uc.SubmissionRepo.Update(sub); err != nil {
+		return err
+	}
+
+	// Update Client model service type as well
+	client, err := uc.ClientRepo.FindByID(sub.ClientID)
+	if err == nil && client != nil {
+		client.ServiceType = serviceType
+		client.SelfDeclareType = selfDeclareType
+		_ = uc.ClientRepo.Update(client)
+	}
+
+	// If regular or self declare mandiri, generate / recalculate cost detail accordingly and update status to WAITING_PAYMENT
+	newStatus := sub.Status
+	if serviceType == "REGULER" || serviceType == "SELF_DECLARE_MANDIRI" {
+		_ = uc.RecalculateAndSaveRegularCost(sub, nil, nil, false)
+		if sub.Status == domain.StatusDraft || sub.Status == domain.StatusWaitingAssignment {
+			newStatus = domain.StatusWaitingPayment
+			_ = uc.SubmissionRepo.UpdateStatus(id, newStatus, 0)
+		}
+	}
+
+	uc.logChange(id, userID, "SET_SERVICE_TYPE", sub.Status, newStatus, fmt.Sprintf("Jenis layanan ditetapkan menjadi %s (%s)", serviceType, selfDeclareType))
+	return nil
+}
+
+func (uc *submissionWorkflowUsecase) ForwardToOperational(id uuid.UUID, userID uuid.UUID, userRole string) error {
+	sub, err := uc.SubmissionRepo.FindByID(id)
+	if err != nil {
+		return err
+	}
+
+	if userRole != "MARKETING" && userRole != "BUSINESS_DEVELOPMENT" && userRole != "MANAGER" && userRole != "ADMIN" && userRole != "DIRECTOR" {
+		return errors.New("unauthorized: hanya Manager Marketing / BD atau Admin yang dapat meneruskan pengajuan ke Manager Operasional")
+	}
+
+	if sub.ConsultantID == nil {
+		return errors.New("Pengajuan belum memiliki Pendamping Halal (Advisor). Silakan tunjuk Advisor terlebih dahulu.")
+	}
+
+	// Check payment status
+	isPaid := false
+	if sub.ServiceType == "SELF_DECLARE" && (sub.SelfDeclareType == "GRATIS" || sub.SelfDeclareType == "") {
+		// Fasilitasi gratis BPJPH
+		isPaid = true
+	} else {
+		if sub.Invoice != nil && sub.Invoice.Status == domain.InvoiceStatusPaid {
+			isPaid = true
+		}
+		if !isPaid {
+			for _, inv := range sub.Invoices {
+				if inv.Status == domain.InvoiceStatusPaid {
+					isPaid = true
+					break
+				}
+			}
+		}
+		if !isPaid {
+			for _, p := range sub.Payments {
+				if p.Status == domain.PaymentStatusPaid {
+					isPaid = true
+					break
+				}
+			}
+		}
+	}
+
+	if !isPaid {
+		return errors.New("Pengajuan belum dapat diteruskan ke Manager Operasional karena Klien belum menyelesaikan pembayaran.")
+	}
+
+	nextStatus := domain.StatusQCOfficer
+	if sub.ServiceType == "SELF_DECLARE" {
+		nextStatus = domain.StatusVervalPendamping
+	}
+
+	if err := uc.SubmissionRepo.UpdateStatus(id, nextStatus, 0); err != nil {
+		return err
+	}
+
+	uc.logChange(id, userID, "FORWARD_TO_OPERATIONAL", sub.Status, nextStatus, "Diteruskan ke Manager Operasional setelah pembayaran terverifikasi")
+	return nil
 }

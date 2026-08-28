@@ -33,6 +33,8 @@ type SubmissionWorkflowUsecase interface {
 	UpdateClientInfoAndPricing(id uuid.UUID, input UpdateClientInfoAndPricingInput, userID uuid.UUID, userRole string) error
 	RecalculateAndSaveRegularCost(sub *domain.Submission, selectedOptionalComponentIDs []int64, optionalQuantities map[int64]int, hasExplicitSelection bool) error
 	GetDrafterMonthlyAnalytics() ([]DrafterMonthlyStat, error)
+	SetAdvisorServiceType(id uuid.UUID, serviceType string, selfDeclareType string, userID uuid.UUID, userRole string) error
+	ForwardToOperational(id uuid.UUID, userID uuid.UUID, userRole string) error
 }
 
 type RejectInput struct {
@@ -63,6 +65,7 @@ type CreateFullInput struct {
 		ContactPerson string `json:"contact_person"`
 		Phone          string `json:"phone"`
 		BusinessTypeID *int64 `json:"business_type_id"`
+		AdvisorCode   string `json:"advisor_code"`
 		// Pricing fields
 		ProductCategoryID *int64 `json:"product_category_id"`
 		BusinessScaleID   *int64 `json:"business_scale_id"`

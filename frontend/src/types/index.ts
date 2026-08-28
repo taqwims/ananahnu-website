@@ -190,6 +190,7 @@ export interface FormFieldConfig {
     product_category_id?: number;
     step_number: number;
     step_name: string;
+    is_active?: boolean;
 }
 
 export interface FormFieldValue {

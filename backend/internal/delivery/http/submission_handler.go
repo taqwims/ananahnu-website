@@ -33,6 +33,8 @@ func NewSubmissionHandler(r *gin.Engine, uc usecase.SubmissionWorkflowUsecase) {
 		g.POST("/:id/audit-info", handler.UpdateAuditInfo)
 		g.POST("/:id/audit-result", handler.UploadAuditResult)
 		g.POST("/:id/assign-consultant", handler.AssignConsultant)
+		g.POST("/:id/advisor-service-type", handler.SetAdvisorServiceType)
+		g.POST("/:id/forward-to-operational", handler.ForwardToOperational)
 		g.POST("/:id/business-type", handler.UpdateBusinessType)
 		g.PUT("/:id/client-info", handler.UpdateClientInfoAndPricing)
 		g.POST("/bulk-assign-drafter", handler.BulkAssignDrafter)
@@ -625,5 +627,52 @@ func (h *SubmissionHandler) GetDrafterMonthlyAnalytics(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, stats)
+}
+
+func (h *SubmissionHandler) SetAdvisorServiceType(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var input struct {
+		ServiceType     string `json:"service_type" binding:"required"`
+		SelfDeclareType string `json:"self_declare_type"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	userRole := middleware.GetUserRole(c)
+
+	if err := h.workflowUC.SetAdvisorServiceType(id, input.ServiceType, input.SelfDeclareType, userID, userRole); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "jenis layanan berhasil ditetapkan"})
+}
+
+func (h *SubmissionHandler) ForwardToOperational(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	userRole := middleware.GetUserRole(c)
+
+	if err := h.workflowUC.ForwardToOperational(id, userID, userRole); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "pengajuan berhasil diteruskan ke Manager Operasional"})
 }
 

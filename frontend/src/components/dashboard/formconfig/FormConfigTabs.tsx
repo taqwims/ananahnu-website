@@ -1,6 +1,6 @@
 import { formatServiceType } from '../../../utils/format';
 
-const FORM_TYPES = ['SELF_DECLARE', 'SELF_DECLARE_MANDIRI', 'REGULER', 'RECRUITMENT'] as const;
+const FORM_TYPES = ['CLIENT_SUBMISSION', 'SELF_DECLARE', 'SELF_DECLARE_MANDIRI', 'REGULER', 'RECRUITMENT'] as const;
 
 interface FormConfigTabsProps {
     activeTab: string;

@@ -105,7 +105,7 @@ func (uc *bizDevUsecase) GetDashboard(month, year int) (*BizDevDashboardData, er
 
 		// 1. Advisor (Facilitator)
 		adv := s.Client.Facilitator
-		if adv.ID != uuid.Nil && adv.FullName != "" {
+		if adv != nil && adv.ID != uuid.Nil && adv.FullName != "" {
 			if _, ok := perfMap[adv.ID.String()]; !ok {
 				roleName := "HALAL_ADVISOR"
 				if adv.Role.Name != "" {

@@ -18,7 +18,7 @@ func NewBizDevHandler(r *gin.Engine, uc usecase.BizDevUsecase) {
 	h := &bizDevHandler{uc: uc}
 
 	g := r.Group("/bizdev", middleware.AuthMiddleware(),
-		middleware.RoleMiddleware("DIRECTOR", "BUSINESS_DEVELOPMENT"),
+		middleware.RoleMiddleware("DIRECTOR", "BUSINESS_DEVELOPMENT", "MARKETING", "MANAGER"),
 	)
 	{
 		g.GET("/dashboard", h.GetDashboard)

@@ -24,6 +24,7 @@ func NewAuthHandler(r *gin.Engine, uc usecase.AuthUsecase) {
 		auth.POST("/forgot-password", handler.ForgotPassword)
 		auth.POST("/reset-password", handler.ResetPassword)
 		auth.GET("/facilitators", handler.ListFacilitators)
+		auth.GET("/advisors/lookup", handler.LookupAdvisor)
 	}
 	
 	admin := r.Group("/admin")
@@ -152,4 +153,27 @@ func (h *AuthHandler) ListFacilitators(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, facilitators)
+}
+
+func (h *AuthHandler) LookupAdvisor(c *gin.Context) {
+	code := c.Query("code")
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "parameter code wajib diisi"})
+		return
+	}
+
+	advisor, err := h.authUseCase.LookupAdvisorByCode(code)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":            advisor.ID,
+		"full_name":     advisor.FullName,
+		"referral_code": advisor.ReferralCode,
+		"role":          advisor.Role.Name,
+		"phone":         advisor.Phone,
+		"avatar_url":    advisor.AvatarURL,
+	})
 }

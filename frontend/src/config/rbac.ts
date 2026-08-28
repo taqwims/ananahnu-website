@@ -124,8 +124,8 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   'fee-config':            ['DIRECTOR', 'ADMIN_KEUANGAN'],
   'commission-management': ['DIRECTOR', 'ADMIN_KEUANGAN'],
 
-  // ── Business Development ───────────────────────────────────────────
-  'bizdev':                ['DIRECTOR', 'BUSINESS_DEVELOPMENT'],
+  // ── Business Development / Marketing ────────────────────────────────
+  'bizdev':                ['DIRECTOR', 'BUSINESS_DEVELOPMENT', 'MARKETING', 'MANAGER'],
 
   // ── SPH ────────────────────────────────────────────────────────────
   'sph':                   ['DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'ADMIN_KEUANGAN'],

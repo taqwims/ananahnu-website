@@ -21,6 +21,7 @@ type AuthUsecase interface {
 	ForgotPassword(email string) error
 	ResetPassword(token, newPassword string) error
 	ListFacilitators() ([]domain.User, error)
+	LookupAdvisorByCode(code string) (*domain.User, error)
 }
 
 type RegisterInput struct {
@@ -211,10 +212,30 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 }
 
 func (uc *authUsecase) ListFacilitators() ([]domain.User, error) {
-	// Find users with role HALAL_ADVISOR
-	filter := map[string]interface{}{"role": "HALAL_ADVISOR"}
+	// Find users with advisor and manager roles
+	filter := map[string]interface{}{"roles": []string{"HALAL_ADVISOR", "HALAL_MANAGER", "HALAL_DIRECTOR"}}
 	users, _, err := uc.UserRepo.FindAll(filter, 1, 1000)
 	return users, err
+}
+
+func (uc *authUsecase) LookupAdvisorByCode(code string) (*domain.User, error) {
+	cleanCode := strings.TrimSpace(code)
+	if cleanCode == "" {
+		return nil, errors.New("nomor registrasi advisor tidak boleh kosong")
+	}
+
+	user, err := uc.UserRepo.FindByReferralCode(cleanCode)
+	if err != nil {
+		return nil, errors.New("Nomor registrasi advisor tidak ditemukan. Pastikan nomor yang dimasukkan sudah benar.")
+	}
+
+	// Verify that user has advisor-related role
+	roleName := user.Role.Name
+	if roleName != "HALAL_ADVISOR" && roleName != "HALAL_MANAGER" && roleName != "HALAL_DIRECTOR" && roleName != "MARKETING" {
+		return nil, errors.New("Nomor registrasi yang dimasukkan bukan milik Halal Advisor terdaftar.")
+	}
+
+	return user, nil
 }
 
 

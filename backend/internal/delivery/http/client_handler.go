@@ -104,8 +104,11 @@ func (h *ClientHandler) Create(c *gin.Context) {
 
 	// Auto-set facilitator_id and created_by from JWT if not provided
 	userID := middleware.GetUserID(c)
-	if input.FacilitatorID == uuid.Nil {
-		input.FacilitatorID = userID
+	userRole := middleware.GetUserRole(c)
+	if input.FacilitatorID == nil || *input.FacilitatorID == uuid.Nil {
+		if userRole != "CLIENT" && userID != uuid.Nil {
+			input.FacilitatorID = &userID
+		}
 	}
 	if input.CreatedBy == uuid.Nil {
 		input.CreatedBy = userID

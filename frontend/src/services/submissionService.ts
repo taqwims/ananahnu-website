@@ -245,6 +245,25 @@ class SubmissionService extends BaseService {
             this.handleError(error);
         }
     }
+
+    async setAdvisorServiceType(id: string, serviceType: string, selfDeclareType?: string): Promise<void> {
+        try {
+            await this.api.post(`/submissions/${id}/advisor-service-type`, {
+                service_type: serviceType,
+                self_declare_type: selfDeclareType
+            });
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    async forwardToOperational(id: string): Promise<void> {
+        try {
+            await this.api.post(`/submissions/${id}/forward-to-operational`, {});
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
 }
 
 export const submissionService = new SubmissionService();

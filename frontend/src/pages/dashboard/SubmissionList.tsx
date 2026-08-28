@@ -31,7 +31,7 @@ export default function SubmissionList() {
                     <p className="text-gray-500 mt-1 font-medium">Kelola dan pantau status sertifikasi halal Anda</p>
                 </div>
 
-                {(user?.role === 'CLIENT' || user?.role === 'DIRECTOR') && (
+                {(user?.role === 'CLIENT' || user?.role === 'DIRECTOR' || user?.role === 'MARKETING' || user?.role === 'BUSINESS_DEVELOPMENT') && (
                     <div className="relative group">
                         <button
                             onClick={() => navigate('/dashboard/pengajuan')}

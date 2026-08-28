@@ -1,783 +1,888 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { 
-    Users, 
-    ShieldCheck, 
-    Award, 
+    Building2, 
+    UserCheck, 
     CheckCircle2, 
     ArrowRight, 
-    AlertTriangle, 
-    XCircle, 
-    MessageSquare, 
-    UserCheck,
-    Loader2
+    AlertCircle, 
+    Search, 
+    Loader2, 
+    HelpCircle, 
+    Sparkles, 
+    FileCheck,
+    Layers,
+    MapPin,
+    Tag,
+    Calculator,
+    Package
 } from 'lucide-react';
 import api from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
+import FileUpload from '../../components/dashboard/FileUpload';
+import type { FormFieldConfig } from '../../types';
 
-interface ScreeningOption {
-    text: string;
-    isEligible: boolean;
+interface AdvisorInfo {
+    id: string;
+    full_name: string;
+    referral_code: string;
+    role: string;
+    phone?: string;
+    avatar_url?: string;
 }
 
-interface ScreeningQuestion {
+interface MasterOption {
     id: number;
-    question: string;
-    options: ScreeningOption[];
+    name: string;
+    business_type_id?: number;
 }
-
-const SCREENING_QUESTIONS: ScreeningQuestion[] = [
-    {
-        id: 1,
-        question: "Berapa estimasi total penjualan kotor (omzet) usaha Anda dalam satu tahun terakhir?",
-        options: [
-            {
-                text: "Maksimal Rp500 juta per tahun",
-                isEligible: true
-            },
-            {
-                text: "Lebih dari Rp500 juta per tahun",
-                isEligible: false
-            }
-        ]
-    },
-    {
-        id: 2,
-        question: "Apakah seluruh proses produksi dilakukan secara mandiri oleh usaha Anda (tidak diserahkan/maklon ke pabrik atau pihak lain)?",
-        options: [
-            {
-                text: "Ya, seluruhnya diproduksi sendiri",
-                isEligible: true
-            },
-            {
-                text: "Tidak, sebagian atau seluruh produksi diserahkan ke pihak lain (maklon)",
-                isEligible: false
-            }
-        ]
-    },
-    {
-        id: 3,
-        question: "Apakah seluruh bahan baku, bahan tambahan, dan bahan penolong yang digunakan sudah dipastikan kehalalannya?",
-        options: [
-            {
-                text: "Ya, semua bahan sudah bersertifikat halal atau merupakan bahan segar/murni tanpa proses (seperti air, sayur, buah segar)",
-                isEligible: true
-            },
-            {
-                text: "Tidak, masih ada bahan yang belum jelas status kehalalannya / tidak memiliki sertifikat halal",
-                isEligible: false
-            }
-        ]
-    },
-    {
-        id: 4,
-        question: "Apakah ada produk Anda yang menggunakan daging atau bahan turunan hewan dari hasil penyembelihan (ayam, sapi, bebek, dll.)?",
-        options: [
-            {
-                text: "Ya, dan semua diperoleh dari Rumah Potong Hewan/Unggas (RPH/RPU) yang sudah memiliki Sertifikat Halal",
-                isEligible: true
-            },
-            {
-                text: "Ya, tetapi dibeli dari pasar/pemasok biasa yang belum memiliki Sertifikat Halal",
-                isEligible: false
-            },
-            {
-                text: "Tidak menggunakan bahan dari hewan sembelihan sama sekali",
-                isEligible: true
-            }
-        ]
-    },
-    {
-        id: 5,
-        question: "Bagaimana tingkat kerumitan teknologi dan alat yang digunakan dalam proses produksi Anda?",
-        options: [
-            {
-                text: "Sederhana (manual atau semi-otomatis skala rumah tangga) dan tidak menggunakan teknologi rekayasa genetika (GMO) atau iradiasi",
-                isEligible: true
-            },
-            {
-                text: "Kompleks (menggunakan mesin industri besar otomatis penuh, atau pengawetan tingkat tinggi)",
-                isEligible: false
-            }
-        ]
-    },
-    {
-        id: 6,
-        question: "Bagaimana status lokasi, tempat, dan alat produksi yang Anda gunakan?",
-        options: [
-            {
-                text: "Sepenuhnya bersih, bebas dari najis, dan terpisah total dari bahan, alat, atau kegiatan non-halal (terutama babi/anjing)",
-                isEligible: true
-            },
-            {
-                text: "Masih bercampur atau menggunakan alat yang sama secara bergantian dengan pengolahan bahan non-halal",
-                isEligible: false
-            }
-        ]
-    },
-    {
-        id: 7,
-        question: "Kategori produk apa yang Anda daftarkan dalam sertifikasi ini?",
-        options: [
-            {
-                text: "Produk berupa barang olahan (makanan/minuman kemasan) yang berisiko rendah",
-                isEligible: true
-            },
-            {
-                text: "Jasa (seperti Katering, Restoran, Rumah Makan, Cafe, Dapur Umum, atau Warung Makan)",
-                isEligible: false
-            }
-        ]
-    },
-    {
-        id: 8,
-        question: "Apakah nama produk atau merek yang Anda daftarkan terbebas dari kata/istilah yang bertentangan dengan syariat Islam?",
-        options: [
-            {
-                text: "Ya, nama produk terbebas dari unsur vulgar, erotis, nama setan, atau istilah produk non-halal (misal: bacon, beer, rum, tuak)",
-                isEligible: true
-            },
-            {
-                text: "Tidak, nama produk masih mengandung kata/istilah yang merujuk pada hal-hal tersebut",
-                isEligible: false
-            }
-        ]
-    },
-    {
-        id: 9,
-        question: "Apakah Anda sudah memiliki atau bersedia menunjuk Penyelia Halal yang beragama Islam di internal usaha Anda?",
-        options: [
-            {
-                text: "Ya, ada/bersedia menunjuk Penyelia Halal beragama Islam (bisa pemilik usaha itu sendiri atau karyawan)",
-                isEligible: true
-            },
-            {
-                text: "Tidak ada dan tidak bersedia menunjuk Penyelia Halal beragama Islam",
-                isEligible: false
-            }
-        ]
-    },
-    {
-        id: 10,
-        question: "Apakah Anda bersedia bekerja sama dan diperiksa lokasinya oleh Pendamping Proses Produk Halal (PPH)?",
-        options: [
-            {
-                text: "Ya, bersedia didampingi dan diperiksa langsung proses produksinya",
-                isEligible: true
-            },
-            {
-                text: "Tidak bersedia diperiksa atau didampingi",
-                isEligible: false
-            }
-        ]
-    }
-];
 
 export default function ClientPengajuanPage() {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    
-    const [selectedService, setSelectedService] = useState<'REGULER' | 'SELF_DECLARE' | 'SELF_DECLARE_MANDIRI'>(
-        (searchParams.get('service') as any) || 'SELF_DECLARE'
-    );
+    const currentUser = useAuthStore(state => state.user);
 
-    const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
-    const [answers, setAnswers] = useState<Record<number, number>>({});
-    const [screeningFinished, setScreeningFinished] = useState(false);
-    const [isEligible, setIsEligible] = useState<boolean | null>(null);
+    // ==========================================
+    // 1. INFORMASI PELAKU USAHA (Kontak & KTP)
+    // ==========================================
+    const [clientName, setClientName] = useState(currentUser?.full_name || '');
+    const [phone, setPhone] = useState(currentUser?.phone || '');
+    const [nik, setNik] = useState('');
+    const [ktpUrl, setKtpUrl] = useState('');
 
-    const [facilitators, setFacilitators] = useState<any[]>([]);
-    const [selectedFacilitator, setSelectedFacilitator] = useState<string>('');
-    const [loadingFacilitators, setLoadingFacilitators] = useState(false);
+    // ==========================================
+    // 2. INFORMASI USAHA & OPERASIONAL (Harga & Layanan)
+    // ==========================================
+    const [businessName, setBusinessName] = useState('');
+    const [nib, setNib] = useState('');
+    const [nibFileUrl, setNibFileUrl] = useState('');
+    const [businessScaleId, setBusinessScaleId] = useState<string>('');
+    const [businessTypeId, setBusinessTypeId] = useState<string>('');
+    const [productCategoryId, setProductCategoryId] = useState<string>('');
+    const [productName, setProductName] = useState('');
+    const [productCount, setProductCount] = useState<number>(1);
+    const [branchCount, setBranchCount] = useState<number>(1);
+    const [address, setAddress] = useState(currentUser?.address || '');
+    const [provinceId, setProvinceId] = useState<string>(currentUser?.province_id ? String(currentUser.province_id) : '');
+    const [regencyId, setRegencyId] = useState<string>(currentUser?.regency_id ? String(currentUser.regency_id) : '');
+    const [productPhotoUrl, setProductPhotoUrl] = useState('');
 
-    // Quota state (mock/fetch)
-    const [quotaLimit] = useState(10000);
-    const [quotaUsed] = useState(1245);
+    // Master Data States
+    const [businessScales, setBusinessScales] = useState<MasterOption[]>([]);
+    const [businessTypes, setBusinessTypes] = useState<MasterOption[]>([]);
+    const [productCategories, setProductCategories] = useState<MasterOption[]>([]);
+    const [provinces, setProvinces] = useState<MasterOption[]>([]);
+    const [regencies, setRegencies] = useState<MasterOption[]>([]);
 
-    useEffect(() => {
-        setLoadingFacilitators(true);
-        api.get('/auth/facilitators')
-            .then(res => {
-                setFacilitators(res.data || []);
-            })
-            .catch(err => console.error("Gagal memuat pendamping halal", err))
-            .finally(() => setLoadingFacilitators(false));
-    }, []);
+    // ==========================================
+    // 3. PENUNJUKAN HALAL ADVISOR
+    // ==========================================
+    const [advisorCode, setAdvisorCode] = useState('');
+    const [advisorInfo, setAdvisorInfo] = useState<AdvisorInfo | null>(null);
+    const [checkingAdvisor, setCheckingAdvisor] = useState(false);
+    const [advisorCheckError, setAdvisorCheckError] = useState<string | null>(null);
 
-    const handleAnswer = (optionIdx: number) => {
-        setAnswers(prev => ({ ...prev, [currentQuestionIdx]: optionIdx }));
-    };
+    // Dynamic Form Fields Configured by Admin
+    const [formConfigs, setFormConfigs] = useState<FormFieldConfig[]>([]);
+    const [dynamicValues, setDynamicValues] = useState<Record<string, string>>({});
+    const [loadingConfigs, setLoadingConfigs] = useState(true);
 
-    const handleNextQuestion = () => {
-        if (answers[currentQuestionIdx] === undefined) return;
-
-        if (currentQuestionIdx < SCREENING_QUESTIONS.length - 1) {
-            setCurrentQuestionIdx(prev => prev + 1);
-        } else {
-            // Evaluasi hasil screening:
-            // Lolos jika seluruh jawaban memilih opsi yang isEligible === true
-            const eligible = SCREENING_QUESTIONS.every((q, idx) => {
-                const chosenOptIdx = answers[idx];
-                return chosenOptIdx !== undefined && q.options[chosenOptIdx]?.isEligible === true;
-            });
-            setIsEligible(eligible);
-            setScreeningFinished(true);
-        }
-    };
-
-    const handlePrevQuestion = () => {
-        if (currentQuestionIdx > 0) {
-            setCurrentQuestionIdx(prev => prev - 1);
-        }
-    };
-
+    // Submit state
     const [submitting, setSubmitting] = useState(false);
 
-    const handleProceedToForm = async () => {
+    // Load Master Data & Admin Form Configurations
+    useEffect(() => {
+        setLoadingConfigs(true);
+        Promise.all([
+            api.get('/form-config/CLIENT_SUBMISSION').catch(() => ({ data: [] })),
+            api.get('/billing-config/business-scales').catch(() => ({ data: [] })),
+            api.get('/billing-config/business-types').catch(() => ({ data: [] })),
+            api.get('/billing-config/product-categories').catch(() => ({ data: [] })),
+            api.get('/geography/provinces').catch(() => ({ data: [] })),
+        ])
+        .then(([cfgRes, scaleRes, typeRes, catRes, provRes]) => {
+            setFormConfigs(cfgRes.data || []);
+            setBusinessScales(scaleRes.data || []);
+            setBusinessTypes(typeRes.data || []);
+            setProductCategories(catRes.data || []);
+            setProvinces(provRes.data || []);
+
+            // Set default scale if available
+            if (scaleRes.data && scaleRes.data.length > 0 && !businessScaleId) {
+                setBusinessScaleId(String(scaleRes.data[0].id));
+            }
+        })
+        .finally(() => setLoadingConfigs(false));
+    }, []);
+
+    // Load Regencies when Province changes
+    useEffect(() => {
+        if (provinceId) {
+            api.get(`/geography/regencies/${provinceId}`)
+                .then(res => setRegencies(res.data || []))
+                .catch(() => setRegencies([]));
+        } else {
+            setRegencies([]);
+        }
+    }, [provinceId]);
+
+    // Check Advisor Code Lookup
+    const handleCheckAdvisor = async (codeToCheck?: string) => {
+        const code = (codeToCheck !== undefined ? codeToCheck : advisorCode).trim();
+        if (!code) {
+            setAdvisorInfo(null);
+            setAdvisorCheckError(null);
+            return;
+        }
+
+        setCheckingAdvisor(true);
+        setAdvisorCheckError(null);
+        try {
+            const res = await api.get(`/auth/advisors/lookup?code=${encodeURIComponent(code)}`);
+            setAdvisorInfo(res.data);
+            toast.success(`Advisor terhubung: ${res.data.full_name}`);
+        } catch (err: any) {
+            setAdvisorInfo(null);
+            const errMsg = err.response?.data?.error || 'Nomor registrasi advisor tidak ditemukan.';
+            setAdvisorCheckError(errMsg);
+        } finally {
+            setCheckingAdvisor(false);
+        }
+    };
+
+    // Auto-verify advisor on debounce if user stops typing
+    useEffect(() => {
+        if (!advisorCode.trim()) {
+            setAdvisorInfo(null);
+            setAdvisorCheckError(null);
+            return;
+        }
+        const timer = setTimeout(() => {
+            handleCheckAdvisor(advisorCode);
+        }, 600);
+        return () => clearTimeout(timer);
+    }, [advisorCode]);
+
+    const handleDynamicFieldChange = (fieldKey: string, value: string) => {
+        setDynamicValues(prev => ({ ...prev, [fieldKey]: value }));
+    };
+
+    // Filter dynamic custom fields (exclude standard core fields that have dedicated UI inputs)
+    const standardKeys = [
+        'business_name', 'client_name', 'nik', 'phone', 'address', 'product_name', 
+        'ktp', 'nib', 'nib_file', 'foto_produk', 'advisor_code', 
+        'business_scale', 'business_type', 'product_category', 'product_count', 'branch_count'
+    ];
+    const extraCustomFields = formConfigs.filter(f => !standardKeys.includes(f.field_key) && (f.is_active !== false));
+
+    // Filter product categories by selected business type if applicable
+    const filteredCategories = businessTypeId
+        ? productCategories.filter(cat => !cat.business_type_id || String(cat.business_type_id) === businessTypeId)
+        : productCategories;
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        // Basic validations
+        if (!clientName.trim()) {
+            toast.error("Nama penanggung jawab / pemilik usaha wajib diisi.");
+            return;
+        }
+        if (!phone.trim()) {
+            toast.error("Nomor WhatsApp/HP aktif wajib diisi.");
+            return;
+        }
+        if (!businessName.trim()) {
+            toast.error("Nama usaha / merek dagang wajib diisi.");
+            return;
+        }
+
+        // Check required fields from Admin config
+        for (const cfg of formConfigs) {
+            if (cfg.is_active === false) continue;
+            if (cfg.is_required) {
+                if (cfg.field_key === 'client_name' && !clientName.trim()) {
+                    toast.error(`${cfg.field_label} wajib diisi.`);
+                    return;
+                }
+                if (cfg.field_key === 'phone' && !phone.trim()) {
+                    toast.error(`${cfg.field_label} wajib diisi.`);
+                    return;
+                }
+                if (cfg.field_key === 'nik' && !nik.trim()) {
+                    toast.error(`${cfg.field_label} wajib diisi.`);
+                    return;
+                }
+                if (cfg.field_key === 'ktp' && !ktpUrl.trim()) {
+                    toast.error(`${cfg.field_label} wajib diunggah.`);
+                    return;
+                }
+                if (cfg.field_key === 'business_name' && !businessName.trim()) {
+                    toast.error(`${cfg.field_label} wajib diisi.`);
+                    return;
+                }
+                if (cfg.field_key === 'nib' && !nib.trim()) {
+                    toast.error(`${cfg.field_label} wajib diisi.`);
+                    return;
+                }
+                if (cfg.field_key === 'address' && !address.trim()) {
+                    toast.error(`${cfg.field_label} wajib diisi.`);
+                    return;
+                }
+                // Custom fields check
+                if (!standardKeys.includes(cfg.field_key) && !dynamicValues[cfg.field_key]?.trim()) {
+                    toast.error(`${cfg.field_label} wajib diisi.`);
+                    return;
+                }
+            }
+        }
+
         setSubmitting(true);
         try {
+            // Prepare field_values array
+            const fieldValuesPayload: any[] = [];
+
+            // Add standard document URLs if uploaded
+            if (ktpUrl) {
+                const ktpCfg = formConfigs.find(f => f.field_key === 'ktp');
+                if (ktpCfg) fieldValuesPayload.push({ form_field_id: ktpCfg.id, file_url: ktpUrl });
+            }
+            if (nibFileUrl) {
+                const nibCfg = formConfigs.find(f => f.field_key === 'nib_file');
+                if (nibCfg) fieldValuesPayload.push({ form_field_id: nibCfg.id, file_url: nibFileUrl });
+            }
+            if (productPhotoUrl) {
+                const photoCfg = formConfigs.find(f => f.field_key === 'foto_produk');
+                if (photoCfg) fieldValuesPayload.push({ form_field_id: photoCfg.id, file_url: productPhotoUrl });
+            }
+
+            // Add extra custom fields
+            for (const [key, val] of Object.entries(dynamicValues)) {
+                const cfg = formConfigs.find(f => f.field_key === key);
+                if (cfg && val) {
+                    if (cfg.input_type === 'FILE_UPLOAD') {
+                        fieldValuesPayload.push({ form_field_id: cfg.id, file_url: val });
+                    } else if (cfg.input_type === 'LINK') {
+                        fieldValuesPayload.push({ form_field_id: cfg.id, link_value: val });
+                    } else {
+                        fieldValuesPayload.push({ form_field_id: cfg.id, text_value: val });
+                    }
+                }
+            }
+
             const payload = {
                 client_data: {
-                    service_type: selectedService,
-                    facilitator_id: selectedFacilitator ? selectedFacilitator : undefined
-                }
+                    business_name: businessName,
+                    client_name: clientName,
+                    nik: nik,
+                    phone: phone,
+                    address: address,
+                    product_name: productName,
+                    nib: nib,
+                    service_type: 'PENDING_CONSULTATION',
+                    advisor_code: advisorInfo ? advisorInfo.referral_code : (advisorCode.trim() || undefined),
+                    facilitator_id: advisorInfo ? advisorInfo.id : undefined,
+                    business_scale_id: businessScaleId ? Number(businessScaleId) : undefined,
+                    business_type_id: businessTypeId ? Number(businessTypeId) : undefined,
+                    product_category_id: productCategoryId ? Number(productCategoryId) : undefined,
+                    product_count: Number(productCount) || 1,
+                    branchCount: Number(branchCount) || 1,
+                    branch_count: Number(branchCount) || 1,
+                    province_id: provinceId ? Number(provinceId) : undefined,
+                    regency_id: regencyId ? Number(regencyId) : undefined,
+                },
+                field_values: fieldValuesPayload
             };
+
             const res = await api.post('/submissions/create-full', payload);
-            toast.success('Draf pengajuan berhasil dibuat!');
+            toast.success('Pengajuan berhasil dibuat! Data usaha Anda telah tersimpan.');
             navigate(`/dashboard/submissions/${res.data.id}`);
         } catch (err: any) {
-            console.error("Gagal membuat draf pengajuan", err);
-            toast.error(err.response?.data?.error || err.message || 'Gagal membuat draf pengajuan');
+            console.error("Gagal membuat pengajuan", err);
+            toast.error(err.response?.data?.error || err.message || 'Gagal membuat pengajuan');
         } finally {
             setSubmitting(false);
         }
     };
 
-    const currentQ = SCREENING_QUESTIONS[currentQuestionIdx];
-
     return (
-        <div className="max-w-[1440px] mx-auto space-y-8 px-4 sm:px-6 py-4">
-            {/* Header */}
-            <div>
-                <h1 className="text-3xl font-black text-gray-900 tracking-tight">Pilih Jenis Layanan</h1>
-                <p className="text-gray-500 font-medium mt-1">Pilih layanan pendampingan halal yang sesuai dengan kebutuhan usaha Anda.</p>
-            </div>
-
-            {/* 3 Main Service Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* 1. Reguler */}
-                <div 
-                    onClick={() => {
-                        setSelectedService('REGULER');
-                        setScreeningFinished(false);
-                    }}
-                    className={`p-6 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between ${
-                        selectedService === 'REGULER'
-                            ? 'bg-white border-brand-600 ring-2 ring-brand-600/20 shadow-xl'
-                            : 'bg-white/80 border-gray-150 hover:border-gray-300 hover:shadow-md'
-                    }`}
-                >
-                    <div className="space-y-4">
-                        <div className="w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center border border-brand-100 shadow-sm">
-                            <Users className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-black text-gray-900 tracking-tight">Reguler</h3>
-                            <p className="text-xs text-gray-500 font-medium leading-relaxed mt-2">
-                                Pendampingan pembuatan Sertifikat Halal melalui proses reguler bersama Halal Advisor profesional.
-                            </p>
-                        </div>
+        <div className="max-w-5xl mx-auto space-y-8 px-4 sm:px-6 py-6 pb-24">
+            {/* Header Title Banner */}
+            <div className="bg-gradient-to-br from-brand-600 via-brand-700 to-indigo-800 rounded-3xl p-8 text-white shadow-xl shadow-brand-500/10 relative overflow-hidden">
+                <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+                <div className="relative z-10 space-y-3">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white text-xs font-black uppercase tracking-widest border border-white/20">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                        Pendaftaran Sertifikasi Halal
                     </div>
-                    <button 
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedService('REGULER');
-                        }}
-                        className={`mt-6 w-full py-3.5 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 ${
-                            selectedService === 'REGULER'
-                                ? 'bg-brand-600 text-white shadow-lg shadow-brand-100 hover:bg-brand-700'
-                                : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
-                        }`}
-                    >
-                        Pilih Reguler
-                        <ArrowRight className="w-4 h-4" />
-                    </button>
-                </div>
-
-                {/* 2. Self Declare Fasilitasi */}
-                <div 
-                    onClick={() => setSelectedService('SELF_DECLARE')}
-                    className={`p-6 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between relative ${
-                        selectedService === 'SELF_DECLARE'
-                            ? 'bg-white border-brand-600 ring-2 ring-brand-600/20 shadow-xl'
-                            : 'bg-white/80 border-gray-150 hover:border-gray-300 hover:shadow-md'
-                    }`}
-                >
-                    <div className="space-y-4">
-                        <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-sm">
-                            <ShieldCheck className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <h3 className="text-xl font-black text-gray-900 tracking-tight">Self Declare (Fasilitasi)</h3>
-                            </div>
-                            <p className="text-xs text-gray-500 font-medium leading-relaxed mt-2">
-                                Fasilitasi pendaftaran Self Declare dengan biaya Rp0 (disubsidi BPJPH).
-                            </p>
-                            <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-black uppercase tracking-wider">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                                Kuota Tersedia
-                            </div>
-                        </div>
-                    </div>
-                    <button 
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedService('SELF_DECLARE');
-                        }}
-                        className={`mt-6 w-full py-3.5 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 ${
-                            selectedService === 'SELF_DECLARE'
-                                ? 'bg-brand-600 text-white shadow-lg shadow-brand-100 hover:bg-brand-700'
-                                : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
-                        }`}
-                    >
-                        Pilih Fasilitasi
-                        <ArrowRight className="w-4 h-4" />
-                    </button>
-                </div>
-
-                {/* 3. Self Declare Mandiri */}
-                <div 
-                    onClick={() => {
-                        setSelectedService('SELF_DECLARE_MANDIRI');
-                        setScreeningFinished(false);
-                    }}
-                    className={`p-6 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between ${
-                        selectedService === 'SELF_DECLARE_MANDIRI'
-                            ? 'bg-white border-brand-600 ring-2 ring-brand-600/20 shadow-xl'
-                            : 'bg-white/80 border-gray-150 hover:border-gray-300 hover:shadow-md'
-                    }`}
-                >
-                    <div className="space-y-4">
-                        <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100 shadow-sm">
-                            <Award className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-black text-gray-900 tracking-tight">Self Declare (Mandiri)</h3>
-                            <p className="text-xs text-gray-500 font-medium leading-relaxed mt-2">
-                                Pendampingan Self Declare Mandiri untuk pelaku usaha yang ingin proses lebih mandiri.
-                            </p>
-                        </div>
-                    </div>
-                    <button 
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedService('SELF_DECLARE_MANDIRI');
-                        }}
-                        className={`mt-6 w-full py-3.5 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 ${
-                            selectedService === 'SELF_DECLARE_MANDIRI'
-                                ? 'bg-brand-600 text-white shadow-lg shadow-brand-100 hover:bg-brand-700'
-                                : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
-                        }`}
-                    >
-                        Pilih Mandiri
-                        <ArrowRight className="w-4 h-4" />
-                    </button>
+                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+                        Form Pengajuan Pelaku Usaha
+                    </h1>
+                    <p className="text-white/80 text-sm max-w-2xl font-medium leading-relaxed">
+                        Lengkapi informasi pelaku usaha dan rincian operasional usaha Anda di bawah ini. Data usaha akan digunakan untuk perhitungan estimasi harga dan penentuan jalur sertifikasi oleh Halal Advisor.
+                    </p>
                 </div>
             </div>
 
-            {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                {/* Left Column: Flow & Questionnaire / Direct Form */}
-                <div className="lg:col-span-8 space-y-6">
-                    {/* Alur Layanan Stepper */}
-                    <div className="glass-panel p-6 bg-white border border-gray-150 rounded-3xl">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-6">
-                            Alur Layanan {selectedService === 'REGULER' ? 'Reguler' : 'Self Declare'}
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className={`p-4 rounded-2xl border flex items-center gap-3 transition-all ${
-                                !screeningFinished ? 'bg-brand-50/70 border-brand-200' : 'bg-gray-50 border-gray-150 opacity-80'
-                            }`}>
-                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${
-                                    !screeningFinished ? 'bg-brand-600 text-white shadow-sm' : 'bg-gray-200 text-gray-600'
-                                }`}>
-                                    1
-                                </div>
-                                <div>
-                                    <p className="font-black text-xs text-gray-900">Screening Kelayakan</p>
-                                    <p className="text-[10px] text-gray-500 font-medium">Cek kelayakan usaha Anda</p>
-                                </div>
-                            </div>
-
-                            <div className={`p-4 rounded-2xl border flex items-center gap-3 transition-all ${
-                                screeningFinished && isEligible !== null ? 'bg-brand-50/70 border-brand-200' : 'bg-gray-50 border-gray-150 opacity-60'
-                            }`}>
-                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${
-                                    screeningFinished ? 'bg-brand-600 text-white shadow-sm' : 'bg-gray-200 text-gray-600'
-                                }`}>
-                                    2
-                                </div>
-                                <div>
-                                    <p className="font-black text-xs text-gray-900">Hasil Screening</p>
-                                    <p className="text-[10px] text-gray-500 font-medium">Lihat hasil kelayakan</p>
-                                </div>
-                            </div>
-
-                            <div className={`p-4 rounded-2xl border flex items-center gap-3 transition-all ${
-                                screeningFinished && isEligible ? 'bg-brand-50/70 border-brand-200' : 'bg-gray-50 border-gray-150 opacity-60'
-                            }`}>
-                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${
-                                    screeningFinished && isEligible ? 'bg-brand-600 text-white shadow-sm' : 'bg-gray-200 text-gray-600'
-                                }`}>
-                                    3
-                                </div>
-                                <div>
-                                    <p className="font-black text-xs text-gray-900">Lanjut Pengajuan</p>
-                                    <p className="text-[10px] text-gray-500 font-medium">Pilih pendamping & buat ajuan</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Screening Box or Result */}
-                    {selectedService === 'REGULER' ? (
-                        /* Reguler Flow direct action */
-                        <div className="glass-panel p-8 bg-white border border-gray-150 rounded-3xl space-y-6">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center">
-                                    <CheckCircle2 className="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-black text-gray-900 tracking-tight">Pengajuan Skema Reguler</h3>
-                                    <p className="text-xs text-gray-500 font-medium">Skema untuk semua skala usaha dengan fasilitas audit LPH dan sidang fatwa komisi MUI.</p>
-                                </div>
-                            </div>
-
-                            {/* Facilitator Selection */}
-                            <div className="p-6 rounded-2xl bg-gray-50/60 border border-gray-200 space-y-4">
-                                <label className="block text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-2">
-                                    <UserCheck className="w-4 h-4 text-brand-600" />
-                                    Pilih Pendamping Halal (Halal Advisor)
-                                </label>
-                                <p className="text-xs text-gray-500 font-medium">
-                                    Pilih tenaga pendamping halal bersertifikat yang akan membantu proses pengajuan Anda.
-                                </p>
-                                {loadingFacilitators ? (
-                                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                                        <Loader2 className="w-4 h-4 animate-spin" /> Memuat daftar pendamping...
-                                    </div>
-                                ) : (
-                                    <select
-                                        value={selectedFacilitator}
-                                        onChange={(e) => setSelectedFacilitator(e.target.value)}
-                                        className="w-full h-12 px-4 rounded-xl bg-white border border-gray-200 text-sm font-bold text-gray-800 focus:ring-2 focus:ring-brand-600 focus:outline-none"
-                                    >
-                                        <option value="">-- Belum Memilih (Akan Ditentukan Tim Marketing) --</option>
-                                        {facilitators.map(f => (
-                                            <option key={f.id} value={f.id}>
-                                                {f.full_name} ({f.email})
-                                            </option>
-                                        ))}
-                                    </select>
-                                )}
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={handleProceedToForm}
-                                disabled={submitting}
-                                className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-black text-sm shadow-xl shadow-brand-100 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
-                            >
-                                {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-                                    <>
-                                        Lanjut Isi Data Pengajuan
-                                        <ArrowRight className="w-5 h-5 text-gold-400" />
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    ) : !screeningFinished ? (
-                        /* Screening Question Card */
-                        <div className="glass-panel p-8 bg-white border border-gray-150 rounded-3xl space-y-6">
-                            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-                                <div>
-                                    <h3 className="text-xl font-black text-gray-900 tracking-tight">Screening Kelayakan Usaha</h3>
-                                    <p className="text-xs text-gray-500 font-medium mt-0.5">Jawab pertanyaan berikut untuk mengetahui kelayakan usaha Anda.</p>
-                                </div>
-                                <span className="px-3.5 py-1.5 rounded-full bg-brand-50 text-brand-700 border border-brand-100 text-xs font-black">
-                                    {currentQuestionIdx + 1} dari {SCREENING_QUESTIONS.length}
-                                </span>
-                            </div>
-
-                            <div className="py-4 space-y-4">
-                                <h4 className="text-base font-black text-gray-800 leading-snug">
-                                    {currentQ.id}. {currentQ.question}
-                                </h4>
-
-                                <div className="space-y-3 pt-2">
-                                    {currentQ.options.map((opt, optIdx) => {
-                                        const isSelected = answers[currentQuestionIdx] === optIdx;
-                                        return (
-                                            <label 
-                                                key={optIdx}
-                                                className={`p-4 rounded-2xl border flex items-start gap-3.5 cursor-pointer transition-all ${
-                                                    isSelected
-                                                        ? 'bg-brand-50/80 border-brand-600 text-brand-900 font-bold ring-1 ring-brand-600/20 shadow-sm'
-                                                        : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                                                }`}
-                                            >
-                                                <input
-                                                    type="radio"
-                                                    name={`q_${currentQ.id}`}
-                                                    value={optIdx}
-                                                    checked={isSelected}
-                                                    onChange={() => handleAnswer(optIdx)}
-                                                    className="mt-1 w-4 h-4 text-brand-600 accent-brand-600 shrink-0"
-                                                />
-                                                <span className="text-xs sm:text-sm leading-relaxed">{opt.text}</span>
-                                            </label>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            <div className="pt-4 border-t border-gray-100 flex items-center justify-between gap-4">
-                                <button
-                                    type="button"
-                                    onClick={handlePrevQuestion}
-                                    disabled={currentQuestionIdx === 0}
-                                    className="px-6 py-3 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black text-xs hover:bg-gray-50 transition-all disabled:opacity-40"
-                                >
-                                    Kembali
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={handleNextQuestion}
-                                    disabled={answers[currentQuestionIdx] === undefined}
-                                    className="px-8 py-3.5 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-black text-xs shadow-lg shadow-brand-100 transition-all flex items-center gap-2 disabled:opacity-50 active:scale-95"
-                                >
-                                    {currentQuestionIdx === SCREENING_QUESTIONS.length - 1 ? 'Selesaikan Screening' : 'Selanjutnya'}
-                                    <ArrowRight className="w-4 h-4 text-gold-400" />
-                                </button>
-                            </div>
-                        </div>
-                    ) : isEligible ? (
-                        /* Eligible Result Card */
-                        <div className="glass-panel p-8 bg-white border border-emerald-200 rounded-3xl space-y-6">
-                            <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 shadow-inner">
-                                    <CheckCircle2 className="w-8 h-8" />
-                                </div>
-                                <div>
-                                    <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-wider mb-1">
-                                        Hasil Screening Lolos
-                                    </div>
-                                    <h3 className="text-2xl font-black text-gray-900 tracking-tight">Usaha Anda Memenuhi Syarat!</h3>
-                                    <p className="text-xs text-gray-500 font-medium mt-1 leading-relaxed">
-                                        Selamat! Berdasarkan hasil screening, produk dan usaha Anda memenuhi kriteria program Self Declare.
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Facilitator Selection */}
-                            <div className="p-6 rounded-2xl bg-brand-50/50 border border-brand-100 space-y-4">
-                                <label className="block text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-2">
-                                    <UserCheck className="w-4 h-4 text-brand-600" />
-                                    Pilih Pendamping Halal (Halal Advisor)
-                                </label>
-                                <p className="text-xs text-gray-500 font-medium">
-                                    Pilih tenaga pendamping halal bersertifikat yang akan mendampingi proses verifikasi berkas dan kunjungan PPH Anda.
-                                </p>
-                                {loadingFacilitators ? (
-                                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                                        <Loader2 className="w-4 h-4 animate-spin" /> Memuat daftar pendamping...
-                                    </div>
-                                ) : (
-                                    <select
-                                        value={selectedFacilitator}
-                                        onChange={(e) => setSelectedFacilitator(e.target.value)}
-                                        className="w-full h-12 px-4 rounded-xl bg-white border border-gray-200 text-sm font-bold text-gray-800 focus:ring-2 focus:ring-brand-600 focus:outline-none"
-                                    >
-                                        <option value="">-- Belum Memilih (Akan Ditentukan Tim Marketing) --</option>
-                                        {facilitators.map(f => (
-                                            <option key={f.id} value={f.id}>
-                                                {f.full_name} ({f.email})
-                                            </option>
-                                        ))}
-                                    </select>
-                                )}
-                            </div>
-
-                            <div className="flex flex-col sm:flex-row gap-4 pt-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setScreeningFinished(false);
-                                        setCurrentQuestionIdx(0);
-                                        setAnswers({});
-                                    }}
-                                    className="py-4 px-6 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black text-xs hover:bg-gray-50 transition-all"
-                                >
-                                    Ulangi Screening
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={handleProceedToForm}
-                                    disabled={submitting}
-                                    className="flex-1 py-4 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-black text-xs shadow-xl shadow-brand-100 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
-                                >
-                                    {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                                        <>
-                                            Lanjut Pengajuan Sertifikasi
-                                            <ArrowRight className="w-4 h-4 text-gold-400" />
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        /* Ineligible Result Card (matches screenshot 2) */
-                        <div className="glass-panel p-8 bg-white border border-red-200 rounded-3xl space-y-6">
-                            <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
-                                    <XCircle className="w-8 h-8" />
-                                </div>
-                                <div>
-                                    <h3 className="text-2xl font-black text-gray-900 tracking-tight">Tidak Memenuhi Syarat</h3>
-                                    <p className="text-xs text-gray-500 font-medium mt-1 leading-relaxed">
-                                        Usaha Anda belum memenuhi kriteria untuk mengikuti skema Self Declare. Silakan pilih skema <b>Reguler</b> untuk melanjutkan proses Sertifikat Halal.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="p-6 rounded-2xl bg-red-50/50 border border-red-100 text-xs text-red-700 font-medium space-y-2">
-                                <p className="font-bold">Kenapa tidak memenuhi syarat Self Declare?</p>
-                                <p>Skema Self Declare diperuntukkan khusus bagi usaha mikro/kecil dengan proses pengolahan sederhana dan bahan baku yang sudah bersertifikat halal. Untuk produk dengan proses kompleks atau bahan non-sertifikasi, Anda dapat memilih skema Reguler.</p>
-                            </div>
-
-                            <div className="flex flex-col sm:flex-row gap-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedService('REGULER')}
-                                    className="flex-1 py-4 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-black text-xs shadow-xl shadow-brand-100 transition-all flex items-center justify-center gap-2"
-                                >
-                                    Pilih Reguler
-                                    <ArrowRight className="w-4 h-4 text-gold-400" />
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setScreeningFinished(false);
-                                        setCurrentQuestionIdx(0);
-                                        setAnswers({});
-                                    }}
-                                    className="py-4 px-6 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black text-xs hover:bg-gray-50 transition-all"
-                                >
-                                    Coba Screening Lagi
-                                </button>
-                            </div>
-                        </div>
-                    )}
+            {loadingConfigs && (
+                <div className="flex items-center justify-center gap-2 py-4 text-xs font-bold text-gray-500 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                    <Loader2 className="w-4 h-4 animate-spin text-brand-600" />
+                    <span>Memuat konfigurasi formulir pengajuan...</span>
                 </div>
+            )}
 
-                {/* Right Column: Info Kuota, Alerts, Support (matches screenshot 2) */}
-                <div className="lg:col-span-4 space-y-6">
-                    {/* Info Kuota Fasilitasi */}
-                    <div className="glass-panel p-6 bg-white border border-gray-150 rounded-3xl space-y-4">
-                        <div className="flex items-center gap-3 text-brand-800">
-                            <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center text-brand-600">
-                                <ShieldCheck className="w-5 h-5" />
+            <form onSubmit={handleSubmit} className="space-y-8">
+                {/* ========================================================= */}
+                {/* CARD 1: INFORMASI PELAKU USAHA (Kontak, KTP, NIK)         */}
+                {/* ========================================================= */}
+                <div className="bg-white rounded-3xl border border-blue-100/80 p-6 sm:p-8 shadow-sm space-y-6 hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-5">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 shadow-sm">
+                                <UserCheck className="w-6 h-6" />
                             </div>
                             <div>
-                                <h4 className="text-sm font-black text-gray-900">Info Kuota Fasilitasi</h4>
-                                <p className="text-[10px] text-gray-500 font-medium">Disubsidi BPJPH untuk pelaku usaha</p>
+                                <h2 className="text-lg font-black text-gray-900 tracking-tight">1. Informasi Pelaku Usaha</h2>
+                                <p className="text-xs text-gray-500 font-medium">Identitas pemilik atau penanggung jawab legal pengajuan</p>
                             </div>
                         </div>
-
-                        <div className="p-4 rounded-2xl bg-gray-50/70 border border-gray-100 space-y-2">
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Kuota Tersedia</p>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-2xl font-black text-gray-900 font-mono">
-                                    {(quotaLimit - quotaUsed).toLocaleString('id-ID')}
-                                </span>
-                                <span className="text-xs text-gray-500 font-bold">Kuota</span>
-                            </div>
-                            <p className="text-[10px] text-gray-400 font-medium">
-                                Dari total {quotaLimit.toLocaleString('id-ID')} kuota tahun 2026
-                            </p>
-
-                            {/* Progress bar */}
-                            <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden mt-3">
-                                <div 
-                                    className="bg-brand-600 h-full rounded-full transition-all duration-500" 
-                                    style={{ width: `${Math.min(100, (quotaUsed / quotaLimit) * 100)}%` }}
-                                ></div>
-                            </div>
-                            <div className="flex justify-between text-[9px] font-bold text-gray-400 pt-1">
-                                <span>Terpakai: {((quotaUsed / quotaLimit) * 100).toFixed(1)}%</span>
-                                <span>Tersedia: {(100 - (quotaUsed / quotaLimit) * 100).toFixed(1)}%</span>
-                            </div>
-                        </div>
-
-                        <p className="text-[10px] text-gray-400 font-medium italic text-center">
-                            *Kuota diperbarui setiap hari pukul 00.00 WIB
-                        </p>
+                        <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold border border-blue-200">
+                            Identitas Pemilik
+                        </span>
                     </div>
 
-                    {/* Kuota Habis Alert Card (shown conditionally or as reference widget) */}
-                    {quotaLimit - quotaUsed <= 0 && (
-                        <div className="p-6 rounded-3xl bg-amber-50 border border-amber-200 text-amber-900 space-y-3">
-                            <div className="flex items-center gap-2 text-amber-700">
-                                <AlertTriangle className="w-5 h-5" />
-                                <h4 className="text-xs font-black uppercase tracking-wider">Kuota Fasilitasi Habis</h4>
-                            </div>
-                            <p className="text-xs leading-relaxed font-medium text-amber-800">
-                                Maaf, kuota fasilitasi saat ini habis. Silakan menggunakan skema Self Declare Mandiri atau Reguler.
-                            </p>
-                            <div className="grid grid-cols-2 gap-2 pt-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedService('SELF_DECLARE_MANDIRI')}
-                                    className="py-2.5 bg-white border border-amber-300 rounded-xl text-xs font-black text-amber-800 hover:bg-amber-100"
-                                >
-                                    Pilih Mandiri
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedService('REGULER')}
-                                    className="py-2.5 bg-brand-600 text-white rounded-xl text-xs font-black hover:bg-brand-700"
-                                >
-                                    Pilih Reguler
-                                </button>
-                            </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Nama Penanggung Jawab */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                Nama Pemilik / Penanggung Jawab <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                className="glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white"
+                                placeholder="Nama lengkap sesuai KTP"
+                                value={clientName}
+                                onChange={e => setClientName(e.target.value)}
+                                required
+                            />
                         </div>
-                    )}
 
-                    {/* Butuh Bantuan WhatsApp widget (matches screenshot 2) */}
-                    <div className="glass-panel p-6 bg-white border border-gray-150 rounded-3xl space-y-4">
-                        <div>
-                            <h4 className="text-sm font-black text-gray-900">Butuh Bantuan?</h4>
-                            <p className="text-xs text-gray-500 font-medium mt-0.5">Tim HalalCore siap membantu Anda.</p>
+                        {/* Nomor WhatsApp / HP */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                Nomor WhatsApp / Kontak Aktif <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="tel"
+                                className="glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white"
+                                placeholder="Contoh: 081234567890"
+                                value={phone}
+                                onChange={e => setPhone(e.target.value)}
+                                required
+                            />
                         </div>
-                        <a
-                            href="https://wa.me/6281234567890"
-                            target="_blank"
-                            rel="noreferrer"
-                            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs shadow-lg shadow-emerald-100 transition-all flex items-center justify-center gap-2 active:scale-95 group"
-                        >
-                            <MessageSquare className="w-4 h-4 text-emerald-200 group-hover:scale-110 transition-transform" />
-                            Chat via WhatsApp
-                        </a>
+
+                        {/* NIK */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                NIK Penanggung Jawab (16 Digit)
+                            </label>
+                            <input
+                                type="text"
+                                maxLength={16}
+                                className="glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white"
+                                placeholder="Masukkan 16 digit NIK"
+                                value={nik}
+                                onChange={e => setNik(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Upload Foto KTP */}
+                        <div className="p-4 rounded-2xl bg-blue-50/40 border border-blue-150 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-black text-gray-900">
+                                    Foto e-KTP Penanggung Jawab
+                                </label>
+                                {ktpUrl && (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                        <CheckCircle2 className="w-3 h-3" /> Terunggah
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-[11px] text-gray-500 font-medium">
+                                Format JPG, PNG, atau PDF (Maksimal 2MB).
+                            </p>
+                            <FileUpload
+                                subfolder="ktp"
+                                label={ktpUrl ? "Ganti Foto KTP" : "Unggah Foto e-KTP"}
+                                onUploadSuccess={url => setKtpUrl(url)}
+                            />
+                            {ktpUrl && (
+                                <a 
+                                    href={ktpUrl} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="inline-flex items-center gap-1.5 text-xs text-brand-600 font-bold hover:underline"
+                                >
+                                    <FileCheck className="w-3.5 h-3.5" /> Lihat file KTP terunggah
+                                </a>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
+
+                {/* ========================================================= */}
+                {/* CARD 2: INFORMASI USAHA & OPERASIONAL (Penentuan Harga)    */}
+                {/* ========================================================= */}
+                <div className="bg-white rounded-3xl border border-indigo-100/80 p-6 sm:p-8 shadow-sm space-y-6 hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-5">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 shadow-sm">
+                                <Building2 className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-black text-gray-900 tracking-tight">2. Informasi Usaha & Operasional</h2>
+                                <p className="text-xs text-gray-500 font-medium">Data profil dan kapasitas usaha untuk menentukan estimasi harga & skema layanan</p>
+                            </div>
+                        </div>
+                        <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-bold border border-indigo-200">
+                            <Calculator className="w-3.5 h-3.5" /> Penentu Harga Layanan
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Nama Usaha */}
+                        <div className="space-y-2 md:col-span-2">
+                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                Nama Usaha / Merek Dagang <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                className="glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white"
+                                placeholder="Contoh: CV Berkah Abadi, Kopi Kenangan, Dapur Halal"
+                                value={businessName}
+                                onChange={e => setBusinessName(e.target.value)}
+                                required
+                            />
+                        </div>
+
+                        {/* NIB (Nomor & File) */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                Nomor Induk Berusaha (NIB)
+                            </label>
+                            <input
+                                type="text"
+                                className="glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white"
+                                placeholder="Masukkan 13 digit nomor NIB jika ada"
+                                value={nib}
+                                onChange={e => setNib(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Upload Dokumen NIB */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-bold text-gray-700">
+                                    Dokumen NIB OSS (Opsional)
+                                </label>
+                                {nibFileUrl && (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                        <CheckCircle2 className="w-3 h-3" /> Terunggah
+                                    </span>
+                                )}
+                            </div>
+                            <FileUpload
+                                subfolder="nib"
+                                label={nibFileUrl ? "Ganti Dokumen NIB" : "Unggah File NIB (PDF/Gambar)"}
+                                onUploadSuccess={url => setNibFileUrl(url)}
+                            />
+                            {nibFileUrl && (
+                                <a 
+                                    href={nibFileUrl} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="inline-flex items-center gap-1.5 text-xs text-brand-600 font-bold hover:underline"
+                                >
+                                    <FileCheck className="w-3.5 h-3.5" /> Lihat berkas NIB
+                                </a>
+                            )}
+                        </div>
+
+                        {/* Skala Usaha */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                <Layers className="w-3.5 h-3.5 text-indigo-600" /> Skala Usaha (Komponen Biaya)
+                            </label>
+                            <select
+                                className="glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white"
+                                value={businessScaleId}
+                                onChange={e => setBusinessScaleId(e.target.value)}
+                            >
+                                <option value="">-- Pilih Skala Usaha --</option>
+                                {businessScales.map(scale => (
+                                    <option key={scale.id} value={scale.id}>{scale.name}</option>
+                                ))}
+                            </select>
+                            <p className="text-[10px] text-gray-400 font-medium">Contoh: Usaha Mikro (omzet &le; Rp2M), Usaha Kecil, Menengah, Besar</p>
+                        </div>
+
+                        {/* Jenis Usaha / Kategori Bisnis */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                <Tag className="w-3.5 h-3.5 text-indigo-600" /> Jenis Usaha / Bidang Bisnis
+                            </label>
+                            <select
+                                className="glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white"
+                                value={businessTypeId}
+                                onChange={e => {
+                                    setBusinessTypeId(e.target.value);
+                                    setProductCategoryId('');
+                                }}
+                            >
+                                <option value="">-- Pilih Jenis Usaha --</option>
+                                {businessTypes.map(bt => (
+                                    <option key={bt.id} value={bt.id}>{bt.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Kategori Produk */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                <Package className="w-3.5 h-3.5 text-indigo-600" /> Kategori Produk
+                            </label>
+                            <select
+                                className="glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white"
+                                value={productCategoryId}
+                                onChange={e => setProductCategoryId(e.target.value)}
+                            >
+                                <option value="">-- Pilih Kategori Produk --</option>
+                                {filteredCategories.map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Nama Produk / Varian */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                Nama Produk / Varian yang Diajukan
+                            </label>
+                            <input
+                                type="text"
+                                className="glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white"
+                                placeholder="Contoh: Aneka Keripik Singkong, Roti Manis, Sambal Kemasan"
+                                value={productName}
+                                onChange={e => setProductName(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Jumlah Produk */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                Jumlah Produk / Menu / Varian
+                            </label>
+                            <input
+                                type="number"
+                                min={1}
+                                className="glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white"
+                                placeholder="1"
+                                value={productCount}
+                                onChange={e => setProductCount(Math.max(1, parseInt(e.target.value) || 1))}
+                            />
+                            <p className="text-[10px] text-gray-400 font-medium">Berapa varian produk yang akan disertifikasi halal</p>
+                        </div>
+
+                        {/* Jumlah Cabang / Pabrik */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                Jumlah Cabang / Outlet / Pabrik
+                            </label>
+                            <input
+                                type="number"
+                                min={1}
+                                className="glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white"
+                                placeholder="1"
+                                value={branchCount}
+                                onChange={e => setBranchCount(Math.max(1, parseInt(e.target.value) || 1))}
+                            />
+                            <p className="text-[10px] text-gray-400 font-medium">Jumlah lokasi outlet/dapur produksi yang beroperasi</p>
+                        </div>
+
+                        {/* Wilayah Provinsi & Kabupaten/Kota */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                <MapPin className="w-3.5 h-3.5 text-indigo-600" /> Provinsi Lokasi Usaha
+                            </label>
+                            <select
+                                className="glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white"
+                                value={provinceId}
+                                onChange={e => {
+                                    setProvinceId(e.target.value);
+                                    setRegencyId('');
+                                }}
+                            >
+                                <option value="">-- Pilih Provinsi --</option>
+                                {provinces.map(prov => (
+                                    <option key={prov.id} value={prov.id}>{prov.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                <MapPin className="w-3.5 h-3.5 text-indigo-600" /> Kota / Kabupaten Lokasi Usaha
+                            </label>
+                            <select
+                                className="glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white"
+                                value={regencyId}
+                                onChange={e => setRegencyId(e.target.value)}
+                                disabled={!provinceId}
+                            >
+                                <option value="">-- Pilih Kota / Kabupaten --</option>
+                                {regencies.map(reg => (
+                                    <option key={reg.id} value={reg.id}>{reg.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Alamat Lengkap Usaha */}
+                        <div className="space-y-2 md:col-span-2">
+                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                Alamat Lengkap Fasilitas / Tempat Usaha
+                            </label>
+                            <textarea
+                                rows={2}
+                                className="w-full p-3 rounded-2xl border border-gray-200 text-xs font-medium bg-gray-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+                                placeholder="Jalan, RT/RW, Kelurahan, Kecamatan, Kota/Kabupaten, Kode Pos"
+                                value={address}
+                                onChange={e => setAddress(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Foto Produk / Kemasan */}
+                        <div className="p-4 rounded-2xl bg-indigo-50/40 border border-indigo-150 space-y-3 md:col-span-2">
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-black text-gray-900">
+                                    Foto Produk / Kemasan Berlabel (Opsional)
+                                </label>
+                                {productPhotoUrl && (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                        <CheckCircle2 className="w-3 h-3" /> Terunggah
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-[11px] text-gray-500 font-medium">
+                                Unggah foto produk atau kemasan untuk membantu advisor mengidentifikasi bahan dan proses sertifikasi.
+                            </p>
+                            <FileUpload
+                                subfolder="products"
+                                label={productPhotoUrl ? "Ganti Foto Produk" : "Unggah Foto Produk / Brosur"}
+                                onUploadSuccess={url => setProductPhotoUrl(url)}
+                            />
+                            {productPhotoUrl && (
+                                <a 
+                                    href={productPhotoUrl} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="inline-flex items-center gap-1.5 text-xs text-brand-600 font-bold hover:underline"
+                                >
+                                    <FileCheck className="w-3.5 h-3.5" /> Lihat foto produk terunggah
+                                </a>
+                            )}
+                        </div>
+
+                        {/* Extra Custom Form Fields configured dynamically by Admin */}
+                        {extraCustomFields.map(field => (
+                            <div key={field.id} className="p-4 rounded-2xl bg-gray-50/80 border border-gray-150 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-xs font-black text-gray-900">
+                                        {field.field_label} {field.is_required && <span className="text-red-500">*</span>}
+                                    </label>
+                                    {dynamicValues[field.field_key] && field.input_type === 'FILE_UPLOAD' && (
+                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                            <CheckCircle2 className="w-3 h-3" /> Terunggah
+                                        </span>
+                                    )}
+                                </div>
+                                {field.description && (
+                                    <p className="text-[11px] text-gray-500 font-medium">{field.description}</p>
+                                )}
+
+                                {field.input_type === 'FILE_UPLOAD' ? (
+                                    <>
+                                        <FileUpload
+                                            subfolder="custom"
+                                            label={dynamicValues[field.field_key] ? `Ganti ${field.field_label}` : `Unggah ${field.field_label}`}
+                                            onUploadSuccess={url => handleDynamicFieldChange(field.field_key, url)}
+                                        />
+                                        {dynamicValues[field.field_key] && (
+                                            <a 
+                                                href={dynamicValues[field.field_key]} 
+                                                target="_blank" 
+                                                rel="noreferrer" 
+                                                className="inline-flex items-center gap-1.5 text-xs text-brand-600 font-bold hover:underline"
+                                            >
+                                                <FileCheck className="w-3.5 h-3.5" /> Lihat file terunggah
+                                            </a>
+                                        )}
+                                    </>
+                                ) : field.input_type === 'LINK' ? (
+                                    <input
+                                        type="url"
+                                        className="glass-input text-xs font-bold w-full bg-white"
+                                        placeholder="https://..."
+                                        value={dynamicValues[field.field_key] || ''}
+                                        onChange={e => handleDynamicFieldChange(field.field_key, e.target.value)}
+                                        required={field.is_required}
+                                    />
+                                ) : (
+                                    <input
+                                        type="text"
+                                        className="glass-input text-xs font-bold w-full bg-white"
+                                        placeholder={`Masukkan ${field.field_label}`}
+                                        value={dynamicValues[field.field_key] || ''}
+                                        onChange={e => handleDynamicFieldChange(field.field_key, e.target.value)}
+                                        required={field.is_required}
+                                    />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* ========================================================= */}
+                {/* CARD 3: PENUNJUKAN HALAL ADVISOR (Opsional)                */}
+                {/* ========================================================= */}
+                <div className="bg-white rounded-3xl border border-purple-100/80 p-6 sm:p-8 shadow-sm space-y-6 hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-5">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 shadow-sm">
+                                <Sparkles className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-black text-gray-900 tracking-tight">3. Penunjukan Pendamping Halal (Halal Advisor)</h2>
+                                <p className="text-xs text-gray-500 font-medium">Opsional: Hubungkan pengajuan dengan Halal Advisor rekanan Anda</p>
+                            </div>
+                        </div>
+                        <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-50 text-purple-700 text-[11px] font-bold border border-purple-200">
+                            Opsional
+                        </span>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="p-4 rounded-2xl bg-purple-50/70 border border-purple-150 space-y-2">
+                            <p className="text-xs text-purple-900 font-bold flex items-center gap-2">
+                                <HelpCircle className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                                Punya Nomor Registrasi Halal Advisor?
+                            </p>
+                            <p className="text-xs text-purple-700/80 font-medium leading-relaxed">
+                                Jika Anda sudah berkonsultasi atau direkomendasikan oleh Halal Advisor tertentu, masukkan nomor registrasi advisor di bawah ini. Pengajuan Anda akan otomatis terhubung ke advisor tersebut.
+                                Jika Anda belum memiliki advisor, <strong>kosongkan kolom ini</strong> dan tim Marketing kami yang akan merekomendasikan advisor terbaik untuk Anda.
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700">
+                                Nomor Registrasi / Kode Halal Advisor (Opsional)
+                            </label>
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <input
+                                        type="text"
+                                        className="glass-input text-xs font-black uppercase tracking-wider w-full pl-10 bg-gray-50/50 focus:bg-white"
+                                        placeholder="Contoh: RF-ADVISOR01 atau kode konsonan"
+                                        value={advisorCode}
+                                        onChange={e => setAdvisorCode(e.target.value.toUpperCase())}
+                                    />
+                                    <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleCheckAdvisor()}
+                                    disabled={checkingAdvisor || !advisorCode.trim()}
+                                    className="px-5 py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition-all disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                                >
+                                    {checkingAdvisor ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                    Cek Advisor
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Advisor Verified Status Card */}
+                        {advisorInfo && (
+                            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between animate-fadeIn">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-sm shadow-sm">
+                                        {advisorInfo.full_name.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-xs font-black text-gray-900">{advisorInfo.full_name}</p>
+                                            <span className="text-[10px] font-black uppercase bg-emerald-200/60 text-emerald-800 px-2 py-0.5 rounded-md">
+                                                Halal Advisor Terverifikasi
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-gray-500 font-medium">
+                                            No. Registrasi: <span className="font-bold text-gray-700">{advisorInfo.referral_code}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700">
+                                        <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Terhubung
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Advisor Check Error */}
+                        {advisorCheckError && (
+                            <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 flex items-center gap-2.5 text-xs text-red-700 font-medium animate-fadeIn">
+                                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                                <span>{advisorCheckError}</span>
+                            </div>
+                        )}
+
+                        {/* Empty Advisor Info State */}
+                        {!advisorCode.trim() && (
+                            <p className="text-[11px] text-gray-400 font-medium italic">
+                                * Kolom nomor registrasi advisor dikosongkan. Pengajuan akan diteruskan ke Manager Marketing untuk penunjukan advisor.
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                {/* SUBMIT BUTTON BAR */}
+                <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <button
+                        type="button"
+                        onClick={() => navigate('/dashboard')}
+                        className="w-full sm:w-auto px-6 py-4 rounded-2xl font-bold text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all"
+                    >
+                        Batal
+                    </button>
+
+                    <button
+                        type="submit"
+                        disabled={submitting}
+                        className="w-full sm:w-auto px-10 py-4 rounded-2xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white font-black text-sm shadow-xl shadow-brand-500/20 hover:shadow-brand-500/30 transition-all flex items-center justify-center gap-3 disabled:opacity-50 active:scale-95"
+                    >
+                        {submitting ? (
+                            <>
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                Menyimpan Pengajuan...
+                            </>
+                        ) : (
+                            <>
+                                <span>Kirim Pengajuan Sertifikasi Halal</span>
+                                <ArrowRight className="w-5 h-5" />
+                            </>
+                        )}
+                    </button>
+                </div>
+            </form>
         </div>
     );
 }

@@ -17,6 +17,7 @@ export const formatNumber = (num: number): string => {
  */
 export const formatServiceType = (serviceType: string): string => {
     const labels: Record<string, string> = {
+        'CLIENT_SUBMISSION': 'Form Pengajuan Klien',
         'SELF_DECLARE': 'Self Declare Fasilitasi (Gratis)',
         'SELF_DECLARE_MANDIRI': 'Self Declare Mandiri',
         'REGULER': 'Reguler',

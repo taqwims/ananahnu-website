@@ -22,22 +22,22 @@ import toast from 'react-hot-toast';
 
 export default function SubmissionDetail() {
     const { id } = useParams();
-    const { 
-        submission, 
-        history, 
-        fieldValues, 
-        invoice, 
-        loading, 
-        processing, 
-        refresh, 
-        updateClient, 
+    const {
+        submission,
+        history,
+        fieldValues,
+        invoice,
+        loading,
+        processing,
+        refresh,
+        updateClient,
         updateClientInfoAndPricing,
-        handleAction, 
+        handleAction,
         issueSH,
-        revokeSH, 
+        revokeSH,
         submitSJPH,
         approveSJPH,
-        saveAuditInfo, 
+        saveAuditInfo,
         saveAuditResult,
         updateBusinessType
     } = useSubmission(id);
@@ -59,7 +59,7 @@ export default function SubmissionDetail() {
             <Loader2 className="animate-spin text-brand-600 w-8 h-8" />
         </div>
     );
-    
+
     if (!submission) return <div className="p-8 text-center text-gray-500">Submission not found</div>;
 
     if (user?.role === 'CLIENT') {
@@ -72,11 +72,10 @@ export default function SubmissionDetail() {
                     <button
                         type="button"
                         onClick={() => setActiveTab('DATA')}
-                        className={`pb-3 px-4 font-black text-sm transition-all border-b-2 flex items-center gap-2 ${
-                            activeTab === 'DATA'
+                        className={`pb-3 px-4 font-black text-sm transition-all border-b-2 flex items-center gap-2 ${activeTab === 'DATA'
                                 ? 'text-brand-600 border-brand-600'
                                 : 'text-gray-400 border-transparent hover:text-gray-700'
-                        }`}
+                            }`}
                     >
                         <FileText className="w-4 h-4" />
                         1. Data Pelaku Usaha & Usaha
@@ -84,11 +83,10 @@ export default function SubmissionDetail() {
                     <button
                         type="button"
                         onClick={() => setActiveTab('SJPH')}
-                        className={`pb-3 px-4 font-black text-sm transition-all border-b-2 flex items-center gap-2 ${
-                            activeTab === 'SJPH'
+                        className={`pb-3 px-4 font-black text-sm transition-all border-b-2 flex items-center gap-2 ${activeTab === 'SJPH'
                                 ? 'text-brand-600 border-brand-600'
                                 : 'text-gray-400 border-transparent hover:text-gray-700'
-                        }`}
+                            }`}
                     >
                         <AlertCircle className="w-4 h-4" />
                         2. Dokumen Kontrak & SJPH
@@ -177,18 +175,18 @@ export default function SubmissionDetail() {
                             </div>
                         )}
 
-                        <ClientInfoSection 
-                            submission={submission} 
-                            user={user} 
-                            onUpdateClient={updateClient} 
+                        <ClientInfoSection
+                            submission={submission}
+                            user={user}
+                            onUpdateClient={updateClient}
                             onUpdateClientInfoAndPricing={updateClientInfoAndPricing}
                             onUpdateBusinessType={updateBusinessType}
                             businessTypes={businessTypes}
-                            processing={processing} 
+                            processing={processing}
                             defaultCollapsed={false}
                         />
 
-                        <DocumentList 
+                        <DocumentList
                             submission={submission}
                             user={user}
                             fieldValues={fieldValues}
@@ -198,13 +196,13 @@ export default function SubmissionDetail() {
                             defaultCollapsed={submission.status === 'WAITING_PAYMENT'}
                         />
 
-                        <SubmissionReportPreview 
+                        <SubmissionReportPreview
                             submission={submission}
                             fieldValues={fieldValues}
                         />
 
                         {submission.sh_url && (
-                            <SubmissionCertificate 
+                            <SubmissionCertificate
                                 shUrl={submission.sh_url}
                                 isSplitPayment={submission.service_type === 'REGULER'}
                                 pelunasanPaid={
@@ -215,20 +213,30 @@ export default function SubmissionDetail() {
                             />
                         )}
 
-                        {submission.status === 'SH_TERBIT' && 
-                         submission.service_type === 'REGULER' &&
-                         !submission.invoices?.find(inv => inv.type === 'FULL' && inv.status === 'PAID') &&
-                         submission.invoices?.find(inv => inv.type === 'PELUNASAN')?.status !== 'PAID' && (
-                            <PaymentSection 
-                                submission={submission} 
+                        {/* Form Pembayaran DP / Tagihan Awal untuk Klien */}
+                        {(submission.status === 'WAITING_PAYMENT' || (submission.service_type !== 'SELF_DECLARE' && invoice && invoice.status !== 'PAID' && submission.status !== 'DRAFT' && submission.status !== 'WAITING_ASSIGNMENT')) && (
+                            <PaymentSection
+                                submission={submission}
                                 fieldValues={fieldValues}
                                 onPaymentSuccess={refresh}
-                                invoiceType="PELUNASAN"
+                                invoiceType={invoice?.type === 'PELUNASAN' ? 'PELUNASAN' : 'DP'}
                             />
                         )}
 
+                        {submission.status === 'SH_TERBIT' &&
+                            submission.service_type === 'REGULER' &&
+                            !submission.invoices?.find(inv => inv.type === 'FULL' && inv.status === 'PAID') &&
+                            submission.invoices?.find(inv => inv.type === 'PELUNASAN')?.status !== 'PAID' && (
+                                <PaymentSection
+                                    submission={submission}
+                                    fieldValues={fieldValues}
+                                    onPaymentSuccess={refresh}
+                                    invoiceType="PELUNASAN"
+                                />
+                            )}
+
                         {invoice && (
-                            <SubmissionInvoice invoice={invoice} submissionId={submission.id} />
+                            <SubmissionInvoice invoice={invoice} submissionId={submission.id} submission={submission} />
                         )}
                     </div>
                 ) : (
@@ -278,7 +286,7 @@ export default function SubmissionDetail() {
                                     className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm shadow-xl shadow-emerald-100 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
                                 >
                                     {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 text-gold-400" />}
-                                    Setujui & Lanjutkan ke Manager Operasional
+                                    Setujui & Lanjutkan Pengajuan
                                 </button>
                             </div>
                         ) : submission.sjph_approved_at ? (
@@ -312,7 +320,7 @@ export default function SubmissionDetail() {
                     </div>
                 )}
 
-                <Modal 
+                <Modal
                     isOpen={isConfirmOpen}
                     onClose={() => {
                         setIsConfirmOpen(false);
@@ -356,7 +364,7 @@ export default function SubmissionDetail() {
                                         Unduh Draft Kontrak (.pdf)
                                     </button>
                                 </div>
-                                
+
                                 <label className="flex items-start gap-3.5 p-3 rounded-xl border border-slate-200 bg-white cursor-pointer hover:border-brand-300 transition-all select-none">
                                     <input
                                         type="checkbox"
@@ -398,37 +406,32 @@ export default function SubmissionDetail() {
             </div>
         );
     }
-return (
+    return (
         <div className="max-w-[1440px] mx-auto space-y-6 px-4 sm:px-6">
             <SubmissionHeader submission={submission} user={user} fieldValues={fieldValues} />
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 <div className="lg:col-span-8 space-y-6 order-2 lg:order-1">
                     {submission.reject_note && (submission.status === 'REJECTED' || submission.status === 'REVISION') && (
-                        <div className={`p-4 border rounded-2xl flex items-start gap-4 shadow-sm ${
-                            submission.status === 'REJECTED' ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'
-                        }`}>
-                            <div className={`p-2 rounded-xl ${
-                                submission.status === 'REJECTED' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
+                        <div className={`p-4 border rounded-2xl flex items-start gap-4 shadow-sm ${submission.status === 'REJECTED' ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'
                             }`}>
+                            <div className={`p-2 rounded-xl ${submission.status === 'REJECTED' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
+                                }`}>
                                 <AlertCircle className="w-5 h-5" />
                             </div>
                             <div className="flex-1">
                                 <div className="flex items-center justify-between mb-1">
-                                    <h4 className={`text-xs font-black uppercase tracking-widest ${
-                                        submission.status === 'REJECTED' ? 'text-red-900' : 'text-amber-900'
-                                    }`}>
+                                    <h4 className={`text-xs font-black uppercase tracking-widest ${submission.status === 'REJECTED' ? 'text-red-900' : 'text-amber-900'
+                                        }`}>
                                         Catatan {submission.status === 'REJECTED' ? 'Penolakan' : 'Revisi'}
                                     </h4>
-                                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase ${
-                                        submission.status === 'REJECTED' ? 'bg-red-200 text-red-800' : 'bg-amber-200 text-amber-800'
-                                    }`}>
+                                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase ${submission.status === 'REJECTED' ? 'bg-red-200 text-red-800' : 'bg-amber-200 text-amber-800'
+                                        }`}>
                                         Perlu Perhatian
                                     </span>
                                 </div>
-                                <p className={`text-sm font-medium leading-relaxed ${
-                                    submission.status === 'REJECTED' ? 'text-red-800' : 'text-amber-800'
-                                }`}>
+                                <p className={`text-sm font-medium leading-relaxed ${submission.status === 'REJECTED' ? 'text-red-800' : 'text-amber-800'
+                                    }`}>
                                     {submission.reject_note}
                                 </p>
                             </div>
@@ -439,14 +442,14 @@ return (
                     <DataReturnNoticeCard submission={submission} />
 
                     {/* Informasi Client Read Only */}
-                    <ClientInfoSection 
-                        submission={submission} 
-                        user={user} 
-                        onUpdateClient={updateClient} 
+                    <ClientInfoSection
+                        submission={submission}
+                        user={user}
+                        onUpdateClient={updateClient}
                         onUpdateClientInfoAndPricing={updateClientInfoAndPricing}
                         onUpdateBusinessType={updateBusinessType}
                         businessTypes={businessTypes}
-                        processing={processing} 
+                        processing={processing}
                         defaultCollapsed={false}
                     />
 
@@ -468,14 +471,14 @@ return (
 
                     <div className="space-y-6">
                         {submission.status === 'WAITING_PAYMENT' && (
-                            <PaymentSection 
-                                submission={submission} 
+                            <PaymentSection
+                                submission={submission}
                                 fieldValues={fieldValues}
-                                onPaymentSuccess={refresh} 
+                                onPaymentSuccess={refresh}
                             />
                         )}
 
-                        <DocumentList 
+                        <DocumentList
                             submission={submission}
                             user={user}
                             fieldValues={fieldValues}
@@ -486,7 +489,7 @@ return (
                     </div>
 
                     {submission.sh_url && (
-                        <SubmissionCertificate 
+                        <SubmissionCertificate
                             shUrl={submission.sh_url}
                             isSplitPayment={submission.service_type === 'REGULER'}
                             pelunasanPaid={
@@ -497,24 +500,24 @@ return (
                     )}
 
                     {/* Pelunasan 30% section — shown at SH_TERBIT for REGULER (staff view) */}
-                    {submission.status === 'SH_TERBIT' && 
-                     submission.service_type === 'REGULER' &&
-                     submission.invoices?.find(inv => inv.type === 'PELUNASAN')?.status !== 'PAID' && (
-                        <PaymentSection 
-                            submission={submission} 
-                            fieldValues={fieldValues}
-                            onPaymentSuccess={refresh}
-                            invoiceType="PELUNASAN"
-                        />
-                    )}
+                    {submission.status === 'SH_TERBIT' &&
+                        submission.service_type === 'REGULER' &&
+                        submission.invoices?.find(inv => inv.type === 'PELUNASAN')?.status !== 'PAID' && (
+                            <PaymentSection
+                                submission={submission}
+                                fieldValues={fieldValues}
+                                onPaymentSuccess={refresh}
+                                invoiceType="PELUNASAN"
+                            />
+                        )}
 
                     {invoice && (
-                        <SubmissionInvoice invoice={invoice} submissionId={submission.id} />
+                        <SubmissionInvoice invoice={invoice} submissionId={submission.id} submission={submission} />
                     )}
                 </div>
 
                 <div className="lg:col-span-4 space-y-6 order-1 lg:order-2">
-                    <WorkflowActions 
+                    <WorkflowActions
                         submission={submission}
                         user={user}
                         processing={processing}

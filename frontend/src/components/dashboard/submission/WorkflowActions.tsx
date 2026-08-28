@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Send, Loader2, UserCheck, CheckCircle, RotateCcw } from 'lucide-react';
+import { Send, Loader2, UserCheck, CheckCircle, RotateCcw, ShieldAlert, ArrowRight, DollarSign, CheckCircle2, Sparkles } from 'lucide-react';
 import type { Submission, User } from '../../../types';
 import { submissionService } from '../../../services/submissionService';
 import FileUpload from '../FileUpload';
@@ -41,6 +41,16 @@ export const WorkflowActions = ({
     const [shFile, setShFile] = useState<File | null>(null);
     const [sjphNotes, setSjphNotes] = useState(submission.sjph_notes || '');
     
+    // Advisor Service Type & Consultation state
+    const [selectedServiceType, setSelectedServiceType] = useState<string>(
+        submission.service_type === 'PENDING_CONSULTATION' || !submission.service_type ? 'REGULER' : submission.service_type
+    );
+    const [selectedSelfDeclareType, setSelectedSelfDeclareType] = useState<string>(
+        submission.self_declare_type || 'MANDIRI'
+    );
+    const [settingServiceType, setSettingServiceType] = useState(false);
+    const [forwardingToOperational, setForwardingToOperational] = useState(false);
+
     // Enhanced Reject Modal states
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [rejectNote, setRejectNote] = useState('');
@@ -158,6 +168,46 @@ export const WorkflowActions = ({
             }
         });
     };
+
+    const handleSetServiceType = async () => {
+        setSettingServiceType(true);
+        try {
+            await submissionService.setAdvisorServiceType(
+                submission.id,
+                selectedServiceType,
+                selectedServiceType === 'SELF_DECLARE' ? selectedSelfDeclareType : undefined
+            );
+            toast.success("Jenis layanan berhasil ditetapkan!");
+            window.location.reload();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || err.message || "Gagal menetapkan jenis layanan");
+        } finally {
+            setSettingServiceType(false);
+        }
+    };
+
+    const handleForwardToOperational = async () => {
+        setForwardingToOperational(true);
+        try {
+            await submissionService.forwardToOperational(submission.id);
+            toast.success("Pengajuan berhasil diteruskan ke Manager Operasional!");
+            window.location.reload();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || err.message || "Gagal meneruskan pengajuan");
+        } finally {
+            setForwardingToOperational(false);
+        }
+    };
+
+    const isPaymentCompleted = Boolean(
+        (submission.service_type === 'SELF_DECLARE' && (!submission.self_declare_type || submission.self_declare_type === 'GRATIS')) ||
+        submission.invoice?.status === 'PAID' ||
+        submission.invoices?.some(inv => inv.status === 'PAID') ||
+        submission.payments?.some(p => p.status === 'PAID')
+    );
+
+    const isAdvisorRole = user?.role === 'HALAL_ADVISOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR';
+    const isMarketingRole = user?.role === 'MARKETING' || user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR';
 
     const getApproveLabel = () => {
         switch (submission.status) {
@@ -332,7 +382,7 @@ export const WorkflowActions = ({
                     )}
 
                     {/* Penunjukan Advisor oleh Marketing / Halal Manager jika belum ada pendamping atau berstatus WAITING_ASSIGNMENT */}
-                    {(submission.status === 'WAITING_ASSIGNMENT' || !submission.consultant_id) && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR' || user?.role === 'MARKETING' || user?.role === 'MANAGER') && (
+                    {(submission.status === 'WAITING_ASSIGNMENT' || !submission.consultant_id) && isMarketingRole && (
                         <div className="p-4 bg-purple-50 rounded-2xl border border-purple-200 space-y-3 shadow-sm">
                             <label className="flex items-center gap-2 text-xs font-black text-purple-900 uppercase tracking-wider">
                                 <UserCheck className="w-4 h-4 text-purple-700" /> Penunjukan Pendamping Halal (Advisor)
@@ -357,6 +407,147 @@ export const WorkflowActions = ({
                             >
                                 {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
                                 Tunjuk Pendamping Halal
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Sesi Konsultasi & Penetapan Jenis Layanan oleh Advisor */}
+                    {isAdvisorRole && (
+                        <div className="p-5 bg-indigo-50/70 rounded-2xl border border-indigo-200 space-y-4 shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <label className="flex items-center gap-2 text-xs font-black text-indigo-950 uppercase tracking-wider">
+                                    <Sparkles className="w-4 h-4 text-indigo-600" /> Sesi Konsultasi: Penetapan Jenis Layanan
+                                </label>
+                                {submission.service_type && submission.service_type !== 'PENDING_CONSULTATION' && (
+                                    <span className="text-[10px] bg-indigo-200/70 text-indigo-900 font-bold px-2 py-0.5 rounded-full">
+                                        Saat ini: {submission.service_type}
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-[11px] text-indigo-700/90 font-medium leading-relaxed">
+                                Berdasarkan hasil pertemuan konsultasi dan evaluasi profil usaha dengan pelaku usaha, tetapkan jenis layanan yang sesuai di bawah ini:
+                            </p>
+
+                            <div className="space-y-2">
+                                <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                                    selectedServiceType === 'REGULER' ? 'bg-white border-indigo-600 ring-2 ring-indigo-600/10 shadow-sm' : 'bg-white/60 border-gray-200 hover:bg-white'
+                                }`}>
+                                    <input 
+                                        type="radio" 
+                                        name="advisorServiceType" 
+                                        value="REGULER" 
+                                        checked={selectedServiceType === 'REGULER'} 
+                                        onChange={() => setSelectedServiceType('REGULER')}
+                                        className="text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-900">Jalur Reguler (Pemeriksaan LPH & Audit)</p>
+                                        <p className="text-[10px] text-gray-500 font-medium">Untuk usaha dengan omzet &gt; Rp500jt atau produk berisiko / sembelihan</p>
+                                    </div>
+                                </label>
+
+                                <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                                    selectedServiceType === 'SELF_DECLARE' ? 'bg-white border-indigo-600 ring-2 ring-indigo-600/10 shadow-sm' : 'bg-white/60 border-gray-200 hover:bg-white'
+                                }`}>
+                                    <input 
+                                        type="radio" 
+                                        name="advisorServiceType" 
+                                        value="SELF_DECLARE" 
+                                        checked={selectedServiceType === 'SELF_DECLARE'} 
+                                        onChange={() => {
+                                            setSelectedServiceType('SELF_DECLARE');
+                                            setSelectedSelfDeclareType('GRATIS');
+                                        }}
+                                        className="text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-900">Self Declare - Fasilitasi BPJPH (Gratis / Subsidi)</p>
+                                        <p className="text-[10px] text-gray-500 font-medium">Usaha mikro berisiko rendah yang memenuhi syarat fasilitasi BPJPH</p>
+                                    </div>
+                                </label>
+
+                                <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                                    selectedServiceType === 'SELF_DECLARE_MANDIRI' ? 'bg-white border-indigo-600 ring-2 ring-indigo-600/10 shadow-sm' : 'bg-white/60 border-gray-200 hover:bg-white'
+                                }`}>
+                                    <input 
+                                        type="radio" 
+                                        name="advisorServiceType" 
+                                        value="SELF_DECLARE_MANDIRI" 
+                                        checked={selectedServiceType === 'SELF_DECLARE_MANDIRI'} 
+                                        onChange={() => setSelectedServiceType('SELF_DECLARE_MANDIRI')}
+                                        className="text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-900">Self Declare - Mandiri (Biaya Sendiri)</p>
+                                        <p className="text-[10px] text-gray-500 font-medium">Self declare tanpa kuota subsidi dengan biaya pendampingan mandiri</p>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={handleSetServiceType}
+                                disabled={settingServiceType}
+                                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-all shadow-md flex items-center justify-center gap-2"
+                            >
+                                {settingServiceType ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                Simpan Penetapan Jenis Layanan
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Aksi Manager Marketing: Penerusan ke Manager Operasional dengan Syarat Pembayaran */}
+                    {isMarketingRole && (
+                        <div className="p-5 bg-gradient-to-br from-amber-50 to-orange-50/70 rounded-2xl border border-amber-200 space-y-4 shadow-sm">
+                            <div className="flex items-center justify-between border-b border-amber-200/60 pb-3">
+                                <label className="flex items-center gap-2 text-xs font-black text-amber-950 uppercase tracking-wider">
+                                    <DollarSign className="w-4 h-4 text-amber-700" /> Aksi Manager Marketing: Penerusan ke Operasional
+                                </label>
+                                {isPaymentCompleted ? (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-300">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Pembayaran Terkonfirmasi
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-black text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-300">
+                                        <ShieldAlert className="w-3.5 h-3.5 text-amber-600" /> Menunggu Pembayaran
+                                    </span>
+                                )}
+                            </div>
+
+                            <p className="text-[11px] text-amber-900/80 font-medium leading-relaxed">
+                                Manager Marketing dapat meneruskan pengajuan ini ke <strong>Manager Operasional</strong> agar dapat diproses oleh QC Officer dan Drafter.
+                                {!isPaymentCompleted && (
+                                    <span className="block mt-1 font-bold text-red-600">
+                                        ⚠️ Pengajuan hanya dapat diteruskan setelah Klien melakukan pembayaran tagihan terkait.
+                                    </span>
+                                )}
+                            </p>
+
+                            <button
+                                type="button"
+                                onClick={() => triggerConfirm(
+                                    'Lanjutkan ke Manager Operasional',
+                                    'Pastikan seluruh data dan pembayaran telah valid. Apakah Anda yakin ingin meneruskan pengajuan ini ke alur Manager Operasional?',
+                                    handleForwardToOperational
+                                )}
+                                disabled={!isPaymentCompleted || forwardingToOperational}
+                                className={`w-full py-3 rounded-xl font-black text-xs transition-all shadow-md flex items-center justify-center gap-2 ${
+                                    isPaymentCompleted 
+                                        ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-500/20 active:scale-95' 
+                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300'
+                                }`}
+                            >
+                                {forwardingToOperational ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Meneruskan ke Operasional...
+                                    </>
+                                ) : (
+                                    <>
+                                        <ArrowRight className="w-4 h-4" />
+                                        Lanjutkan ke Manager Operasional
+                                    </>
+                                )}
                             </button>
                         </div>
                     )}

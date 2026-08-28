@@ -18,8 +18,8 @@ type Client struct {
 	ProductName   string    `gorm:"column:product_name" json:"product_name"`
 	ServiceType   string    `gorm:"column:service_type" json:"service_type"` // SELF_DECLARE or REGULER
 	SelfDeclareType string    `gorm:"column:self_declare_type" json:"self_declare_type,omitempty"` // MANDIRI or GRATIS
-	FacilitatorID uuid.UUID `gorm:"type:uuid;column:facilitator_id" json:"facilitator_id"` // Pendamping
-	Facilitator   User      `gorm:"foreignKey:FacilitatorID" json:"facilitator"`
+	FacilitatorID *uuid.UUID `gorm:"type:uuid;column:facilitator_id" json:"facilitator_id,omitempty"` // Pendamping
+	Facilitator   *User      `gorm:"foreignKey:FacilitatorID" json:"facilitator,omitempty"`
 	ContactPerson string    `json:"contact_person"`
 	Phone         string    `json:"phone"`
 	CreatedBy     uuid.UUID `gorm:"type:uuid" json:"created_by"`

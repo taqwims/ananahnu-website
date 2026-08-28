@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, FileText, CheckCircle, Clock, Loader2, ShieldCheck, ArrowRight, Award, MessageSquare } from 'lucide-react';
+import { Users, FileText, CheckCircle, Clock, Loader2, ShieldCheck, ArrowRight, Sparkles, MessageSquare } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import StatsCard from '../../components/ui/StatsCard';
@@ -8,6 +8,8 @@ import api from '../../services/api';
 import { formatNumber } from '../../utils/format';
 import type { AuditLog } from '../../types';
 import OperationalManagerDashboard from './OperationalManagerDashboard';
+import MarketingManagerDashboard from './MarketingManagerDashboard';
+import HalalAdvisorDashboard from './HalalAdvisorDashboard';
 
 interface DashboardStats {
     total_clients: number;
@@ -75,6 +77,14 @@ export default function DashboardHome() {
 
     if (user?.role === 'MANAGER') {
         return <OperationalManagerDashboard />;
+    }
+
+    if (user?.role === 'BUSINESS_DEVELOPMENT' || user?.role === 'MARKETING') {
+        return <MarketingManagerDashboard />;
+    }
+
+    if (user?.role === 'HALAL_ADVISOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR') {
+        return <HalalAdvisorDashboard />;
     }
 
     if (user?.role === 'CLIENT') {
@@ -179,72 +189,53 @@ export default function DashboardHome() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                     {/* Left Column: Ajukan Layanan Baru & Daftar Ajuan Terbaru */}
                     <div className="lg:col-span-8 space-y-8">
-                        {/* Section: Ajukan Layanan Baru */}
-                        <div className="space-y-4">
-                            <div>
-                                <h3 className="text-lg font-black text-gray-900">Ajukan Layanan Baru</h3>
-                                <p className="text-xs text-gray-500 font-medium">Pilih jenis layanan pendampingan halal yang sesuai dengan kebutuhan usaha Anda.</p>
+                        {/* Section: Ajukan Sertifikasi Halal (Alur Terpadu) */}
+                        <div className="p-6 rounded-3xl bg-gradient-to-br from-brand-600 via-brand-700 to-indigo-800 text-white space-y-4 shadow-xl shadow-brand-500/10 relative overflow-hidden">
+                            <div className="absolute right-0 top-0 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+                            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                                <div className="space-y-2 max-w-xl">
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-white text-[11px] font-black uppercase tracking-wider border border-white/20">
+                                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                                        Alur Terpadu Sertifikasi Halal
+                                    </div>
+                                    <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                                        Daftarkan Produk & Usaha Anda
+                                    </h3>
+                                    <p className="text-xs text-white/80 font-medium leading-relaxed">
+                                        Cukup lengkapi data pelaku usaha dan informasi usaha Anda. Halal Advisor kami akan mendampingi dan menentukan jalur sertifikasi terbaik untuk usaha Anda.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => navigate('/dashboard/pengajuan')}
+                                    className="px-6 py-4 bg-white hover:bg-gray-50 text-brand-900 rounded-2xl font-black text-xs sm:text-sm shadow-xl transition-all flex items-center justify-center gap-2 active:scale-95 shrink-0"
+                                >
+                                    <span>Mulai Pengajuan</span>
+                                    <ArrowRight className="w-4 h-4 text-brand-600" />
+                                </button>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                <div className="p-5 rounded-2xl bg-white border border-gray-150 hover:border-brand-200 transition-all flex flex-col justify-between shadow-sm">
-                                    <div className="space-y-3">
-                                        <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center border border-brand-100">
-                                            <Users className="w-5 h-5" />
-                                        </div>
-                                        <div>
-                                            <h4 className="font-black text-sm text-gray-900">Reguler</h4>
-                                            <p className="text-[11px] text-gray-500 leading-relaxed mt-1">
-                                                Pendampingan pembuatan Sertifikat Halal melalui proses reguler bersama Halal Advisor profesional.
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => navigate('/dashboard/pengajuan?service=REGULER')}
-                                        className="mt-4 w-full py-2.5 bg-gray-50 hover:bg-brand-50 hover:text-brand-700 text-gray-700 rounded-xl text-xs font-bold border border-gray-200 transition-all flex items-center justify-center gap-1.5"
-                                    >
-                                        Pilih Layanan <ArrowRight className="w-3.5 h-3.5" />
-                                    </button>
+                            {/* 3 Step Workflow Indicator */}
+                            <div className="relative z-10 pt-4 border-t border-white/15 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                                <div className="p-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 space-y-1">
+                                    <p className="font-black text-white flex items-center gap-1.5 text-[11px]">
+                                        <span className="w-5 h-5 rounded-full bg-white text-brand-800 flex items-center justify-center text-[10px] font-black">1</span>
+                                        Input Data Usaha
+                                    </p>
+                                    <p className="text-[10px] text-white/70">Isi identitas pemilik, NIB, dan profil usaha.</p>
                                 </div>
-
-                                <div className="p-5 rounded-2xl bg-white border border-gray-150 hover:border-emerald-200 transition-all flex flex-col justify-between shadow-sm">
-                                    <div className="space-y-3">
-                                        <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
-                                            <ShieldCheck className="w-5 h-5" />
-                                        </div>
-                                        <div>
-                                            <h4 className="font-black text-sm text-gray-900">Self Declare (Fasilitasi)</h4>
-                                            <p className="text-[11px] text-gray-500 leading-relaxed mt-1">
-                                                Fasilitasi pendaftaran Self Declare dengan biaya Rp0 (disubsidi BPJPH).
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => navigate('/dashboard/pengajuan?service=SELF_DECLARE')}
-                                        className="mt-4 w-full py-2.5 bg-gray-50 hover:bg-emerald-50 hover:text-emerald-700 text-gray-700 rounded-xl text-xs font-bold border border-gray-200 transition-all flex items-center justify-center gap-1.5"
-                                    >
-                                        Pilih Layanan <ArrowRight className="w-3.5 h-3.5" />
-                                    </button>
+                                <div className="p-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 space-y-1">
+                                    <p className="font-black text-white flex items-center gap-1.5 text-[11px]">
+                                        <span className="w-5 h-5 rounded-full bg-white text-brand-800 flex items-center justify-center text-[10px] font-black">2</span>
+                                        Konsultasi Advisor
+                                    </p>
+                                    <p className="text-[10px] text-white/70">Advisor menentukan jalur & estimasi tarif.</p>
                                 </div>
-
-                                <div className="p-5 rounded-2xl bg-white border border-gray-150 hover:border-amber-200 transition-all flex flex-col justify-between shadow-sm">
-                                    <div className="space-y-3">
-                                        <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
-                                            <Award className="w-5 h-5" />
-                                        </div>
-                                        <div>
-                                            <h4 className="font-black text-sm text-gray-900">Self Declare (Mandiri)</h4>
-                                            <p className="text-[11px] text-gray-500 leading-relaxed mt-1">
-                                                Pendampingan Self Declare Mandiri untuk pelaku usaha yang ingin proses lebih mandiri.
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => navigate('/dashboard/pengajuan?service=SELF_DECLARE_MANDIRI')}
-                                        className="mt-4 w-full py-2.5 bg-gray-50 hover:bg-amber-50 hover:text-amber-700 text-gray-700 rounded-xl text-xs font-bold border border-gray-200 transition-all flex items-center justify-center gap-1.5"
-                                    >
-                                        Pilih Layanan <ArrowRight className="w-3.5 h-3.5" />
-                                    </button>
+                                <div className="p-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 space-y-1">
+                                    <p className="font-black text-white flex items-center gap-1.5 text-[11px]">
+                                        <span className="w-5 h-5 rounded-full bg-white text-brand-800 flex items-center justify-center text-[10px] font-black">3</span>
+                                        Proses & SH Terbit
+                                    </p>
+                                    <p className="text-[10px] text-white/70">Penyusunan berkas, sidang fatwa & sertifikat terbit.</p>
                                 </div>
                             </div>
                         </div>

@@ -144,28 +144,53 @@ func SeedFormConfigs(db *gorm.DB) {
 		FormType, FieldKey, FieldLabel, InputType, Description string
 		IsRequired                                             bool
 		SortOrder                                              int
+		StepNumber                                             int
+		StepName                                               string
 	}
 
 	defaults := []seedEntry{
+		// CLIENT_SUBMISSION (Pengajuan Awal Klien - Card-based)
+		// Step 1: Informasi Pelaku Usaha (Identitas & Kontak)
+		{"CLIENT_SUBMISSION", "client_name", "Nama Penanggung Jawab", "TEXT", "Nama lengkap pemilik atau penanggung jawab usaha", true, 1, 1, "Informasi Pelaku Usaha"},
+		{"CLIENT_SUBMISSION", "phone", "Nomor WhatsApp / Kontak", "TEXT", "Nomor kontak aktif penanggung jawab usaha", true, 2, 1, "Informasi Pelaku Usaha"},
+		{"CLIENT_SUBMISSION", "nik", "NIK Penanggung Jawab", "TEXT", "Nomor Induk Kependudukan (16 digit)", true, 3, 1, "Informasi Pelaku Usaha"},
+		{"CLIENT_SUBMISSION", "ktp", "Foto e-KTP Penanggung Jawab", "FILE_UPLOAD", "Unggah foto e-KTP penanggung jawab yang jelas", true, 4, 1, "Informasi Pelaku Usaha"},
+
+		// Step 2: Informasi Usaha & Operasional (Penentuan Harga & Layanan)
+		{"CLIENT_SUBMISSION", "business_name", "Nama Usaha / Merek Dagang", "TEXT", "Nama merek atau usaha yang diajukan", true, 1, 2, "Informasi Usaha & Operasional"},
+		{"CLIENT_SUBMISSION", "nib", "Nomor Induk Berusaha (NIB)", "TEXT", "Nomor Induk Berusaha (13 digit) jika sudah ada", false, 2, 2, "Informasi Usaha & Operasional"},
+		{"CLIENT_SUBMISSION", "nib_file", "Dokumen NIB (PDF/Foto)", "FILE_UPLOAD", "Unggah file berkas NIB dari OSS (opsional)", false, 3, 2, "Informasi Usaha & Operasional"},
+		{"CLIENT_SUBMISSION", "business_scale", "Skala Usaha", "TEXT", "Skala usaha (Mikro, Kecil, Menengah, Besar)", true, 4, 2, "Informasi Usaha & Operasional"},
+		{"CLIENT_SUBMISSION", "business_type", "Jenis Usaha", "TEXT", "Jenis atau bidang usaha", true, 5, 2, "Informasi Usaha & Operasional"},
+		{"CLIENT_SUBMISSION", "product_category", "Kategori Produk", "TEXT", "Kategori produk yang didaftarkan", true, 6, 2, "Informasi Usaha & Operasional"},
+		{"CLIENT_SUBMISSION", "product_name", "Nama Produk / Varian", "TEXT", "Nama atau daftar produk yang diajukan", true, 7, 2, "Informasi Usaha & Operasional"},
+		{"CLIENT_SUBMISSION", "product_count", "Jumlah Produk", "NUMBER", "Total jumlah produk / item yang diajukan", true, 8, 2, "Informasi Usaha & Operasional"},
+		{"CLIENT_SUBMISSION", "branch_count", "Jumlah Cabang / Pabrik", "NUMBER", "Jumlah outlet, cabang, atau fasilitas produksi", true, 9, 2, "Informasi Usaha & Operasional"},
+		{"CLIENT_SUBMISSION", "address", "Alamat Fasilitas / Tempat Usaha", "TEXT", "Alamat lengkap fasilitas atau lokasi produksi usaha", true, 10, 2, "Informasi Usaha & Operasional"},
+		{"CLIENT_SUBMISSION", "foto_produk", "Foto Produk / Brosur Kemasan", "FILE_UPLOAD", "Unggah foto produk atau kemasan berlabel", false, 11, 2, "Informasi Usaha & Operasional"},
+
+		// Step 3: Penunjukan Pendamping Halal (Opsional)
+		{"CLIENT_SUBMISSION", "advisor_code", "Nomor Registrasi Advisor", "TEXT", "Masukkan nomor registrasi / kode Halal Advisor jika sudah ada (opsional)", false, 1, 3, "Penunjukan Pendamping Halal"},
+
 		// SELF_DECLARE
-		{"SELF_DECLARE", "nib", "NIB", "FILE_UPLOAD", "Upload dokumen NIB (opsional)", false, 1},
-		{"SELF_DECLARE", "foto_produk", "Foto Produk", "FILE_UPLOAD", "Upload foto produk", true, 2},
-		{"SELF_DECLARE", "ktp", "KTP", "FILE_UPLOAD", "Upload KTP penanggung jawab", true, 3},
-		{"SELF_DECLARE", "foto_verval", "Foto Verval", "FILE_UPLOAD", "Upload foto verifikasi lapangan", true, 4},
-		{"SELF_DECLARE", "foto_bersama_consultant", "Foto Bersama Consultant", "FILE_UPLOAD", "Upload foto bersama consultant", true, 5},
-		{"SELF_DECLARE", "resep", "Resep", "FILE_UPLOAD", "Upload dokumen resep (opsional)", false, 6},
-		{"SELF_DECLARE", "catatan_pph", "Catatan Bahan PPH", "TEXT", "Catatan bahan PPH (opsional)", false, 7},
+		{"SELF_DECLARE", "nib", "NIB", "FILE_UPLOAD", "Upload dokumen NIB (opsional)", false, 1, 1, "Step 1"},
+		{"SELF_DECLARE", "foto_produk", "Foto Produk", "FILE_UPLOAD", "Upload foto produk", true, 2, 1, "Step 1"},
+		{"SELF_DECLARE", "ktp", "KTP", "FILE_UPLOAD", "Upload KTP penanggung jawab", true, 3, 1, "Step 1"},
+		{"SELF_DECLARE", "foto_verval", "Foto Verval", "FILE_UPLOAD", "Upload foto verifikasi lapangan", true, 4, 1, "Step 1"},
+		{"SELF_DECLARE", "foto_bersama_consultant", "Foto Bersama Consultant", "FILE_UPLOAD", "Upload foto bersama consultant", true, 5, 1, "Step 1"},
+		{"SELF_DECLARE", "resep", "Resep", "FILE_UPLOAD", "Upload dokumen resep (opsional)", false, 6, 1, "Step 1"},
+		{"SELF_DECLARE", "catatan_pph", "Catatan Bahan PPH", "TEXT", "Catatan bahan PPH (opsional)", false, 7, 1, "Step 1"},
 		// REGULER
-		{"REGULER", "data_kontrak", "Data Kontrak", "FILE_UPLOAD", "Upload data kontrak pendampingan", true, 1},
-		{"REGULER", "bukti_bayar", "Bukti Bayar", "FILE_UPLOAD", "Upload bukti pembayaran", true, 2},
-		{"REGULER", "template_kontrak", "Template Kontrak", "LINK", "Link template kontrak pendampingan", true, 3},
-		{"REGULER", "surat_penawaran", "Template Surat Penawaran", "LINK", "Link template surat penawaran (opsional)", false, 4},
+		{"REGULER", "data_kontrak", "Data Kontrak", "FILE_UPLOAD", "Upload data kontrak pendampingan", true, 1, 1, "Step 1"},
+		{"REGULER", "bukti_bayar", "Bukti Bayar", "FILE_UPLOAD", "Upload bukti pembayaran", true, 2, 1, "Step 1"},
+		{"REGULER", "template_kontrak", "Template Kontrak", "LINK", "Link template kontrak pendampingan", true, 3, 1, "Step 1"},
+		{"REGULER", "surat_penawaran", "Template Surat Penawaran", "LINK", "Link template surat penawaran (opsional)", false, 4, 1, "Step 1"},
 		// RECRUITMENT
-		{"RECRUITMENT", "ktp", "KTP", "FILE_UPLOAD", "Upload KTP", true, 1},
-		{"RECRUITMENT", "foto_3x4", "Foto 3x4 Latar Merah", "FILE_UPLOAD", "Upload foto 3x4 latar belakang merah", true, 2},
-		{"RECRUITMENT", "ijazah_sta", "Ijazah STA", "FILE_UPLOAD", "Upload ijazah STA", true, 3},
-		{"RECRUITMENT", "buku_rekening", "Buku Rekening", "FILE_UPLOAD", "Upload halaman depan buku rekening", true, 4},
-		{"RECRUITMENT", "npwp", "NPWP", "FILE_UPLOAD", "Upload NPWP (opsional)", false, 5},
+		{"RECRUITMENT", "ktp", "KTP", "FILE_UPLOAD", "Upload KTP", true, 1, 1, "Step 1"},
+		{"RECRUITMENT", "foto_3x4", "Foto 3x4 Latar Merah", "FILE_UPLOAD", "Upload foto 3x4 latar belakang merah", true, 2, 1, "Step 1"},
+		{"RECRUITMENT", "ijazah_sta", "Ijazah STA", "FILE_UPLOAD", "Upload ijazah STA", true, 3, 1, "Step 1"},
+		{"RECRUITMENT", "buku_rekening", "Buku Rekening", "FILE_UPLOAD", "Upload halaman depan buku rekening", true, 4, 1, "Step 1"},
+		{"RECRUITMENT", "npwp", "NPWP", "FILE_UPLOAD", "Upload NPWP (opsional)", false, 5, 1, "Step 1"},
 	}
 
 	for _, d := range defaults {
@@ -180,6 +205,9 @@ func SeedFormConfigs(db *gorm.DB) {
 				IsRequired:  d.IsRequired,
 				SortOrder:   d.SortOrder,
 				Description: d.Description,
+				StepNumber:  d.StepNumber,
+				StepName:    d.StepName,
+				IsActive:    true,
 			}
 			db.Create(&cfg)
 		}
