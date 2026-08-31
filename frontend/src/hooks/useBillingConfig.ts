@@ -36,7 +36,7 @@ export const useBillingConfig = () => {
         businessTypeId: '',
         productCategoryId: '',
         salesSchemeId: '',
-        dataSource: 'BOTH',
+        dataSource: 'ORGANIK',
         businessScaleId: '',
         provinceId: '',
         regencyId: '',
@@ -109,7 +109,7 @@ export const useBillingConfig = () => {
             businessTypeId: '',
             productCategoryId: '',
             salesSchemeId: '',
-            dataSource: 'BOTH',
+            dataSource: 'ORGANIK',
             businessScaleId: '',
             provinceId: '',
             regencyId: '',
@@ -197,6 +197,18 @@ export const useBillingConfig = () => {
         }
     };
 
+    const handleBulkDelete = async (endpoint: string, ids: number[]) => {
+        if (!ids || ids.length === 0) return;
+        try {
+            await Promise.all(ids.map(id => billingService.deleteMaster(endpoint, id)));
+            fetchData();
+            toast.success(`${ids.length} data berhasil dihapus`);
+        } catch (err: any) {
+            fetchData();
+            toast.error("Gagal menghapus sebagian atau seluruh data");
+        }
+    };
+
     const handleDelete = async (endpoint: string, id: number) => {
         try {
             await billingService.deleteMaster(endpoint, id);
@@ -228,7 +240,20 @@ export const useBillingConfig = () => {
             formFieldConfigId: item.form_field_config_id?.toString() || '',
             discountPercent: item.discount_percent?.toString() || ''
         });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // Smooth scroll directly to the form section
+        setTimeout(() => {
+            const formElement = document.getElementById('billing-form-section') || 
+                                document.getElementById('master-form-section') || 
+                                document.querySelector('form');
+            if (formElement) {
+                formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const firstInput = formElement.querySelector('input:not([disabled]), select:not([disabled])') as HTMLElement;
+                if (firstInput) firstInput.focus();
+            } else {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }, 50);
     };
 
     const handleUpdateSystemSetting = async (key: string, value: string) => {
@@ -261,6 +286,7 @@ export const useBillingConfig = () => {
         setFormData,
         handleSave,
         handleDelete,
+        handleBulkDelete,
         handleEdit,
         resetForm,
         handleUpdateSystemSetting,

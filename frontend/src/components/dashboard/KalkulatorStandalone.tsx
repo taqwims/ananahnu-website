@@ -41,10 +41,10 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
     const [salesSchemePrice, setSalesSchemePrice] = useState<any | null>(null);
 
     // Form State
-    const [dataSource, setDataSource] = useState(user?.role === 'MARKETING' ? 'MARKETING' : 'ORGANIK');
+    const [dataSource, setDataSource] = useState('ORGANIK');
 
     useEffect(() => {
-        setDataSource(user?.role === 'MARKETING' ? 'MARKETING' : 'ORGANIK');
+        setDataSource('ORGANIK');
     }, [user?.role]);
     const [salesSchemeId, setSalesSchemeId] = useState('');
     const [businessTypeId, setBusinessTypeId] = useState('');
@@ -612,7 +612,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                         <h3>Skema & Volume</h3>
                         <div class="details-row"><span>Skala Usaha:</span><span>${selectedScale}</span></div>
                         ${serviceType === 'REGULER' ? `<div class="details-row"><span>Skema Penjualan:</span><span>${selectedScheme}</span></div>` : ''}
-                        <div class="details-row"><span>Sumber Data:</span><span>${dataSource === 'MARKETING' ? 'Marketing (Partner)' : 'Organik'}</span></div>
+                        <div class="details-row"><span>Sumber Data:</span><span>Organik</span></div>
                         <div class="details-row"><span>Jumlah Cabang:</span><span>${branchCount}</span></div>
                         <div class="details-row"><span>Jumlah Produk:</span><span>${productCount}</span></div>
                     </div>

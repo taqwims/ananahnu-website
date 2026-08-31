@@ -409,12 +409,12 @@ export const ClientInfoSection = ({
                                     <div>
                                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Sumber Data <span className="text-red-500">*</span></label>
                                         <select 
-                                            className="glass-input w-full" 
-                                            value={clientForm.data_source === 'TELEMARKETING' ? 'ORGANIK' : clientForm.data_source} 
-                                            onChange={e => setClientForm({...clientForm, data_source: e.target.value})}
+                                            className="glass-input w-full bg-gray-50 text-gray-600 font-semibold cursor-not-allowed" 
+                                            value="ORGANIK" 
+                                            disabled
+                                            onChange={() => setClientForm({...clientForm, data_source: 'ORGANIK'})}
                                         >
-                                            <option value="ORGANIK">Organik / Telemarketing</option>
-                                            <option value="MARKETING">Marketing (Partner)</option>
+                                            <option value="ORGANIK">Organik</option>
                                         </select>
                                     </div>
                                 )}
@@ -610,11 +610,7 @@ export const ClientInfoSection = ({
                             <InfoItem label="Kategori Produk" value={submission.cost_detail?.product_category?.name || '-'} />
                             <InfoItem label="Skala Usaha" value={submission.cost_detail?.business_scale?.name || '-'} />
                             {user?.role !== 'CLIENT' && (
-                                <InfoItem label="Sumber Data" value={
-                                    submission.data_source === 'MARKETING' ? 'Marketing (Partner)' :
-                                    (submission.data_source === 'ORGANIK' || submission.data_source === 'TELEMARKETING') ? 'Organik / Telemarketing' :
-                                    submission.data_source || '-'
-                                } />
+                                <InfoItem label="Sumber Data" value="Organik" />
                             )}
                             <InfoItem label="Jumlah Produk" value={submission.product_count?.toString() || submission.cost_detail?.product_count?.toString() || '1'} />
                             <InfoItem label="Jumlah Cabang" value={submission.branch_count?.toString() || submission.cost_detail?.branch_count?.toString() || '1'} />

@@ -37,10 +37,19 @@ export const BillingComponentForm = ({
     formFields
 }: BillingComponentFormProps) => {
     return (
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6 animate-in fade-in">
+        <div id="billing-form-section" className={`bg-white p-6 rounded-2xl shadow-sm border space-y-6 animate-in fade-in transition-all duration-300 ${
+            editingId ? 'ring-2 ring-brand-500/50 border-brand-200 shadow-brand-50' : 'border-gray-100'
+        }`}>
             <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                 <div>
-                    <h3 className="text-lg font-bold text-gray-900">{editingId ? 'Edit Komponen Biaya' : 'Tambah Komponen Biaya Baru'}</h3>
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        {editingId ? (
+                            <>
+                                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                Edit Komponen Biaya
+                            </>
+                        ) : 'Tambah Komponen Biaya Baru'}
+                    </h3>
                     <p className="text-xs text-gray-500 mt-1">Komponen akan ditambahkan sebagai biaya tambahan dalam kalkulasi proposal.</p>
                 </div>
                 {editingId && (

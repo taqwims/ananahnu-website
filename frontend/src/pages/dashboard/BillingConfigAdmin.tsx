@@ -33,6 +33,7 @@ export default function BillingConfigAdmin() {
         setFormData,
         handleSave,
         handleDelete,
+        handleBulkDelete,
         handleEdit,
         resetForm,
         handleUpdateSystemSetting,
@@ -99,6 +100,7 @@ export default function BillingConfigAdmin() {
                         components={components}
                         onEdit={handleEdit}
                         onDelete={(id) => handleDelete('/billing-config/components', id)}
+                        onBulkDelete={(ids) => handleBulkDelete('/billing-config/components', ids)}
                         provinces={provinces}
                         businessTypes={businessTypes}
                         products={products}
@@ -118,6 +120,7 @@ export default function BillingConfigAdmin() {
                     onReset={resetForm}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
+                    onBulkDelete={handleBulkDelete}
                     businessTypes={businessTypes}
                     products={products}
                     scales={scales}

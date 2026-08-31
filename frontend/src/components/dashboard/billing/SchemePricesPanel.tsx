@@ -27,7 +27,7 @@ export const SchemePricesPanel = ({
     const [businessTypeId, setBusinessTypeId] = useState('');
     const [businessScaleId, setBusinessScaleId] = useState('');
     const [productCategoryId, setProductCategoryId] = useState('');
-    const [dataSource, setDataSource] = useState('BOTH');
+    const [dataSource, setDataSource] = useState('ORGANIK');
     const [basePrice, setBasePrice] = useState('');
     const [discountPercent, setDiscountPercent] = useState('0');
     const [description, setDescription] = useState('');
@@ -102,7 +102,7 @@ export const SchemePricesPanel = ({
         setBusinessTypeId(item.business_type_id?.toString() || '');
         setBusinessScaleId(item.business_scale_id?.toString() || '');
         setProductCategoryId(item.product_category_id?.toString() || '');
-        setDataSource(item.data_source || 'BOTH');
+        setDataSource(item.data_source || 'ORGANIK');
         setBasePrice(item.base_price?.toString() || '');
         setDiscountPercent(item.discount_percent?.toString() || '0');
         setDescription(item.description || '');
@@ -115,7 +115,7 @@ export const SchemePricesPanel = ({
         setBusinessTypeId('');
         setBusinessScaleId('');
         setProductCategoryId('');
-        setDataSource('BOTH');
+        setDataSource('ORGANIK');
         setBasePrice('');
         setDiscountPercent('0');
         setDescription('');
@@ -273,8 +273,8 @@ export const SchemePricesPanel = ({
                                     <td className="p-4">
                                         <span className="font-bold text-gray-800">{item.sales_scheme?.name || `ID: ${item.sales_scheme_id}`}</span>
                                     </td>
-                                    <td className="p-4 font-mono text-xs text-gray-600">
-                                        {item.data_source}
+                                    <td className="p-4 text-xs font-semibold text-gray-700">
+                                        {item.data_source === 'ORGANIK' || !item.data_source || item.data_source === 'BOTH' ? 'Organik' : item.data_source}
                                     </td>
                                     <td className="p-4 text-xs text-gray-600 space-y-1">
                                         {item.business_scale && (

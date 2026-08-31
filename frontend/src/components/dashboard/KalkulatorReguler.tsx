@@ -679,11 +679,8 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
 
                 {/* Data Source Badge */}
                 {dataSource && (
-                    <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
-                        dataSource === 'MARKETING' ? 'bg-amber-100 text-amber-700' : 
-                        dataSource === 'BOTH' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-                    }`}>
-                        Sumber: {dataSource === 'MARKETING' ? 'Marketing (Partner)' : dataSource === 'BOTH' ? 'Semua' : 'Organik / Telemarketing'}
+                    <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                        Sumber: Organik
                     </div>
                 )}
 
@@ -826,13 +823,12 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                                 <div>
                                     <label className="block text-xs font-bold text-gray-700 mb-1.5">Sumber Data *</label>
                                     <select
-                                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500/20 font-semibold"
-                                        value={dataSourceVal === 'TELEMARKETING' ? 'ORGANIK' : dataSourceVal}
-                                        onChange={e => setDataSourceVal(e.target.value)}
-                                        disabled={!isEditable}
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none font-semibold text-gray-600 cursor-not-allowed"
+                                        value="ORGANIK"
+                                        disabled
+                                        onChange={() => setDataSourceVal('ORGANIK')}
                                     >
-                                        <option value="ORGANIK">Organik / Telemarketing</option>
-                                        <option value="MARKETING">Marketing (Partner)</option>
+                                        <option value="ORGANIK">Organik</option>
                                     </select>
                                 </div>
                             )}
