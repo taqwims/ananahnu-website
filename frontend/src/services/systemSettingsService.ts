@@ -10,9 +10,26 @@ class SystemSettingsService extends BaseService {
         }
     }
 
+    async getPublic(): Promise<{ [key: string]: string }> {
+        try {
+            const response = await this.api.get('/system-settings/public');
+            return response.data || {};
+        } catch {
+            return {};
+        }
+    }
+
     async update(key: string, value: string): Promise<void> {
         try {
             await this.api.put('/system-settings', { key, value });
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    async updateBatch(settings: { [key: string]: string }): Promise<void> {
+        try {
+            await this.api.put('/system-settings', { settings });
         } catch (error) {
             this.handleError(error);
         }

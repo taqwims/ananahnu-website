@@ -500,9 +500,19 @@ func seedSystemSettings(db *gorm.DB) {
 		{Key: "MIDTRANS_IS_PRODUCTION", Value: "false"},
 		{Key: "MAYAR_IS_PRODUCTION", Value: "false"},
 		{Key: "COMPANY_NAME", Value: "PT Ana Nahnu Indonesia"},
+		{Key: "BRAND_NAME", Value: "HalalCore"},
 		{Key: "COMPANY_EMAIL", Value: "info@ananahnu.id"},
 		{Key: "COMPANY_PHONE", Value: "+62 812-3456-7890"},
 		{Key: "COMPANY_ADDRESS", Value: "Jl. Raya Ana Nahnu No. 1, Jakarta"},
+		{Key: "CS_PHONE", Value: "6281564955280"},
+		{Key: "CS_NAME", Value: "Customer Support HalalCore"},
+		{Key: "SUPPORT_EMAIL", Value: "support@halalcore.id"},
+		{Key: "OPERATIONAL_HOURS", Value: "Senin - Jumat, 08:00 - 17:00 WIB"},
+		{Key: "CONSULTATION_PHONE", Value: "6281564955280"},
+		{Key: "WHATSAPP_DEFAULT_MESSAGE", Value: "Halo Admin HalalCore, saya membutuhkan bantuan terkait pengajuan sertifikasi halal."},
+		{Key: "SOCIAL_INSTAGRAM", Value: "https://instagram.com/halalcore.id"},
+		{Key: "SOCIAL_TIKTOK", Value: "https://tiktok.com/@halalcore.id"},
+		{Key: "COMPANY_WEBSITE", Value: "https://halalcore.id"},
 	}
 
 	for _, s := range settings {

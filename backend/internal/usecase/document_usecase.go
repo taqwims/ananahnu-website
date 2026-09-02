@@ -475,20 +475,56 @@ func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 	pdf.MultiCell(0, 5.5, cleanStr(p4Text), "", "J", false)
 	pdf.Ln(6)
 
+	reNumberedItem := regexp.MustCompile(`^\s*(\(\d+\))\s*(.*)$`)
+
 	pasalHeader := func(num, name string) {
-		pdf.Ln(4)
+		if pdf.GetY() > 245 {
+			pdf.AddPage()
+		}
+		pdf.Ln(3)
 		pdf.SetFont("Times", "B", 11)
 		pdf.SetTextColor(12, 74, 110)
-		pdf.CellFormat(0, 6, cleanStr(num), "", 1, "C", false, 0, "")
-		pdf.CellFormat(0, 6, cleanStr(name), "", 1, "C", false, 0, "")
+		pdf.CellFormat(0, 5.5, cleanStr(num), "", 1, "C", false, 0, "")
+		pdf.CellFormat(0, 5.5, cleanStr(name), "", 1, "C", false, 0, "")
 		pdf.Ln(2)
 	}
 
 	pasalBody := func(text string) {
 		pdf.SetFont("Times", "", 10)
 		pdf.SetTextColor(51, 65, 85)
-		pdf.MultiCell(0, 5.5, cleanStr(text), "", "J", false)
-		pdf.Ln(2)
+
+		origLeft, _, _, _ := pdf.GetMargins()
+		numWidth := 8.5 // Reserved width for (1), (2), (10), etc.
+
+		lines := strings.Split(text, "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+
+			// Prevent orphan numbers at page boundary
+			if pdf.GetY() > 262 {
+				pdf.AddPage()
+			}
+
+			if matches := reNumberedItem.FindStringSubmatch(line); len(matches) == 3 {
+				numStr := matches[1]
+				contentStr := matches[2]
+
+				// Temporary left margin for wrapped lines creates a true hanging indent
+				pdf.SetLeftMargin(origLeft + numWidth)
+				pdf.SetX(origLeft)
+				pdf.CellFormat(numWidth, 5.2, numStr, "", 0, "L", false, 0, "")
+				pdf.MultiCell(0, 5.2, cleanStr(contentStr), "", "J", false)
+				pdf.SetLeftMargin(origLeft)
+				pdf.Ln(1.8)
+			} else {
+				pdf.MultiCell(0, 5.2, cleanStr(line), "", "J", false)
+				pdf.Ln(1.8)
+			}
+		}
+		pdf.Ln(1.5)
 	}
 
 	// PASAL 1
@@ -803,15 +839,13 @@ func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 	pdf.CellFormat(0, 6, "PERSETUJUAN PENGAJUAN DAN KUASA TERBATAS", "", 1, "L", false, 0, "")
 	pdf.Ln(4)
 
-	pdf.SetFont("Times", "", 10)
-	pdf.SetTextColor(51, 65, 85)
-	pdf.MultiCell(0, 5.5, "PIHAK KEDUA dengan ini:\n" +
+	pasalBody("PIHAK KEDUA dengan ini:\n" +
 		"    (1)  menyatakan seluruh data, dokumen, foto, daftar bahan, daftar produk, dan uraian proses yang diberikan adalah benar, lengkap, dan sesuai kondisi usaha pada saat diajukan;\n" +
 		"    (2)  memberikan kuasa terbatas kepada PT Ana Nahnu Indonesia melalui Halal Advisor yang ditunjuk untuk menyiapkan, memasukkan, mengunggah, mengoreksi, memantau, dan mengomunikasikan data pengajuan pada sistem resmi, sejauh diizinkan oleh sistem dan hukum;\n" +
 		"    (3)  memahami bahwa kuasa terbatas ini tidak mencakup kewenangan untuk membuat pernyataan palsu, mengubah fakta usaha, menandatangani pernyataan kehalalan yang wajib dilakukan pelaku usaha, menerima dana atas nama PIHAK KEDUA, atau melakukan tindakan lain di luar pengurusan administratif pengajuan;\n" +
 		"    (4)  menyetujui penyampaian data kepada pihak berwenang dan mitra pemrosesan yang diperlukan sebagaimana Pasal 10; dan\n" +
 		"    (5)  wajib segera mencabut atau memperbarui kuasa apabila terjadi perubahan wakil, kontak, produk, bahan, proses, fasilitas, atau keadaan lain yang memengaruhi pengajuan.\n\n" +
-		"Persetujuan ini berlaku sejak Perjanjian efektif sampai pengajuan selesai, dihentikan, atau kuasa dicabut secara tertulis. Pencabutan tidak memengaruhi tindakan sah yang telah dilakukan sebelum pemberitahuan diterima.", "", "J", false)
+		"Persetujuan ini berlaku sejak Perjanjian efektif sampai pengajuan selesai, dihentikan, atau kuasa dicabut secara tertulis. Pencabutan tidak memengaruhi tindakan sah yang telah dilakukan sebelum pemberitahuan diterima.")
 	pdf.Ln(6)
 
 	// Konfirmasi Table

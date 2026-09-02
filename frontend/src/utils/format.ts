@@ -40,7 +40,8 @@ export const formatDate = (dateStr: string) => {
 export const formatRoleName = (role: string): string => {
     if (!role) return '';
     const labels: Record<string, string> = {
-        'BUSINESS_DEVELOPMENT': 'Marketing & BD Manager',
+        'BUSINESS_DEVELOPMENT': 'Manager Marketing',
+        'MARKETING': 'Manager Marketing',
         'DRAFT_MANAGER': 'Operasional Manager',
         'DRAFTER': 'HDO (Halal Documentation Officer)',
         'ADMIN_KEUANGAN': 'Finance & Legal',

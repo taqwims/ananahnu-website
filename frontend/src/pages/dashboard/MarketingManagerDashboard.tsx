@@ -68,8 +68,8 @@ export default function MarketingManagerDashboard() {
     const [advisors, setAdvisors] = useState<AdvisorUser[]>([]);
     const [provinces, setProvinces] = useState<any[]>([]);
 
-    // Action Queue Tab: 'UNASSIGNED' | 'READY_FORWARD' | 'UNPAID' | 'ALL'
-    const [activeTab, setActiveTab] = useState<'UNASSIGNED' | 'READY_FORWARD' | 'UNPAID' | 'ALL'>('UNASSIGNED');
+    // Action Queue Tab: 'UNASSIGNED' | 'UNPAID' | 'DATA_COMPLETED' | 'READY_FORWARD' | 'ALL'
+    const [activeTab, setActiveTab] = useState<'UNASSIGNED' | 'UNPAID' | 'DATA_COMPLETED' | 'READY_FORWARD' | 'ALL'>('UNASSIGNED');
     const [searchTerm, setSearchTerm] = useState('');
 
     // Assign Advisor Modal State & Location Filters
@@ -156,23 +156,36 @@ export default function MarketingManagerDashboard() {
         !s.consultant_id && s.status !== 'SH_TERBIT' && s.status !== 'REJECTED'
     );
 
+    const unpaidSubmissions = allSubmissions.filter(s => 
+        !isSubmissionPaid(s) && 
+        (s.status === 'WAITING_PAYMENT' || (s.service_type === 'REGULER' && (s.status === 'DRAFT' || s.status === 'WAITING_ASSIGNMENT')))
+    );
+
+    const dataCompletedSubmissions = allSubmissions.filter(s => 
+        s.status === 'VERVAL_PENDAMPING' || 
+        s.status === 'REVIEW_SJPH_CLIENT' || 
+        s.status === 'QC_OFFICER' || 
+        s.status === 'DRAFTER' || 
+        s.status === 'QC_REVIEW' ||
+        s.status === 'SIDANG_FATWA' ||
+        s.status === 'SH_TERBIT' ||
+        Boolean(s.sjph_approved_at) ||
+        (Boolean(s.client?.business_name) && Boolean(s.client?.nib) && s.status !== 'DRAFT')
+    );
+
     const readyForwardSubmissions = allSubmissions.filter(s => 
         s.consultant_id && 
         isSubmissionPaid(s) && 
         (s.status === 'WAITING_PAYMENT' || s.status === 'DRAFT' || s.status === 'WAITING_ASSIGNMENT' || s.status === 'VERVAL_PENDAMPING')
     );
 
-    const unpaidSubmissions = allSubmissions.filter(s => 
-        !isSubmissionPaid(s) && 
-        (s.status === 'WAITING_PAYMENT' || (s.service_type === 'REGULER' && (s.status === 'DRAFT' || s.status === 'WAITING_ASSIGNMENT')))
-    );
-
     // Filter displayed items in current active tab
     const currentQueueItems = () => {
         let list: Submission[] = [];
         if (activeTab === 'UNASSIGNED') list = unassignedSubmissions;
-        else if (activeTab === 'READY_FORWARD') list = readyForwardSubmissions;
         else if (activeTab === 'UNPAID') list = unpaidSubmissions;
+        else if (activeTab === 'DATA_COMPLETED') list = dataCompletedSubmissions;
+        else if (activeTab === 'READY_FORWARD') list = readyForwardSubmissions;
         else list = allSubmissions;
 
         if (!searchTerm.trim()) return list;
@@ -327,13 +340,13 @@ export default function MarketingManagerDashboard() {
                     <div className="space-y-3 max-w-2xl">
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/20 backdrop-blur-md text-brand-300 text-xs font-black uppercase tracking-widest border border-brand-400/30">
                             <Sparkles className="w-3.5 h-3.5 text-brand-300" />
-                            Marketing & Business Development Hub
+                            Manager Marketing Hub
                         </div>
                         <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2">
-                            Dashboard Marketing & Kemitraan
+                            Dashboard Manager Marketing
                         </h1>
                         <p className="text-gray-300 text-xs sm:text-sm font-medium leading-relaxed">
-                            Pantau perolehan omset, pipeline penagihan klien, penunjukan Halal Advisor, serta percepatan forwarding pengajuan ke tim operasional.
+                            Pantau perolehan omset, pipeline penagihan klien, penunjukan Halal Advisor, kelengkapan berkas, serta penerusan pengajuan ke tim operasional.
                         </p>
                     </div>
 
@@ -521,10 +534,10 @@ export default function MarketingManagerDashboard() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
                     <div>
                         <h2 className="text-lg font-black text-gray-900 tracking-tight flex items-center gap-2">
-                            <span>Meja Kerja & Tindakan Cepat Marketing</span>
+                            <span>Meja Kerja & Tindakan Cepat Manager Marketing</span>
                         </h2>
                         <p className="text-xs text-gray-500 font-medium">
-                            Kelola pengajuan yang membutuhkan tindakan segera dari tim Marketing & BD
+                            Kelola pengajuan yang membutuhkan tindakan segera dari tim Manager Marketing
                         </p>
                     </div>
 
@@ -552,8 +565,9 @@ export default function MarketingManagerDashboard() {
                     </div>
                 </div>
 
-                {/* Queue Tabs */}
+                {/* Queue Tabs (5 Tabs sesuai urutan instruksi) */}
                 <div className="flex flex-wrap gap-2 border-b border-gray-100 pb-3">
+                    {/* Tab 1: Penunjukan Advisor (Butuh Tunjuk Advisor) */}
                     <button
                         onClick={() => setActiveTab('UNASSIGNED')}
                         className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 ${
@@ -570,22 +584,7 @@ export default function MarketingManagerDashboard() {
                         </span>
                     </button>
 
-                    <button
-                        onClick={() => setActiveTab('READY_FORWARD')}
-                        className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 ${
-                            activeTab === 'READY_FORWARD'
-                                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                        }`}
-                    >
-                        <span>Siap Diteruskan ke Operasional (Lunas)</span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                            activeTab === 'READY_FORWARD' ? 'bg-white text-emerald-800' : 'bg-emerald-100 text-emerald-800'
-                        }`}>
-                            {readyForwardSubmissions.length}
-                        </span>
-                    </button>
-
+                    {/* Tab 2: Menunggu Pembayaran */}
                     <button
                         onClick={() => setActiveTab('UNPAID')}
                         className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 ${
@@ -602,6 +601,41 @@ export default function MarketingManagerDashboard() {
                         </span>
                     </button>
 
+                    {/* Tab 3: Data Selesai */}
+                    <button
+                        onClick={() => setActiveTab('DATA_COMPLETED')}
+                        className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 ${
+                            activeTab === 'DATA_COMPLETED'
+                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                        }`}
+                    >
+                        <span>Data Selesai</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                            activeTab === 'DATA_COMPLETED' ? 'bg-white text-indigo-800' : 'bg-indigo-100 text-indigo-800'
+                        }`}>
+                            {dataCompletedSubmissions.length}
+                        </span>
+                    </button>
+
+                    {/* Tab 4: Siap Diteruskan ke Operasional */}
+                    <button
+                        onClick={() => setActiveTab('READY_FORWARD')}
+                        className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 ${
+                            activeTab === 'READY_FORWARD'
+                                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                        }`}
+                    >
+                        <span>Siap Diteruskan ke Operasional (Lunas)</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                            activeTab === 'READY_FORWARD' ? 'bg-white text-emerald-800' : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                            {readyForwardSubmissions.length}
+                        </span>
+                    </button>
+
+                    {/* Tab 5: Semua Ajuan */}
                     <button
                         onClick={() => setActiveTab('ALL')}
                         className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 ${

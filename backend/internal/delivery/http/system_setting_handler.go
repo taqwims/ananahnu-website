@@ -24,8 +24,8 @@ func NewSystemSettingHandler(r *gin.Engine, settingUsecase usecase.SystemSetting
 	{
 		settings.GET("", handler.GetAllSettings)
 		settings.GET("/:key", handler.GetSetting)
-		// PUT (write) DIRECTOR & MANAGER
-		settings.PUT("", middleware.RoleMiddleware("DIRECTOR", "MANAGER"), handler.UpdateSetting)
+		// PUT (write) DIRECTOR, MANAGER, ADMIN, HALAL_DIRECTOR, HALAL_MANAGER
+		settings.PUT("", middleware.RoleMiddleware("DIRECTOR", "MANAGER", "ADMIN", "HALAL_DIRECTOR", "HALAL_MANAGER"), handler.UpdateSetting)
 	}
 }
 
@@ -44,8 +44,9 @@ func (h *SystemSettingHandler) GetSetting(c *gin.Context) {
 
 func (h *SystemSettingHandler) UpdateSetting(c *gin.Context) {
 	var input struct {
-		Key   string `json:"key" binding:"required"`
-		Value string `json:"value" binding:"required"`
+		Key      string            `json:"key"`
+		Value    *string           `json:"value"`
+		Settings map[string]string `json:"settings"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -53,12 +54,33 @@ func (h *SystemSettingHandler) UpdateSetting(c *gin.Context) {
 		return
 	}
 
-	if err := h.settingUsecase.UpdateSetting(input.Key, input.Value); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// Support batch update jika "settings" map disediakan
+	if len(input.Settings) > 0 {
+		for k, v := range input.Settings {
+			if err := h.settingUsecase.UpdateSetting(k, v); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Settings updated successfully"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Setting updated successfully"})
+	// Single key-value update
+	if input.Key != "" {
+		val := ""
+		if input.Value != nil {
+			val = *input.Value
+		}
+		if err := h.settingUsecase.UpdateSetting(input.Key, val); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Setting updated successfully"})
+		return
+	}
+
+	c.JSON(http.StatusBadRequest, gin.H{"error": "Field 'key' or 'settings' is required"})
 }
 
 func (h *SystemSettingHandler) GetAllSettings(c *gin.Context) {
@@ -89,6 +111,23 @@ func (h *SystemSettingHandler) GetPublicSettings(c *gin.Context) {
 		"COMPANY_ADDRESS":            true,
 		"COMPANY_PHONE":              true,
 		"COMPANY_EMAIL":              true,
+		"CS_PHONE":                   true,
+		"CS_NAME":                    true,
+		"SUPPORT_EMAIL":              true,
+		"OPERATIONAL_HOURS":          true,
+		"CONSULTATION_PHONE":         true,
+		"WHATSAPP_DEFAULT_MESSAGE":   true,
+		"admin_whatsapp_number":      true,
+		"company_phone":              true,
+		"company_email":              true,
+		"company_address":            true,
+		"company_name":               true,
+		"BRAND_NAME":                 true,
+		"SOCIAL_INSTAGRAM":           true,
+		"SOCIAL_TIKTOK":              true,
+		"SOCIAL_YOUTUBE":             true,
+		"SOCIAL_LINKEDIN":            true,
+		"COMPANY_WEBSITE":            true,
 		"facilitation_quota_limit":   true,
 		"facilitation_quota_used":    true,
 		"PAYMENT_GATEWAY_ACTIVE":     true,

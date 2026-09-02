@@ -69,6 +69,16 @@ const NotificationSettings = () => {
                             setPendingToken(settings['fonnte_token'] || '');
                             setShowTokenModal(true);
                         }}
+                        adminPhone={settings['company_phone'] || settings['admin_whatsapp_number'] || ''}
+                        onAdminPhoneChange={(val) => {
+                            updateLocalSetting('company_phone', val);
+                            updateLocalSetting('admin_whatsapp_number', val);
+                        }}
+                        onAdminPhoneUpdate={() => {
+                            const val = settings['company_phone'] || settings['admin_whatsapp_number'] || '';
+                            updateSetting('company_phone', val);
+                            updateSetting('admin_whatsapp_number', val);
+                        }}
                         isEnabled={settings['wa_notifications_enabled'] === 'true'}
                         onToggle={(val) => updateSetting('wa_notifications_enabled', val ? 'true' : 'false', true)}
                         isSaving={isSaving}

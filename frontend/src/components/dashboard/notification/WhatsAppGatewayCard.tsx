@@ -4,6 +4,9 @@ interface WhatsAppGatewayCardProps {
     token: string;
     onTokenChange: (v: string) => void;
     onTokenUpdate: () => void;
+    adminPhone?: string;
+    onAdminPhoneChange?: (v: string) => void;
+    onAdminPhoneUpdate?: () => void;
     isEnabled: boolean;
     onToggle: (v: boolean) => void;
     isSaving: boolean;
@@ -13,6 +16,9 @@ export const WhatsAppGatewayCard = ({
     token,
     onTokenChange,
     onTokenUpdate,
+    adminPhone = '',
+    onAdminPhoneChange,
+    onAdminPhoneUpdate,
     isEnabled,
     onToggle,
     isSaving
@@ -23,10 +29,40 @@ export const WhatsAppGatewayCard = ({
                 <div className="p-2 bg-brand-50 text-brand-600 rounded-lg group-hover:scale-110 transition-transform">
                     <MessageSquare className="w-5 h-5" />
                 </div>
-                <h2 className="font-bold text-gray-900">WhatsApp Gateway</h2>
+                <h2 className="font-bold text-gray-900">WhatsApp Gateway & Kontak Admin</h2>
             </div>
             <div className="p-6 space-y-6">
                 <div className="space-y-4">
+                    {/* Admin WhatsApp Number for Help / Support */}
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                            Nomor WhatsApp Admin (Pusat Bantuan)
+                        </label>
+                        <div className="relative group/input">
+                            <input
+                                type="text"
+                                value={adminPhone}
+                                onChange={(e) => onAdminPhoneChange && onAdminPhoneChange(e.target.value)}
+                                className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 focus:bg-white outline-none transition-all font-mono text-sm"
+                                placeholder="Contoh: 6281234567890"
+                            />
+                            {onAdminPhoneUpdate && (
+                                <button
+                                    type="button"
+                                    onClick={onAdminPhoneUpdate}
+                                    disabled={isSaving}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-brand-600 hover:bg-brand-50 rounded-lg transition-colors disabled:opacity-50"
+                                    title="Simpan Nomor WhatsApp Admin"
+                                >
+                                    <Save className="w-5 h-5" />
+                                </button>
+                            )}
+                        </div>
+                        <p className="mt-1.5 text-[10px] text-gray-400">
+                            Nomor ini digunakan untuk tombol bantuan WhatsApp di Sidebar, Dashboard Klien, dan Pusat Bantuan.
+                        </p>
+                    </div>
+
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
                             Fonnte API Token

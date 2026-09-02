@@ -310,13 +310,13 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
     // Show "Payment Completed" state
     if (paidPayment) {
         return (
-            <div className="glass-panel p-6 bg-green-50 border-green-200 space-y-4">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 text-green-800">
-                        <CheckCircle className="w-6 h-6" />
-                        <h3 className="text-lg font-bold">Pembayaran Selesai</h3>
+            <div className="glass-panel p-5 sm:p-6 bg-green-50 border-green-200 space-y-4 rounded-2xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-3 text-green-800 min-w-0">
+                        <CheckCircle className="w-6 h-6 shrink-0" />
+                        <h3 className="text-base sm:text-lg font-bold truncate">Pembayaran Selesai</h3>
                     </div>
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-700">{invoiceLabel}</span>
+                    <span className="self-start sm:self-auto text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-700 shrink-0">{invoiceLabel}</span>
                 </div>
                 <div className="space-y-1">
                     <p className="text-sm text-green-700">
@@ -352,18 +352,18 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
     // Show "Waiting for Verification" state (manual payment pending)
     if (pendingPayment && pendingPayment.method === 'MANUAL') {
         return (
-            <div className="glass-panel p-6 bg-amber-50/80 border border-amber-200/80 rounded-3xl space-y-4 shadow-xs">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 text-amber-900">
-                        <div className="p-2.5 bg-amber-100 rounded-2xl text-amber-700">
+            <div className="glass-panel p-5 sm:p-6 bg-amber-50/80 border border-amber-200/80 rounded-3xl space-y-4 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-start sm:items-center gap-3 text-amber-900 min-w-0">
+                        <div className="p-2.5 bg-amber-100 rounded-2xl text-amber-700 shrink-0 mt-0.5 sm:mt-0">
                             <Clock className="w-6 h-6" />
                         </div>
-                        <div>
-                            <h3 className="text-base font-black">Bukti Transfer Manual Terkirim</h3>
+                        <div className="min-w-0">
+                            <h3 className="text-base font-black truncate">Bukti Transfer Manual Terkirim</h3>
                             <p className="text-xs text-amber-700 font-medium">Sedang diverifikasi oleh Admin Finance & Legal</p>
                         </div>
                     </div>
-                    <span className="px-3 py-1 bg-amber-200/70 text-amber-900 rounded-full text-xs font-black uppercase tracking-wider">
+                    <span className="self-start sm:self-auto px-3 py-1 bg-amber-200/70 text-amber-900 rounded-full text-xs font-black uppercase tracking-wider shrink-0">
                         Menunggu Verifikasi
                     </span>
                 </div>
@@ -422,18 +422,18 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
         };
 
         return (
-            <div className={`glass-panel p-6 rounded-3xl space-y-5 shadow-md border ${
+            <div className={`glass-panel p-5 sm:p-6 rounded-3xl space-y-5 shadow-md border ${
                 isMayar
                     ? 'bg-gradient-to-br from-emerald-50 to-teal-50/50 border-emerald-200/80'
                     : 'bg-gradient-to-br from-blue-50 to-indigo-50/50 border-blue-200/80'
             }`}>
-                <div className="flex items-center justify-between">
-                    <div className={`flex items-center gap-3 ${isMayar ? 'text-emerald-900' : 'text-blue-900'}`}>
-                        <div className={`p-2.5 rounded-2xl ${isMayar ? 'bg-emerald-100/80 text-emerald-700' : 'bg-blue-100/80 text-blue-700'}`}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className={`flex items-start sm:items-center gap-3 min-w-0 ${isMayar ? 'text-emerald-900' : 'text-blue-900'}`}>
+                        <div className={`p-2.5 rounded-2xl shrink-0 mt-0.5 sm:mt-0 ${isMayar ? 'bg-emerald-100/80 text-emerald-700' : 'bg-blue-100/80 text-blue-700'}`}>
                             <CreditCard className="w-6 h-6" />
                         </div>
-                        <div>
-                            <h3 className="text-base font-black">
+                        <div className="min-w-0">
+                            <h3 className="text-base font-black truncate">
                                 Pembayaran {isMayar ? 'Mayar.id' : 'Midtrans'} Online Berlangsung
                             </h3>
                             <p className={`text-xs font-medium ${isMayar ? 'text-emerald-700' : 'text-blue-700'}`}>
@@ -443,7 +443,7 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
                             </p>
                         </div>
                     </div>
-                    <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-black uppercase tracking-wider animate-pulse">
+                    <span className="self-start sm:self-auto px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-black uppercase tracking-wider animate-pulse shrink-0">
                         Menunggu Pembayaran
                     </span>
                 </div>
@@ -501,18 +501,18 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
 
     // Default: Show payment form
     return (
-        <div className="glass-panel p-6 space-y-5">
+        <div className="glass-panel p-5 sm:p-6 space-y-5 rounded-3xl">
             <div>
-                <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-lg font-semibold text-gray-800">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-800">
                         {invoiceType === 'PELUNASAN' ? 'Pelunasan Sertifikat Halal' : 'Pembayaran Diperlukan'}
                     </h3>
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${invoiceType === 'PELUNASAN'
+                    <span className={`self-start sm:self-auto text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${invoiceType === 'PELUNASAN'
                             ? 'bg-purple-100 text-purple-700'
                             : 'bg-amber-100 text-amber-700'
                         }`}>{invoiceLabel}</span>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">
                     {invoiceType === 'PELUNASAN'
                         ? 'Selesaikan pembayaran pelunasan 30% untuk mengunduh Sertifikat Halal Anda.'
                         : 'Silakan selesaikan pembayaran untuk melanjutkan proses verifikasi.'}
@@ -523,24 +523,24 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
             {invoiceType === 'DP' && resolvedInvoice && (resolvedInvoice.type === 'DP' || resolvedInvoice.type === 'FULL') && (
                 <div>
                     <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">Mode Pembayaran</p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <button
                             id="payment-mode-dp"
                             type="button"
                             onClick={() => setPaymentMode('DP')}
-                            className={`relative flex flex-col items-start gap-1 p-4 rounded-xl border-2 text-left transition-all ${paymentMode === 'DP'
+                            className={`relative flex flex-col items-start gap-1 p-3.5 sm:p-4 rounded-xl border-2 text-left transition-all ${paymentMode === 'DP'
                                     ? 'border-amber-400 bg-amber-50'
                                     : 'border-gray-200 bg-white hover:border-gray-300'
                                 }`}
                         >
                             <div className="flex items-center gap-2 w-full">
-                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${paymentMode === 'DP' ? 'border-amber-500' : 'border-gray-300'
+                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${paymentMode === 'DP' ? 'border-amber-500' : 'border-gray-300'
                                     }`}>
                                     {paymentMode === 'DP' && <div className="w-2 h-2 rounded-full bg-amber-500" />}
                                 </div>
-                                <span className={`text-sm font-bold ${paymentMode === 'DP' ? 'text-amber-700' : 'text-gray-600'
+                                <span className={`text-sm font-bold truncate ${paymentMode === 'DP' ? 'text-amber-700' : 'text-gray-600'
                                     }`}>Down Payment</span>
-                                <span className={`ml-auto text-xs font-black px-2 py-0.5 rounded-full ${paymentMode === 'DP' ? 'bg-amber-200 text-amber-800' : 'bg-gray-100 text-gray-500'
+                                <span className={`ml-auto text-xs font-black px-2 py-0.5 rounded-full shrink-0 ${paymentMode === 'DP' ? 'bg-amber-200 text-amber-800' : 'bg-gray-100 text-gray-500'
                                     }`}>70%</span>
                             </div>
                             <p className="text-xs text-gray-400 ml-6">Bayar sebagian, lunasi saat SH terbit</p>
@@ -550,25 +550,25 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
                             id="payment-mode-full"
                             type="button"
                             onClick={() => setPaymentMode('FULL')}
-                            className={`relative flex flex-col items-start gap-1 p-4 rounded-xl border-2 text-left transition-all ${paymentMode === 'FULL'
+                            className={`relative flex flex-col items-start gap-1 p-3.5 sm:p-4 rounded-xl border-2 text-left transition-all ${paymentMode === 'FULL'
                                     ? 'border-emerald-400 bg-emerald-50'
                                     : 'border-gray-200 bg-white hover:border-gray-300'
                                 }`}
                         >
                             <div className="flex items-center gap-2 w-full">
-                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${paymentMode === 'FULL' ? 'border-emerald-500' : 'border-gray-300'
+                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${paymentMode === 'FULL' ? 'border-emerald-500' : 'border-gray-300'
                                     }`}>
                                     {paymentMode === 'FULL' && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
                                 </div>
-                                <span className={`text-sm font-bold ${paymentMode === 'FULL' ? 'text-emerald-700' : 'text-gray-600'
+                                <span className={`text-sm font-bold truncate ${paymentMode === 'FULL' ? 'text-emerald-700' : 'text-gray-600'
                                     }`}>Bayar Penuh</span>
-                                <span className={`ml-auto text-xs font-black px-2 py-0.5 rounded-full ${paymentMode === 'FULL' ? 'bg-emerald-200 text-emerald-800' : 'bg-gray-100 text-gray-500'
+                                <span className={`ml-auto text-xs font-black px-2 py-0.5 rounded-full shrink-0 ${paymentMode === 'FULL' ? 'bg-emerald-200 text-emerald-800' : 'bg-gray-100 text-gray-500'
                                     }`}>100%</span>
                             </div>
                             <p className="text-xs text-gray-400 ml-6">Lunas sekarang, unduh SH langsung</p>
                             {paymentMode === 'FULL' && (
                                 <div className="ml-6 flex items-center gap-1 text-emerald-600">
-                                    <Zap className="w-3 h-3" />
+                                    <Zap className="w-3 h-3 shrink-0" />
                                     <span className="text-xs font-semibold">Tidak perlu pelunasan lagi!</span>
                                 </div>
                             )}

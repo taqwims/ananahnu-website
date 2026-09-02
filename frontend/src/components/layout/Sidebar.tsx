@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -22,12 +23,14 @@ import {
     UserCircle,
     BarChart3,
     Wallet,
+    Sliders,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { canAccess } from '../../config/rbac';
 import Logo from '../ui/Logo';
-import { formatRoleName } from '../../utils/format';
+import { formatRoleName, formatWhatsAppUrl } from '../../utils/format';
+import { systemSettingsService } from '../../services/systemSettingsService';
 
 interface SidebarLink {
     name: string;
@@ -53,6 +56,7 @@ const GROUPS: SidebarGroup[] = [
             { name: 'Pengajuan',    pathKey: 'submissions', to: '/dashboard/submissions',        icon: FileText },
             { name: 'Tagihan Self Declare', pathKey: 'my-invoices', to: '/dashboard/my-invoices',        icon: CreditCard },
             { name: 'Estimasi Biaya', pathKey: 'estimasi',   to: '/dashboard/estimasi',           icon: DollarSign },
+            { name: 'Pusat Bantuan', pathKey: 'bantuan',     to: '/dashboard/bantuan',            icon: BookOpen },
         ],
     },
     {
@@ -90,8 +94,9 @@ const GROUPS: SidebarGroup[] = [
     {
         name: 'Pengaturan Sistem',
         links: [
+            { name: 'Pengaturan Operasional & Kontak', pathKey: 'pengaturan-operasional', to: '/dashboard/pengaturan-operasional', icon: Settings },
             { name: 'Manajemen Billing', pathKey: 'billing',               to: '/dashboard/billing',               icon: Receipt },
-            { name: 'Pengaturan Form',   pathKey: 'form-config',           to: '/dashboard/form-config',           icon: Settings },
+            { name: 'Pengaturan Form',   pathKey: 'form-config',           to: '/dashboard/form-config',           icon: Sliders },
             { name: 'Master Biaya',      pathKey: 'billing-config',        to: '/dashboard/billing-config',        icon: Receipt },
             { name: 'Manajemen User',    pathKey: 'users',                 to: '/dashboard/users',                 icon: Users },
             { name: 'Notifikasi',        pathKey: 'notification-settings', to: '/dashboard/notification-settings', icon: MessageSquare },
@@ -106,9 +111,9 @@ const GROUPS: SidebarGroup[] = [
         ],
     },
     {
-        name: 'Business Development',
+        name: 'Manager Marketing',
         links: [
-            { name: 'Dashboard BD',        pathKey: 'bizdev',                to: '/dashboard/bizdev',                icon: BarChart3 },
+            { name: 'Dashboard Marketing', pathKey: 'bizdev',                to: '/dashboard/bizdev',                icon: BarChart3 },
         ],
     },
     {
@@ -158,6 +163,17 @@ interface SidebarProps {
 const Sidebar = ({ isOpen, toggle }: SidebarProps) => {
     const { user, logout } = useAuthStore();
     const role = user?.role || '';
+    const [adminWaPhone, setAdminWaPhone] = useState('6281564955280');
+    const [waMessage, setWaMessage] = useState('Halo Admin HalalCore, saya membutuhkan bantuan terkait pengajuan sertifikasi halal.');
+
+    useEffect(() => {
+        systemSettingsService.getAll().then(res => {
+            const p = res?.CS_PHONE || res?.cs_phone || res?.company_phone || res?.admin_whatsapp_number;
+            if (p) setAdminWaPhone(p);
+            const msg = res?.WHATSAPP_DEFAULT_MESSAGE || res?.whatsapp_default_message;
+            if (msg) setWaMessage(msg);
+        }).catch(() => {});
+    }, []);
 
     const handleLogout = () => {
         logout();
@@ -168,11 +184,16 @@ const Sidebar = ({ isOpen, toggle }: SidebarProps) => {
             if (link.pathKey === 'pengajuan') return 'Pengajuan';
             if (link.pathKey === 'submissions') return 'Daftar Ajuan';
             if (link.pathKey === 'estimasi') return 'Perhitungan Tarif Reguler';
+            if (link.pathKey === 'bantuan') return 'Pusat Bantuan';
         }
         const isHalalAgency = role === 'HALAL_ADVISOR' || role === 'HALAL_MANAGER' || role === 'HALAL_DIRECTOR';
         if (isHalalAgency) {
+            if (link.pathKey === 'submissions') return 'Daftar Ajuan';
             if (link.pathKey === 'advisors') return 'Jaringan Halal Advisor';
             if (link.pathKey === 'referrals') return 'Insentif Saya';
+        }
+        if (role === 'BUSINESS_DEVELOPMENT' || role === 'MARKETING') {
+            if (link.pathKey === 'bizdev') return 'Dashboard Marketing';
         }
         return link.name;
     };
@@ -235,7 +256,16 @@ const Sidebar = ({ isOpen, toggle }: SidebarProps) => {
                     <nav className="flex-1 overflow-y-auto py-6 px-3 custom-scrollbar">
                         {(role === 'MANAGER' ? OPERATIONAL_MANAGER_GROUPS : GROUPS).map((group) => {
                             // Filter link berdasarkan RBAC — hanya tampilkan yang boleh diakses
-                            const visibleLinks = group.links.filter(l => canAccess(role, l.pathKey));
+                            const visibleLinks = group.links.filter(l => {
+                                // Untuk CLIENT: hanya tampilkan menu di Main Menu, dan sembunyikan 'pengajuan' & 'my-invoices'
+                                if (role === 'CLIENT') {
+                                    if (group.name !== 'Main Menu') return false;
+                                    if (l.pathKey === 'pengajuan' || l.pathKey === 'my-invoices') return false;
+                                }
+                                // Non-client tidak perlu tampilkan link bantuan di Main Menu
+                                if (role !== 'CLIENT' && l.pathKey === 'bantuan' && group.name === 'Main Menu') return false;
+                                return canAccess(role, l.pathKey);
+                            });
                             if (visibleLinks.length === 0) return null;
 
                             return (
@@ -277,7 +307,7 @@ const Sidebar = ({ isOpen, toggle }: SidebarProps) => {
                                 Hubungi tim kami untuk informasi lebih lanjut.
                             </p>
                             <a
-                                href="https://wa.me/6281234567890"
+                                href={formatWhatsAppUrl(adminWaPhone, waMessage)}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-white hover:bg-brand-50 text-brand-700 rounded-xl text-xs font-black border border-brand-200 shadow-sm transition-all w-full active:scale-95 group"

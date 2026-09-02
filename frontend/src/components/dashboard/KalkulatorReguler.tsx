@@ -59,7 +59,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     const [nik, setNik] = useState('');
     const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
-    const [salesSchemeVal, setSalesSchemeVal] = useState('');
+    const [salesSchemeVal, setSalesSchemeVal] = useState('1');
     const [dataSourceVal, setDataSourceVal] = useState('ORGANIK');
     const [serviceTypeVal, setServiceTypeVal] = useState('');
 
@@ -804,34 +804,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                                         placeholder="08..."
                                     />
                                 </div>
-                                {user?.role !== 'CLIENT' && (
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-700 mb-1.5">Skema Penjualan *</label>
-                                        <select
-                                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500/20 font-semibold"
-                                            value={salesSchemeVal}
-                                            onChange={e => setSalesSchemeVal(e.target.value)}
-                                            disabled={!isEditable}
-                                        >
-                                            <option value="">Pilih Skema...</option>
-                                            {schemes.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                        </select>
-                                    </div>
-                                )}
                             </div>
-                            {user?.role !== 'CLIENT' && (
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-700 mb-1.5">Sumber Data *</label>
-                                    <select
-                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none font-semibold text-gray-600 cursor-not-allowed"
-                                        value="ORGANIK"
-                                        disabled
-                                        onChange={() => setDataSourceVal('ORGANIK')}
-                                    >
-                                        <option value="ORGANIK">Organik</option>
-                                    </select>
-                                </div>
-                            )}
                             <div>
                                 <label className="block text-xs font-bold text-gray-700 mb-1.5">Alamat Lengkap *</label>
                                 <textarea

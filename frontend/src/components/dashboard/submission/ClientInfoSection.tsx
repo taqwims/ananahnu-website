@@ -15,12 +15,13 @@ interface ClientInfoSectionProps {
     businessTypes: BusinessType[];
     processing: boolean;
     defaultCollapsed?: boolean;
+    hideContractBanner?: boolean;
 }
 
 const InfoItem = ({ label, value, mono = false, highlight = false }: { label: string; value?: string; mono?: boolean; highlight?: boolean }) => (
-    <div className={`p-3 rounded-xl border transition-all ${highlight ? 'bg-brand-50/50 border-brand-100 ring-1 ring-brand-500/10' : 'bg-white/50 border-gray-100'}`}>
-        <dt className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</dt>
-        <dd className={`text-sm font-bold truncate ${mono ? 'font-mono' : ''} ${highlight ? 'text-brand-700' : 'text-gray-700'}`}>
+    <div className={`p-3 rounded-xl border transition-all min-w-0 ${highlight ? 'bg-brand-50/50 border-brand-100 ring-1 ring-brand-500/10' : 'bg-white/50 border-gray-100'}`}>
+        <dt className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 truncate">{label}</dt>
+        <dd className={`text-sm font-bold truncate ${mono ? 'font-mono' : ''} ${highlight ? 'text-brand-700' : 'text-gray-700'}`} title={value}>
             {value || '-'}
         </dd>
     </div>
@@ -34,7 +35,8 @@ export const ClientInfoSection = ({
     onUpdateBusinessType: _onUpdateBusinessType, 
     businessTypes, 
     processing,
-    defaultCollapsed = false
+    defaultCollapsed = false,
+    hideContractBanner = false
 }: ClientInfoSectionProps) => {
     const [isEditingClient, setIsEditingClient] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
@@ -55,7 +57,6 @@ export const ClientInfoSection = ({
     const [districts, setDistricts] = useState<any[]>([]);
     const [productCategories, setProductCategories] = useState<any[]>([]);
     const [scales, setScales] = useState<any[]>([]);
-    const [schemes, setSchemes] = useState<any[]>([]);
     const [masterComponents, setMasterComponents] = useState<any[]>([]);
     const [selectedOptionalComponentIds, setSelectedOptionalComponentIds] = useState<number[]>([]);
     const [optionalQuantities, setOptionalQuantities] = useState<Record<number, number>>({});
@@ -77,7 +78,7 @@ export const ClientInfoSection = ({
         district_id: (submission.district_id || submission.cost_detail?.district_id)?.toString() || '',
         product_category_id: (submission.product_category_id || submission.cost_detail?.product_category_id)?.toString() || '',
         business_scale_id: (submission.business_scale_id || submission.cost_detail?.business_scale_id)?.toString() || '',
-        sales_scheme_id: submission.sales_scheme_id?.toString() || '',
+        sales_scheme_id: submission.sales_scheme_id?.toString() || '1',
         data_source: submission.data_source || 'ORGANIK',
         product_count: submission.product_count || submission.cost_detail?.product_count || 1,
         branch_count: submission.branch_count || submission.cost_detail?.branch_count || 1,
@@ -88,7 +89,6 @@ export const ClientInfoSection = ({
             api.get('/geography/provinces').then(res => setProvinces(res.data || []));
             api.get('/billing-config/product-categories').then(res => setProductCategories(res.data || []));
             api.get('/billing-config/business-scales').then(res => setScales(res.data || []));
-            api.get('/billing-config/sales-schemes').then(res => setSchemes(res.data || []));
             api.get('/billing-config/components').then(res => setMasterComponents(res.data || []));
         }
     }, [isEditingClient]);
@@ -143,8 +143,8 @@ export const ClientInfoSection = ({
 
         const updatedClientForm = {
             ...clientForm,
-            sales_scheme_id: user?.role === 'CLIENT' ? '1' : clientForm.sales_scheme_id,
-            data_source: user?.role === 'CLIENT' ? 'ORGANIK' : clientForm.data_source,
+            sales_scheme_id: '1',
+            data_source: 'ORGANIK',
         };
 
         try {
@@ -392,32 +392,6 @@ export const ClientInfoSection = ({
                                         }
                                     </select>
                                 </div>
-                                {user?.role !== 'CLIENT' && (
-                                    <div>
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Skema Penjualan <span className="text-red-500">*</span></label>
-                                        <select 
-                                            className="glass-input w-full" 
-                                            value={clientForm.sales_scheme_id} 
-                                            onChange={e => setClientForm({...clientForm, sales_scheme_id: e.target.value})}
-                                        >
-                                            <option value="">Pilih Skema</option>
-                                            {schemes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                        </select>
-                                    </div>
-                                )}
-                                {user?.role !== 'CLIENT' && (
-                                    <div>
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Sumber Data <span className="text-red-500">*</span></label>
-                                        <select 
-                                            className="glass-input w-full bg-gray-50 text-gray-600 font-semibold cursor-not-allowed" 
-                                            value="ORGANIK" 
-                                            disabled
-                                            onChange={() => setClientForm({...clientForm, data_source: 'ORGANIK'})}
-                                        >
-                                            <option value="ORGANIK">Organik</option>
-                                        </select>
-                                    </div>
-                                )}
                                 <div>
                                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Jumlah Produk</label>
                                     <input 
@@ -548,19 +522,19 @@ export const ClientInfoSection = ({
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-6">
                     <InfoItem label="Nama Usaha" value={submission.client?.business_name} highlight />
                     <InfoItem label="Nama Pemilik" value={submission.client?.client_name} />
-                    <div className="p-3 bg-white/50 rounded-xl border border-gray-100 col-span-1 sm:col-span-2">
+                    <div className="p-3 bg-white/50 rounded-xl border border-gray-100 col-span-1 sm:col-span-2 min-w-0">
                         <dt className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">NIB</dt>
-                        <dd className="text-sm font-bold text-gray-700 font-mono flex items-center gap-2 truncate">
-                            {submission.client?.nib || '-'}
+                        <dd className="text-sm font-bold text-gray-700 font-mono flex flex-wrap items-center gap-2">
+                            <span className="truncate max-w-full">{submission.client?.nib || '-'}</span>
                             {submission.client?.nib_file_url && (
                                 <a 
                                     href={submission.client.nib_file_url} 
                                     target="_blank" 
                                     rel="noreferrer"
-                                    className="px-2 py-1 bg-brand-50 text-brand-600 rounded text-[10px] uppercase font-black tracking-wider hover:bg-brand-100 transition-colors flex items-center gap-1"
+                                    className="px-2 py-1 bg-brand-50 text-brand-600 rounded text-[10px] uppercase font-black tracking-wider hover:bg-brand-100 transition-colors flex items-center gap-1 shrink-0"
                                 >
                                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                                    Lihat File
+                                    <span>Lihat File</span>
                                 </a>
                             )}
                         </dd>
@@ -622,9 +596,9 @@ export const ClientInfoSection = ({
                     {submission.service_type === 'SELF_DECLARE' && submission.self_declare_type && (
                         <InfoItem label="Jenis Self Declare" value={submission.self_declare_type === 'MANDIRI' ? 'Mandiri (Berbayar)' : 'Gratis (Subsidi)'} highlight />
                     )}
-                    <div className="sm:col-span-2 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
+                    <div className="sm:col-span-2 bg-gray-50/50 p-3 rounded-xl border border-gray-100 min-w-0">
                         <dt className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Alamat Lengkap</dt>
-                        <dd className="text-sm text-gray-700 font-medium leading-relaxed">{submission.client?.address || '-'}</dd>
+                        <dd className="text-sm text-gray-700 font-medium leading-relaxed break-words">{submission.client?.address || '-'}</dd>
                     </div>
                 </dl>
             )}
@@ -632,15 +606,15 @@ export const ClientInfoSection = ({
             {(submission.audit_date || submission.audit_result_1_url) && (
                 <div className="mt-6 pt-6 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {submission.audit_date && (
-                        <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                        <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 min-w-0">
                             <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest mb-1">📅 Tanggal Audit</p>
-                            <p className="text-sm font-bold text-amber-900">{formatDate(submission.audit_date)}</p>
+                            <p className="text-sm font-bold text-amber-900 truncate">{formatDate(submission.audit_date)}</p>
                         </div>
                     )}
                     {submission.audit_result_1_url && (
-                        <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                        <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-100 min-w-0">
                             <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mb-1">📄 Hasil Audit</p>
-                            <div className="flex gap-2 mt-1">
+                            <div className="flex gap-2 mt-1 flex-wrap">
                                 <a href={`${import.meta.env.VITE_API_URL}${submission.audit_result_1_url}`} target="_blank" rel="noreferrer" className="text-xs font-bold text-indigo-700 underline">File 1</a>
                                 {submission.audit_result_2_url && (
                                     <a href={`${import.meta.env.VITE_API_URL}${submission.audit_result_2_url}`} target="_blank" rel="noreferrer" className="text-xs font-bold text-indigo-700 underline">File 2</a>
@@ -651,9 +625,9 @@ export const ClientInfoSection = ({
                 </div>
             )}
             
-            {(submission.service_type === 'REGULER' || submission.service_type === 'SELF_DECLARE_MANDIRI' || submission.service_type === 'SELF_DECLARE') && (
+            {!hideContractBanner && (submission.service_type === 'REGULER' || submission.service_type === 'SELF_DECLARE_MANDIRI' || submission.service_type === 'SELF_DECLARE') && (
                 <div className="mt-6 flex flex-col sm:flex-row justify-between items-center bg-blue-50/50 p-4 rounded-2xl border border-blue-100 gap-4">
-                    <span className="text-xs text-blue-800 font-bold text-center sm:text-left">Pengajuan layanan ini dilengkapi dokumen Kontrak Layanan Pendampingan.</span>
+                    <span className="text-xs text-blue-800 font-bold text-center sm:text-left leading-relaxed">Pengajuan layanan ini dilengkapi dokumen Kontrak Layanan Pendampingan.</span>
                     <button 
                         onClick={async () => {
                             try {
@@ -664,7 +638,7 @@ export const ClientInfoSection = ({
                                 toast.error(e.message || 'Gagal mengunduh kontrak', { id: 'download-contract' });
                             }
                         }}
-                        className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-blue-700 transition-all text-center shadow-lg shadow-blue-100"
+                        className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-blue-700 transition-all text-center shadow-lg shadow-blue-100 shrink-0"
                     >
                         Unduh Kontrak Kerja (PDF)
                     </button>

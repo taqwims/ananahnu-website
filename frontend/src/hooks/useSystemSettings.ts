@@ -36,6 +36,19 @@ export const useSystemSettings = () => {
         }
     };
 
+    const updateBatch = async (newSettings: { [key: string]: string }, silent = false) => {
+        try {
+            setIsSaving(true);
+            await systemSettingsService.updateBatch(newSettings);
+            setSettings(prev => ({ ...prev, ...newSettings }));
+            if (!silent) toast.success('Semua pengaturan berhasil disimpan');
+        } catch (err: any) {
+            toast.error(err.message || 'Gagal menyimpan pengaturan');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const updateLocalSetting = (key: string, value: string) => {
         setSettings(prev => ({ ...prev, [key]: value }));
     };
@@ -46,6 +59,7 @@ export const useSystemSettings = () => {
         isSaving,
         fetchSettings,
         updateSetting,
+        updateBatch,
         updateLocalSetting
     };
 };

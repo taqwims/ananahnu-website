@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     HelpCircle,
@@ -12,7 +12,6 @@ import {
     ChevronUp,
     ChevronRight,
     CheckCircle2,
-    ExternalLink,
     FileText,
     Users,
     Calendar,
@@ -20,16 +19,129 @@ import {
     Shield,
     ThumbsUp,
     ThumbsDown,
-    PlayCircle
+    PlayCircle,
+    CreditCard,
+    DollarSign,
+    UserCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../../store/authStore';
+import { systemSettingsService } from '../../services/systemSettingsService';
+import { formatWhatsAppUrl } from '../../utils/format';
 
 export default function OperationalHelp() {
     const navigate = useNavigate();
+    const user = useAuthStore(state => state.user);
+    const isClient = user?.role === 'CLIENT';
+
     const [viewMode, setViewMode] = useState<'hub' | 'reader'>('hub');
     const [tab, setTab] = useState<'guide' | 'faq' | 'contact' | 'report'>('guide');
     const [expandedAccordion, setExpandedAccordion] = useState<number | null>(0);
+    const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
     const [feedbackGiven, setFeedbackGiven] = useState<'yes' | 'no' | null>(null);
+    const [adminWaPhone, setAdminWaPhone] = useState('6281564955280');
+    const [supportEmail, setSupportEmail] = useState('support@halalcore.id');
+    const [operationalHours, setOperationalHours] = useState('Senin–Jumat 08.00–17.00 WIB');
+    const [waDefaultMessage, setWaDefaultMessage] = useState('Halo Admin HalalCore, saya butuh bantuan.');
+
+    useEffect(() => {
+        systemSettingsService.getAll().then(res => {
+            const p = res?.CS_PHONE || res?.cs_phone || res?.company_phone || res?.admin_whatsapp_number;
+            if (p) setAdminWaPhone(p);
+            const email = res?.SUPPORT_EMAIL || res?.support_email || res?.company_email || res?.COMPANY_EMAIL;
+            if (email) setSupportEmail(email);
+            const hours = res?.OPERATIONAL_HOURS || res?.operational_hours;
+            if (hours) setOperationalHours(hours);
+            const msg = res?.WHATSAPP_DEFAULT_MESSAGE || res?.whatsapp_default_message;
+            if (msg) setWaDefaultMessage(msg);
+        }).catch(() => {});
+    }, []);
+
+    const clientGuides = [
+        {
+            title: 'Cara Mengajukan Sertifikasi Halal',
+            desc: 'Panduan melengkapi identitas pemilik, NIB, data produk, dan persyaratan usaha.',
+            steps: [
+                'Buka menu Dashboard lalu klik tombol "Mulai Pengajuan".',
+                'Isi data identitas pelaku usaha (KTP, NIK, dan Nomor Kontak aktif).',
+                'Lengkapi profil usaha dan legalitas (NIB, skala usaha, kategori produk, dan foto produk).',
+                'Pilih atau masukkan kode Halal Advisor (pendamping halal) Anda.',
+                'Klik "Kirim Pengajuan" untuk memulai proses verifikasi berkas.',
+            ]
+        },
+        {
+            title: 'Verifikasi Dokumen Kontrak & Pembayaran',
+            desc: 'Langkah membaca, memverifikasi kontrak pendampingan sebelum menyelesaikan tagihan.',
+            steps: [
+                'Buka menu "Daftar Ajuan" lalu pilih pengajuan Anda.',
+                'Buka Tab "2. Dokumen Kontrak" untuk meninjau rincian biaya dan pasal perjanjian.',
+                'Centang persetujuan verifikasi kontrak layanan pendampingan.',
+                'Buka Tab "3. Pembayaran" untuk melihat tagihan dan klik "Bayar Sekarang" via Midtrans.',
+                'Pilih metode pembayaran (Transfer Bank, QRIS, Virtual Account) dan selesaikan transaksi.',
+            ]
+        },
+        {
+            title: 'Akses & Persetujuan Dokumen SJPH',
+            desc: 'Persetujuan Sistem Jaminan Produk Halal setelah pembayaran lunas.',
+            steps: [
+                'Setelah pembayaran berhasil terkonfirmasi lunas, Tab "4. Dokumen SJPH" akan otomatis terbuka.',
+                'Tinjau dokumen format resmi SJPH yang telah disiapkan sesuai standar BPJPH.',
+                'Aktifkan toggle switch "Setujui Dokumen SJPH untuk Melanjutkan Proses".',
+                'Pengajuan Anda akan otomatis diteruskan ke tim Manager Operasional untuk proses audit/sidang fatwa.',
+            ]
+        },
+        {
+            title: 'Penerbitan & Pengunduhan Sertifikat Halal (SH)',
+            desc: 'Cara mengunduh sertifikat halal resmi setelah sidang fatwa selesai.',
+            steps: [
+                'Setelah sidang fatwa MUI menetapkan kehalalan produk, status ajuan menjadi "SH Terbit".',
+                'Buka detail ajuan Anda di HalalCore.',
+                'Klik tombol "Unduh Sertifikat Halal" untuk mengunduh dokumen resmi dalam format PDF.',
+            ]
+        }
+    ];
+
+    const clientFaqs = [
+        {
+            q: 'Apa perbedaan Sertifikasi Halal Reguler dan Self Declare?',
+            a: 'Sertifikasi Self Declare diperuntukkan bagi usaha mikro/kecil dengan produk berisiko rendah dan bahan yang sudah pasti halal tanpa proses audit laboratorium rumit. Sedangkan Reguler diperuntukkan bagi usaha menengah/besar atau produk yang membutuhkan pemeriksaan oleh Lembaga Pemeriksa Halal (LPH) dan auditor halal.'
+        },
+        {
+            q: 'Mengapa saya harus memverifikasi dokumen kontrak sebelum membayar?',
+            a: 'Verifikasi dokumen kontrak memastikan seluruh data pelaku usaha, rincian biaya layanan, hak, serta kewajiban kedua belah pihak telah disepakati secara sah dan transparan sebelum transaksi pembayaran diproses.'
+        },
+        {
+            q: 'Kapan Dokumen SJPH dapat saya akses?',
+            a: 'Dokumen SJPH (Sistem Jaminan Produk Halal) dapat diakses pada Tab ke-4 segera setelah pembayaran tagihan pendampingan berhasil dikonfirmasi (lunas).'
+        },
+        {
+            q: 'Bagaimana metode pembayaran yang didukung HalalCore?',
+            a: 'HalalCore mendukung berbagai metode pembayaran otomatis melalui Midtrans Snap, termasuk Virtual Account Bank (BCA, Mandiri, BNI, BRI, Permata), QRIS (GoPay, OVO, ShopeePay), dan transfer langsung.'
+        },
+        {
+            q: 'Bagaimana jika pengajuan saya membutuhkan revisi data?',
+            a: 'Jika ada data yang belum lengkap atau perlu diperbaiki, Anda akan menerima pemberitahuan revisi beserta catatan perbaikan dari Halal Advisor atau tim QC. Anda dapat langsung mengedit data pada halaman detail pengajuan lalu mengirimkannya kembali.'
+        },
+        {
+            q: 'Bagaimana cara menghubungi Admin atau CS HalalCore?',
+            a: 'Anda dapat menghubungi layanan pelanggan resmi HalalCore melalui tombol WhatsApp yang tersedia di bagian bawah menu sidebar, atau melalui kontak dukungan di halaman Pusat Bantuan ini.'
+        }
+    ];
+
+    const operationalFaqs = [
+        {
+            q: 'Bagaimana cara memfilter pengajuan yang belum memiliki advisor?',
+            a: 'Buka menu Pengajuan Masuk atau Dashboard Marketing, pilih tab "Butuh Tunjuk Advisor" untuk menyaring pengajuan yang belum ditentukan pendampingnya.'
+        },
+        {
+            q: 'Siapa yang berwenang menetapkan tanggal audit sertifikasi reguler?',
+            a: 'Penetapan tanggal audit dilakukan oleh Manager Operasional setelah berkoordinasi dengan pihak LPH dan auditor halal mitra.'
+        },
+        {
+            q: 'Bagaimana alur pengembalian berkas yang perlu perbaikan?',
+            a: 'Tim QC atau Verifikator dapat menggunakan tombol "Pengembalian Data / Catatan Revisi" di panel Workflow Actions dan memilih tujuan (Klien, Advisor, atau Drafter).'
+        }
+    ];
 
     const guides = [
         {
@@ -335,12 +447,21 @@ export default function OperationalHelp() {
     // ==========================================
     // VIEW: HELP HUB (MAIN MENU BANTUAN)
     // ==========================================
+    const activeGuides = isClient ? clientGuides : guides;
+    const activeFaqs = isClient ? clientFaqs : operationalFaqs;
+
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-16">
             {/* Header */}
             <div>
-                <h1 className="text-2xl font-black text-gray-900 tracking-tight">Bantuan</h1>
-                <p className="text-xs text-gray-500 font-medium mt-0.5">Pusat bantuan, panduan penggunaan, dan dukungan sistem untuk Manajer Operasional.</p>
+                <h1 className="text-2xl font-black text-gray-900 tracking-tight">
+                    {isClient ? 'Pusat Bantuan & Panduan Pelaku Usaha' : 'Pusat Bantuan Operasional'}
+                </h1>
+                <p className="text-xs text-gray-500 font-medium mt-0.5">
+                    {isClient 
+                        ? 'Panduan lengkap pengajuan sertifikasi halal, verifikasi kontrak, pembayaran, akses SJPH, dan tanya-jawab umum.' 
+                        : 'Pusat bantuan, panduan penggunaan, dan dukungan sistem untuk Manajer Operasional.'}
+                </p>
             </div>
 
             {/* Top Navigation Tabs */}
@@ -367,125 +488,280 @@ export default function OperationalHelp() {
 
             {/* Main 2-Column Content */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                {/* Left: Panduan Pengguna Accordions & Panduan Cepat Cards */}
+                {/* Left Column */}
                 <div className="lg:col-span-8 space-y-6">
-                    {/* Panduan Pengguna Accordion */}
-                    <div className="bg-white border border-gray-150 rounded-3xl p-6 shadow-sm space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-sm font-black text-gray-900">Panduan Pengguna</h2>
-                            <button
-                                onClick={() => setViewMode('reader')}
-                                className="text-xs font-bold text-brand-600 hover:underline flex items-center gap-1"
-                            >
-                                Buka Reader Mode →
-                            </button>
+                    {/* Mode FAQ */}
+                    {tab === 'faq' ? (
+                        <div className="bg-white border border-gray-150 rounded-3xl p-6 shadow-sm space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-sm font-black text-gray-900 flex items-center gap-2">
+                                    <HelpCircle className="w-4 h-4 text-brand-600" />
+                                    Pertanyaan yang Sering Diajukan (FAQ)
+                                </h2>
+                            </div>
+
+                            <div className="space-y-2 text-xs">
+                                {activeFaqs.map((faq, idx) => {
+                                    const isExpanded = expandedFaq === idx;
+                                    return (
+                                        <div key={idx} className="border border-gray-150 rounded-2xl overflow-hidden">
+                                            <button
+                                                onClick={() => setExpandedFaq(isExpanded ? null : idx)}
+                                                className="w-full p-4 bg-white hover:bg-gray-50 flex items-center justify-between text-left font-bold text-gray-800 transition-colors"
+                                            >
+                                                <span className="text-gray-900 font-bold">{faq.q}</span>
+                                                {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0 ml-2" /> : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0 ml-2" />}
+                                            </button>
+                                            {isExpanded && (
+                                                <div className="p-4 bg-gray-50/80 border-t border-gray-150 text-[11px] text-gray-600 leading-relaxed font-medium">
+                                                    {faq.a}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
-
-                        <div className="space-y-2 text-xs">
-                            {guides.map((item, idx) => {
-                                const isExpanded = expandedAccordion === idx;
-                                return (
-                                    <div key={idx} className="border border-gray-150 rounded-2xl overflow-hidden">
-                                        <button
-                                            onClick={() => setExpandedAccordion(isExpanded ? null : idx)}
-                                            className="w-full p-4 bg-white hover:bg-gray-50 flex items-center justify-between text-left font-bold text-gray-800 transition-colors"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black">
-                                                    <BookOpen className="w-3.5 h-3.5" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-bold text-gray-900">{item.title}</p>
-                                                    <p className="text-[10px] text-gray-400 font-normal">{item.desc}</p>
-                                                </div>
-                                            </div>
-                                            {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-                                        </button>
-
-                                        {isExpanded && (
-                                            <div className="p-4 bg-gray-50 border-t border-gray-150 space-y-2 text-[11px] text-gray-700">
-                                                <p className="font-bold text-gray-900 mb-1">Langkah-langkah:</p>
-                                                {item.steps.map((step, sIdx) => (
-                                                    <div key={sIdx} className="flex items-start gap-2">
-                                                        <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[9px] flex items-center justify-center shrink-0 mt-0.5">
-                                                            {sIdx + 1}
-                                                        </span>
-                                                        <p>{step}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
+                    ) : tab === 'contact' ? (
+                        /* Mode Kontak Dukungan */
+                        <div className="bg-white border border-gray-150 rounded-3xl p-6 shadow-sm space-y-6">
+                            <h2 className="text-sm font-black text-gray-900">Hubungi Tim Layanan HalalCore</h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-100 space-y-2">
+                                    <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
+                                        <MessageSquare className="w-4 h-4" />
                                     </div>
-                                );
-                            })}
+                                    <h4 className="font-bold text-gray-900 text-xs">WhatsApp Admin Resmi</h4>
+                                    <p className="text-[10px] text-gray-500">Respon cepat via pesan WhatsApp untuk konsultasi dan kendala teknis.</p>
+                                    <a 
+                                        href={formatWhatsAppUrl(adminWaPhone, waDefaultMessage)} 
+                                        target="_blank" 
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:underline pt-2"
+                                    >
+                                        Buka Chat WhatsApp →
+                                    </a>
+                                </div>
+                                <div className="p-4 bg-blue-50/60 rounded-2xl border border-blue-100 space-y-2">
+                                    <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
+                                        <Mail className="w-4 h-4" />
+                                    </div>
+                                    <h4 className="font-bold text-gray-900 text-xs">Email Support</h4>
+                                    <p className="text-[10px] text-gray-500">Kirimkan pertanyaan resmi atau lampiran berkas via email.</p>
+                                    <a 
+                                        href={`mailto:${supportEmail}`} 
+                                        className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:underline pt-2"
+                                    >
+                                        {supportEmail} →
+                                    </a>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    ) : tab === 'report' ? (
+                        /* Mode Pelaporan Masalah */
+                        <div className="bg-white border border-gray-150 rounded-3xl p-6 shadow-sm space-y-4">
+                            <h2 className="text-sm font-black text-gray-900">Laporkan Kendala atau Masalah</h2>
+                            <p className="text-xs text-gray-500">Sampaikan kendala teknis yang Anda alami saat menggunakan sistem.</p>
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Judul Kendala</label>
+                                    <input className="glass-input w-full text-xs" placeholder="Contoh: Kesulitan mengunggah file KTP" />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Deskripsi Lengkap</label>
+                                    <textarea className="glass-input w-full text-xs" rows={4} placeholder="Jelaskan detail kendala yang dialami..."></textarea>
+                                </div>
+                                <button 
+                                    onClick={() => toast.success('Laporan Anda berhasil dikirim ke tim support!')}
+                                    className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold text-xs shadow-md transition-all"
+                                >
+                                    Kirim Laporan
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        /* Mode Default: Panduan Pengguna Accordion */
+                        <div className="bg-white border border-gray-150 rounded-3xl p-6 shadow-sm space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-sm font-black text-gray-900">
+                                    {isClient ? 'Panduan Pengajuan Sertifikasi Halal' : 'Panduan Pengguna'}
+                                </h2>
+                                <button
+                                    onClick={() => setViewMode('reader')}
+                                    className="text-xs font-bold text-brand-600 hover:underline flex items-center gap-1"
+                                >
+                                    Buka Reader Mode →
+                                </button>
+                            </div>
 
-                    {/* Panduan Cepat Cards */}
+                            <div className="space-y-2 text-xs">
+                                {activeGuides.map((item, idx) => {
+                                    const isExpanded = expandedAccordion === idx;
+                                    return (
+                                        <div key={idx} className="border border-gray-150 rounded-2xl overflow-hidden">
+                                            <button
+                                                onClick={() => setExpandedAccordion(isExpanded ? null : idx)}
+                                                className="w-full p-4 bg-white hover:bg-gray-50 flex items-center justify-between text-left font-bold text-gray-800 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-7 h-7 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black">
+                                                        <BookOpen className="w-3.5 h-3.5" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-gray-900">{item.title}</p>
+                                                        <p className="text-[10px] text-gray-400 font-normal">{item.desc}</p>
+                                                    </div>
+                                                </div>
+                                                {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                                            </button>
+
+                                            {isExpanded && (
+                                                <div className="p-4 bg-gray-50 border-t border-gray-150 space-y-2 text-[11px] text-gray-700">
+                                                    <p className="font-bold text-gray-900 mb-1">Langkah-langkah:</p>
+                                                    {item.steps.map((step, sIdx) => (
+                                                        <div key={sIdx} className="flex items-start gap-2">
+                                                            <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[9px] flex items-center justify-center shrink-0 mt-0.5">
+                                                                {sIdx + 1}
+                                                            </span>
+                                                            <p>{step}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Panduan Cepat / Akses Menu Cepat */}
                     <div className="space-y-3">
-                        <h2 className="text-sm font-black text-gray-900">Panduan Cepat</h2>
+                        <h2 className="text-sm font-black text-gray-900">Akses Cepat Fitur</h2>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-                            <div
-                                onClick={() => navigate('/dashboard/pengajuan-masuk')}
-                                className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm hover:border-brand-300 transition-all cursor-pointer flex flex-col justify-between"
-                            >
-                                <div className="space-y-2">
-                                    <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                                        <FileText className="w-4 h-4" />
+                            {isClient ? (
+                                <>
+                                    <div
+                                        onClick={() => navigate('/dashboard/submissions')}
+                                        className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm hover:border-brand-300 transition-all cursor-pointer flex flex-col justify-between"
+                                    >
+                                        <div className="space-y-2">
+                                            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                                                <FileText className="w-4 h-4" />
+                                            </div>
+                                            <p className="font-bold text-gray-900">Daftar Ajuan</p>
+                                            <p className="text-[10px] text-gray-500">Lihat seluruh riwayat & status berkas Anda.</p>
+                                        </div>
+                                        <span className="text-[11px] font-bold text-brand-600 mt-3 flex items-center gap-1">Buka →</span>
                                     </div>
-                                    <p className="font-bold text-gray-900">Pengajuan Masuk</p>
-                                    <p className="text-[10px] text-gray-500">Kelola dan tindak lanjuti pengajuan yang masuk.</p>
-                                </div>
-                                <span className="text-[11px] font-bold text-brand-600 mt-3 flex items-center gap-1">Buka →</span>
-                            </div>
 
-                            <div
-                                onClick={() => navigate('/dashboard/pengajuan-masuk')}
-                                className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm hover:border-brand-300 transition-all cursor-pointer flex flex-col justify-between"
-                            >
-                                <div className="space-y-2">
-                                    <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                                        <Users className="w-4 h-4" />
+                                    <div
+                                        onClick={() => navigate('/dashboard/submissions')}
+                                        className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm hover:border-brand-300 transition-all cursor-pointer flex flex-col justify-between"
+                                    >
+                                        <div className="space-y-2">
+                                            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                                                <CreditCard className="w-4 h-4" />
+                                            </div>
+                                            <p className="font-bold text-gray-900">Pembayaran Pengajuan</p>
+                                            <p className="text-[10px] text-gray-500">Selesaikan pembayaran di Tab 3 detail pengajuan.</p>
+                                        </div>
+                                        <span className="text-[11px] font-bold text-brand-600 mt-3 flex items-center gap-1">Buka →</span>
                                     </div>
-                                    <p className="font-bold text-gray-900">Penugasan & Alur</p>
-                                    <p className="text-[10px] text-gray-500">Atur penugasan QCO, HDO, dan Verifikator.</p>
-                                </div>
-                                <span className="text-[11px] font-bold text-brand-600 mt-3 flex items-center gap-1">Buka →</span>
-                            </div>
 
-                            <div
-                                onClick={() => navigate('/dashboard/manajemen-audit')}
-                                className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm hover:border-brand-300 transition-all cursor-pointer flex flex-col justify-between"
-                            >
-                                <div className="space-y-2">
-                                    <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-                                        <Calendar className="w-4 h-4" />
+                                    <div
+                                        onClick={() => navigate('/dashboard/estimasi')}
+                                        className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm hover:border-brand-300 transition-all cursor-pointer flex flex-col justify-between"
+                                    >
+                                        <div className="space-y-2">
+                                            <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+                                                <DollarSign className="w-4 h-4" />
+                                            </div>
+                                            <p className="font-bold text-gray-900">Perhitungan Tarif</p>
+                                            <p className="text-[10px] text-gray-500">Simulasi biaya sertifikasi reguler.</p>
+                                        </div>
+                                        <span className="text-[11px] font-bold text-brand-600 mt-3 flex items-center gap-1">Buka →</span>
                                     </div>
-                                    <p className="font-bold text-gray-900">Manajemen Audit</p>
-                                    <p className="text-[10px] text-gray-500">Buat jadwal, monitor pelaksanaan audit.</p>
-                                </div>
-                                <span className="text-[11px] font-bold text-brand-600 mt-3 flex items-center gap-1">Buka →</span>
-                            </div>
 
-                            <div
-                                onClick={() => navigate('/dashboard/pengaturan-operasional')}
-                                className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm hover:border-brand-300 transition-all cursor-pointer flex flex-col justify-between"
-                            >
-                                <div className="space-y-2">
-                                    <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-                                        <Shield className="w-4 h-4" />
+                                    <div
+                                        onClick={() => navigate('/dashboard/profile')}
+                                        className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm hover:border-brand-300 transition-all cursor-pointer flex flex-col justify-between"
+                                    >
+                                        <div className="space-y-2">
+                                            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                                                <UserCircle className="w-4 h-4" />
+                                            </div>
+                                            <p className="font-bold text-gray-900">Profil Usaha</p>
+                                            <p className="text-[10px] text-gray-500">Perbarui data profil & kontak akun.</p>
+                                        </div>
+                                        <span className="text-[11px] font-bold text-brand-600 mt-3 flex items-center gap-1">Buka →</span>
                                     </div>
-                                    <p className="font-bold text-gray-900">Kuota Fasilitasi</p>
-                                    <p className="text-[10px] text-gray-500">Atur kuota fasilitasi self declare per periode.</p>
-                                </div>
-                                <span className="text-[11px] font-bold text-brand-600 mt-3 flex items-center gap-1">Buka →</span>
-                            </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div
+                                        onClick={() => navigate('/dashboard/pengajuan-masuk')}
+                                        className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm hover:border-brand-300 transition-all cursor-pointer flex flex-col justify-between"
+                                    >
+                                        <div className="space-y-2">
+                                            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                                                <FileText className="w-4 h-4" />
+                                            </div>
+                                            <p className="font-bold text-gray-900">Pengajuan Masuk</p>
+                                            <p className="text-[10px] text-gray-500">Kelola dan tindak lanjuti pengajuan yang masuk.</p>
+                                        </div>
+                                        <span className="text-[11px] font-bold text-brand-600 mt-3 flex items-center gap-1">Buka →</span>
+                                    </div>
+
+                                    <div
+                                        onClick={() => navigate('/dashboard/pengajuan-masuk')}
+                                        className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm hover:border-brand-300 transition-all cursor-pointer flex flex-col justify-between"
+                                    >
+                                        <div className="space-y-2">
+                                            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                                                <Users className="w-4 h-4" />
+                                            </div>
+                                            <p className="font-bold text-gray-900">Penugasan & Alur</p>
+                                            <p className="text-[10px] text-gray-500">Atur penugasan QCO, HDO, dan Verifikator.</p>
+                                        </div>
+                                        <span className="text-[11px] font-bold text-brand-600 mt-3 flex items-center gap-1">Buka →</span>
+                                    </div>
+
+                                    <div
+                                        onClick={() => navigate('/dashboard/manajemen-audit')}
+                                        className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm hover:border-brand-300 transition-all cursor-pointer flex flex-col justify-between"
+                                    >
+                                        <div className="space-y-2">
+                                            <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+                                                <Calendar className="w-4 h-4" />
+                                            </div>
+                                            <p className="font-bold text-gray-900">Manajemen Audit</p>
+                                            <p className="text-[10px] text-gray-500">Buat jadwal, monitor pelaksanaan audit.</p>
+                                        </div>
+                                        <span className="text-[11px] font-bold text-brand-600 mt-3 flex items-center gap-1">Buka →</span>
+                                    </div>
+
+                                    <div
+                                        onClick={() => navigate('/dashboard/pengaturan-operasional')}
+                                        className="p-4 bg-white border border-gray-150 rounded-2xl shadow-sm hover:border-brand-300 transition-all cursor-pointer flex flex-col justify-between"
+                                    >
+                                        <div className="space-y-2">
+                                            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                                                <Shield className="w-4 h-4" />
+                                            </div>
+                                            <p className="font-bold text-gray-900">Kuota Fasilitasi</p>
+                                            <p className="text-[10px] text-gray-500">Atur kuota fasilitasi self declare per periode.</p>
+                                        </div>
+                                        <span className="text-[11px] font-bold text-brand-600 mt-3 flex items-center gap-1">Buka →</span>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
 
-                {/* Right: Hubungi Dukungan, Status Sistem, Dokumen Populer */}
+                {/* Right Column: Kontak WhatsApp, Status, dll. */}
                 <div className="lg:col-span-4 space-y-5">
                     {/* Hubungi Dukungan */}
                     <div className="p-6 bg-white border border-gray-150 rounded-3xl shadow-sm space-y-4 text-xs">
@@ -493,23 +769,23 @@ export default function OperationalHelp() {
                             <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
                                 <MessageSquare className="w-4 h-4" />
                             </div>
-                            <p className="font-black text-gray-900 text-sm">Hubungi Dukungan</p>
+                            <p className="font-black text-gray-900 text-sm">Hubungi Layanan Bantuan</p>
                         </div>
 
                         <div className="space-y-3 border-t border-gray-100 pt-3 text-gray-600">
                             <div className="flex items-start gap-2.5">
-                                <Mail className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                                <Phone className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                                 <div>
-                                    <p className="text-[10px] text-gray-400">Email</p>
-                                    <p className="font-bold text-gray-800">support@halalcore.id</p>
+                                    <p className="text-[10px] text-gray-400">WhatsApp Resmi CS</p>
+                                    <p className="font-bold text-gray-800">{adminWaPhone}</p>
                                 </div>
                             </div>
 
                             <div className="flex items-start gap-2.5">
-                                <Phone className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                                <Mail className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
                                 <div>
-                                    <p className="text-[10px] text-gray-400">WhatsApp / Telepon</p>
-                                    <p className="font-bold text-gray-800">0812-3456-7890</p>
+                                    <p className="text-[10px] text-gray-400">Email Resmi</p>
+                                    <p className="font-bold text-gray-800 break-all">{supportEmail}</p>
                                 </div>
                             </div>
 
@@ -517,23 +793,25 @@ export default function OperationalHelp() {
                                 <HelpCircle className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
                                 <div>
                                     <p className="text-[10px] text-gray-400">Jam Layanan</p>
-                                    <p className="font-bold text-gray-800">Senin–Jumat 08.00–17.00 WIB</p>
+                                    <p className="font-bold text-gray-800">{operationalHours}</p>
                                 </div>
                             </div>
                         </div>
 
                         <div className="space-y-2 pt-2">
-                            <button
-                                onClick={() => toast.success('Tiket bantuan dibuat')}
-                                className="w-full py-2.5 bg-brand-700 hover:bg-brand-800 text-white rounded-xl font-black shadow-md flex items-center justify-center gap-2"
+                            <a
+                                href={formatWhatsAppUrl(adminWaPhone, waDefaultMessage)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black shadow-md flex items-center justify-center gap-2 transition-all active:scale-95"
                             >
-                                <Mail className="w-4 h-4" /> Kirim Tiket Bantuan
-                            </button>
+                                <MessageSquare className="w-4 h-4" /> Chat WhatsApp Admin
+                            </a>
                             <button
                                 onClick={() => toast.success('Mengunduh panduan lengkap...')}
                                 className="w-full py-2.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl font-bold flex items-center justify-center gap-2"
                             >
-                                <Download className="w-4 h-4" /> Unduh Panduan
+                                <Download className="w-4 h-4" /> Unduh Panduan PDF
                             </button>
                         </div>
                     </div>
@@ -546,31 +824,7 @@ export default function OperationalHelp() {
                         </div>
                         <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-200 space-y-0.5">
                             <p className="font-bold text-emerald-900">Sistem berjalan normal</p>
-                            <p className="text-[10px] text-emerald-700">Semua layanan berjalan dengan baik.</p>
-                        </div>
-                        <p className="text-[11px] font-bold text-brand-600 cursor-pointer hover:underline">Lihat Detail Status →</p>
-                    </div>
-
-                    {/* Dokumentasi Populer */}
-                    <div className="p-5 bg-white border border-gray-150 rounded-3xl shadow-sm space-y-3 text-xs">
-                        <p className="font-black text-gray-900">Dokumentasi Populer</p>
-                        <div className="space-y-2">
-                            <a href="#" className="flex items-center justify-between text-gray-700 hover:text-brand-700 py-1 font-medium border-b border-gray-100">
-                                <span>Panduan Dashboard</span>
-                                <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
-                            </a>
-                            <a href="#" className="flex items-center justify-between text-gray-700 hover:text-brand-700 py-1 font-medium border-b border-gray-100">
-                                <span>SOP Operasional</span>
-                                <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
-                            </a>
-                            <a href="#" className="flex items-center justify-between text-gray-700 hover:text-brand-700 py-1 font-medium border-b border-gray-100">
-                                <span>Panduan Self Declare</span>
-                                <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
-                            </a>
-                            <a href="#" className="flex items-center justify-between text-gray-700 hover:text-brand-700 py-1 font-medium">
-                                <span>Panduan Audit Reguler</span>
-                                <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
-                            </a>
+                            <p className="text-[10px] text-emerald-700">Layanan HalalCore aktif & terhubung BPJPH.</p>
                         </div>
                     </div>
                 </div>

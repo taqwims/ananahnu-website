@@ -46,7 +46,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
     useEffect(() => {
         setDataSource('ORGANIK');
     }, [user?.role]);
-    const [salesSchemeId, setSalesSchemeId] = useState('');
+    const [salesSchemeId, setSalesSchemeId] = useState('1');
     const [businessTypeId, setBusinessTypeId] = useState('');
     const [productId, setProductId] = useState('');
     const [businessScaleId, setBusinessScaleId] = useState('');
@@ -709,23 +709,6 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                         <option value="SELF_DECLARE">Self Declare Fasilitasi (Gratis / Rp 0)</option>
                     </select>
                 </div>
-
-                {/* Skema Selection - only for REGULER */}
-                {!isAdvisorOrManager && serviceType === 'REGULER' && (
-                    <div className="grid grid-cols-1 gap-3">
-                        <div>
-                            <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Skema Penjualan</label>
-                            <select
-                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all font-bold text-brand-700"
-                                value={salesSchemeId}
-                                onChange={e => setSalesSchemeId(e.target.value)}
-                            >
-                                <option value="">Pilih Skema...</option>
-                                {schemes.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                            </select>
-                        </div>
-                    </div>
-                )}
 
                 <div className="bg-brand-50 border border-brand-100 p-3 rounded-xl flex gap-2 text-brand-850 text-xs">
                     <BookOpen className="w-4 h-4 text-brand-600 shrink-0 mt-0.5" />

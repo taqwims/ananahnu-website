@@ -1,16 +1,141 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Download, Loader2, Printer } from 'lucide-react';
 import type { Submission } from '../../../types';
 import toast from 'react-hot-toast';
 import { submissionService } from '../../../services/submissionService';
+import { systemSettingsService } from '../../../services/systemSettingsService';
 
 interface ContractTextPreviewProps {
     submission: Submission;
 }
 
+const formatFieldLabel = (label?: string, key?: string) => {
+    const raw = (label || key || '').trim();
+    if (!raw) return '-';
+    const dict: Record<string, string> = {
+        'ingredient list': 'Daftar Bahan (Ingredient List)',
+        'ingredient_list': 'Daftar Bahan (Ingredient List)',
+        'product_list': 'Daftar Produk',
+        'product list': 'Daftar Produk',
+        'matrix_bahan': 'Matriks Bahan',
+        'ingredient_matrix': 'Matriks Bahan',
+        'email': 'Email Akun OSS',
+        'password': 'Password Akun OSS',
+    };
+    if (dict[raw.toLowerCase()]) return dict[raw.toLowerCase()];
+    return raw.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+};
+
+const renderFieldValue = (raw?: string) => {
+    if (!raw) return <span className="text-gray-400 italic">-</span>;
+    const trimmed = raw.trim();
+
+    if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+        try {
+            const parsed = JSON.parse(trimmed);
+
+            // 1. Array of Objects (e.g. ingredient list, product list)
+            if (Array.isArray(parsed)) {
+                if (parsed.length === 0) return <span className="text-gray-400 italic">Tidak ada data</span>;
+
+                if (typeof parsed[0] === 'object' && parsed[0] !== null) {
+                    const allKeys = Array.from(new Set(parsed.flatMap(item => Object.keys(item || {}))));
+
+                    const formatHeader = (k: string) => {
+                        const map: Record<string, string> = {
+                            nama: 'Nama Bahan / Produk',
+                            nama_bahan: 'Nama Bahan',
+                            nama_produk: 'Nama Produk',
+                            produsen: 'Produsen / Pabrik',
+                            penerbit: 'Lembaga Penerbit Halal',
+                            no_id: 'No. Sertifikat / ID',
+                            no_sertifikat: 'No. Sertifikat',
+                            tanggal: 'Masa Berlaku / Tanggal',
+                            merk: 'Merek',
+                            status: 'Status',
+                            bahan: 'Bahan',
+                        };
+                        return map[k.toLowerCase()] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                    };
+
+                    return (
+                        <div className="overflow-x-auto my-1">
+                            <table className="w-full text-[11px] border border-gray-200 rounded-lg overflow-hidden bg-white shadow-2xs">
+                                <thead>
+                                    <tr className="bg-sky-50/80 text-sky-950 font-bold border-b border-gray-200 text-left">
+                                        <th className="p-1.5 border-r border-gray-200 text-center w-8">No</th>
+                                        {allKeys.map(k => (
+                                            <th key={k} className="p-1.5 border-r border-gray-200 last:border-r-0 whitespace-nowrap">
+                                                {formatHeader(k)}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {parsed.map((item, idx) => (
+                                        <tr key={idx} className="hover:bg-slate-50/60">
+                                            <td className="p-1.5 border-r border-gray-200 text-center font-bold text-gray-500 bg-gray-50/30">
+                                                {idx + 1}
+                                            </td>
+                                            {allKeys.map(k => {
+                                                const val = item[k];
+                                                const valStr = typeof val === 'object' ? JSON.stringify(val) : String(val ?? '-');
+                                                return (
+                                                    <td key={k} className="p-1.5 border-r border-gray-200 text-gray-800 last:border-r-0 break-words font-medium">
+                                                        {valStr}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    );
+                }
+
+                // 2. Array of Strings / Primitives
+                return (
+                    <ul className="list-disc list-inside space-y-0.5 text-xs text-gray-800">
+                        {parsed.map((item, i) => (
+                            <li key={i}>{String(item)}</li>
+                        ))}
+                    </ul>
+                );
+            }
+
+            // 3. Single Object
+            if (typeof parsed === 'object' && parsed !== null) {
+                return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 p-2 bg-slate-50 rounded-lg border border-slate-200 text-xs">
+                        {Object.entries(parsed).map(([k, v]) => (
+                            <div key={k} className="flex gap-1.5">
+                                <span className="font-bold text-gray-600 capitalize">{k.replace(/_/g, ' ')}:</span>
+                                <span className="text-gray-900">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
+                            </div>
+                        ))}
+                    </div>
+                );
+            }
+        } catch {
+            // Fall through to plain text if JSON parse fails
+        }
+    }
+
+    return <span>{raw}</span>;
+};
+
 export default function ContractTextPreview({ submission }: ContractTextPreviewProps) {
     const [downloading, setDownloading] = useState(false);
+    const [supportEmail, setSupportEmail] = useState('support@halalcore.id');
     const client = submission.client;
+
+    useEffect(() => {
+        systemSettingsService.getAll().then(res => {
+            const email = res?.SUPPORT_EMAIL || res?.support_email || res?.company_email || res?.COMPANY_EMAIL;
+            if (email) setSupportEmail(email);
+        }).catch(() => {});
+    }, []);
 
     const handlePrint = () => {
         const printElem = document.getElementById(`contract-doc-${submission.id}`);
@@ -131,17 +256,17 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
     return (
         <div className="space-y-4 max-w-4xl mx-auto">
             {/* Top Action Bar */}
-            <div className="flex justify-between items-center bg-indigo-50/80 p-3 sm:p-4 rounded-xl border border-indigo-100 font-sans no-print">
-                <div>
-                    <span className="text-xs font-bold text-indigo-950 block">Dokumen Kontrak Layanan Pendampingan & SJPH</span>
-                    <span className="text-[11px] text-indigo-700">Unduh dokumen Kontrak Layanan & Lampiran Data (PDF) atau cetak draf.</span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-indigo-50/80 p-3.5 sm:p-4 rounded-2xl border border-indigo-100 font-sans no-print">
+                <div className="min-w-0">
+                    <span className="text-xs font-bold text-indigo-950 block truncate">Dokumen Kontrak Layanan Pendampingan</span>
+                    <span className="text-[11px] text-indigo-700 block">Unduh dokumen Kontrak Layanan & Lampiran Data (PDF) atau cetak draf.</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
                     <button
                         type="button"
                         onClick={handleDownloadContract}
                         disabled={downloading}
-                        className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 shadow-sm shrink-0 disabled:opacity-50"
+                        className="flex-1 sm:flex-none px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm shrink-0 disabled:opacity-50"
                     >
                         {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                         <span>Download PDF</span>
@@ -149,7 +274,7 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
                     <button
                         type="button"
                         onClick={handlePrint}
-                        className="px-3.5 py-2.5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-sm shrink-0"
+                        className="flex-1 sm:flex-none px-3.5 py-2.5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm shrink-0"
                     >
                         <Printer className="w-4 h-4 text-gray-500" />
                         <span>Cetak Draf</span>
@@ -157,7 +282,7 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
                 </div>
             </div>
 
-            <div id={`contract-doc-${submission.id}`} className="space-y-8 text-xs text-gray-800 leading-relaxed font-serif bg-white p-4 sm:p-10 border border-gray-200 rounded-xl shadow-lg">
+            <div id={`contract-doc-${submission.id}`} className="space-y-8 text-xs text-gray-800 leading-relaxed font-serif bg-white p-4 sm:p-10 border border-gray-200 rounded-xl shadow-lg overflow-hidden break-words">
                 {/* Logo and Header Block */}
                 <div className="flex justify-between items-start border-b border-gray-200 pb-4">
                 <div className="text-left space-y-1 font-sans">
@@ -172,8 +297,8 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
             </div>
 
             {/* Meta Table */}
-            <div className="font-sans">
-                <table className="w-full text-xs border-collapse border border-gray-200 rounded-lg overflow-hidden">
+            <div className="font-sans overflow-x-auto">
+                <table className="w-full text-xs border-collapse border border-gray-200 rounded-lg overflow-hidden min-w-[340px]">
                     <tbody>
                         <tr>
                             <td className="w-1/3 border border-gray-200 bg-sky-50/50 p-2.5 font-bold text-sky-900">Nomor Pengajuan</td>
@@ -428,79 +553,84 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
                 {/* Table Identitas */}
                 <div className="space-y-2">
                     <h5 className="font-bold text-sky-900 text-xs">A. IDENTITAS PENGAJU</h5>
-                    <table className="w-full text-xs border-collapse border border-gray-200 rounded-lg overflow-hidden">
-                        <tbody>
-                            <tr>
-                                <td className="w-1/3 border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Nama Pelaku Usaha</td>
-                                <td className="border border-gray-200 p-2">{client.client_name}</td>
-                            </tr>
-                            <tr>
-                                <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Nama Usaha / Merek</td>
-                                <td className="border border-gray-200 p-2">{clientName} / {brandName}</td>
-                            </tr>
-                            <tr>
-                                <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">NIB</td>
-                                <td className="border border-gray-200 p-2">{client.nib || '-'}</td>
-                            </tr>
-                            <tr>
-                                <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Skala Usaha</td>
-                                <td className="border border-gray-200 p-2">{submission.cost_detail?.business_scale?.name || '-'}</td>
-                            </tr>
-                            <tr>
-                                <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Alamat Usaha</td>
-                                <td className="border border-gray-200 p-2">{address}</td>
-                            </tr>
-                            <tr>
-                                <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Narahubung</td>
-                                <td className="border border-gray-200 p-2">{client.client_name} | {client.phone} | {clientEmail}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse border border-gray-200 rounded-lg overflow-hidden min-w-[340px]">
+                            <tbody>
+                                <tr>
+                                    <td className="w-1/3 border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Nama Pelaku Usaha</td>
+                                    <td className="border border-gray-200 p-2">{client.client_name}</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Nama Usaha / Merek</td>
+                                    <td className="border border-gray-200 p-2">{clientName} / {brandName}</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">NIB</td>
+                                    <td className="border border-gray-200 p-2">{client.nib || '-'}</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Skala Usaha</td>
+                                    <td className="border border-gray-200 p-2">{submission.cost_detail?.business_scale?.name || '-'}</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Alamat Usaha</td>
+                                    <td className="border border-gray-200 p-2 break-words">{address}</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Narahubung</td>
+                                    <td className="border border-gray-200 p-2">{client.client_name} | {client.phone} | {clientEmail}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 {/* Table Ruang Lingkup */}
                 <div className="space-y-2">
                     <h5 className="font-bold text-sky-900 text-xs">B. RUANG LINGKUP PENGAJUAN</h5>
-                    <table className="w-full text-xs border-collapse border border-gray-200 rounded-lg overflow-hidden">
-                        <tbody>
-                            <tr>
-                                <td className="w-1/3 border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Skema</td>
-                                <td className="border border-gray-200 p-2">{submission.service_type}</td>
-                            </tr>
-                            <tr>
-                                <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Paket</td>
-                                <td className="border border-gray-200 p-2">{brandName}</td>
-                            </tr>
-                            <tr>
-                                <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Kategori Produk</td>
-                                <td className="border border-gray-200 p-2">{submission.cost_detail?.product_category?.name || '-'}</td>
-                            </tr>
-                            <tr>
-                                <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Produk/Varian</td>
-                                <td className="border border-gray-200 p-2">{submission.product_count} produk/varian — {brandName}</td>
-                            </tr>
-                            <tr>
-                                <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Pabrik/Cabang</td>
-                                <td className="border border-gray-200 p-2">{submission.branch_count} lokasi — Lokasi Fasilitas Utama</td>
-                            </tr>
-                            <tr>
-                                <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Ketentuan Khusus</td>
-                                <td className="border border-gray-200 p-2">-</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse border border-gray-200 rounded-lg overflow-hidden min-w-[340px]">
+                            <tbody>
+                                <tr>
+                                    <td className="w-1/3 border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Skema</td>
+                                    <td className="border border-gray-200 p-2">{submission.service_type}</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Paket</td>
+                                    <td className="border border-gray-200 p-2">{brandName}</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Kategori Produk</td>
+                                    <td className="border border-gray-200 p-2">{submission.cost_detail?.product_category?.name || '-'}</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Produk/Varian</td>
+                                    <td className="border border-gray-200 p-2">{submission.product_count} produk/varian — {brandName}</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Pabrik/Cabang</td>
+                                    <td className="border border-gray-200 p-2">{submission.branch_count} lokasi — Lokasi Fasilitas Utama</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Ketentuan Khusus</td>
+                                    <td className="border border-gray-200 p-2">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 {/* Table Rincian Biaya (Dynamic) */}
                 <div className="space-y-2">
                     <h5 className="font-bold text-sky-900 text-xs">C. RINCIAN BIAYA</h5>
-                    <table className="w-full text-xs border-collapse border border-gray-200 rounded-lg overflow-hidden">
-                        <thead>
-                            <tr className="bg-sky-900 text-white text-left font-bold">
-                                <th className="p-2.5">Komponen Biaya</th>
-                                <th className="p-2.5 text-right w-1/3">Jumlah</th>
-                            </tr>
-                        </thead>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse border border-gray-200 rounded-lg overflow-hidden min-w-[340px]">
+                            <thead>
+                                <tr className="bg-sky-900 text-white text-left font-bold">
+                                    <th className="p-2.5">Komponen Biaya</th>
+                                    <th className="p-2.5 text-right w-1/3">Jumlah</th>
+                                </tr>
+                            </thead>
                         <tbody>
                             {breakdown.length > 0 ? (
                                 breakdown.map((item, idx) => (
@@ -528,6 +658,7 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
                             </tr>
                         </tbody>
                     </table>
+                    </div>
                 </div>
 
                 {/* Table Kontak Resmi */}
@@ -535,7 +666,7 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
                     <h5 className="font-bold text-sky-900 text-xs">D. KONTAK RESMI</h5>
                     <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg text-[10px] space-y-1 font-sans text-slate-700">
                         <p>
-                            <strong>D. KONTAK RESMI.</strong> Halal Advisor: {advisorName} (ID {advisorId}), {submission.consultant?.phone || '-'}, {submission.consultant?.email || '-'} | Layanan pelanggan: support@halalcore.id.
+                            <strong>D. KONTAK RESMI.</strong> Halal Advisor: {advisorName} (ID {advisorId}), {submission.consultant?.phone || '-'}, {submission.consultant?.email || '-'} | Layanan pelanggan: {supportEmail}.
                         </p>
                     </div>
                 </div>
@@ -564,31 +695,33 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
 
                 <div className="space-y-4 pt-4">
                     <h5 className="font-bold text-center uppercase text-sky-900 text-xs">KONFIRMASI PIHAK KEDUA</h5>
-                    <table className="w-full text-xs border-collapse border border-gray-200 rounded-lg overflow-hidden">
-                        <tbody>
-                            <tr>
-                                <td className="w-1/3 border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Nama Penanda Tangan</td>
-                                <td className="border border-gray-200 p-2">{client.client_name}</td>
-                            </tr>
-                            <tr>
-                                <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Kapasitas</td>
-                                <td className="border border-gray-200 p-2">Pemohon</td>
-                            </tr>
-                            <tr>
-                                <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Tanggal/Waktu</td>
-                                <td className="border border-gray-200 p-2">{generatedAtLocal}</td>
-                            </tr>
-                            <tr>
-                                <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Tanda Tangan/Afirmasi</td>
-                                <td className="border border-gray-200 p-2">
-                                    <div className="inline-flex items-center space-x-2 border border-green-200 bg-green-50 text-green-700 px-2 py-0.5 rounded text-[10px]">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                                        <span className="font-bold">DISETUJUI SECARA ELEKTRONIK</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse border border-gray-200 rounded-lg overflow-hidden min-w-[340px]">
+                            <tbody>
+                                <tr>
+                                    <td className="w-1/3 border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Nama Penanda Tangan</td>
+                                    <td className="border border-gray-200 p-2">{client.client_name}</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Kapasitas</td>
+                                    <td className="border border-gray-200 p-2">Pemohon</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Tanggal/Waktu</td>
+                                    <td className="border border-gray-200 p-2">{generatedAtLocal}</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-200 bg-sky-50/50 p-2 font-bold text-sky-900">Tanda Tangan/Afirmasi</td>
+                                    <td className="border border-gray-200 p-2">
+                                        <div className="inline-flex items-center space-x-2 border border-green-200 bg-green-50 text-green-700 px-2 py-0.5 rounded text-[10px]">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                            <span className="font-bold">DISETUJUI SECARA ELEKTRONIK</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -669,30 +802,34 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
                     </div>
                 </div>
 
+
+
                 {/* Table Data Isian Form */}
                 {submission.field_values && submission.field_values.filter(fv => fv.text_value && !fv.text_value.startsWith('/uploads') && !fv.text_value.startsWith('http')).length > 0 && (
                     <div className="space-y-3 pt-2">
                         <h5 className="font-bold text-sky-900 text-xs uppercase">B. DATA ISIAN PROFIL & PROSES PRODUK</h5>
-                        <table className="w-full text-xs border-collapse border border-gray-200 rounded-lg overflow-hidden">
-                            <thead>
-                                <tr className="bg-sky-50 font-bold text-sky-900 text-left">
-                                    <th className="p-2.5 border border-gray-200 w-1/3">Keterangan / Pertanyaan</th>
-                                    <th className="p-2.5 border border-gray-200">Jawaban / Nilai Isian</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {submission.field_values.filter(fv => fv.text_value && !fv.text_value.startsWith('/uploads') && !fv.text_value.startsWith('http')).map((fv, idx) => (
-                                    <tr key={idx} className="hover:bg-slate-50/40">
-                                        <td className="border border-gray-200 p-2 font-bold text-gray-700 bg-gray-50/30">
-                                            {fv.form_field?.field_label || fv.form_field?.field_key || `Data ${idx + 1}`}
-                                        </td>
-                                        <td className="border border-gray-200 p-2 text-gray-900 font-medium">
-                                            {fv.text_value}
-                                        </td>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-xs border-collapse border border-gray-200 rounded-lg overflow-hidden min-w-[340px]">
+                                <thead>
+                                    <tr className="bg-sky-50 font-bold text-sky-900 text-left">
+                                        <th className="p-2.5 border border-gray-200 w-1/3">Keterangan / Pertanyaan</th>
+                                        <th className="p-2.5 border border-gray-200">Jawaban / Nilai Isian</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {submission.field_values.filter(fv => fv.text_value && !fv.text_value.startsWith('/uploads') && !fv.text_value.startsWith('http')).map((fv, idx) => (
+                                        <tr key={idx} className="hover:bg-slate-50/40">
+                                            <td className="border border-gray-200 p-2 font-bold text-gray-700 bg-gray-50/30 align-top">
+                                                {formatFieldLabel(fv.form_field?.field_label, fv.form_field?.field_key)}
+                                            </td>
+                                            <td className="border border-gray-200 p-2 text-gray-900 font-medium break-words align-top">
+                                                {renderFieldValue(fv.text_value)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
             </div>

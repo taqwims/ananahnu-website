@@ -118,17 +118,17 @@ export default function SJPHTextPreview({ submission }: SJPHTextPreviewProps) {
             {/* In-App Printable Document Sheet */}
             <div 
                 id={`sjph-doc-${submission.id}`}
-                className="bg-white p-8 sm:p-12 rounded-3xl border border-gray-200 shadow-xl space-y-8 font-sans text-gray-900 leading-relaxed text-xs sm:text-sm"
+                className="bg-white p-5 sm:p-12 rounded-3xl border border-gray-200 shadow-xl space-y-8 font-sans text-gray-900 leading-relaxed text-xs sm:text-sm overflow-hidden break-words"
             >
                 {/* Header Kop */}
                 <div className="text-center border-b-2 border-gray-900 pb-6 space-y-1">
-                    <h2 className="text-base sm:text-lg font-black tracking-tight uppercase text-gray-900">
+                    <h2 className="text-sm sm:text-lg font-black tracking-tight uppercase text-gray-900">
                         MANUAL SISTEM JAMINAN PRODUK HALAL (SJPH)
                     </h2>
-                    <h3 className="text-sm sm:text-base font-black text-emerald-800 uppercase tracking-wide">
+                    <h3 className="text-xs sm:text-base font-black text-emerald-800 uppercase tracking-wide">
                         {businessName}
                     </h3>
-                    <p className="text-[11px] text-gray-600 font-medium">
+                    <p className="text-[10px] sm:text-[11px] text-gray-600 font-medium">
                         Berdasarkan Keputusan Kepala Badan Penyelenggara Jaminan Produk Halal (BPJPH) Kemenag RI
                     </p>
                 </div>
@@ -139,33 +139,33 @@ export default function SJPHTextPreview({ submission }: SJPHTextPreviewProps) {
                         I. INFORMASI DAN PROFIL PELAKU USAHA
                     </h4>
                     <div className="border border-gray-200 rounded-xl overflow-hidden text-xs">
-                        <div className="grid grid-cols-3 border-b border-gray-200 p-2.5 bg-gray-50/50">
-                            <span className="font-bold text-gray-600">Nama Usaha / Merk</span>
-                            <span className="col-span-2 font-bold text-gray-900">{businessName}</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-gray-200 p-2.5 bg-gray-50/50 gap-0.5 sm:gap-0">
+                            <span className="font-bold text-gray-600 sm:col-span-1">Nama Usaha / Merk</span>
+                            <span className="sm:col-span-2 font-bold text-gray-900 break-words">{businessName}</span>
                         </div>
-                        <div className="grid grid-cols-3 border-b border-gray-200 p-2.5">
-                            <span className="font-bold text-gray-600">Penanggung Jawab / Pimpinan</span>
-                            <span className="col-span-2 font-bold text-gray-900">{clientName}</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-gray-200 p-2.5 gap-0.5 sm:gap-0">
+                            <span className="font-bold text-gray-600 sm:col-span-1">Penanggung Jawab / Pimpinan</span>
+                            <span className="sm:col-span-2 font-bold text-gray-900 break-words">{clientName}</span>
                         </div>
-                        <div className="grid grid-cols-3 border-b border-gray-200 p-2.5 bg-gray-50/50">
-                            <span className="font-bold text-gray-600">Nomor Induk Berusaha (NIB)</span>
-                            <span className="col-span-2 font-mono font-bold text-gray-900">{nib}</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-gray-200 p-2.5 bg-gray-50/50 gap-0.5 sm:gap-0">
+                            <span className="font-bold text-gray-600 sm:col-span-1">Nomor Induk Berusaha (NIB)</span>
+                            <span className="sm:col-span-2 font-mono font-bold text-gray-900 break-words">{nib}</span>
                         </div>
-                        <div className="grid grid-cols-3 border-b border-gray-200 p-2.5">
-                            <span className="font-bold text-gray-600">Nomor Induk Kependudukan (NIK)</span>
-                            <span className="col-span-2 font-mono font-bold text-gray-900">{nik}</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-gray-200 p-2.5 gap-0.5 sm:gap-0">
+                            <span className="font-bold text-gray-600 sm:col-span-1">Nomor Induk Kependudukan (NIK)</span>
+                            <span className="sm:col-span-2 font-mono font-bold text-gray-900 break-words">{nik}</span>
                         </div>
-                        <div className="grid grid-cols-3 border-b border-gray-200 p-2.5 bg-gray-50/50">
-                            <span className="font-bold text-gray-600">Alamat Fasilitas Produksi</span>
-                            <span className="col-span-2 text-gray-900 font-medium">{address}</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-gray-200 p-2.5 bg-gray-50/50 gap-0.5 sm:gap-0">
+                            <span className="font-bold text-gray-600 sm:col-span-1">Alamat Fasilitas Produksi</span>
+                            <span className="sm:col-span-2 text-gray-900 font-medium break-words">{address}</span>
                         </div>
-                        <div className="grid grid-cols-3 border-b border-gray-200 p-2.5">
-                            <span className="font-bold text-gray-600">Kelompok / Jenis Produk</span>
-                            <span className="col-span-2 font-bold text-gray-900">{productName}</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-gray-200 p-2.5 gap-0.5 sm:gap-0">
+                            <span className="font-bold text-gray-600 sm:col-span-1">Kelompok / Jenis Produk</span>
+                            <span className="sm:col-span-2 font-bold text-gray-900 break-words">{productName}</span>
                         </div>
-                        <div className="grid grid-cols-3 p-2.5 bg-gray-50/50">
-                            <span className="font-bold text-gray-600">Pendamping Proses Produk Halal</span>
-                            <span className="col-span-2 font-bold text-emerald-800">{advisorName} ({advisorPhone})</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 p-2.5 bg-gray-50/50 gap-0.5 sm:gap-0">
+                            <span className="font-bold text-gray-600 sm:col-span-1">Pendamping Proses Produk Halal</span>
+                            <span className="sm:col-span-2 font-bold text-emerald-800 break-words">{advisorName} ({advisorPhone})</span>
                         </div>
                     </div>
                 </div>

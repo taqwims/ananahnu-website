@@ -67,6 +67,44 @@ export default function SubmissionReportPreview({ submission, fieldValues = [] }
         printWindow.document.close();
     };
 
+    const handleOpenInNewTab = () => {
+        const printElem = document.getElementById(`submission-report-doc-${submission.id}`);
+        if (!printElem) return;
+        const newWindow = window.open('', '_blank');
+        if (!newWindow) {
+            toast.error('Gagal membuka tab baru. Izinkan popup browser Anda.');
+            return;
+        }
+        newWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Laporan Data & Pengajuan - ${client?.business_name || client?.client_name || 'Pelaku Usaha'}</title>
+                <script src="https://cdn.tailwindcss.com"></script>
+                <style>
+                    body { padding: 32px; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; color: #0f172a; }
+                    @media print {
+                        .no-print { display: none !important; }
+                        body { padding: 0; background: #fff; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="max-w-4xl mx-auto bg-white p-8 sm:p-12 rounded-3xl shadow-sm border border-slate-200">
+                    <div class="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-gray-100 no-print">
+                        <div class="text-xs text-gray-500 font-bold">Laporan Pengajuan Sertifikasi Halal</div>
+                        <button onclick="window.print()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow cursor-pointer transition-all">
+                            Cetak / Simpan PDF
+                        </button>
+                    </div>
+                    ${printElem.outerHTML}
+                </div>
+            </body>
+            </html>
+        `);
+        newWindow.document.close();
+    };
+
     const handleDownloadPDF = () => {
         setDownloading(true);
         toast.loading('Membuka dialog cetak / simpan PDF...', { id: 'report-pdf' });
@@ -89,41 +127,50 @@ export default function SubmissionReportPreview({ submission, fieldValues = [] }
             {/* Header Box & Actions */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-150 pb-5 no-print">
                 <div 
-                    className="flex items-center gap-3.5 cursor-pointer select-none"
+                    className="flex items-center gap-3.5 cursor-pointer select-none min-w-0"
                     onClick={() => setIsCollapsed(!isCollapsed)}
                 >
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 shadow-sm shrink-0">
-                        <FileText className="w-6 h-6" />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 shadow-sm shrink-0">
+                        <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                            <h3 className="text-lg font-black text-gray-900 tracking-tight">
+                            <h3 className="text-base sm:text-lg font-black text-gray-900 tracking-tight truncate">
                                 Laporan Data & Dokumen Pengajuan
                             </h3>
-                            {isCollapsed ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronUp className="w-4 h-4 text-gray-400" />}
+                            {isCollapsed ? <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />}
                         </div>
-                        <p className="text-xs text-gray-500 font-medium mt-0.5">
+                        <p className="text-xs text-gray-500 font-medium mt-0.5 truncate">
                             Pratinjau lengkap seluruh isian profil, foto produk, berkas legalitas, dan dokumen persyaratan.
                         </p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 flex-wrap w-full sm:w-auto">
+                    <button
+                        type="button"
+                        onClick={handleOpenInNewTab}
+                        className="flex-1 sm:flex-none px-3.5 py-2.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                        title="Buka Pratinjau Laporan di Tab Baru"
+                    >
+                        <ExternalLink className="w-4 h-4 shrink-0" />
+                        <span>Buka di Tab Baru</span>
+                    </button>
                     <button
                         type="button"
                         onClick={handleDownloadPDF}
                         disabled={downloading}
-                        className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 shadow-md shadow-indigo-100 disabled:opacity-50"
+                        className="flex-1 sm:flex-none px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-md shadow-indigo-100 disabled:opacity-50"
                     >
-                        <Download className="w-4 h-4" />
+                        <Download className="w-4 h-4 shrink-0" />
                         <span>Unduh PDF</span>
                     </button>
                     <button
                         type="button"
                         onClick={handlePrintOrDownloadPDF}
-                        className="px-3.5 py-2.5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
+                        className="flex-1 sm:flex-none px-3.5 py-2.5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
                     >
-                        <Printer className="w-4 h-4 text-gray-600" />
+                        <Printer className="w-4 h-4 text-gray-600 shrink-0" />
                         <span>Cetak</span>
                     </button>
                 </div>
@@ -133,17 +180,17 @@ export default function SubmissionReportPreview({ submission, fieldValues = [] }
             {!isCollapsed && (
                 <div 
                     id={`submission-report-doc-${submission.id}`}
-                    className="p-6 sm:p-10 bg-slate-50/70 border border-slate-200 rounded-2xl space-y-8 font-sans text-xs sm:text-sm text-gray-900 leading-relaxed"
+                    className="p-4 sm:p-10 bg-slate-50/70 border border-slate-200 rounded-2xl space-y-8 font-sans text-xs sm:text-sm text-gray-900 leading-relaxed overflow-hidden break-words"
                 >
                     {/* Header Kop Laporan */}
                     <div className="text-center border-b-2 border-gray-900 pb-6 space-y-1">
-                        <h2 className="text-sm font-black tracking-widest uppercase text-indigo-900">
+                        <h2 className="text-xs sm:text-sm font-black tracking-widest uppercase text-indigo-900">
                             PT ANA NAHNU INDONESIA &bull; HALALCORE
                         </h2>
-                        <h1 className="text-base sm:text-lg font-black tracking-tight uppercase text-gray-900">
+                        <h1 className="text-sm sm:text-lg font-black tracking-tight uppercase text-gray-900">
                             LAPORAN DATA PENGAJUAN SERTIFIKASI HALAL
                         </h1>
-                        <p className="text-[11px] text-gray-500 font-medium">
+                        <p className="text-[10px] sm:text-[11px] text-gray-500 font-medium">
                             Nomor Resi: <strong className="font-mono text-gray-900">{submission.tracking_number || '-'}</strong> &bull; Layanan: <strong>{submission.service_type || '-'}</strong> &bull; Tanggal: <strong>{dateStr}</strong>
                         </p>
                     </div>
@@ -154,39 +201,39 @@ export default function SubmissionReportPreview({ submission, fieldValues = [] }
                             A. INFORMASI PELAKU USAHA & USAHA
                         </h4>
                         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden text-xs">
-                            <div className="grid grid-cols-3 border-b border-gray-200 p-2.5 bg-gray-50/50">
-                                <span className="font-bold text-gray-600">Nama Usaha / Bisnis</span>
-                                <span className="col-span-2 font-bold text-gray-900">{client.business_name || '-'}</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-gray-200 p-2.5 bg-gray-50/50 gap-0.5 sm:gap-0">
+                                <span className="font-bold text-gray-600 sm:col-span-1">Nama Usaha / Bisnis</span>
+                                <span className="sm:col-span-2 font-bold text-gray-900 break-words">{client.business_name || '-'}</span>
                             </div>
-                            <div className="grid grid-cols-3 border-b border-gray-200 p-2.5">
-                                <span className="font-bold text-gray-600">Nama Penanggung Jawab / Pemilik</span>
-                                <span className="col-span-2 font-bold text-gray-900">{client.client_name || '-'}</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-gray-200 p-2.5 gap-0.5 sm:gap-0">
+                                <span className="font-bold text-gray-600 sm:col-span-1">Nama Penanggung Jawab / Pemilik</span>
+                                <span className="sm:col-span-2 font-bold text-gray-900 break-words">{client.client_name || '-'}</span>
                             </div>
-                            <div className="grid grid-cols-3 border-b border-gray-200 p-2.5 bg-gray-50/50">
-                                <span className="font-bold text-gray-600">Nomor Induk Berusaha (NIB)</span>
-                                <span className="col-span-2 font-mono font-bold text-gray-900">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-gray-200 p-2.5 bg-gray-50/50 gap-0.5 sm:gap-0">
+                                <span className="font-bold text-gray-600 sm:col-span-1">Nomor Induk Berusaha (NIB)</span>
+                                <span className="sm:col-span-2 font-mono font-bold text-gray-900 break-words">
                                     {client.nib && !client.nib.startsWith('DRAFT-') ? client.nib : '-'}
                                 </span>
                             </div>
-                            <div className="grid grid-cols-3 border-b border-gray-200 p-2.5">
-                                <span className="font-bold text-gray-600">Nomor Induk Kependudukan (NIK)</span>
-                                <span className="col-span-2 font-mono font-bold text-gray-900">{client.nik || '-'}</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-gray-200 p-2.5 gap-0.5 sm:gap-0">
+                                <span className="font-bold text-gray-600 sm:col-span-1">Nomor Induk Kependudukan (NIK)</span>
+                                <span className="sm:col-span-2 font-mono font-bold text-gray-900 break-words">{client.nik || '-'}</span>
                             </div>
-                            <div className="grid grid-cols-3 border-b border-gray-200 p-2.5 bg-gray-50/50">
-                                <span className="font-bold text-gray-600">Alamat Fasilitas / Tempat Usaha</span>
-                                <span className="col-span-2 text-gray-900">{client.address || '-'}</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-gray-200 p-2.5 bg-gray-50/50 gap-0.5 sm:gap-0">
+                                <span className="font-bold text-gray-600 sm:col-span-1">Alamat Fasilitas / Tempat Usaha</span>
+                                <span className="sm:col-span-2 text-gray-900 break-words">{client.address || '-'}</span>
                             </div>
-                            <div className="grid grid-cols-3 border-b border-gray-200 p-2.5">
-                                <span className="font-bold text-gray-600">Nomor Telepon / WhatsApp</span>
-                                <span className="col-span-2 font-mono text-gray-900">{client.phone || '-'}</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-gray-200 p-2.5 gap-0.5 sm:gap-0">
+                                <span className="font-bold text-gray-600 sm:col-span-1">Nomor Telepon / WhatsApp</span>
+                                <span className="sm:col-span-2 font-mono text-gray-900 break-words">{client.phone || '-'}</span>
                             </div>
-                            <div className="grid grid-cols-3 border-b border-gray-200 p-2.5 bg-gray-50/50">
-                                <span className="font-bold text-gray-600">Kelompok / Jenis Produk</span>
-                                <span className="col-span-2 font-bold text-gray-900">{client.product_name || '-'}</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-gray-200 p-2.5 bg-gray-50/50 gap-0.5 sm:gap-0">
+                                <span className="font-bold text-gray-600 sm:col-span-1">Kelompok / Jenis Produk</span>
+                                <span className="sm:col-span-2 font-bold text-gray-900 break-words">{client.product_name || '-'}</span>
                             </div>
-                            <div className="grid grid-cols-3 p-2.5">
-                                <span className="font-bold text-gray-600">Pendamping Halal</span>
-                                <span className="col-span-2 font-bold text-indigo-700">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 p-2.5 gap-0.5 sm:gap-0">
+                                <span className="font-bold text-gray-600 sm:col-span-1">Pendamping Halal</span>
+                                <span className="sm:col-span-2 font-bold text-indigo-700 break-words">
                                     {submission.consultant?.full_name || client.facilitator?.full_name || 'Pendamping Halal Terverifikasi'}
                                 </span>
                             </div>
@@ -297,13 +344,13 @@ export default function SubmissionReportPreview({ submission, fieldValues = [] }
 
                                                     {/* PRODUCT_LIST */}
                                                     {type === 'PRODUCT_LIST' && (
-                                                        <div className="border border-gray-200 rounded-xl overflow-hidden">
+                                                        <div className="border border-gray-200 rounded-xl overflow-x-auto">
                                                             {(() => {
                                                                 try {
                                                                     const products: { nama: string; foto_url?: string }[] = JSON.parse(textVal);
                                                                     if (Array.isArray(products) && products.length > 0) {
                                                                         return (
-                                                                            <table className="w-full text-xs">
+                                                                            <table className="w-full text-xs min-w-[340px]">
                                                                                 <thead className="bg-gray-100 text-gray-700 font-bold border-b border-gray-200">
                                                                                     <tr>
                                                                                         <th className="p-2 w-12 text-center">No</th>
@@ -340,13 +387,13 @@ export default function SubmissionReportPreview({ submission, fieldValues = [] }
 
                                                     {/* INGREDIENT_LIST */}
                                                     {type === 'INGREDIENT_LIST' && (
-                                                        <div className="border border-gray-200 rounded-xl overflow-hidden">
+                                                        <div className="border border-gray-200 rounded-xl overflow-x-auto">
                                                             {(() => {
                                                                 try {
                                                                     const ingredients: { nama: string; produsen?: string; penerbit?: string; no_id?: string; tanggal?: string }[] = JSON.parse(textVal);
                                                                     if (Array.isArray(ingredients) && ingredients.length > 0) {
                                                                         return (
-                                                                            <table className="w-full text-xs">
+                                                                            <table className="w-full text-xs min-w-[400px]">
                                                                                 <thead className="bg-gray-100 text-gray-700 font-bold border-b border-gray-200">
                                                                                     <tr>
                                                                                         <th className="p-2 w-10 text-center">No</th>
@@ -378,13 +425,13 @@ export default function SubmissionReportPreview({ submission, fieldValues = [] }
 
                                                     {/* INGREDIENT_MATRIX */}
                                                     {type === 'INGREDIENT_MATRIX' && (
-                                                        <div className="border border-gray-200 rounded-xl overflow-hidden">
+                                                        <div className="border border-gray-200 rounded-xl overflow-x-auto">
                                                             {(() => {
                                                                 try {
                                                                     const items: { nama_produk: string; bahan: string[] }[] = JSON.parse(textVal);
                                                                     if (Array.isArray(items) && items.length > 0) {
                                                                         return (
-                                                                            <table className="w-full text-xs">
+                                                                            <table className="w-full text-xs min-w-[360px]">
                                                                                 <thead className="bg-gray-100 text-gray-700 font-bold border-b border-gray-200">
                                                                                     <tr>
                                                                                         <th className="p-2 w-12 text-center">No</th>
@@ -397,7 +444,7 @@ export default function SubmissionReportPreview({ submission, fieldValues = [] }
                                                                                         <tr key={i}>
                                                                                             <td className="p-2 text-center font-bold text-gray-500">{i + 1}</td>
                                                                                             <td className="p-2 font-bold text-gray-900">{row.nama_produk}</td>
-                                                                                            <td className="p-2 text-gray-700">
+                                                                                            <td className="p-2 text-gray-700 break-words">
                                                                                                 {(row.bahan || []).join(', ') || '-'}
                                                                                             </td>
                                                                                         </tr>

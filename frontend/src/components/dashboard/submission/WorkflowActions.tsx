@@ -299,7 +299,7 @@ export const WorkflowActions = ({
 
     return (
         <>
-            <div className="glass-panel p-6 shadow-2xl border border-white/40 lg:sticky lg:top-6 z-20 bg-white max-h-[calc(100vh-3rem)] overflow-y-auto custom-scrollbar">
+            <div className="glass-panel p-6 shadow-xl border border-white/40 bg-white">
                 <h3 className="text-lg font-black text-gray-800 tracking-tight mb-6 flex items-center gap-2">
                     <div className="w-1.5 h-6 bg-brand-600 rounded-full"></div>
                     Workflow Actions
@@ -353,7 +353,7 @@ export const WorkflowActions = ({
                                 )}
                             </div>
 
-                            {(user?.role === 'BUSINESS_DEVELOPMENT' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
+                            {(user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
                                 <div className="bg-white/80 p-3 rounded-xl border border-amber-100 space-y-2">
                                     <label className="block text-[10px] font-black text-amber-800 uppercase tracking-widest">
                                         {submission.audit_date ? 'Ubah Tanggal Audit' : 'Tetapkan Tanggal Audit'}
@@ -408,7 +408,7 @@ export const WorkflowActions = ({
                                 </div>
                             ) : (
                                 <div className="text-center text-xs font-semibold text-amber-700 bg-amber-100/40 p-3 rounded-xl border border-amber-200/40">
-                                    Jadwal audit belum ditetapkan oleh Marketing & BD Manager.
+                                    Jadwal audit belum ditetapkan
                                 </div>
                             )}
                         </div>

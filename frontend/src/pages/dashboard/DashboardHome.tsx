@@ -5,7 +5,8 @@ import { useAuthStore } from '../../store/authStore';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import StatsCard from '../../components/ui/StatsCard';
 import api from '../../services/api';
-import { formatNumber } from '../../utils/format';
+import { formatNumber, formatWhatsAppUrl } from '../../utils/format';
+import { systemSettingsService } from '../../services/systemSettingsService';
 import type { AuditLog } from '../../types';
 import OperationalManagerDashboard from './OperationalManagerDashboard';
 import MarketingManagerDashboard from './MarketingManagerDashboard';
@@ -31,6 +32,8 @@ export default function DashboardHome() {
 
     const [clientSubmissions, setClientSubmissions] = useState<any[]>([]);
     const [loadingClient, setLoadingClient] = useState(user?.role === 'CLIENT');
+    const [adminWaPhone, setAdminWaPhone] = useState('6281564955280');
+    const [waMessage, setWaMessage] = useState('Halo Admin HalalCore, saya membutuhkan bantuan terkait pengajuan sertifikasi halal.');
 
     useEffect(() => {
         if (user?.role === 'CLIENT') {
@@ -38,6 +41,13 @@ export default function DashboardHome() {
                 .then(res => setClientSubmissions(res.data || []))
                 .catch(err => console.error(err))
                 .finally(() => setLoadingClient(false));
+
+            systemSettingsService.getAll().then(res => {
+                const p = res?.CS_PHONE || res?.cs_phone || res?.company_phone || res?.admin_whatsapp_number;
+                if (p) setAdminWaPhone(p);
+                const msg = res?.WHATSAPP_DEFAULT_MESSAGE || res?.whatsapp_default_message;
+                if (msg) setWaMessage(msg);
+            }).catch(() => {});
         }
     }, [user]);
 
@@ -400,7 +410,7 @@ export default function DashboardHome() {
                                 <p className="text-xs text-gray-500 font-medium mt-0.5">Tim HalalCore siap membantu Anda.</p>
                             </div>
                             <a
-                                href="https://wa.me/6281234567890"
+                                href={formatWhatsAppUrl(adminWaPhone, waMessage)}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="w-full py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 active:scale-95"
