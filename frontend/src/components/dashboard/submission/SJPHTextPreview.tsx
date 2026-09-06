@@ -3,12 +3,15 @@ import { Download, Loader2, Printer, ShieldCheck, CheckCircle2 } from 'lucide-re
 import type { Submission } from '../../../types';
 import toast from 'react-hot-toast';
 import { submissionService } from '../../../services/submissionService';
+import { useAuthStore } from '../../../store/authStore';
 
 interface SJPHTextPreviewProps {
     submission: Submission;
 }
 
 export default function SJPHTextPreview({ submission }: SJPHTextPreviewProps) {
+    const { user } = useAuthStore();
+    const isClient = user?.role === 'CLIENT';
     const [downloading, setDownloading] = useState(false);
     const client = submission.client;
 
@@ -89,7 +92,10 @@ export default function SJPHTextPreview({ submission }: SJPHTextPreviewProps) {
                         </h4>
                     </div>
                     <p className="text-xs text-emerald-800 font-medium mt-1">
-                        Format resmi sesuai standar BPJPH Kemenag RI. Anda dapat meninjau, mencetak, atau mengunduh sebagai PDF.
+                        {isClient
+                            ? "Format resmi sesuai standar BPJPH Kemenag RI. Unduh dokumen dalam format PDF untuk meninjau isinya."
+                            : "Format resmi sesuai standar BPJPH Kemenag RI. Anda dapat meninjau, mencetak, atau mengunduh sebagai PDF."
+                        }
                     </p>
                 </div>
 
@@ -115,10 +121,13 @@ export default function SJPHTextPreview({ submission }: SJPHTextPreviewProps) {
                 </div>
             </div>
 
-            {/* In-App Printable Document Sheet */}
+            {/* In-App Printable Document Sheet - Hidden for CLIENT to only show download */}
             <div 
                 id={`sjph-doc-${submission.id}`}
-                className="bg-white p-5 sm:p-12 rounded-3xl border border-gray-200 shadow-xl space-y-8 font-sans text-gray-900 leading-relaxed text-xs sm:text-sm overflow-hidden break-words"
+                className={isClient 
+                    ? "hidden" 
+                    : "bg-white p-5 sm:p-12 rounded-3xl border border-gray-200 shadow-xl space-y-8 font-sans text-gray-900 leading-relaxed text-xs sm:text-sm overflow-hidden break-words"
+                }
             >
                 {/* Header Kop */}
                 <div className="text-center border-b-2 border-gray-900 pb-6 space-y-1">

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CreditCard, Upload, CheckCircle, Loader2, AlertCircle, Clock, ExternalLink, RefreshCw, Download, Zap } from 'lucide-react';
+import { CreditCard, Upload, CheckCircle, Loader2, AlertCircle, Clock, ExternalLink, RefreshCw, Download, Zap, Plus } from 'lucide-react';
 import api from '../../services/api';
 import { loadSnapJs, isSnapReady } from '../../utils/midtrans';
 import { useAuthStore } from '../../store/authStore';
@@ -7,6 +7,7 @@ import { formatRupiah } from '../../utils/format';
 import { toast } from 'react-hot-toast';
 import type { Submission, Payment, FormFieldValue } from '../../types';
 import FileUpload from './FileUpload';
+import ManageCostComponentsModal from './submission/ManageCostComponentsModal';
 
 interface PaymentSectionProps {
     submission: Submission;
@@ -38,6 +39,8 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
 
     const user = useAuthStore((state) => state.user);
     const isEditable = user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR';
+    const canManagePricing = user?.role === 'HALAL_ADVISOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'ADMIN' || user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'DIRECTOR' || user?.role === 'MARKETING';
+    const [showManageModal, setShowManageModal] = useState(false);
 
     // Load active payment settings on mount
     useEffect(() => {
@@ -600,40 +603,56 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
             </div>
 
             {/* Cost Breakdown */}
-            {submission.cost_detail?.cost_breakdown_data && (
-                <div className="mb-4 bg-white rounded-xl border border-gray-200 overflow-hidden">
-                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+            {(submission.cost_detail?.cost_breakdown_data || canManagePricing) && (
+                <div className="mb-4 bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
                         <h4 className="text-sm font-semibold text-gray-700">Rincian Biaya</h4>
+                        {canManagePricing && (
+                            <button
+                                type="button"
+                                onClick={() => setShowManageModal(true)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+                            >
+                                <Plus className="w-3.5 h-3.5" />
+                                Kelola Komponen Harga
+                            </button>
+                        )}
                     </div>
-                    <div className="p-4 overflow-x-auto">
-                        <table className="w-full text-left text-xs">
-                            <thead className="bg-gray-50/50">
-                                <tr>
-                                    <th className="py-2 px-3 font-semibold text-gray-600">Komponen</th>
-                                    <th className="py-2 px-3 font-semibold text-gray-600 text-center">Qty</th>
-                                    <th className="py-2 px-3 font-semibold text-gray-600 text-right">Harga</th>
-                                    <th className="py-2 px-3 font-semibold text-gray-600 text-right">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {(() => {
-                                    try {
-                                        const breakdown = JSON.parse(submission.cost_detail.cost_breakdown_data);
-                                        return breakdown.map((item: any, idx: number) => (
-                                             <tr key={idx} className="hover:bg-gray-50/50">
-                                                <td className="py-2 px-3 text-gray-800">{item.name || item.category || item.item_name}</td>
-                                                <td className="py-2 px-3 text-gray-600 text-center">{item.multiplier || item.quantity || 1}</td>
-                                                <td className="py-2 px-3 text-gray-600 text-right">{formatRupiah(item.unit_cost !== undefined ? item.unit_cost : (item.amount || item.unit_price || 0))}</td>
-                                                <td className="py-2 px-3 font-medium text-gray-800 text-right">{formatRupiah(item.total || 0)}</td>
-                                            </tr>
-                                        ));
-                                    } catch (e) {
-                                        return null;
-                                    }
-                                })()}
-                            </tbody>
-                        </table>
-                    </div>
+                    {submission.cost_detail?.cost_breakdown_data ? (
+                        <div className="p-4 overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                                <thead className="bg-gray-50/50">
+                                    <tr>
+                                        <th className="py-2 px-3 font-semibold text-gray-600">Komponen</th>
+                                        <th className="py-2 px-3 font-semibold text-gray-600 text-center">Qty</th>
+                                        <th className="py-2 px-3 font-semibold text-gray-600 text-right">Harga</th>
+                                        <th className="py-2 px-3 font-semibold text-gray-600 text-right">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {(() => {
+                                        try {
+                                            const breakdown = JSON.parse(submission.cost_detail.cost_breakdown_data);
+                                            return breakdown.map((item: any, idx: number) => (
+                                                 <tr key={idx} className="hover:bg-gray-50/50">
+                                                    <td className="py-2 px-3 text-gray-800">{item.name || item.category || item.item_name}</td>
+                                                    <td className="py-2 px-3 text-gray-600 text-center">{item.multiplier || item.quantity || 1}</td>
+                                                    <td className="py-2 px-3 text-gray-600 text-right">{formatRupiah(item.unit_cost !== undefined ? item.unit_cost : (item.amount || item.unit_price || 0))}</td>
+                                                    <td className="py-2 px-3 font-medium text-gray-800 text-right">{formatRupiah(item.total || 0)}</td>
+                                                </tr>
+                                            ));
+                                        } catch (e) {
+                                            return null;
+                                        }
+                                    })()}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <div className="p-4 text-center text-xs text-gray-400">
+                            Belum ada rincian komponen biaya. Klik &quot;Kelola Komponen Harga&quot; di atas untuk menambahkan rincian tarif.
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -812,6 +831,17 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
                         </div>
                     )}
                 </div>
+            )}
+
+            {showManageModal && (
+                <ManageCostComponentsModal
+                    isOpen={showManageModal}
+                    onClose={() => setShowManageModal(false)}
+                    submission={submission}
+                    onSaved={() => {
+                        onPaymentSuccess();
+                    }}
+                />
             )}
         </div>
     );

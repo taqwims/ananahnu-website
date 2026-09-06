@@ -1,4 +1,4 @@
-import { FileText, Plus } from 'lucide-react';
+import { FileText, Plus, Trash2 } from 'lucide-react';
 import { useSubmissionList } from '../../hooks/useSubmissionList';
 import { SubmissionStats } from '../../components/dashboard/submission/list/SubmissionStats';
 import { SubmissionFilters } from '../../components/dashboard/submission/list/SubmissionFilters';
@@ -13,7 +13,7 @@ export default function SubmissionList() {
         isGrouped, setIsGrouped, showCreateModal, setShowCreateModal,
         newSub, setNewSub, sortKey, sortOrder,
         expandedGroups, setExpandedGroups, copiedId, confirmModal, setConfirmModal,
-        handleDelete, handleSort, handleCopy, handleCreate,
+        handleDelete, handleSort, handleCopy, handleCreate, handlePurgeAll,
         stats, filteredData, groupedData, user, navigate, STATUS_ORDER
     } = useSubmissionList();
 
@@ -31,17 +31,30 @@ export default function SubmissionList() {
                     <p className="text-gray-500 mt-1 font-medium">Kelola dan pantau status sertifikasi halal Anda</p>
                 </div>
 
-                {(user?.role === 'CLIENT' || user?.role === 'DIRECTOR' || user?.role === 'MARKETING' || user?.role === 'BUSINESS_DEVELOPMENT') && (
-                    <div className="relative group">
+                <div className="flex items-center gap-3 flex-wrap">
+                    {(user?.role === 'ADMIN' || user?.role === 'DIRECTOR') && (
                         <button
-                            onClick={() => navigate('/dashboard/pengajuan')}
-                            className="group relative px-6 py-3 rounded-2xl font-bold shadow-xl flex items-center gap-2 overflow-hidden transition-all bg-brand-900 text-white shadow-brand-100 hover:scale-[1.02] active:scale-95"
+                            onClick={handlePurgeAll}
+                            className="px-4 py-2.5 rounded-2xl font-bold text-xs flex items-center gap-2 border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all shadow-sm"
+                            title="Bersihkan semua data pengajuan untuk keperluan mode dev/testing di VPS"
                         >
-                            <Plus className="w-5 h-5" />
-                            Buat Pengajuan Baru
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                            Bersihkan Semua Pengajuan (Dev)
                         </button>
-                    </div>
-                )}
+                    )}
+
+                    {(user?.role === 'CLIENT' || user?.role === 'DIRECTOR' || user?.role === 'MARKETING' || user?.role === 'BUSINESS_DEVELOPMENT') && (
+                        <div className="relative group">
+                            <button
+                                onClick={() => navigate('/dashboard/pengajuan')}
+                                className="group relative px-6 py-3 rounded-2xl font-bold shadow-xl flex items-center gap-2 overflow-hidden transition-all bg-brand-900 text-white shadow-brand-100 hover:scale-[1.02] active:scale-95"
+                            >
+                                <Plus className="w-5 h-5" />
+                                Buat Pengajuan Baru
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
             <SubmissionStats stats={stats} />

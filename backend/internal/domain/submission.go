@@ -108,6 +108,7 @@ type SubmissionRepository interface {
 	UpdateBusinessType(id uuid.UUID, businessTypeID int64) error
 	FindByTrackingNumber(trackingNumber string) (*Submission, error)
 	Delete(id uuid.UUID) error
+	PurgeAll() error
 	UpdateBPJPHPayment(id uuid.UUID, status string, amount float64, paidAt *time.Time) error
 	UpdateBPJPHPaymentBulk(ids []uuid.UUID, status string, amount float64, paidAt *time.Time) error
 	Update(submission *Submission) error

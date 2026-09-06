@@ -185,20 +185,87 @@ func (r *submissionRepository) FindByTrackingNumber(trackingNumber string) (*dom
 
 func (r *submissionRepository) Delete(id uuid.UUID) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
-		// Delete related field values first
+		// 1. Delete field values
 		if err := tx.Where("submission_id = ?", id).Delete(&domain.FormFieldValue{}).Error; err != nil {
 			return err
 		}
-		// Delete payments
+		// 2. Delete submission files
+		if err := tx.Where("submission_id = ?", id).Delete(&domain.SubmissionFile{}).Error; err != nil {
+			return err
+		}
+		// 3. Delete cost details
+		if err := tx.Where("submission_id = ?", id).Delete(&domain.SubmissionCostDetail{}).Error; err != nil {
+			return err
+		}
+		// 4. Delete SPH
+		if err := tx.Where("submission_id = ?", id).Delete(&domain.SPH{}).Error; err != nil {
+			return err
+		}
+		// 5. Delete commissions (referral/sales)
+		if err := tx.Where("submission_id = ?", id).Delete(&domain.Commission{}).Error; err != nil {
+			return err
+		}
+		// 6. Delete expenses
+		if err := tx.Where("submission_id = ?", id).Delete(&domain.Expense{}).Error; err != nil {
+			return err
+		}
+		// 7. Unlink telemarketing forms
+		if err := tx.Model(&domain.TeleForm{}).Where("submission_id = ?", id).Update("submission_id", nil).Error; err != nil {
+			return err
+		}
+		// 8. Delete payments
 		if err := tx.Where("submission_id = ?", id).Delete(&domain.Payment{}).Error; err != nil {
 			return err
 		}
-		// Delete invoices
+		// 9. Delete invoices
 		if err := tx.Where("submission_id = ?", id).Delete(&domain.Invoice{}).Error; err != nil {
 			return err
 		}
-		// Delete the submission itself
+		// 10. Delete audit logs
+		if err := tx.Where("entity_type = ? AND entity_id = ?", "SUBMISSION", id.String()).Delete(&domain.AuditLog{}).Error; err != nil {
+			return err
+		}
+		// 11. Delete the submission itself
 		if err := tx.Where("id = ?", id).Delete(&domain.Submission{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+func (r *submissionRepository) PurgeAll() error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("DELETE FROM form_field_values").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM submission_files").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM submission_cost_details").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM sphs").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM commissions WHERE submission_id IS NOT NULL").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM expenses WHERE submission_id IS NOT NULL").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE tele_forms SET submission_id = NULL WHERE submission_id IS NOT NULL").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM payments WHERE submission_id IS NOT NULL").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM invoices WHERE submission_id IS NOT NULL").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM audit_logs WHERE entity_type = 'SUBMISSION'").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM submissions").Error; err != nil {
 			return err
 		}
 		return nil

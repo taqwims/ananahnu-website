@@ -496,7 +496,7 @@ export default function SubmissionDetail() {
                                                 )}
 
                                             {invoice && (
-                                                <SubmissionInvoice invoice={invoice} submissionId={submission.id} submission={submission} />
+                                                <SubmissionInvoice invoice={invoice} submissionId={submission.id} submission={submission} onRefresh={refresh} />
                                             )}
                                         </>
                                     )}
@@ -561,7 +561,7 @@ export default function SubmissionDetail() {
                                                             <span>Persetujuan Dokumen SJPH oleh Pelaku Usaha</span>
                                                         </h4>
                                                         <p className="text-xs text-gray-500 font-medium leading-relaxed">
-                                                            Silakan pelajari Dokumen SJPH di atas. Aktifkan toggle persetujuan di bawah ini untuk menyetujui dan melanjutkan proses pengajuan ke tahap berikutnya.
+                                                            Silakan unduh dan pelajari Dokumen SJPH di atas. Aktifkan toggle persetujuan di bawah ini untuk menyetujui dan melanjutkan proses pengajuan ke tahap berikutnya.
                                                         </p>
                                                     </div>
 
@@ -800,7 +800,7 @@ export default function SubmissionDetail() {
                         )}
 
                     {invoice && (
-                        <SubmissionInvoice invoice={invoice} submissionId={submission.id} submission={submission} />
+                        <SubmissionInvoice invoice={invoice} submissionId={submission.id} submission={submission} onRefresh={refresh} />
                     )}
                 </div>
 

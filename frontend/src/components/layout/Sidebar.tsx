@@ -53,7 +53,7 @@ const GROUPS: SidebarGroup[] = [
             { name: 'Profil Saya',  pathKey: 'profile',     to: '/dashboard/profile',            icon: UserCircle },
             { name: 'Pengajuan',    pathKey: 'pengajuan',   to: '/dashboard/pengajuan',          icon: FileText },
             { name: 'Klien',        pathKey: 'clients',     to: '/dashboard/clients',            icon: Users },
-            { name: 'Pengajuan',    pathKey: 'submissions', to: '/dashboard/submissions',        icon: FileText },
+            { name: 'Daftar Pengajuan', pathKey: 'submissions', to: '/dashboard/submissions',        icon: FileText },
             { name: 'Tagihan Self Declare', pathKey: 'my-invoices', to: '/dashboard/my-invoices',        icon: CreditCard },
             { name: 'Estimasi Biaya', pathKey: 'estimasi',   to: '/dashboard/estimasi',           icon: DollarSign },
             { name: 'Pusat Bantuan', pathKey: 'bantuan',     to: '/dashboard/bantuan',            icon: BookOpen },
@@ -182,13 +182,13 @@ const Sidebar = ({ isOpen, toggle }: SidebarProps) => {
     const getLinkName = (link: SidebarLink) => {
         if (role === 'CLIENT') {
             if (link.pathKey === 'pengajuan') return 'Pengajuan';
-            if (link.pathKey === 'submissions') return 'Daftar Ajuan';
+            if (link.pathKey === 'submissions') return 'Daftar Pengajuan';
             if (link.pathKey === 'estimasi') return 'Perhitungan Tarif Reguler';
             if (link.pathKey === 'bantuan') return 'Pusat Bantuan';
         }
         const isHalalAgency = role === 'HALAL_ADVISOR' || role === 'HALAL_MANAGER' || role === 'HALAL_DIRECTOR';
         if (isHalalAgency) {
-            if (link.pathKey === 'submissions') return 'Daftar Ajuan';
+            if (link.pathKey === 'submissions') return 'Daftar Pengajuan';
             if (link.pathKey === 'advisors') return 'Jaringan Halal Advisor';
             if (link.pathKey === 'referrals') return 'Insentif Saya';
         }

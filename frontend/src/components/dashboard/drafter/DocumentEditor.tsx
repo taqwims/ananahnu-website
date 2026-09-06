@@ -384,7 +384,7 @@ export const DocumentEditor = ({
                                                                              </td>
                                                                              <td className="p-2">
                                                                                  <input
-                                                                                     type="text"
+                                                                                     type="date"
                                                                                      className="w-full px-2.5 py-1.5 bg-gray-50 border-none rounded-lg text-xs focus:ring-2 focus:ring-blue-500/10 font-medium"
                                                                                      placeholder="Tanggal terbit..."
                                                                                      value={item.tanggal || ''}

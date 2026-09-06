@@ -105,6 +105,23 @@ export const useSubmissionList = () => {
         });
     };
 
+    const handlePurgeAll = () => {
+        setConfirmModal({
+            isOpen: true,
+            title: '⚠️ Bersihkan Semua Pengajuan (Dev Mode)',
+            message: 'PERINGATAN: Semua pengajuan, termasuk yang sudah terbit, invoice, pembayaran, dan dokumen terkait akan DIHAPUS PERMANEN. Tindakan ini hanya untuk mode dev/reset di VPS. Apakah Anda yakin?',
+            onConfirm: async () => {
+                try {
+                    await api.delete('/submissions/dev/purge-all');
+                    toast.success("Semua data pengajuan berhasil dibersihkan!");
+                    fetchSubmissions();
+                } catch (err: any) {
+                    toast.error(err.response?.data?.error || "Gagal membersihkan pengajuan");
+                }
+            }
+        });
+    };
+
     const handleSort = (key: SortKey) => {
         if (sortKey === key) {
             setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -206,7 +223,7 @@ export const useSubmissionList = () => {
         isGrouped, setIsGrouped, showCreateModal, setShowCreateModal,
         newSub, setNewSub, isVerified, sortKey, sortOrder,
         expandedGroups, setExpandedGroups, copiedId, confirmModal, setConfirmModal,
-        handleDelete, handleSort, handleCopy, handleCreate,
+        handleDelete, handleSort, handleCopy, handleCreate, handlePurgeAll,
         stats, filteredData, groupedData, user, navigate, STATUS_ORDER
     };
 };

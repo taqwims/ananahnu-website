@@ -713,7 +713,7 @@ export default function DynamicSubmissionForm({ formType, submissionId, readOnly
                                                                  </td>
                                                                  <td className="p-3.5">
                                                                      <input
-                                                                         type="text"
+                                                                         type="date"
                                                                          className="glass-input text-xs w-full py-1.5"
                                                                          placeholder="Tanggal terbit..."
                                                                          value={item.tanggal || ''}

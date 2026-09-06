@@ -28,6 +28,7 @@ type SubmissionWorkflowUsecase interface {
 	UpdateBusinessType(id uuid.UUID, userID uuid.UUID, userRole string, businessTypeID int64) error
 	TrackByNumber(trackingNumber string) (*domain.Submission, error)
 	Delete(id uuid.UUID, userID uuid.UUID, userRole string) error
+	PurgeAll(userID uuid.UUID, userRole string) error
 	HandlePaymentSuccess(id uuid.UUID, amount float64) error
 	IsAuthorized(userID uuid.UUID, role string, submissionID uuid.UUID) bool
 	UpdateClientInfoAndPricing(id uuid.UUID, input UpdateClientInfoAndPricingInput, userID uuid.UUID, userRole string) error

@@ -43,6 +43,8 @@ func NewSubmissionHandler(r *gin.Engine, uc usecase.SubmissionWorkflowUsecase) {
 		g.GET("/:id", handler.GetDetail)
 		g.GET("/:id/history", handler.GetHistory)
 		g.DELETE("/:id", handler.Delete)
+		g.DELETE("/dev/purge-all", handler.PurgeAll)
+		g.POST("/dev/purge-all", handler.PurgeAll)
 	}
 
 	r.GET("/public/track/:tracking_number", handler.TrackSubmission)
@@ -479,6 +481,23 @@ func (h *SubmissionHandler) Delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "submission deleted successfully"})
+}
+
+func (h *SubmissionHandler) PurgeAll(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	role := middleware.GetUserRole(c)
+
+	if role != "ADMIN" && role != "DIRECTOR" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Hanya Administrator yang memiliki akses untuk membersihkan semua data pengajuan"})
+		return
+	}
+
+	if err := h.workflowUC.PurgeAll(userID, role); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Semua data pengajuan dan seluruh relasinya berhasil dibersihkan"})
 }
 
 func (h *SubmissionHandler) UpdateAuditInfo(c *gin.Context) {

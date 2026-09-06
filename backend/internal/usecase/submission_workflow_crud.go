@@ -362,15 +362,23 @@ func (uc *submissionWorkflowUsecase) Delete(id uuid.UUID, userID uuid.UUID, user
 		return err
 	}
 
-	// Only owner or admin can delete draft
+	// Only owner, advisor of the draft, or admin can delete
 	canDelete := false
 	switch userRole {
 	case "ADMIN", "DIRECTOR", "HALAL_DIRECTOR":
+		// Admin/Director can delete any submission (including published/SH_TERBIT)
 		canDelete = true
 	case "HALAL_ADVISOR", "HALAL_MANAGER", "MARKETING":
 		if sub.Status == domain.StatusDraft {
 			client, _ := uc.ClientRepo.FindByID(sub.ClientID)
 			if client != nil && client.FacilitatorID != nil && *client.FacilitatorID == userID {
+				canDelete = true
+			}
+		}
+	case "CLIENT":
+		if sub.Status == domain.StatusDraft {
+			client, _ := uc.ClientRepo.FindByID(sub.ClientID)
+			if client != nil && (client.CreatedBy == userID || sub.ClientID == userID) {
 				canDelete = true
 			}
 		}
@@ -381,6 +389,13 @@ func (uc *submissionWorkflowUsecase) Delete(id uuid.UUID, userID uuid.UUID, user
 	}
 
 	return uc.SubmissionRepo.Delete(id)
+}
+
+func (uc *submissionWorkflowUsecase) PurgeAll(userID uuid.UUID, userRole string) error {
+	if userRole != "ADMIN" && userRole != "DIRECTOR" {
+		return errors.New("unauthorized: only admin can purge submissions")
+	}
+	return uc.SubmissionRepo.PurgeAll()
 }
 
 func (uc *submissionWorkflowUsecase) IsAuthorized(userID uuid.UUID, role string, submissionID uuid.UUID) bool {
@@ -430,15 +445,33 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 		return fmt.Errorf("client not found: %w", err)
 	}
 
-	client.BusinessName = input.BusinessName
-	client.ClientName = input.ClientName
-	client.NIB = input.NIB
-	client.NIBFileURL = input.NIBFileURL
-	client.NIK = input.NIK
-	client.ProductName = input.ProductName
-	client.Address = input.Address
-	client.ContactPerson = input.ContactPerson
-	client.Phone = input.Phone
+	if input.BusinessName != "" {
+		client.BusinessName = input.BusinessName
+	}
+	if input.ClientName != "" {
+		client.ClientName = input.ClientName
+	}
+	if input.NIB != "" {
+		client.NIB = input.NIB
+	}
+	if input.NIBFileURL != "" {
+		client.NIBFileURL = input.NIBFileURL
+	}
+	if input.NIK != "" {
+		client.NIK = input.NIK
+	}
+	if input.ProductName != "" {
+		client.ProductName = input.ProductName
+	}
+	if input.Address != "" {
+		client.Address = input.Address
+	}
+	if input.ContactPerson != "" {
+		client.ContactPerson = input.ContactPerson
+	}
+	if input.Phone != "" {
+		client.Phone = input.Phone
+	}
 	client.UpdatedAt = time.Now()
 
 	if err := uc.ClientRepo.Update(client); err != nil {
@@ -446,15 +479,33 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 	}
 
 	// 4. Update Submission fields
-	sub.BusinessTypeID = input.BusinessTypeID
-	sub.ProductCategoryID = input.ProductCategoryID
-	sub.BusinessScaleID = input.BusinessScaleID
-	sub.ProvinceID = input.ProvinceID
-	sub.RegencyID = input.RegencyID
-	sub.DistrictID = input.DistrictID
-	sub.ProductCount = input.ProductCount
-	sub.BranchCount = input.BranchCount
-	sub.SalesSchemeID = input.SalesSchemeID
+	if input.BusinessTypeID != nil {
+		sub.BusinessTypeID = input.BusinessTypeID
+	}
+	if input.ProductCategoryID != nil {
+		sub.ProductCategoryID = input.ProductCategoryID
+	}
+	if input.BusinessScaleID != nil {
+		sub.BusinessScaleID = input.BusinessScaleID
+	}
+	if input.ProvinceID != nil {
+		sub.ProvinceID = input.ProvinceID
+	}
+	if input.RegencyID != nil {
+		sub.RegencyID = input.RegencyID
+	}
+	if input.DistrictID != nil {
+		sub.DistrictID = input.DistrictID
+	}
+	if input.ProductCount > 0 {
+		sub.ProductCount = input.ProductCount
+	}
+	if input.BranchCount > 0 {
+		sub.BranchCount = input.BranchCount
+	}
+	if input.SalesSchemeID != nil {
+		sub.SalesSchemeID = input.SalesSchemeID
+	}
 	if input.DataSource != "" {
 		sub.DataSource = input.DataSource
 	}
@@ -512,6 +563,31 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 			}
 			invoice.PricingSource = "COST_DETAIL"
 			_ = uc.InvoiceRepo.Update(invoice)
+		} else {
+			// Create new invoice if none exists yet
+			invType := domain.InvoiceTypeFull
+			amount := *input.TotalAmount
+			percentage := 100.0
+			if paymentScheme == "TERMIN" {
+				invType = domain.InvoiceTypeDP
+				amount = *input.TotalAmount * (dpPercentage / 100.0)
+				percentage = dpPercentage
+			}
+			newInv := &domain.Invoice{
+				SubmissionID:  sub.ID,
+				ServiceType:   sub.ServiceType,
+				Type:          invType,
+				Amount:        amount,
+				Status:        domain.InvoiceStatusUnpaid,
+				PricingSource: "COST_DETAIL",
+				PaymentScheme: paymentScheme,
+				Percentage:    percentage,
+				CreatedAt:     time.Now(),
+			}
+			if sub.ClientID != uuid.Nil {
+				newInv.PayerID = &sub.ClientID
+			}
+			_ = uc.InvoiceRepo.Create(newInv)
 		}
 	} else {
 		if input.PaymentScheme != nil || input.DPPercentage != nil {

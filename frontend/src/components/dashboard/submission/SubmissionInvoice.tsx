@@ -1,19 +1,26 @@
 import { useState } from 'react';
-import { Receipt, Download, ChevronDown, ChevronUp, Layers, HelpCircle, CheckCircle2, Clock } from 'lucide-react';
+import { Receipt, Download, ChevronDown, ChevronUp, Layers, HelpCircle, CheckCircle2, Clock, Plus } from 'lucide-react';
 import { formatCurrency } from '../../../utils/format';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import type { Submission } from '../../../types';
+import { useAuthStore } from '../../../store/authStore';
+import ManageCostComponentsModal from './ManageCostComponentsModal';
 
 interface SubmissionInvoiceProps {
     invoice: any;
     submissionId?: string;
     submission?: Submission;
+    onRefresh?: () => void;
 }
 
-export const SubmissionInvoice = ({ invoice, submissionId, submission }: SubmissionInvoiceProps) => {
+export const SubmissionInvoice = ({ invoice, submissionId, submission, onRefresh }: SubmissionInvoiceProps) => {
+    const { user } = useAuthStore();
     const [showBreakdown, setShowBreakdown] = useState(false);
+    const [showManageModal, setShowManageModal] = useState(false);
     const isPaid = invoice.status === 'PAID';
+
+    const canManagePricing = user?.role === 'HALAL_ADVISOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'ADMIN' || user?.role === 'FINANCE' || user?.role === 'DIRECTOR' || user?.role === 'MARKETING';
 
     const handleDownload = async () => {
         if (!submissionId) return;
@@ -113,7 +120,17 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto flex-wrap">
+                    {canManagePricing && submission && (
+                        <button
+                            type="button"
+                            onClick={() => setShowManageModal(true)}
+                            className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2.5 bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-bold rounded-xl transition-all border border-brand-200 shadow-sm"
+                        >
+                            <Plus className="w-4 h-4 text-brand-600 shrink-0" />
+                            <span>Kelola Komponen Harga</span>
+                        </button>
+                    )}
                     {submissionId && (
                         <button
                             onClick={handleDownload}
@@ -216,22 +233,35 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
             )}
 
             {/* Optional Cost Breakdown Toggle */}
-            {breakdownItems.length > 0 && (
+            {(breakdownItems.length > 0 || (canManagePricing && submission)) && (
                 <div className="pt-2">
-                    <button
-                        type="button"
-                        onClick={() => setShowBreakdown(!showBreakdown)}
-                        className="w-full flex items-center justify-between p-3 sm:p-3.5 rounded-2xl bg-gray-50/80 hover:bg-gray-100/80 border border-gray-200/80 text-xs font-bold text-gray-700 transition-all gap-2"
-                    >
-                        <span className="flex items-center gap-2 min-w-0 text-left">
-                            <Layers className="w-4 h-4 text-brand-600 shrink-0" />
-                            <span className="truncate sm:whitespace-normal">Rincian Komponen Biaya Layanan ({breakdownItems.length} Komponen)</span>
-                        </span>
-                        <span className="flex items-center gap-1 text-[10px] sm:text-[11px] text-brand-700 font-bold shrink-0">
-                            {showBreakdown ? 'Sembunyikan' : 'Lihat Rincian'}
-                            {showBreakdown ? <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-                        </span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowBreakdown(!showBreakdown)}
+                            className="flex-1 flex items-center justify-between p-3 sm:p-3.5 rounded-2xl bg-gray-50/80 hover:bg-gray-100/80 border border-gray-200/80 text-xs font-bold text-gray-700 transition-all gap-2"
+                        >
+                            <span className="flex items-center gap-2 min-w-0 text-left">
+                                <Layers className="w-4 h-4 text-brand-600 shrink-0" />
+                                <span className="truncate sm:whitespace-normal">Rincian Komponen Biaya Layanan ({breakdownItems.length} Komponen)</span>
+                            </span>
+                            <span className="flex items-center gap-1 text-[10px] sm:text-[11px] text-brand-700 font-bold shrink-0">
+                                {showBreakdown ? 'Sembunyikan' : 'Lihat Rincian'}
+                                {showBreakdown ? <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                            </span>
+                        </button>
+                        {canManagePricing && submission && (
+                            <button
+                                type="button"
+                                onClick={() => setShowManageModal(true)}
+                                className="px-3.5 py-3 sm:py-3.5 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all shrink-0"
+                                title="Tambah atau kelola komponen harga"
+                            >
+                                <Plus className="w-4 h-4" />
+                                <span className="hidden sm:inline">Tambah Komponen</span>
+                            </button>
+                        )}
+                    </div>
 
                     {showBreakdown && (
                         <div className="mt-3 border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm animate-fadeIn">
@@ -263,6 +293,13 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
                                                 </td>
                                             </tr>
                                         ))}
+                                        {breakdownItems.length === 0 && (
+                                            <tr>
+                                                <td colSpan={3} className="py-6 text-center text-gray-400 italic">
+                                                    Belum ada rincian komponen harga. Klik tombol "Tambah Komponen" di atas untuk menambahkan komponen biaya.
+                                                </td>
+                                            </tr>
+                                        )}
                                         <tr className="bg-slate-50 font-black text-gray-900 border-t-2 border-gray-200">
                                             <td className="py-3 px-3 sm:px-4">
                                                 <span className="hidden sm:inline">TOTAL NILAI KONTRAK (100%)</span>
@@ -279,6 +316,17 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
                         </div>
                     )}
                 </div>
+            )}
+
+            {showManageModal && submission && (
+                <ManageCostComponentsModal
+                    isOpen={showManageModal}
+                    onClose={() => setShowManageModal(false)}
+                    submission={submission}
+                    onSaved={() => {
+                        if (onRefresh) onRefresh();
+                    }}
+                />
             )}
         </div>
     );

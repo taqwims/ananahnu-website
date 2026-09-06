@@ -4,6 +4,7 @@ import type { Submission } from '../../../types';
 import toast from 'react-hot-toast';
 import { submissionService } from '../../../services/submissionService';
 import { systemSettingsService } from '../../../services/systemSettingsService';
+import logoImg from '../../../assets/logo.png';
 
 interface ContractTextPreviewProps {
     submission: Submission;
@@ -291,8 +292,8 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
                     <h3 className="text-md font-bold text-sky-900 tracking-wide">SERTIFIKASI HALAL</h3>
                     <p className="text-xs text-gray-600 font-mono">Nomor: {submission.contract_number || 'DRAFT'}</p>
                 </div>
-                <div className="h-10 flex items-center">
-                    <span className="text-xs font-bold text-gray-400 border border-dashed border-gray-300 px-3 py-1 rounded">Logo Halalcore</span>
+                <div className="flex items-center">
+                    <img src={logoImg} alt="HalalCore" className="h-11 w-auto object-contain" />
                 </div>
             </div>
 

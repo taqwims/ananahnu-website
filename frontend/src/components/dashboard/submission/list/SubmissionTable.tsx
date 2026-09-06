@@ -208,7 +208,7 @@ export const SubmissionTable = ({
                                                             </td>
                                                             <td className="p-4 text-right">
                                                                 <div className="flex items-center justify-end gap-2">
-                                                                    {(userRole === 'ADMIN' || userRole === 'DIRECTOR' || (sub.status === 'DRAFT' && sub.client?.facilitator_id === userId)) && (
+                                                                    {(userRole === 'ADMIN' || userRole === 'DIRECTOR' || (sub.status === 'DRAFT' && sub.client?.facilitator_id === userId) || (userRole === 'CLIENT' && sub.status === 'DRAFT')) && (
                                                                         <button
                                                                             onClick={(e) => onDelete(e, sub.id)}
                                                                             className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
