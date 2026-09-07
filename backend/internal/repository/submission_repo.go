@@ -213,12 +213,16 @@ func (r *submissionRepository) Delete(id uuid.UUID) error {
 		if err := tx.Model(&domain.TeleForm{}).Where("submission_id = ?", id).Update("submission_id", nil).Error; err != nil {
 			return err
 		}
-		// 8. Delete payments
-		if err := tx.Where("submission_id = ?", id).Delete(&domain.Payment{}).Error; err != nil {
+		// 8. Unlink payment_id on invoices to prevent foreign key constraint violations (fk_payments_invoices)
+		if err := tx.Model(&domain.Invoice{}).Where("submission_id = ?", id).Update("payment_id", nil).Error; err != nil {
 			return err
 		}
 		// 9. Delete invoices
 		if err := tx.Where("submission_id = ?", id).Delete(&domain.Invoice{}).Error; err != nil {
+			return err
+		}
+		// 10. Delete payments
+		if err := tx.Where("submission_id = ?", id).Delete(&domain.Payment{}).Error; err != nil {
 			return err
 		}
 		// 10. Delete audit logs
@@ -256,10 +260,13 @@ func (r *submissionRepository) PurgeAll() error {
 		if err := tx.Exec("UPDATE tele_forms SET submission_id = NULL WHERE submission_id IS NOT NULL").Error; err != nil {
 			return err
 		}
-		if err := tx.Exec("DELETE FROM payments WHERE submission_id IS NOT NULL").Error; err != nil {
+		if err := tx.Exec("UPDATE invoices SET payment_id = NULL").Error; err != nil {
 			return err
 		}
-		if err := tx.Exec("DELETE FROM invoices WHERE submission_id IS NOT NULL").Error; err != nil {
+		if err := tx.Exec("DELETE FROM invoices").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM payments").Error; err != nil {
 			return err
 		}
 		if err := tx.Exec("DELETE FROM audit_logs WHERE entity_type = 'SUBMISSION'").Error; err != nil {

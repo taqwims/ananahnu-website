@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CreditCard, Upload, CheckCircle, Loader2, AlertCircle, Clock, ExternalLink, RefreshCw, Download, Zap, Plus } from 'lucide-react';
+import { CreditCard, Upload, CheckCircle, Loader2, AlertCircle, Clock, ExternalLink, RefreshCw, Download, Zap } from 'lucide-react';
 import api from '../../services/api';
 import { loadSnapJs, isSnapReady } from '../../utils/midtrans';
 import { useAuthStore } from '../../store/authStore';
@@ -7,7 +7,6 @@ import { formatRupiah } from '../../utils/format';
 import { toast } from 'react-hot-toast';
 import type { Submission, Payment, FormFieldValue } from '../../types';
 import FileUpload from './FileUpload';
-import ManageCostComponentsModal from './submission/ManageCostComponentsModal';
 
 interface PaymentSectionProps {
     submission: Submission;
@@ -39,8 +38,6 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
 
     const user = useAuthStore((state) => state.user);
     const isEditable = user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR';
-    const canManagePricing = user?.role === 'HALAL_ADVISOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR' || user?.role === 'ADMIN' || user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'DIRECTOR' || user?.role === 'MARKETING';
-    const [showManageModal, setShowManageModal] = useState(false);
 
     // Load active payment settings on mount
     useEffect(() => {
@@ -603,20 +600,10 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
             </div>
 
             {/* Cost Breakdown */}
-            {(submission.cost_detail?.cost_breakdown_data || canManagePricing) && (
+            {submission.cost_detail?.cost_breakdown_data && (
                 <div className="mb-4 bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
                         <h4 className="text-sm font-semibold text-gray-700">Rincian Biaya</h4>
-                        {canManagePricing && (
-                            <button
-                                type="button"
-                                onClick={() => setShowManageModal(true)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
-                            >
-                                <Plus className="w-3.5 h-3.5" />
-                                Kelola Komponen Harga
-                            </button>
-                        )}
                     </div>
                     {submission.cost_detail?.cost_breakdown_data ? (
                         <div className="p-4 overflow-x-auto">
@@ -833,16 +820,6 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
                 </div>
             )}
 
-            {showManageModal && (
-                <ManageCostComponentsModal
-                    isOpen={showManageModal}
-                    onClose={() => setShowManageModal(false)}
-                    submission={submission}
-                    onSaved={() => {
-                        onPaymentSuccess();
-                    }}
-                />
-            )}
         </div>
     );
 }
