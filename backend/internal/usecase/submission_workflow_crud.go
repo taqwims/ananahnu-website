@@ -962,36 +962,73 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 		multiplierLabel := ""
 
 		if !comp.IsMandatory {
-			if optQty, ok := optionalQuantities[comp.ID]; ok && optQty > 0 {
-				multiplier = optQty
+			optQty := 1
+			if q, ok := optionalQuantities[comp.ID]; ok && q > 0 {
+				optQty = q
 			} else {
 				prevMult := getMultiplierFromBreakdown(existingBreakdown, comp.Name)
 				if prevMult > 0 {
-					multiplier = prevMult
+					optQty = prevMult
 				}
 			}
-			if multiplier > 1 {
-				multiplierLabel = fmt.Sprintf(" (%d Kuantitas)", multiplier)
+
+			branchCount := sub.BranchCount
+			if branchCount < 1 {
+				branchCount = 1
+			}
+			productCount := sub.ProductCount
+			if productCount < 1 {
+				productCount = 1
+			}
+
+			if comp.Type == "PER_CABANG" {
+				multiplier = branchCount * optQty
+				if optQty > 1 {
+					multiplierLabel = fmt.Sprintf(" (%d Cabang x %d Qty)", branchCount, optQty)
+				} else {
+					multiplierLabel = fmt.Sprintf(" (%d Cabang)", branchCount)
+				}
+			} else if comp.Type == "PER_PRODUK" {
+				multiplier = productCount * optQty
+				if optQty > 1 {
+					multiplierLabel = fmt.Sprintf(" (%d Produk x %d Qty)", productCount, optQty)
+				} else {
+					multiplierLabel = fmt.Sprintf(" (%d Produk)", productCount)
+				}
+			} else {
+				multiplier = optQty
+				if multiplier > 1 {
+					multiplierLabel = fmt.Sprintf(" (%d Kuantitas)", multiplier)
+				}
 			}
 			amount = amount * float64(multiplier)
 		} else {
-			if comp.Type == "PER_CABANG" && sub.BranchCount > 1 {
-				amount = amount * float64(sub.BranchCount)
-				multiplier = sub.BranchCount
-				multiplierLabel = fmt.Sprintf(" (%d Cabang)", sub.BranchCount)
+			branchCount := sub.BranchCount
+			if branchCount < 1 {
+				branchCount = 1
 			}
-			if comp.Type == "PER_PRODUK" && sub.ProductCount > 0 {
-				amount = amount * float64(sub.ProductCount)
-				multiplier = sub.ProductCount
-				multiplierLabel = fmt.Sprintf(" (%d Produk)", sub.ProductCount)
+			productCount := sub.ProductCount
+			if productCount < 1 {
+				productCount = 1
 			}
-			if comp.Type == "PER_MANDAY" {
+
+			if comp.Type == "PER_CABANG" {
+				multiplier = branchCount
+				multiplierLabel = fmt.Sprintf(" (%d Cabang)", branchCount)
+				amount = amount * float64(multiplier)
+			} else if comp.Type == "PER_PRODUK" {
+				multiplier = productCount
+				multiplierLabel = fmt.Sprintf(" (%d Produk)", productCount)
+				amount = amount * float64(multiplier)
+			} else if comp.Type == "PER_MANDAY" {
 				// All PER_MANDAY components use per-component multiplier from breakdown
 				prevMult := getMultiplierFromBreakdown(existingBreakdown, comp.Name)
 				if prevMult > 0 {
 					multiplier = prevMult
 				}
-				multiplierLabel = fmt.Sprintf(" (%d Kuantitas)", multiplier)
+				if multiplier > 1 {
+					multiplierLabel = fmt.Sprintf(" (%d Kuantitas)", multiplier)
+				}
 				amount = amount * float64(multiplier)
 			}
 		}

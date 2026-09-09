@@ -419,16 +419,17 @@ export default function EstimasiReguler() {
 
             let multiplier = 1;
             let multiplierLabel = '';
+            const customQty = optionalQuantities[comp.id] || 1;
             
             if (comp.type === 'PER_CABANG') {
-                multiplier = branchCount;
-                multiplierLabel = ` (${branchCount} Cabang)`;
-            } else if (comp.type === 'PER_MANDAY') {
-                multiplier = optionalQuantities[comp.id] || 1;
-                multiplierLabel = ` (${multiplier} Kuantitas)`;
+                multiplier = branchCount * customQty;
+                multiplierLabel = ` (${branchCount} Cabang${customQty > 1 ? ` x ${customQty} Qty` : ''})`;
             } else if (comp.type === 'PER_PRODUK') {
-                multiplier = productCount;
-                multiplierLabel = ` (${productCount} Produk)`;
+                multiplier = productCount * customQty;
+                multiplierLabel = ` (${productCount} Produk${customQty > 1 ? ` x ${customQty} Qty` : ''})`;
+            } else {
+                multiplier = customQty;
+                multiplierLabel = customQty > 1 ? ` (${customQty} Komponen)` : '';
             }
 
             const baseAmount = comp.base_amount * multiplier;

@@ -1003,15 +1003,30 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 
 	for _, comp := range finalComponents {
 		amount := comp.BaseAmount
+		multiplierLabel := ""
 		
 		// Modifier untuk cabang
-		if comp.Type == "PER_CABANG" && input.BranchCount > 1 {
-			amount = amount * float64(input.BranchCount)
+		if comp.Type == "PER_CABANG" {
+			branchCount := input.BranchCount
+			if branchCount < 1 {
+				branchCount = 1
+			}
+			if branchCount > 1 {
+				amount = amount * float64(branchCount)
+				multiplierLabel = fmt.Sprintf(" (%d Cabang)", branchCount)
+			}
 		}
 
 		// Modifier untuk produk
-		if comp.Type == "PER_PRODUK" && input.ProductCount > 0 {
-			amount = amount * float64(input.ProductCount)
+		if comp.Type == "PER_PRODUK" {
+			productCount := input.ProductCount
+			if productCount < 1 {
+				productCount = 1
+			}
+			if productCount > 1 {
+				amount = amount * float64(productCount)
+				multiplierLabel = fmt.Sprintf(" (%d Produk)", productCount)
+			}
 		}
 
 		discountAmount := 0.0
@@ -1022,7 +1037,7 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 
 		total += amount
 		breakdown = append(breakdown, BreakdownItem{
-			Name:     comp.Name,
+			Name:     comp.Name + multiplierLabel,
 			Category: comp.Category,
 			Amount:   amount + discountAmount,
 		})
