@@ -807,6 +807,7 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 	var pendampinganName string = "Jasa Pendampingan"
 	var pendampinganCategory string = "PENDAMPINGAN"
 	var pendDiscount float64
+	var pendType string = "PER_CABANG"
 
 	if bestPendampingan != nil {
 		price = bestPendampingan.BaseAmount
@@ -815,11 +816,15 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 		if bestPendampingan.DiscountPercent > 0 {
 			pendDiscount = bestPendampingan.DiscountPercent
 		}
+		if bestPendampingan.Type != "" {
+			pendType = bestPendampingan.Type
+		}
 	} else if sub.ServiceType == "REGULER" && scheme != nil {
 		price = scheme.BasePrice
 		if scheme.SalesScheme.Name != "" {
 			pendampinganName = scheme.SalesScheme.Name
 		}
+		pendType = "PER_CABANG"
 	} else if sub.ServiceType == "SELF_DECLARE_MANDIRI" {
 		price = 230000.0
 		if setting, err := uc.SettingRepo.GetSetting("SD_MANDIRI_COST"); err == nil && setting != nil {
@@ -828,6 +833,7 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 			}
 		}
 		pendampinganName = "Biaya Self Declare Mandiri"
+		pendType = "FIXED"
 	}
 
 	if pendDiscount == 0 && scheme != nil && scheme.DiscountPercent > 0 {
@@ -835,22 +841,51 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 	}
 
 	if price > 0 {
-		total += price
+		multiplier := 1
+		multiplierLabel := ""
+		branchCount := sub.BranchCount
+		if branchCount < 1 {
+			branchCount = 1
+		}
+		productCount := sub.ProductCount
+		if productCount < 1 {
+			productCount = 1
+		}
+
+		if pendType == "PER_CABANG" {
+			multiplier = branchCount
+			if branchCount > 1 {
+				multiplierLabel = fmt.Sprintf(" (%d Cabang)", branchCount)
+			}
+		} else if pendType == "PER_PRODUK" {
+			multiplier = productCount
+			if productCount > 1 {
+				multiplierLabel = fmt.Sprintf(" (%d Produk)", productCount)
+			}
+		}
+
+		basePendTotal := price * float64(multiplier)
+		discountAmount := 0.0
+		if pendDiscount > 0 {
+			discountAmount = basePendTotal * (pendDiscount / 100.0)
+		}
+
+		total += (basePendTotal - discountAmount)
 		breakdown = append(breakdown, map[string]interface{}{
-			"name":        pendampinganName,
+			"name":        pendampinganName + multiplierLabel,
 			"category":    pendampinganCategory,
 			"unit_cost":   price,
-			"total":       price,
+			"multiplier":  multiplier,
+			"total":       basePendTotal,
 			"is_optional": false,
 		})
 
-		if pendDiscount > 0 {
-			discountAmount := price * (pendDiscount / 100.0)
-			total -= discountAmount
+		if discountAmount > 0 {
 			breakdown = append(breakdown, map[string]interface{}{
 				"name":        fmt.Sprintf("Diskon %s (%.0f%%)", pendampinganName, pendDiscount),
 				"category":    "DISKON",
-				"unit_cost":   -discountAmount,
+				"unit_cost":   -(discountAmount / float64(multiplier)),
+				"multiplier":  multiplier,
 				"total":       -discountAmount,
 				"is_optional": false,
 			})

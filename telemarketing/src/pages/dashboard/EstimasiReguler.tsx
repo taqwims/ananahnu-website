@@ -312,24 +312,37 @@ export default function EstimasiReguler() {
             dispCategory = 'PENDAMPINGAN';
         }
 
+        let pendMultiplier = 1;
+        let pendMultiplierLabel = '';
+        const pendType = bestPend?.type || (serviceType === 'REGULER' ? 'PER_CABANG' : 'FIXED');
+
+        if (pendType === 'PER_CABANG') {
+            pendMultiplier = branchCount;
+            pendMultiplierLabel = ` (${branchCount} Cabang)`;
+        } else if (pendType === 'PER_PRODUK') {
+            pendMultiplier = productCount;
+            pendMultiplierLabel = ` (${productCount} Produk)`;
+        }
+
+        const basePendTotal = finalPrice * pendMultiplier;
         if (finalPrice > 0) {
             currentBreakdown.push({
-                name: dispName,
+                name: dispName + pendMultiplierLabel,
                 category: dispCategory,
                 unit_cost: finalPrice,
-                multiplier: null,
-                total: finalPrice,
+                multiplier: pendMultiplier > 1 ? pendMultiplier : null,
+                total: basePendTotal,
                 is_optional: false
             });
-            currentTotal += finalPrice;
+            currentTotal += basePendTotal;
 
             if (pendDiscountPercent > 0) {
-                const discAmount = finalPrice * (pendDiscountPercent / 100);
+                const discAmount = basePendTotal * (pendDiscountPercent / 100);
                 currentBreakdown.push({
                     name: `Diskon ${dispName} (${pendDiscountPercent}%)`,
                     category: 'DISKON',
-                    unit_cost: -discAmount,
-                    multiplier: null,
+                    unit_cost: -(discAmount / pendMultiplier),
+                    multiplier: pendMultiplier > 1 ? pendMultiplier : null,
                     total: -discAmount,
                     is_optional: false
                 });
@@ -394,12 +407,12 @@ export default function EstimasiReguler() {
         if (currentScheme && currentScheme.name.toUpperCase() === 'PARTNERSHIP' && serviceType === 'REGULER') {
             const pendItem = currentBreakdown.find(item => item.category === 'PENDAMPINGAN');
             if (pendItem) {
-                const discountAmount = pendItem.unit_cost * 0.1;
+                const discountAmount = pendItem.total * 0.1;
                 currentBreakdown.push({
                     name: 'Diskon Partnership (10%)',
                     category: 'DISKON',
-                    unit_cost: -discountAmount,
-                    multiplier: null,
+                    unit_cost: -(discountAmount / pendMultiplier),
+                    multiplier: pendMultiplier > 1 ? pendMultiplier : null,
                     total: -discountAmount,
                     is_optional: false
                 });

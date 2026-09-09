@@ -291,21 +291,38 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
             dispName = 'Biaya Self Declare Mandiri';
         }
 
+        let pendMultiplier = 1;
+        let pendMultiplierLabel = '';
+        const pendType = bestPend?.type || (serviceType === 'REGULER' ? 'PER_CABANG' : 'FIXED');
+        const branchCount = Math.max(1, parseInt(clientData.branch_count) || 1);
+        const productCount = Math.max(1, parseInt(clientData.product_count) || 1);
+
+        if (pendType === 'PER_CABANG') {
+            pendMultiplier = branchCount;
+            pendMultiplierLabel = ` (${branchCount} Cabang)`;
+        } else if (pendType === 'PER_PRODUK') {
+            pendMultiplier = productCount;
+            pendMultiplierLabel = ` (${productCount} Produk)`;
+        }
+
+        const basePendTotal = finalPrice * pendMultiplier;
         if (finalPrice > 0) {
             currentBreakdown.push({
-                name: dispName,
+                name: dispName + pendMultiplierLabel,
                 category: 'PENDAMPINGAN',
                 unit_cost: finalPrice,
-                total: finalPrice,
+                multiplier: pendMultiplier > 1 ? pendMultiplier : null,
+                total: basePendTotal,
             });
-            currentTotal += finalPrice;
+            currentTotal += basePendTotal;
 
             if (pendDiscountPercent > 0) {
-                const discAmount = finalPrice * (pendDiscountPercent / 100);
+                const discAmount = basePendTotal * (pendDiscountPercent / 100);
                 currentBreakdown.push({
                     name: `Diskon ${dispName} (${pendDiscountPercent}%)`,
                     category: 'DISKON',
-                    unit_cost: -discAmount,
+                    unit_cost: -(discAmount / pendMultiplier),
+                    multiplier: pendMultiplier > 1 ? pendMultiplier : null,
                     total: -discAmount,
                 });
                 currentTotal -= discAmount;

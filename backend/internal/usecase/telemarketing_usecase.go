@@ -913,29 +913,66 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 
 	var price float64
 	var name string = "Jasa Pendampingan"
+	var pendType string = "PER_CABANG"
 
 	if bestPendampingan != nil {
 		price = bestPendampingan.BaseAmount
 		name = bestPendampingan.Name
+		if bestPendampingan.Type != "" {
+			pendType = bestPendampingan.Type
+		}
 	} else if scheme != nil {
 		price = scheme.BasePrice
 		if scheme.SalesScheme.Name != "" {
 			name = scheme.SalesScheme.Name
 		}
+		pendType = "PER_CABANG"
 	}
 
+	branchCount := input.BranchCount
+	if branchCount < 1 {
+		branchCount = 1
+	}
+	productCount := input.ProductCount
+	if productCount < 1 {
+		productCount = 1
+	}
+
+	multiplier := 1
+	multiplierLabel := ""
+	if pendType == "PER_CABANG" {
+		multiplier = branchCount
+		if branchCount > 1 {
+			multiplierLabel = fmt.Sprintf(" (%d Cabang)", branchCount)
+		}
+	} else if pendType == "PER_PRODUK" {
+		multiplier = productCount
+		if productCount > 1 {
+			multiplierLabel = fmt.Sprintf(" (%d Produk)", productCount)
+		}
+	}
+
+	totalPendPrice := price * float64(multiplier)
+	var discountAmount float64
 	if scheme != nil && scheme.DiscountPercent > 0 {
-		discount := price * (scheme.DiscountPercent / 100.0)
-		price -= discount
+		discountAmount = totalPendPrice * (scheme.DiscountPercent / 100.0)
 	}
 
 	if price > 0 {
-		total += price
+		total += (totalPendPrice - discountAmount)
 		breakdown = append(breakdown, BreakdownItem{
-			Name:     name,
+			Name:     name + multiplierLabel,
 			Category: "PENDAMPINGAN",
-			Amount:   price,
+			Amount:   totalPendPrice,
 		})
+
+		if discountAmount > 0 {
+			breakdown = append(breakdown, BreakdownItem{
+				Name:     fmt.Sprintf("Diskon %s (%.0f%%)", name, scheme.DiscountPercent),
+				Category: "DISKON",
+				Amount:   -discountAmount,
+			})
+		}
 	}
 
 	// 3. Hitung komponen lainnya berdasarkan rule masing-masing dengan best match score per category

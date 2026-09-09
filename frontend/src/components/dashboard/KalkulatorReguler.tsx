@@ -453,25 +453,37 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             pendDiscountPercent = salesSchemePrice.discount_percent;
         }
 
-        const basePendPrice = finalPrice;
-        if (basePendPrice > 0) {
+        let pendMultiplier = 1;
+        let pendMultiplierLabel = '';
+        const pendType = bestPend?.type || (serviceTypeVal === 'REGULER' ? 'PER_CABANG' : 'FIXED');
+
+        if (pendType === 'PER_CABANG') {
+            pendMultiplier = branchCount;
+            pendMultiplierLabel = ` (${branchCount} Cabang)`;
+        } else if (pendType === 'PER_PRODUK') {
+            pendMultiplier = productCount;
+            pendMultiplierLabel = ` (${productCount} Produk)`;
+        }
+
+        const basePendTotal = finalPrice * pendMultiplier;
+        if (finalPrice > 0) {
             currentBreakdown.push({
-                name: dispName,
+                name: dispName + pendMultiplierLabel,
                 category: dispCategory.toUpperCase(),
-                unit_cost: basePendPrice,
-                multiplier: null,
-                total: basePendPrice,
+                unit_cost: finalPrice,
+                multiplier: pendMultiplier > 1 ? pendMultiplier : null,
+                total: basePendTotal,
                 is_optional: false
             });
-            currentTotal += basePendPrice;
+            currentTotal += basePendTotal;
 
             if (pendDiscountPercent > 0) {
-                const discAmount = basePendPrice * (pendDiscountPercent / 100);
+                const discAmount = basePendTotal * (pendDiscountPercent / 100);
                 currentBreakdown.push({
                     name: `Diskon ${dispName} (${pendDiscountPercent}%)`,
                     category: 'DISKON',
-                    unit_cost: -discAmount,
-                    multiplier: null,
+                    unit_cost: -(discAmount / pendMultiplier),
+                    multiplier: pendMultiplier > 1 ? pendMultiplier : null,
                     total: -discAmount,
                     is_optional: false
                 });
@@ -484,12 +496,12 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         if (currentScheme && currentScheme.name.toUpperCase() === 'PARTNERSHIP') {
             const jaseItem = currentBreakdown.find(item => item.category === 'PENDAMPINGAN');
             if (jaseItem) {
-                const discountAmount = jaseItem.unit_cost * 0.1;
+                const discountAmount = jaseItem.total * 0.1;
                 currentBreakdown.push({
                     name: 'Diskon Partnership (10%)',
                     category: 'DISKON',
-                    unit_cost: -discountAmount,
-                    multiplier: null,
+                    unit_cost: -(discountAmount / pendMultiplier),
+                    multiplier: pendMultiplier > 1 ? pendMultiplier : null,
                     total: -discountAmount,
                     is_optional: false
                 });

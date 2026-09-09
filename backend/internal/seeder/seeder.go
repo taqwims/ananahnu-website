@@ -439,10 +439,10 @@ func seedKalkulatorData(db *gorm.DB) {
 		{Name: "Sertifikat BPJPH", Category: "BPJPH", Type: "FIXED", BaseAmount: 1000000, IsMandatory: true, ServiceType: "REGULER"},
 		{Name: "Sertifikat BPJPH (Khusus Kosmetik)", Category: "BPJPH", Type: "FIXED", BaseAmount: 2000000, IsMandatory: true, BusinessTypeID: &bTypes[1].ID, ServiceType: "REGULER"},
 		// Pendampingan per skala usaha
-		{Name: "Jasa Pendampingan (Mikro)", Category: "PENDAMPINGAN", Type: "FIXED", BaseAmount: 3500000, IsMandatory: true, BusinessScaleID: &scales[0].ID, ServiceType: "REGULER"},
-		{Name: "Jasa Pendampingan (Kecil)", Category: "PENDAMPINGAN", Type: "FIXED", BaseAmount: 3500000, IsMandatory: true, BusinessScaleID: &scales[1].ID, ServiceType: "REGULER"},
-		{Name: "Jasa Pendampingan (Menengah)", Category: "PENDAMPINGAN", Type: "FIXED", BaseAmount: 5500000, IsMandatory: true, BusinessScaleID: &scales[2].ID, ServiceType: "REGULER"},
-		{Name: "Jasa Pendampingan (Besar)", Category: "PENDAMPINGAN", Type: "FIXED", BaseAmount: 10000000, IsMandatory: true, BusinessScaleID: &scales[3].ID, ServiceType: "REGULER"},
+		{Name: "Jasa Pendampingan (Mikro)", Category: "PENDAMPINGAN", Type: "PER_CABANG", BaseAmount: 3500000, IsMandatory: true, BusinessScaleID: &scales[0].ID, ServiceType: "REGULER"},
+		{Name: "Jasa Pendampingan (Kecil)", Category: "PENDAMPINGAN", Type: "PER_CABANG", BaseAmount: 3500000, IsMandatory: true, BusinessScaleID: &scales[1].ID, ServiceType: "REGULER"},
+		{Name: "Jasa Pendampingan (Menengah)", Category: "PENDAMPINGAN", Type: "PER_CABANG", BaseAmount: 5500000, IsMandatory: true, BusinessScaleID: &scales[2].ID, ServiceType: "REGULER"},
+		{Name: "Jasa Pendampingan (Besar)", Category: "PENDAMPINGAN", Type: "PER_CABANG", BaseAmount: 10000000, IsMandatory: true, BusinessScaleID: &scales[3].ID, ServiceType: "REGULER"},
 	}
 	for i := range components {
 		var existing domain.BillingComponent

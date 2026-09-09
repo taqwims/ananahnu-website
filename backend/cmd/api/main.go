@@ -169,6 +169,11 @@ func main() {
 	// 4.7 Seed Sample News Articles for SEO (Idempotent)
 	_ = seeder.SeedNewsData(db)
 
+	// 4.8 Ensure PENDAMPINGAN billing components default to PER_CABANG
+	_ = db.Model(&domain.BillingComponent{}).
+		Where("category = ? AND (type = 'FIXED' OR type = '' OR type IS NULL)", "PENDAMPINGAN").
+		Update("type", "PER_CABANG").Error
+
 	// 5. Setup Repositories
 	userRepo := repository.NewUserRepository(db)
 	roleRepo := repository.NewRoleRepository(db)
