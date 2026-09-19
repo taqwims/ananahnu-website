@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Calculator, Sparkles, CheckCircle2, PlusCircle } from 'lucide-react';
 import api from '../../../../services/api';
 import type { BillingComponent } from '../../../../types';
+import { calculateComponentCost } from '../../../../utils/billingCalculator';
 
 interface SubmissionLiveCalculatorProps {
     clientData: any;
@@ -102,7 +103,7 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
     };
 
     // Compute cost breakdown reactively
-    const { total, breakdown } = useMemo(() => {
+    const { total, breakdown, activeMandayComponents } = useMemo(() => {
         if (serviceType === 'SELF_DECLARE') {
             return {
                 total: 0,
@@ -113,7 +114,8 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
                         unit_cost: 0,
                         total: 0,
                     }
-                ]
+                ],
+                activeMandayComponents: []
             };
         }
 
@@ -121,6 +123,7 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
         const currentBreakdown: any[] = [];
 
         // 1. Mandatory Components from Master Biaya
+        // De-duplicate variants of the same component (e.g. regional vs general) by normalized base name
         const categoryMap = new Map<string, any>();
 
         masterComponents.forEach(comp => {
@@ -147,25 +150,23 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
             if (comp.product_category_id) score += 2;
             if (comp.business_type_id) score += 1;
 
-            const existing = categoryMap.get(cat);
+            const normName = (comp.name || '').replace(/\s*\([^)]*(?:khusus|provinsi|wilayah|regional|jakarta|umum)[^)]*\)/gi, '').trim().toUpperCase();
+            const dedupeKey = `${cat}::${normName}`;
+
+            const existing = categoryMap.get(dedupeKey);
             if (!existing || score > existing.score) {
-                categoryMap.set(cat, { ...comp, score });
+                categoryMap.set(dedupeKey, { ...comp, score });
             }
         });
 
+        const branchCount = Math.max(1, parseInt(clientData.branch_count) || 1);
+        const productCount = Math.max(1, parseInt(clientData.product_count) || 1);
+
         Array.from(categoryMap.values()).forEach(comp => {
-            let multiplier = 1;
-            let multiplierLabel = '';
+            const customQty = optionalQuantities[comp.id] || 1;
+            const calc = calculateComponentCost(comp.type, comp.base_amount, comp.product_tiers, productCount, branchCount, customQty);
 
-            if (comp.type === 'PER_CABANG') {
-                multiplier = Math.max(1, parseInt(clientData.branch_count) || 1);
-                multiplierLabel = ` (${multiplier} Cabang)`;
-            } else if (comp.type === 'PER_PRODUK') {
-                multiplier = Math.max(1, parseInt(clientData.product_count) || 1);
-                multiplierLabel = ` (${multiplier} Produk)`;
-            }
-
-            const baseAmount = comp.base_amount * multiplier;
+            const baseAmount = calc.totalAmount;
             let itemTotal = baseAmount;
             let discountAmount = 0;
             if (comp.discount_percent && comp.discount_percent > 0) {
@@ -174,10 +175,10 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
             }
 
             currentBreakdown.push({
-                name: comp.name + multiplierLabel,
+                name: comp.name + calc.multiplierLabel,
                 category: comp.category.toUpperCase(),
-                unit_cost: comp.base_amount,
-                multiplier: multiplier > 1 ? multiplier : null,
+                unit_cost: calc.unitCost,
+                multiplier: calc.multiplier > 1 ? calc.multiplier : null,
                 total: baseAmount,
             });
 
@@ -197,18 +198,9 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
         optionalComponents.forEach(comp => {
             if (!selectedOptionalIds.includes(comp.id)) return;
             const optQty = optionalQuantities[comp.id] || 1;
-            let multiplier = optQty;
-            let multiplierLabel = multiplier > 1 ? ` (${multiplier} Kuantitas)` : '';
+            const calc = calculateComponentCost(comp.type, comp.base_amount, comp.product_tiers, productCount, branchCount, optQty);
 
-            if (comp.type === 'PER_CABANG') {
-                multiplier = Math.max(1, parseInt(clientData.branch_count) || 1) * optQty;
-                multiplierLabel = ` (${multiplier} Cabang)`;
-            } else if (comp.type === 'PER_PRODUK') {
-                multiplier = Math.max(1, parseInt(clientData.product_count) || 1) * optQty;
-                multiplierLabel = ` (${multiplier} Produk)`;
-            }
-
-            const baseAmount = comp.base_amount * multiplier;
+            const baseAmount = calc.totalAmount;
             let itemTotal = baseAmount;
             let discountAmount = 0;
             if (comp.discount_percent && comp.discount_percent > 0) {
@@ -217,10 +209,10 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
             }
 
             currentBreakdown.push({
-                name: comp.name + multiplierLabel + ' [Opsional]',
+                name: comp.name + calc.multiplierLabel + ' [Opsional]',
                 category: comp.category ? comp.category.toUpperCase() : 'OPSIONAL',
-                unit_cost: comp.base_amount,
-                multiplier: multiplier > 1 ? multiplier : null,
+                unit_cost: calc.unitCost,
+                multiplier: calc.multiplier > 1 ? calc.multiplier : null,
                 total: baseAmount,
             });
 
@@ -249,6 +241,7 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
 
             if (comp.province_id && comp.province_id.toString() !== clientData.province_id?.toString()) return;
             if (comp.regency_id && comp.regency_id.toString() !== clientData.regency_id?.toString()) return;
+            if (comp.district_id && comp.district_id.toString() !== clientData.district_id?.toString()) return;
             if (comp.business_type_id && comp.business_type_id.toString() !== clientData.business_type_id?.toString()) return;
             if (comp.business_scale_id && comp.business_scale_id.toString() !== clientData.business_scale_id?.toString()) return;
 
@@ -291,27 +284,17 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
             dispName = 'Biaya Self Declare Mandiri';
         }
 
-        let pendMultiplier = 1;
-        let pendMultiplierLabel = '';
         const pendType = bestPend?.type || (serviceType === 'REGULER' ? 'PER_CABANG' : 'FIXED');
-        const branchCount = Math.max(1, parseInt(clientData.branch_count) || 1);
-        const productCount = Math.max(1, parseInt(clientData.product_count) || 1);
+        const qty = (bestPend && optionalQuantities[bestPend.id]) || 1;
+        const pendCalc = calculateComponentCost(pendType, finalPrice, bestPend?.product_tiers, productCount, branchCount, qty);
 
-        if (pendType === 'PER_CABANG') {
-            pendMultiplier = branchCount;
-            pendMultiplierLabel = ` (${branchCount} Cabang)`;
-        } else if (pendType === 'PER_PRODUK') {
-            pendMultiplier = productCount;
-            pendMultiplierLabel = ` (${productCount} Produk)`;
-        }
-
-        const basePendTotal = finalPrice * pendMultiplier;
+        const basePendTotal = pendCalc.totalAmount;
         if (finalPrice > 0) {
             currentBreakdown.push({
-                name: dispName + pendMultiplierLabel,
+                name: dispName + pendCalc.multiplierLabel,
                 category: 'PENDAMPINGAN',
-                unit_cost: finalPrice,
-                multiplier: pendMultiplier > 1 ? pendMultiplier : null,
+                unit_cost: pendCalc.unitCost,
+                multiplier: pendCalc.multiplier > 1 ? pendCalc.multiplier : null,
                 total: basePendTotal,
             });
             currentTotal += basePendTotal;
@@ -321,15 +304,26 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
                 currentBreakdown.push({
                     name: `Diskon ${dispName} (${pendDiscountPercent}%)`,
                     category: 'DISKON',
-                    unit_cost: -(discAmount / pendMultiplier),
-                    multiplier: pendMultiplier > 1 ? pendMultiplier : null,
+                    unit_cost: -(discAmount / pendCalc.multiplier),
+                    multiplier: pendCalc.multiplier > 1 ? pendCalc.multiplier : null,
                     total: -discAmount,
                 });
                 currentTotal -= discAmount;
             }
         }
 
-        return { total: currentTotal, breakdown: currentBreakdown };
+        // Collect components needing quantity input
+        const mandayList: any[] = [];
+        if (bestPend && (bestPend.type || '').includes('PER_MANDAY') && finalPrice > 0) {
+            mandayList.push(bestPend);
+        }
+        Array.from(categoryMap.values()).forEach(comp => {
+            if ((comp.type || '').includes('PER_MANDAY')) {
+                mandayList.push(comp);
+            }
+        });
+
+        return { total: currentTotal, breakdown: currentBreakdown, activeMandayComponents: mandayList };
     }, [masterComponents, salesSchemePrice, systemSettings, serviceType, clientData, selectedOptionalIds, optionalQuantities, optionalComponents]);
 
     const formatCurrency = (val: number) => {
@@ -415,6 +409,35 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
                     ))
                 )}
             </div>
+
+            {/* Quantity Inputs for PER_MANDAY components */}
+            {activeMandayComponents && activeMandayComponents.length > 0 && serviceType !== 'SELF_DECLARE' && (
+                <div className="space-y-2 pt-3 border-t border-gray-100">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                        Kuantitas Komponen (Per Kuantitas / Manday):
+                    </span>
+                    <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                        {activeMandayComponents.map((comp: any) => (
+                            <div key={comp.id} className="flex items-center justify-between p-2 rounded-xl border bg-gray-50 border-gray-150 text-xs">
+                                <div className="flex flex-col min-w-0 pr-2">
+                                    <span className="font-semibold text-gray-700 truncate">{comp.name}</span>
+                                    <span className="text-[10px] text-gray-400">{formatCurrency(comp.base_amount)} / kuantitas</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    <span className="text-[10px] text-gray-500 font-bold">Qty:</span>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={optionalQuantities[comp.id] || 1}
+                                        onChange={e => handleQtyChange(comp.id, parseInt(e.target.value) || 1)}
+                                        className="w-14 px-1.5 py-1 bg-white border border-gray-205 rounded-lg text-xs font-bold text-center outline-none focus:ring-2 focus:ring-brand-500/20"
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Optional Components Selection */}
             {optionalComponents.length > 0 && serviceType !== 'SELF_DECLARE' && (

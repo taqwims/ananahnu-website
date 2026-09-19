@@ -48,6 +48,8 @@ func main() {
 	_ = db.Exec("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS type VARCHAR(20) DEFAULT 'FULL'")
 	// Add form_field_config_id column to billing_components table for optional fees connected to form fields
 	_ = db.Exec("ALTER TABLE billing_components ADD COLUMN IF NOT EXISTS form_field_config_id BIGINT")
+	// Add product_tiers column to billing_components table for tiered product pricing
+	_ = db.Exec("ALTER TABLE billing_components ADD COLUMN IF NOT EXISTS product_tiers JSONB")
 
 	err = db.AutoMigrate(
 		// Auth & Users

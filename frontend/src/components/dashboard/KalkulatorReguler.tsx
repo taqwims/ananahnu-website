@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/authStore';
 import { formatRupiah } from '../../utils/format';
 import { toast } from 'react-hot-toast';
 import type { BillingComponent } from '../../types';
+import { calculateComponentCost } from '../../utils/billingCalculator';
 import FileUpload from './FileUpload';
 type Props = {
     submissionId: string;
@@ -302,14 +303,14 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     }, [submissionFieldValues]);
 
     // Reactive calculation
-    const { total, breakdown } = useMemo(() => {
+    const { total, breakdown, activeMandayComponents } = useMemo(() => {
         let currentTotal = 0;
         const currentBreakdown: any[] = [];
 
-
+        const activeSchemeId = salesSchemeVal || salesSchemeId?.toString();
 
         // 1. Components from master biaya
-        // Group by category and pick the most specific one
+        // De-duplicate variants of the same component (e.g. regional vs general) by normalized base name
         const categoryMap = new Map<string, any>();
         
         masterComponents.forEach(comp => {
@@ -328,7 +329,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId?.toString()) return;
             if (comp.product_category_id && comp.product_category_id.toString() !== productId?.toString()) return;
             if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId?.toString()) return;
-            if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== salesSchemeId?.toString()) return;
+            if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== activeSchemeId) return;
 
             let score = 0;
             if (comp.district_id) score += 1000;
@@ -339,9 +340,13 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             if (comp.product_category_id) score += 2;
             if (comp.business_type_id) score += 1;
 
-            const existing = categoryMap.get(cat);
+            // Normalize base name so specific regional overrides general, but distinct components in same category are both kept
+            const normName = (comp.name || '').replace(/\s*\([^)]*(?:khusus|provinsi|wilayah|regional|jakarta|umum)[^)]*\)/gi, '').trim().toUpperCase();
+            const dedupeKey = `${cat}::${normName}`;
+
+            const existing = categoryMap.get(dedupeKey);
             if (!existing || score > existing.score) {
-                categoryMap.set(cat, { ...comp, score });
+                categoryMap.set(dedupeKey, { ...comp, score });
             }
         });
 
@@ -352,21 +357,10 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             else if (comp.province_id) nameTag = ' [Khusus Provinsi]';
             else if (comp.business_type_id || comp.product_category_id || comp.business_scale_id) nameTag = ' [Khusus Kriteria]';
 
-            let multiplier = 1;
-            let multiplierLabel = '';
-            
-            if (comp.type === 'PER_CABANG') {
-                multiplier = branchCount;
-                multiplierLabel = ` (${branchCount} Cabang)`;
-            } else if (comp.type === 'PER_MANDAY') {
-                multiplier = optionalQuantities[comp.id] || 1;
-                multiplierLabel = ` (${multiplier} Kuantitas)`;
-            } else if (comp.type === 'PER_PRODUK') {
-                multiplier = productCount;
-                multiplierLabel = ` (${productCount} Produk)`;
-            }
+            const customQty = optionalQuantities[comp.id] || 1;
+            const calc = calculateComponentCost(comp.type, comp.base_amount, comp.product_tiers, productCount, branchCount, customQty);
 
-            const baseAmount = comp.base_amount * multiplier;
+            const baseAmount = calc.totalAmount;
             let itemTotal = baseAmount;
             let discountAmount = 0;
             if (comp.discount_percent && comp.discount_percent > 0) {
@@ -375,10 +369,10 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             }
 
             currentBreakdown.push({
-                name: comp.name + nameTag + multiplierLabel,
+                name: comp.name + nameTag + calc.multiplierLabel,
                 category: comp.category.toUpperCase(),
-                unit_cost: comp.base_amount,
-                multiplier: multiplier > 1 ? multiplier : null,
+                unit_cost: calc.unitCost,
+                multiplier: calc.multiplier > 1 ? calc.multiplier : null,
                 total: baseAmount,
                 is_optional: false
             });
@@ -387,8 +381,8 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 currentBreakdown.push({
                     name: `Diskon ${comp.name} (${comp.discount_percent}%)`,
                     category: 'DISKON',
-                    unit_cost: -(discountAmount / multiplier),
-                    multiplier: multiplier > 1 ? multiplier : null,
+                    unit_cost: -(discountAmount / calc.multiplier),
+                    multiplier: calc.multiplier > 1 ? calc.multiplier : null,
                     total: -discountAmount,
                     is_optional: false
                 });
@@ -405,11 +399,12 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             if (compSt !== 'BOTH' && compSt !== 'ALL' && serviceTypeVal && compSt !== serviceTypeVal) return;
 
             // Match filters
-            if (comp.province_id && comp.province_id.toString() !== provinceId) return;
-            if (comp.regency_id && comp.regency_id.toString() !== regencyId) return;
-            if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId) return;
-            if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId) return;
-            if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== salesSchemeId?.toString()) return;
+            if (comp.province_id && comp.province_id.toString() !== provinceId?.toString()) return;
+            if (comp.regency_id && comp.regency_id.toString() !== regencyId?.toString()) return;
+            if (comp.district_id && comp.district_id.toString() !== districtId?.toString()) return;
+            if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId?.toString()) return;
+            if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId?.toString()) return;
+            if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== activeSchemeId) return;
 
             let score = 0;
             if (comp.district_id) score += 1000;
@@ -453,25 +448,17 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             pendDiscountPercent = salesSchemePrice.discount_percent;
         }
 
-        let pendMultiplier = 1;
-        let pendMultiplierLabel = '';
         const pendType = bestPend?.type || (serviceTypeVal === 'REGULER' ? 'PER_CABANG' : 'FIXED');
+        const qty = (bestPend && optionalQuantities[bestPend.id]) || 1;
+        const pendCalc = calculateComponentCost(pendType, finalPrice, bestPend?.product_tiers, productCount, branchCount, qty);
 
-        if (pendType === 'PER_CABANG') {
-            pendMultiplier = branchCount;
-            pendMultiplierLabel = ` (${branchCount} Cabang)`;
-        } else if (pendType === 'PER_PRODUK') {
-            pendMultiplier = productCount;
-            pendMultiplierLabel = ` (${productCount} Produk)`;
-        }
-
-        const basePendTotal = finalPrice * pendMultiplier;
+        const basePendTotal = pendCalc.totalAmount;
         if (finalPrice > 0) {
             currentBreakdown.push({
-                name: dispName + pendMultiplierLabel,
+                name: dispName + pendCalc.multiplierLabel,
                 category: dispCategory.toUpperCase(),
-                unit_cost: finalPrice,
-                multiplier: pendMultiplier > 1 ? pendMultiplier : null,
+                unit_cost: pendCalc.unitCost,
+                multiplier: pendCalc.multiplier > 1 ? pendCalc.multiplier : null,
                 total: basePendTotal,
                 is_optional: false
             });
@@ -482,8 +469,8 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 currentBreakdown.push({
                     name: `Diskon ${dispName} (${pendDiscountPercent}%)`,
                     category: 'DISKON',
-                    unit_cost: -(discAmount / pendMultiplier),
-                    multiplier: pendMultiplier > 1 ? pendMultiplier : null,
+                    unit_cost: -(discAmount / pendCalc.multiplier),
+                    multiplier: pendCalc.multiplier > 1 ? pendCalc.multiplier : null,
                     total: -discAmount,
                     is_optional: false
                 });
@@ -491,17 +478,29 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             }
         }
 
+        // Collect components needing quantity input
+        const mandayList: any[] = [];
+        if (bestPend && (bestPend.type || '').includes('PER_MANDAY') && finalPrice > 0) {
+            mandayList.push(bestPend);
+        }
+        Array.from(categoryMap.values()).forEach(comp => {
+            if ((comp.type || '').includes('PER_MANDAY')) {
+                mandayList.push(comp);
+            }
+        });
+
         // 2. Partnership discount on pendampingan
         const currentScheme = schemes.find((s: any) => s.id === (salesSchemeId || -1));
         if (currentScheme && currentScheme.name.toUpperCase() === 'PARTNERSHIP') {
             const jaseItem = currentBreakdown.find(item => item.category === 'PENDAMPINGAN');
             if (jaseItem) {
                 const discountAmount = jaseItem.total * 0.1;
+                const pMult = pendCalc.multiplier > 1 ? pendCalc.multiplier : 1;
                 currentBreakdown.push({
                     name: 'Diskon Partnership (10%)',
                     category: 'DISKON',
-                    unit_cost: -(discountAmount / pendMultiplier),
-                    multiplier: pendMultiplier > 1 ? pendMultiplier : null,
+                    unit_cost: -(discountAmount / pMult),
+                    multiplier: pMult > 1 ? pMult : null,
                     total: -discountAmount,
                     is_optional: false
                 });
@@ -527,22 +526,10 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
 
             if (!shouldInclude) return;
 
-            let multiplier = 1;
-            let multiplierLabel = '';
             const customQty = optionalQuantities[comp.id] || 1;
-            
-            if (comp.type === 'PER_CABANG') {
-                multiplier = branchCount * customQty;
-                multiplierLabel = ` (${branchCount} Cabang${customQty > 1 ? ` x ${customQty} Qty` : ''})`;
-            } else if (comp.type === 'PER_PRODUK') {
-                multiplier = productCount * customQty;
-                multiplierLabel = ` (${productCount} Produk${customQty > 1 ? ` x ${customQty} Qty` : ''})`;
-            } else {
-                multiplier = customQty;
-                multiplierLabel = customQty > 1 ? ` (${customQty} Komponen)` : '';
-            }
+            const calc = calculateComponentCost(comp.type, comp.base_amount, comp.product_tiers, productCount, branchCount, customQty);
 
-            const baseAmount = comp.base_amount * multiplier;
+            const baseAmount = calc.totalAmount;
             let itemTotal = baseAmount;
             let discountAmount = 0;
             if (comp.discount_percent && comp.discount_percent > 0) {
@@ -558,10 +545,10 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
 
             currentBreakdown.push({
                 id: comp.id,
-                name: comp.name + nameTag + multiplierLabel,
+                name: comp.name + nameTag + calc.multiplierLabel,
                 category: comp.category.toUpperCase(),
-                unit_cost: comp.base_amount,
-                multiplier: multiplier > 1 ? multiplier : null,
+                unit_cost: calc.unitCost,
+                multiplier: calc.multiplier > 1 ? calc.multiplier : null,
                 total: baseAmount,
                 is_optional: true
             });
@@ -570,8 +557,8 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 currentBreakdown.push({
                     name: `Diskon ${comp.name} (${comp.discount_percent}%)`,
                     category: 'DISKON',
-                    unit_cost: -(discountAmount / multiplier),
-                    multiplier: multiplier > 1 ? multiplier : null,
+                    unit_cost: -(discountAmount / calc.multiplier),
+                    multiplier: calc.multiplier > 1 ? calc.multiplier : null,
                     total: -discountAmount,
                     is_optional: true
                 });
@@ -594,8 +581,8 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             currentTotal += subtotal;
         });
 
-        return { total: currentTotal, breakdown: currentBreakdown };
-    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, optionalQuantities, productCount, selectedOptionalComponentIds, isFormFieldFilled]);
+        return { total: currentTotal, breakdown: currentBreakdown, activeMandayComponents: mandayList };
+    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, salesSchemeVal, schemes, branchCount, optionalQuantities, productCount, selectedOptionalComponentIds, isFormFieldFilled, serviceTypeVal, provinceId, regencyId, districtId, businessTypeId, productId, businessScaleId, systemSettings]);
 
     const handleSave = async () => {
         setSaving(true);
@@ -946,6 +933,37 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                                     />
                                 </div>
                             </div>
+
+                            {/* Quantity Inputs for PER_MANDAY components */}
+                            {activeMandayComponents && activeMandayComponents.length > 0 && (
+                                <div className="space-y-2 border-t border-gray-150 pt-4">
+                                    <label className="block text-xs font-bold text-gray-500 uppercase">Kuantitas Komponen (Per Kuantitas / Manday)</label>
+                                    <div className="space-y-2">
+                                        {activeMandayComponents.map((comp: any) => (
+                                            <div key={comp.id} className="flex items-center justify-between gap-3 bg-white p-3 rounded-xl border border-gray-205 shadow-xs">
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold text-gray-800">{comp.name}</span>
+                                                    <span className="text-[10px] text-gray-400">{formatRupiah(comp.base_amount)} / kuantitas</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-gray-500 font-bold">Kuantitas:</span>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        value={optionalQuantities[comp.id] || 1}
+                                                        onChange={e => {
+                                                            const val = Math.max(1, parseInt(e.target.value) || 1);
+                                                            setOptionalQuantities(prev => ({ ...prev, [comp.id]: val }));
+                                                        }}
+                                                        disabled={!isEditable}
+                                                        className="w-16 px-2 py-1 bg-gray-50 border border-gray-205 rounded-lg text-xs font-bold text-center outline-none focus:ring-2 focus:ring-brand-500/20"
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Optional Components from Master Biaya */}
                             {masterComponents.filter(c => c && c.category && !c.is_mandatory && c.category.toUpperCase() !== 'PENDAMPINGAN').length > 0 && (

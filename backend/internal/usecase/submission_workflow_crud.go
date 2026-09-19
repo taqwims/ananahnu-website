@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,6 +14,15 @@ import (
 
 	"github.com/google/uuid"
 )
+
+var reParen = regexp.MustCompile(`\s*\(.*?\)\s*`)
+var reRegionSuffix = regexp.MustCompile(`(?i)\s*-\s*(Provinsi|Kabupaten|Kota|Kecamatan).*$`)
+
+func normalizeComponentName(name string) string {
+	s := reParen.ReplaceAllString(name, "")
+	s = reRegionSuffix.ReplaceAllString(s, "")
+	return strings.ToLower(strings.TrimSpace(s))
+}
 
 func (uc *submissionWorkflowUsecase) GetSubmissions(userID uuid.UUID, role string, filter map[string]interface{}) ([]domain.Submission, error) {
 	// Role-based filtering logic
@@ -841,8 +851,6 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 	}
 
 	if price > 0 {
-		multiplier := 1
-		multiplierLabel := ""
 		branchCount := sub.BranchCount
 		if branchCount < 1 {
 			branchCount = 1
@@ -852,19 +860,22 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 			productCount = 1
 		}
 
-		if pendType == "PER_CABANG" {
-			multiplier = branchCount
-			if branchCount > 1 {
-				multiplierLabel = fmt.Sprintf(" (%d Cabang)", branchCount)
-			}
-		} else if pendType == "PER_PRODUK" {
-			multiplier = productCount
-			if productCount > 1 {
-				multiplierLabel = fmt.Sprintf(" (%d Produk)", productCount)
+		qty := 1
+		var productTiers string
+		if bestPendampingan != nil {
+			productTiers = bestPendampingan.ProductTiers
+			if q, ok := optionalQuantities[bestPendampingan.ID]; ok && q > 0 {
+				qty = q
+			} else {
+				prevMult := getMultiplierFromBreakdown(existingBreakdown, pendampinganName)
+				if prevMult > 0 {
+					qty = prevMult
+				}
 			}
 		}
 
-		basePendTotal := price * float64(multiplier)
+		unitPrice, multiplier, multiplierLabel := domain.CalculateComponentPriceAndMultiplier(pendType, price, productTiers, productCount, branchCount, qty)
+		basePendTotal := unitPrice * float64(multiplier)
 		discountAmount := 0.0
 		if pendDiscount > 0 {
 			discountAmount = basePendTotal * (pendDiscount / 100.0)
@@ -874,7 +885,7 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 		breakdown = append(breakdown, map[string]interface{}{
 			"name":        pendampinganName + multiplierLabel,
 			"category":    pendampinganCategory,
-			"unit_cost":   price,
+			"unit_cost":   unitPrice,
 			"multiplier":  multiplier,
 			"total":       basePendTotal,
 			"is_optional": false,
@@ -972,9 +983,11 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 			}
 
 			cat := strings.ToUpper(comp.Category)
-			existing, exists := mandatoryCategoryMap[cat]
+			normName := normalizeComponentName(comp.Name)
+			groupKey := fmt.Sprintf("%s::%s", cat, normName)
+			existing, exists := mandatoryCategoryMap[groupKey]
 			if !exists || score > existing.score {
-				mandatoryCategoryMap[cat] = scoredComp{comp: comp, score: score}
+				mandatoryCategoryMap[groupKey] = scoredComp{comp: comp, score: score}
 			}
 		}
 	}
@@ -996,77 +1009,41 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 		multiplier := 1
 		multiplierLabel := ""
 
-		if !comp.IsMandatory {
-			optQty := 1
+		isOptional := !comp.IsMandatory
+		qty := 1
+		if isOptional {
 			if q, ok := optionalQuantities[comp.ID]; ok && q > 0 {
-				optQty = q
+				qty = q
 			} else {
 				prevMult := getMultiplierFromBreakdown(existingBreakdown, comp.Name)
 				if prevMult > 0 {
-					optQty = prevMult
+					qty = prevMult
 				}
 			}
-
-			branchCount := sub.BranchCount
-			if branchCount < 1 {
-				branchCount = 1
-			}
-			productCount := sub.ProductCount
-			if productCount < 1 {
-				productCount = 1
-			}
-
-			if comp.Type == "PER_CABANG" {
-				multiplier = branchCount * optQty
-				if optQty > 1 {
-					multiplierLabel = fmt.Sprintf(" (%d Cabang x %d Qty)", branchCount, optQty)
-				} else {
-					multiplierLabel = fmt.Sprintf(" (%d Cabang)", branchCount)
-				}
-			} else if comp.Type == "PER_PRODUK" {
-				multiplier = productCount * optQty
-				if optQty > 1 {
-					multiplierLabel = fmt.Sprintf(" (%d Produk x %d Qty)", productCount, optQty)
-				} else {
-					multiplierLabel = fmt.Sprintf(" (%d Produk)", productCount)
-				}
-			} else {
-				multiplier = optQty
-				if multiplier > 1 {
-					multiplierLabel = fmt.Sprintf(" (%d Kuantitas)", multiplier)
-				}
-			}
-			amount = amount * float64(multiplier)
 		} else {
-			branchCount := sub.BranchCount
-			if branchCount < 1 {
-				branchCount = 1
-			}
-			productCount := sub.ProductCount
-			if productCount < 1 {
-				productCount = 1
-			}
-
-			if comp.Type == "PER_CABANG" {
-				multiplier = branchCount
-				multiplierLabel = fmt.Sprintf(" (%d Cabang)", branchCount)
-				amount = amount * float64(multiplier)
-			} else if comp.Type == "PER_PRODUK" {
-				multiplier = productCount
-				multiplierLabel = fmt.Sprintf(" (%d Produk)", productCount)
-				amount = amount * float64(multiplier)
-			} else if comp.Type == "PER_MANDAY" {
-				// All PER_MANDAY components use per-component multiplier from breakdown
-				prevMult := getMultiplierFromBreakdown(existingBreakdown, comp.Name)
-				if prevMult > 0 {
-					multiplier = prevMult
+			if strings.Contains(comp.Type, "PER_MANDAY") {
+				if q, ok := optionalQuantities[comp.ID]; ok && q > 0 {
+					qty = q
+				} else {
+					prevMult := getMultiplierFromBreakdown(existingBreakdown, comp.Name)
+					if prevMult > 0 {
+						qty = prevMult
+					}
 				}
-				if multiplier > 1 {
-					multiplierLabel = fmt.Sprintf(" (%d Kuantitas)", multiplier)
-				}
-				amount = amount * float64(multiplier)
 			}
 		}
+
+		branchCount := sub.BranchCount
+		if branchCount < 1 {
+			branchCount = 1
+		}
+		productCount := sub.ProductCount
+		if productCount < 1 {
+			productCount = 1
+		}
+
+		unitPrice, multiplier, multiplierLabel := domain.CalculateComponentPriceAndMultiplier(comp.Type, comp.BaseAmount, comp.ProductTiers, productCount, branchCount, qty)
+		amount = unitPrice * float64(multiplier)
 
 		discountAmount := 0.0
 		if comp.DiscountPercent > 0 {

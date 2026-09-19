@@ -355,11 +355,17 @@ export interface SubmissionCostDetail {
 
 // --- Billing Component (with Category & IsMandatory) ---
 
+export interface ProductTier {
+    min_qty: number;
+    max_qty: number;
+    price: number;
+}
+
 export interface BillingComponent {
     id: number;
     name: string;
     category: 'PENDAMPINGAN' | 'BPJPH' | 'MUI' | 'PERSYARATAN_LAIN' | 'LPH';
-    type: 'FIXED' | 'PER_MANDAY' | 'PER_CABANG' | 'PER_PRODUK';
+    type: string; // 'FIXED' | 'PER_MANDAY' | 'PER_CABANG' | 'PER_PRODUK' or comma-separated
     base_amount: number;
     is_mandatory: boolean;
     discount_percent?: number;
@@ -374,6 +380,7 @@ export interface BillingComponent {
     data_source?: string;
     form_field_config_id?: number;
     form_field_config?: FormFieldConfig;
+    product_tiers?: string | ProductTier[];
 }
 
 

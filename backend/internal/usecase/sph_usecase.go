@@ -136,23 +136,38 @@ func (uc *sphUsecase) GenerateSPH(submissionID uuid.UUID) (*domain.SPH, error) {
 			if comp.ProductCategoryID != nil { score += 2 }
 			if comp.BusinessTypeID != nil { score += 1 }
 
-			cat := comp.Category
-			existing, exists := categoryMap[cat]
+			cat := strings.ToUpper(comp.Category)
+			normName := normalizeComponentName(comp.Name)
+			groupKey := fmt.Sprintf("%s::%s", cat, normName)
+			existing, exists := categoryMap[groupKey]
 			if !exists || score > existing.score {
-				categoryMap[cat] = scoredComp{comp: comp, score: score}
+				categoryMap[groupKey] = scoredComp{comp: comp, score: score}
 			}
+		}
+
+		branchCount := submission.BranchCount
+		if branchCount < 1 {
+			branchCount = 1
+		}
+		productCount := submission.ProductCount
+		if productCount < 1 {
+			productCount = 1
 		}
 
 		var items []CostItem
 		for _, sc := range categoryMap {
+			unitPrice, multiplier, multiplierLabel := domain.CalculateComponentPriceAndMultiplier(sc.comp.Type, sc.comp.BaseAmount, sc.comp.ProductTiers, productCount, branchCount, 1)
+			amount := unitPrice * float64(multiplier)
+			name := sc.comp.Name + multiplierLabel
+
 			item := CostItem{
-				Name:     sc.comp.Name,
+				Name:     name,
 				Category: sc.comp.Category,
 				Type:     sc.comp.Type,
-				Amount:   sc.comp.BaseAmount,
+				Amount:   amount,
 			}
 			items = append(items, item)
-			totalAmount += sc.comp.BaseAmount
+			totalAmount += amount
 		}
 
 		// Also include configured scheme prices if submission has a sales scheme

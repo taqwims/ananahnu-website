@@ -3,6 +3,7 @@ import { Loader2, Download, Plus, Trash, BookOpen, Calculator } from 'lucide-rea
 import api from '../../services/api';
 import { toast } from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
+import { calculateComponentCost } from '../../utils/billingCalculator';
 
 type OptionalCost = {
     name: string;
@@ -203,7 +204,7 @@ export default function EstimasiReguler() {
     };
 
     // Reactive calculation
-    const { total, breakdown } = useMemo(() => {
+    const { total, breakdown, activeMandayComponents } = useMemo(() => {
         if (serviceType === 'SELF_DECLARE') {
             return {
                 total: 0,
@@ -216,7 +217,8 @@ export default function EstimasiReguler() {
                         total: 0,
                         is_optional: false
                     }
-                ]
+                ],
+                activeMandayComponents: []
             };
         }
 
@@ -224,6 +226,7 @@ export default function EstimasiReguler() {
         const currentBreakdown: any[] = [];
 
         // 1. Mandatory Components from master biaya
+        // De-duplicate variants of the same component (e.g. regional vs general) by normalized base name
         const categoryMap = new Map<string, any>();
         
         masterComponents.forEach(comp => {
@@ -250,9 +253,12 @@ export default function EstimasiReguler() {
             if (comp.product_category_id) score += 2;
             if (comp.business_type_id) score += 1;
 
-            const existing = categoryMap.get(cat);
+            const normName = (comp.name || '').replace(/\s*\([^)]*(?:khusus|provinsi|wilayah|regional|jakarta|umum)[^)]*\)/gi, '').trim().toUpperCase();
+            const dedupeKey = `${cat}::${normName}`;
+
+            const existing = categoryMap.get(dedupeKey);
             if (!existing || score > existing.score) {
-                categoryMap.set(cat, { ...comp, score });
+                categoryMap.set(dedupeKey, { ...comp, score });
             }
         });
 
@@ -266,6 +272,7 @@ export default function EstimasiReguler() {
 
             if (comp.province_id && comp.province_id.toString() !== provinceId) return;
             if (comp.regency_id && comp.regency_id.toString() !== regencyId) return;
+            if (comp.district_id && comp.district_id.toString() !== districtId) return;
             if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId) return;
             if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId) return;
             if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== salesSchemeId) return;
@@ -312,24 +319,27 @@ export default function EstimasiReguler() {
             dispCategory = 'PENDAMPINGAN';
         }
 
-        let pendMultiplier = 1;
-        let pendMultiplierLabel = '';
         const pendType = bestPend?.type || (serviceType === 'REGULER' ? 'PER_CABANG' : 'FIXED');
+        const pendCustomQty = (bestPend && optionalQuantities[bestPend.id]) || 1;
+        const pendCost = calculateComponentCost(
+            pendType,
+            finalPrice,
+            bestPend?.product_tiers,
+            productCount,
+            branchCount,
+            pendCustomQty
+        );
 
-        if (pendType === 'PER_CABANG') {
-            pendMultiplier = branchCount;
-            pendMultiplierLabel = ` (${branchCount} Cabang)`;
-        } else if (pendType === 'PER_PRODUK') {
-            pendMultiplier = productCount;
-            pendMultiplierLabel = ` (${productCount} Produk)`;
-        }
+        const pendMultiplier = pendCost.multiplier;
+        const pendMultiplierLabel = pendCost.multiplierLabel;
+        const basePendTotal = pendCost.totalAmount;
+        const pendUnitCost = pendCost.unitCost;
 
-        const basePendTotal = finalPrice * pendMultiplier;
         if (finalPrice > 0) {
             currentBreakdown.push({
                 name: dispName + pendMultiplierLabel,
                 category: dispCategory,
-                unit_cost: finalPrice,
+                unit_cost: pendUnitCost,
                 multiplier: pendMultiplier > 1 ? pendMultiplier : null,
                 total: basePendTotal,
                 is_optional: false
@@ -358,21 +368,17 @@ export default function EstimasiReguler() {
             else if (comp.province_id) nameTag = ' [Khusus Provinsi]';
             else if (comp.business_type_id || comp.product_category_id || comp.business_scale_id) nameTag = ' [Khusus Kriteria]';
 
-            let multiplier = 1;
-            let multiplierLabel = '';
-            
-            if (comp.type === 'PER_CABANG') {
-                multiplier = branchCount;
-                multiplierLabel = ` (${branchCount} Cabang)`;
-            } else if (comp.type === 'PER_MANDAY') {
-                multiplier = optionalQuantities[comp.id] || 1;
-                multiplierLabel = ` (${multiplier} Kuantitas)`;
-            } else if (comp.type === 'PER_PRODUK') {
-                multiplier = productCount;
-                multiplierLabel = ` (${productCount} Produk)`;
-            }
+            const customQty = optionalQuantities[comp.id] || 1;
+            const cost = calculateComponentCost(
+                comp.type,
+                comp.base_amount,
+                comp.product_tiers,
+                productCount,
+                branchCount,
+                customQty
+            );
 
-            const baseAmount = comp.base_amount * multiplier;
+            const baseAmount = cost.totalAmount;
             let itemTotal = baseAmount;
             let discountAmount = 0;
             if (comp.discount_percent && comp.discount_percent > 0) {
@@ -381,10 +387,10 @@ export default function EstimasiReguler() {
             }
 
             currentBreakdown.push({
-                name: comp.name + nameTag + multiplierLabel,
+                name: comp.name + nameTag + cost.multiplierLabel,
                 category: comp.category.toUpperCase(),
-                unit_cost: comp.base_amount,
-                multiplier: multiplier > 1 ? multiplier : null,
+                unit_cost: cost.unitCost,
+                multiplier: cost.multiplier > 1 ? cost.multiplier : null,
                 total: baseAmount,
                 is_optional: false
             });
@@ -393,13 +399,24 @@ export default function EstimasiReguler() {
                 currentBreakdown.push({
                     name: `Diskon ${comp.name} (${comp.discount_percent}%)`,
                     category: 'DISKON',
-                    unit_cost: -(discountAmount / multiplier),
-                    multiplier: multiplier > 1 ? multiplier : null,
+                    unit_cost: -(discountAmount / cost.multiplier),
+                    multiplier: cost.multiplier > 1 ? cost.multiplier : null,
                     total: -discountAmount,
                     is_optional: false
                 });
             }
             currentTotal += itemTotal;
+        });
+
+        // Collect components needing quantity input
+        const mandayList: any[] = [];
+        if (bestPend && (bestPend.type || '').includes('PER_MANDAY') && finalPrice > 0) {
+            mandayList.push(bestPend);
+        }
+        Array.from(categoryMap.values()).forEach(comp => {
+            if ((comp.type || '').includes('PER_MANDAY')) {
+                mandayList.push(comp);
+            }
         });
 
         // 3. Partnership discount on pendampingan
@@ -430,22 +447,17 @@ export default function EstimasiReguler() {
             const shouldInclude = selectedOptionalComponentIds.includes(comp.id);
             if (!shouldInclude) return;
 
-            let multiplier = 1;
-            let multiplierLabel = '';
             const customQty = optionalQuantities[comp.id] || 1;
-            
-            if (comp.type === 'PER_CABANG') {
-                multiplier = branchCount * customQty;
-                multiplierLabel = ` (${branchCount} Cabang${customQty > 1 ? ` x ${customQty} Qty` : ''})`;
-            } else if (comp.type === 'PER_PRODUK') {
-                multiplier = productCount * customQty;
-                multiplierLabel = ` (${productCount} Produk${customQty > 1 ? ` x ${customQty} Qty` : ''})`;
-            } else {
-                multiplier = customQty;
-                multiplierLabel = customQty > 1 ? ` (${customQty} Komponen)` : '';
-            }
+            const cost = calculateComponentCost(
+                comp.type,
+                comp.base_amount,
+                comp.product_tiers,
+                productCount,
+                branchCount,
+                customQty
+            );
 
-            const baseAmount = comp.base_amount * multiplier;
+            const baseAmount = cost.totalAmount;
             let itemTotal = baseAmount;
             let discountAmount = 0;
             if (comp.discount_percent && comp.discount_percent > 0) {
@@ -461,10 +473,10 @@ export default function EstimasiReguler() {
 
             currentBreakdown.push({
                 id: comp.id,
-                name: comp.name + nameTag + multiplierLabel,
+                name: comp.name + nameTag + cost.multiplierLabel,
                 category: comp.category.toUpperCase(),
-                unit_cost: comp.base_amount,
-                multiplier: multiplier > 1 ? multiplier : null,
+                unit_cost: cost.unitCost,
+                multiplier: cost.multiplier > 1 ? cost.multiplier : null,
                 total: baseAmount,
                 is_optional: true
             });
@@ -473,8 +485,8 @@ export default function EstimasiReguler() {
                 currentBreakdown.push({
                     name: `Diskon ${comp.name} (${comp.discount_percent}%)`,
                     category: 'DISKON',
-                    unit_cost: -(discountAmount / multiplier),
-                    multiplier: multiplier > 1 ? multiplier : null,
+                    unit_cost: -(discountAmount / cost.multiplier),
+                    multiplier: cost.multiplier > 1 ? cost.multiplier : null,
                     total: -discountAmount,
                     is_optional: true
                 });
@@ -495,7 +507,7 @@ export default function EstimasiReguler() {
             currentTotal += opt.amount;
         });
 
-        return { total: currentTotal, breakdown: currentBreakdown };
+        return { total: currentTotal, breakdown: currentBreakdown, activeMandayComponents: mandayList };
     }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, optionalQuantities, productCount, selectedOptionalComponentIds, serviceType, systemSettings, provinceId, regencyId, districtId, businessTypeId, productId, businessScaleId]);
 
     const getCategoryBadgeClass = (cat: string) => {
@@ -828,6 +840,40 @@ export default function EstimasiReguler() {
                             </div>
                         </div>
 
+                        {/* Dynamic Manday / Kuantitas for active components (e.g. Pendampingan or other mandatory components) */}
+                        {activeMandayComponents && activeMandayComponents.length > 0 && (
+                            <div className="border-t border-gray-150 pt-3">
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">
+                                    Kuantitas Komponen Biaya (Per Manday/Qty)
+                                </label>
+                                <div className="space-y-2">
+                                    {activeMandayComponents.map(comp => (
+                                        <div key={comp.id} className="flex items-center justify-between bg-amber-50/60 border border-amber-200/70 p-2 rounded-lg text-xs">
+                                            <span className="font-semibold text-amber-900 pr-2 truncate">
+                                                {comp.name}
+                                            </span>
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    className="w-16 bg-white border border-amber-300 rounded px-2 py-1 text-xs text-center font-bold outline-none focus:ring-2 focus:ring-amber-500/20"
+                                                    value={optionalQuantities[comp.id] || 1}
+                                                    onChange={e => {
+                                                        const val = Math.max(1, parseInt(e.target.value) || 1);
+                                                        setOptionalQuantities(prev => ({
+                                                            ...prev,
+                                                            [comp.id]: val
+                                                        }));
+                                                    }}
+                                                />
+                                                <span className="text-[10px] font-bold text-amber-700">Qty</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Optional Components */}
                         {masterComponents.filter(c => {
                             if (!c || !c.category || c.is_mandatory || c.category.toUpperCase() === 'PENDAMPINGAN') return false;
@@ -860,7 +906,7 @@ export default function EstimasiReguler() {
                                                         className="w-3.5 h-3.5 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
                                                     />
                                                     <div className="flex-1 text-gray-700 font-medium text-[11px]">{comp.name}</div>
-                                                    {isChecked && comp.type === 'PER_MANDAY' && (
+                                                    {isChecked && (comp.type || '').includes('PER_MANDAY') && (
                                                         <div className="flex items-center gap-1 mt-0.5 mb-0.5">
                                                             <span className="text-[9px] text-gray-400 font-semibold">Qty:</span>
                                                             <input

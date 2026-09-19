@@ -449,6 +449,8 @@ func seedKalkulatorData(db *gorm.DB) {
 		err := db.Where("name = ?", components[i].Name).First(&existing).Error
 		if err != nil {
 			db.Create(&components[i])
+		} else if existing.Type == "" || (components[i].Category == "PENDAMPINGAN" && existing.Type != components[i].Type) {
+			db.Model(&existing).Update("type", components[i].Type)
 		}
 	}
 

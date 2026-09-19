@@ -423,14 +423,41 @@ export const BillingComponentTable = ({
                                         </td>
                                         <td className="px-4 py-4">
                                             <div className="font-bold text-gray-800">{c.name}</div>
-                                            <div className="mt-1 flex flex-wrap gap-1">
-                                                <span className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-[10px] font-semibold text-gray-600">
-                                                    {c.type === 'PER_MANDAY' ? 'PER KUANTITAS' : c.type}
-                                                </span>
+                                            <div className="mt-1 flex flex-wrap items-center gap-1">
+                                                {(c.type ? c.type.split(',') : ['FIXED']).map((t: string, idx: number) => {
+                                                    const trimmed = t.trim();
+                                                    const label = trimmed === 'PER_MANDAY' ? 'PER KUANTITAS' : trimmed === 'PER_PRODUK' ? 'PER PRODUK' : trimmed === 'PER_CABANG' ? 'PER CABANG' : 'TETAP';
+                                                    return (
+                                                        <span key={idx} className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-[10px] font-semibold text-gray-700">
+                                                            {label}
+                                                        </span>
+                                                    );
+                                                })}
                                                 <span className="px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-[10px] font-semibold text-blue-600">
                                                     {c.service_type === 'SELF_DECLARE_MANDIRI' ? 'SD MANDIRI' : c.service_type === 'SELF_DECLARE' ? 'SD FASILITASI' : (c.service_type || 'REGULER')}
                                                 </span>
                                             </div>
+                                            {/* Product tiers preview if available */}
+                                            {(() => {
+                                                let tiers: any[] = [];
+                                                if (c.product_tiers) {
+                                                    if (typeof c.product_tiers === 'string') {
+                                                        try { tiers = JSON.parse(c.product_tiers); } catch { tiers = []; }
+                                                    } else if (Array.isArray(c.product_tiers)) {
+                                                        tiers = c.product_tiers;
+                                                    }
+                                                }
+                                                if (tiers.length === 0) return null;
+                                                return (
+                                                    <div className="mt-1.5 flex flex-wrap gap-1">
+                                                        {tiers.map((tr: any, ti: number) => (
+                                                            <span key={ti} className="inline-flex items-center px-1.5 py-0.5 bg-amber-50 border border-amber-200 text-amber-800 rounded text-[9px] font-medium">
+                                                                {tr.min_qty}-{tr.max_qty > 0 ? tr.max_qty : '∞'}: {formatRupiah(tr.price)}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="px-4 py-4">
                                             <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase shadow-sm whitespace-nowrap ${

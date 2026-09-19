@@ -30,6 +30,8 @@ export const useBillingConfig = () => {
         description: '',
         amount: '',
         type: 'FIXED',
+        types: ['FIXED'] as string[],
+        productTiers: [] as Array<{ min_qty: number | string; max_qty: number | string; price: number | string }>,
         category: 'PERSYARATAN_LAIN',
         mandatory: false,
         serviceType: 'REGULER',
@@ -103,6 +105,8 @@ export const useBillingConfig = () => {
             description: '',
             amount: '',
             type: 'FIXED',
+            types: ['FIXED'],
+            productTiers: [],
             category: 'PERSYARATAN_LAIN',
             mandatory: false,
             serviceType: 'REGULER',
@@ -166,7 +170,23 @@ export const useBillingConfig = () => {
                 } else if (activeTab === 'components') {
                     endpoint = '/billing-config/components';
                     payload.category = formData.category;
-                    payload.type = formData.type;
+                    const selectedTypes = (formData.types && formData.types.length > 0) ? formData.types : (formData.type ? formData.type.split(',') : ['FIXED']);
+                    payload.type = selectedTypes.join(',');
+
+                    // Product tiers handling
+                    if (selectedTypes.includes('PER_PRODUK') && formData.productTiers && formData.productTiers.length > 0) {
+                        const validTiers = formData.productTiers
+                            .filter(t => t.price !== '' && t.price !== null && !isNaN(Number(t.price)))
+                            .map(t => ({
+                                min_qty: parseInt(t.min_qty as string) || 1,
+                                max_qty: parseInt(t.max_qty as string) || 0,
+                                price: parseFloat(t.price as string) || 0
+                            }));
+                        payload.product_tiers = validTiers.length > 0 ? JSON.stringify(validTiers) : null;
+                    } else {
+                        payload.product_tiers = null;
+                    }
+
                     payload.base_amount = parseFloat(formData.amount) || 0;
                     payload.is_mandatory = formData.mandatory;
                     payload.service_type = formData.serviceType || 'REGULER';
@@ -221,11 +241,30 @@ export const useBillingConfig = () => {
 
     const handleEdit = (item: any) => {
         setEditingId(item.id);
+
+        let parsedTiers: any[] = [];
+        if (item.product_tiers) {
+            if (typeof item.product_tiers === 'string') {
+                try {
+                    parsedTiers = JSON.parse(item.product_tiers);
+                } catch {
+                    parsedTiers = [];
+                }
+            } else if (Array.isArray(item.product_tiers)) {
+                parsedTiers = item.product_tiers;
+            }
+        }
+
+        const rawType = item.type || 'FIXED';
+        const itemTypes = rawType.includes(',') ? rawType.split(',').map((s: string) => s.trim()) : [rawType];
+
         setFormData({
             name: item.name,
             description: item.description || '',
             amount: item.base_amount?.toString() || '',
-            type: item.type || 'FIXED',
+            type: rawType,
+            types: itemTypes,
+            productTiers: parsedTiers,
             category: item.category || 'PERSYARATAN_LAIN',
             mandatory: item.is_mandatory || false,
             serviceType: item.service_type || 'REGULER',

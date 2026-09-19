@@ -158,15 +158,17 @@ type TeleDashboard struct {
 // ── Estimation Calculator DTO ──────────────────────────────────────────
 
 type CalculateRegulerInput struct {
-	BusinessTypeID    int64  `json:"business_type_id" binding:"required"`
-	ProductCategoryID *int64 `json:"product_category_id"`
-	BusinessScaleID   int64  `json:"business_scale_id" binding:"required"`
-	ProvinceID        int64  `json:"province_id" binding:"required"`
-	RegencyID         *int64 `json:"regency_id"`
-	ProductCount      int    `json:"product_count"`
-	BranchCount       int    `json:"branch_count"`
-	SalesSchemeID     int64  `json:"sales_scheme_id" binding:"required"`
-	DataSource        string `json:"data_source"` // ORGANIK or MARKETING
+	BusinessTypeID     int64         `json:"business_type_id" binding:"required"`
+	ProductCategoryID  *int64        `json:"product_category_id"`
+	BusinessScaleID    int64         `json:"business_scale_id" binding:"required"`
+	ProvinceID         int64         `json:"province_id" binding:"required"`
+	RegencyID          *int64        `json:"regency_id"`
+	DistrictID         *int64        `json:"district_id"`
+	ProductCount       int           `json:"product_count"`
+	BranchCount        int           `json:"branch_count"`
+	SalesSchemeID      int64         `json:"sales_scheme_id" binding:"required"`
+	DataSource         string        `json:"data_source"` // ORGANIK or MARKETING
+	OptionalQuantities map[int64]int `json:"optional_quantities"`
 }
 
 type BreakdownItem struct {
@@ -882,7 +884,10 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 		if comp.ProvinceID != nil && *comp.ProvinceID != input.ProvinceID {
 			continue
 		}
-		if comp.RegencyID != nil && input.RegencyID != nil && *comp.RegencyID != *input.RegencyID {
+		if comp.RegencyID != nil && (input.RegencyID == nil || *comp.RegencyID != *input.RegencyID) {
+			continue
+		}
+		if comp.DistrictID != nil && (input.DistrictID == nil || *comp.DistrictID != *input.DistrictID) {
 			continue
 		}
 		if comp.BusinessTypeID != nil && *comp.BusinessTypeID != input.BusinessTypeID {
@@ -938,21 +943,19 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 		productCount = 1
 	}
 
-	multiplier := 1
-	multiplierLabel := ""
-	if pendType == "PER_CABANG" {
-		multiplier = branchCount
-		if branchCount > 1 {
-			multiplierLabel = fmt.Sprintf(" (%d Cabang)", branchCount)
-		}
-	} else if pendType == "PER_PRODUK" {
-		multiplier = productCount
-		if productCount > 1 {
-			multiplierLabel = fmt.Sprintf(" (%d Produk)", productCount)
+	qty := 1
+	var pendTiers string
+	if bestPendampingan != nil {
+		pendTiers = bestPendampingan.ProductTiers
+		if input.OptionalQuantities != nil {
+			if q, ok := input.OptionalQuantities[bestPendampingan.ID]; ok && q > 0 {
+				qty = q
+			}
 		}
 	}
 
-	totalPendPrice := price * float64(multiplier)
+	unitPrice, multiplier, multiplierLabel := domain.CalculateComponentPriceAndMultiplier(pendType, price, pendTiers, productCount, branchCount, qty)
+	totalPendPrice := unitPrice * float64(multiplier)
 	var discountAmount float64
 	if scheme != nil && scheme.DiscountPercent > 0 {
 		discountAmount = totalPendPrice * (scheme.DiscountPercent / 100.0)
@@ -997,6 +1000,9 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 		if comp.RegencyID != nil && (input.RegencyID == nil || *comp.RegencyID != *input.RegencyID) {
 			continue
 		}
+		if comp.DistrictID != nil && (input.DistrictID == nil || *comp.DistrictID != *input.DistrictID) {
+			continue
+		}
 		if comp.BusinessTypeID != nil && *comp.BusinessTypeID != input.BusinessTypeID {
 			continue
 		}
@@ -1020,9 +1026,11 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 		if comp.BusinessTypeID != nil { score += 1 }
 
 		cat := strings.ToUpper(comp.Category)
-		existing, exists := categoryMap[cat]
+		normName := normalizeComponentName(comp.Name)
+		groupKey := fmt.Sprintf("%s::%s", cat, normName)
+		existing, exists := categoryMap[groupKey]
 		if !exists || score > existing.score {
-			categoryMap[cat] = scoredComp{comp: comp, score: score}
+			categoryMap[groupKey] = scoredComp{comp: comp, score: score}
 		}
 	}
 
@@ -1039,32 +1047,24 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 	})
 
 	for _, comp := range finalComponents {
-		amount := comp.BaseAmount
-		multiplierLabel := ""
-		
-		// Modifier untuk cabang
-		if comp.Type == "PER_CABANG" {
-			branchCount := input.BranchCount
-			if branchCount < 1 {
-				branchCount = 1
-			}
-			if branchCount > 1 {
-				amount = amount * float64(branchCount)
-				multiplierLabel = fmt.Sprintf(" (%d Cabang)", branchCount)
+		branchCount := input.BranchCount
+		if branchCount < 1 {
+			branchCount = 1
+		}
+		productCount := input.ProductCount
+		if productCount < 1 {
+			productCount = 1
+		}
+		qty := 1
+		if input.OptionalQuantities != nil {
+			if q, ok := input.OptionalQuantities[comp.ID]; ok && q > 0 {
+				qty = q
 			}
 		}
 
-		// Modifier untuk produk
-		if comp.Type == "PER_PRODUK" {
-			productCount := input.ProductCount
-			if productCount < 1 {
-				productCount = 1
-			}
-			if productCount > 1 {
-				amount = amount * float64(productCount)
-				multiplierLabel = fmt.Sprintf(" (%d Produk)", productCount)
-			}
-		}
+		unitPrice, multiplier, label := domain.CalculateComponentPriceAndMultiplier(comp.Type, comp.BaseAmount, comp.ProductTiers, productCount, branchCount, qty)
+		amount := unitPrice * float64(multiplier)
+		multiplierLabel := label
 
 		discountAmount := 0.0
 		if comp.DiscountPercent > 0 {

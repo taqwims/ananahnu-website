@@ -1,6 +1,9 @@
 package domain
 
 import (
+	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -73,8 +76,91 @@ type BillingComponent struct {
 	FormFieldConfigID *int64            `json:"form_field_config_id,omitempty"`
 	FormFieldConfig   *FormFieldConfig  `gorm:"foreignKey:FormFieldConfigID" json:"form_field_config,omitempty"`
 
+	ProductTiers    string    `gorm:"type:jsonb" json:"product_tiers,omitempty"` // JSON array of ProductTier
+
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+// ProductTier defines tiered pricing ranges for components that charge per product range
+type ProductTier struct {
+	MinQty int     `json:"min_qty"`
+	MaxQty int     `json:"max_qty"`
+	Price  float64 `json:"price"`
+}
+
+// CalculateComponentPriceAndMultiplier calculates unit price, total multiplier, and descriptive label.
+func CalculateComponentPriceAndMultiplier(compType string, baseAmount float64, productTiersJSON string, productCount, branchCount, customQty int) (float64, int, string) {
+	if productCount < 1 {
+		productCount = 1
+	}
+	if branchCount < 1 {
+		branchCount = 1
+	}
+	if customQty < 1 {
+		customQty = 1
+	}
+
+	unitPrice := baseAmount
+	var labels []string
+	multiplier := 1
+
+	hasPerProduk := strings.Contains(compType, "PER_PRODUK")
+	hasPerCabang := strings.Contains(compType, "PER_CABANG")
+	hasPerManday := strings.Contains(compType, "PER_MANDAY")
+
+	if hasPerProduk {
+		var tiers []ProductTier
+		if productTiersJSON != "" {
+			_ = json.Unmarshal([]byte(productTiersJSON), &tiers)
+		}
+		if len(tiers) > 0 {
+			matched := false
+			for _, t := range tiers {
+				if productCount >= t.MinQty && (t.MaxQty == 0 || productCount <= t.MaxQty) {
+					unitPrice = t.Price
+					if t.MaxQty > 0 {
+						labels = append(labels, fmt.Sprintf("%d-%d Produk", t.MinQty, t.MaxQty))
+					} else {
+						labels = append(labels, fmt.Sprintf(">%d Produk", t.MinQty))
+					}
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				lastTier := tiers[len(tiers)-1]
+				if productCount > lastTier.MaxQty && lastTier.MaxQty > 0 {
+					unitPrice = lastTier.Price
+					labels = append(labels, fmt.Sprintf("%d Produk (Tier Maks)", productCount))
+				} else {
+					labels = append(labels, fmt.Sprintf("%d Produk", productCount))
+				}
+			}
+		} else {
+			multiplier = multiplier * productCount
+			labels = append(labels, fmt.Sprintf("%d Produk", productCount))
+		}
+	}
+
+	if hasPerCabang {
+		multiplier = multiplier * branchCount
+		labels = append(labels, fmt.Sprintf("%d Cabang", branchCount))
+	}
+
+	if hasPerManday {
+		multiplier = multiplier * customQty
+		if customQty > 1 {
+			labels = append(labels, fmt.Sprintf("%d Qty", customQty))
+		}
+	}
+
+	var labelStr string
+	if len(labels) > 0 {
+		labelStr = " (" + strings.Join(labels, ", ") + ")"
+	}
+
+	return unitPrice, multiplier, labelStr
 }
 
 // SalesSchemePrice stores configured prices per sales scheme, product, business type, and data source.
