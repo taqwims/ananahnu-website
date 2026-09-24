@@ -64,6 +64,7 @@ export interface Payment {
     midtrans_id?: string;
     payment_type?: string;
     paid_at?: string;
+    invoice_id?: number;
     invoices?: Invoice[];
     created_at: string;
     updated_at: string;
@@ -83,8 +84,6 @@ export interface Submission {
     assigned_drafter_id?: string;
     assigned_drafter?: User;
     data_source?: string;
-    regency_id?: number;
-    district_id?: number;
     payments?: Payment[];
     invoice?: Invoice;    // legacy: first invoice only
     invoices?: Invoice[]; // all invoices (DP + PELUNASAN)
@@ -111,9 +110,15 @@ export interface Submission {
     business_type_id?: number;
     business_type?: BusinessType;
     province_id?: number;
+    province?: Province;
+    regency_id?: number;
+    regency?: Regency;
+    district_id?: number;
+    district?: District;
     product_category_id?: number;
     product_category?: ProductCategory;
     business_scale_id?: number;
+    business_scale?: BusinessScale;
     product_count?: number;
     branch_count?: number;
     mandays?: number;

@@ -13,6 +13,7 @@ type BillingUsecase interface {
 	// Invoice
 	GetMyInvoices(userID uuid.UUID, roleName string, status string, page, limit int) ([]domain.Invoice, int64, error)
 	GetInvoiceBySubmission(submissionID uuid.UUID) (*domain.Invoice, error)
+	GetInvoicesBySubmission(submissionID uuid.UUID) ([]domain.Invoice, error)
 	CreateInvoiceForSubmission(submissionID uuid.UUID, serviceType string, regencyID *int64, districtID *int64) error
 	MarkInvoicePaid(invoiceID int64) error
 	RemindPayment(invoiceID int64, senderID uuid.UUID) error
@@ -56,8 +57,11 @@ func NewBillingUsecase(deps BillingUsecaseDeps) BillingUsecase {
 }
 
 func (uc *billingUsecase) GetMyInvoices(userID uuid.UUID, roleName string, status string, page, limit int) ([]domain.Invoice, int64, error) {
-	filter := map[string]interface{}{
-		"service_type": []string{"SELF_DECLARE", "SELF_DECLARE_MANDIRI"},
+	filter := map[string]interface{}{}
+	if roleName == "CLIENT" {
+		filter["service_type"] = []string{"REGULER", "SELF_DECLARE", "SELF_DECLARE_MANDIRI"}
+	} else {
+		filter["service_type"] = []string{"SELF_DECLARE", "SELF_DECLARE_MANDIRI"}
 	}
 	
 	if status != "" {
@@ -112,6 +116,10 @@ func (uc *billingUsecase) GetInvoiceBySubmission(submissionID uuid.UUID) (*domai
 	return uc.InvoiceRepo.FindBySubmissionID(submissionID)
 }
 
+func (uc *billingUsecase) GetInvoicesBySubmission(submissionID uuid.UUID) ([]domain.Invoice, error) {
+	return uc.InvoiceRepo.FindAllBySubmissionID(submissionID)
+}
+
 // CreateInvoiceForSubmission generates an invoice when a submission reaches SH_TERBIT.
 func (uc *billingUsecase) CreateInvoiceForSubmission(submissionID uuid.UUID, serviceType string, regencyID *int64, districtID *int64) error {
 	// Check if invoice already exists
@@ -152,9 +160,7 @@ func (uc *billingUsecase) CreateInvoiceForSubmission(submissionID uuid.UUID, ser
 	return uc.InvoiceRepo.Create(invoice)
 }
 
-// SwitchToFullPayment mengubah invoice dari DP (70%) menjadi Full Payment (100%).
-// Ini digunakan ketika klien memilih membayar lunas di awal.
-// Jika sudah ada invoice pelunasan, hapus (cancel) - tidak relevan lagi.
+// SwitchToFullPayment mengubah invoice dari DP menjadi Full Payment (100%).
 func (uc *billingUsecase) SwitchToFullPayment(invoiceID int64) error {
 	invoices, _, err := uc.InvoiceRepo.FindAll(map[string]interface{}{"id": invoiceID}, 1, 1)
 	if err != nil || len(invoices) == 0 {
@@ -169,16 +175,36 @@ func (uc *billingUsecase) SwitchToFullPayment(invoiceID int64) error {
 		return fmt.Errorf("hanya invoice DP yang bisa diubah ke Full Payment")
 	}
 
-	// Hitung total (DP = 70%, jadi total = DP / 0.7)
+	costDetail, _ := uc.BillingConfigRepo.GetSubmissionCostDetail(invoice.SubmissionID)
 	totalAmount := invoice.Amount / 0.70
+	if costDetail != nil && costDetail.TotalAmount > 0 {
+		totalAmount = costDetail.TotalAmount
+		costDetail.PaymentScheme = "FULL"
+		costDetail.DPPercentage = 100.0
+		_ = uc.BillingConfigRepo.SaveSubmissionCostDetail(costDetail)
+	}
+
 	invoice.Amount = totalAmount
 	invoice.Type = domain.InvoiceTypeFull
+	invoice.Percentage = 100.0
+	invoice.PaymentScheme = "FULL"
 	invoice.Notes = "Full Payment (diubah dari DP)"
 
-	return uc.InvoiceRepo.Update(invoice)
+	if err := uc.InvoiceRepo.Update(invoice); err != nil {
+		return err
+	}
+
+	// Clean up any unpaid pelunasan invoice
+	if pelunasanInv, err := uc.InvoiceRepo.FindBySubmissionIDAndType(invoice.SubmissionID, domain.InvoiceTypePelunasan); err == nil && pelunasanInv != nil {
+		if pelunasanInv.Status != domain.InvoiceStatusPaid {
+			_ = uc.InvoiceRepo.Delete(pelunasanInv.ID)
+		}
+	}
+
+	return nil
 }
 
-// SwitchToDPPayment mengubah invoice FULL menjadi DP (70%) sebelum pembayaran.
+// SwitchToDPPayment mengubah invoice FULL menjadi DP sebelum pembayaran.
 func (uc *billingUsecase) SwitchToDPPayment(invoiceID int64) error {
 	invoices, _, err := uc.InvoiceRepo.FindAll(map[string]interface{}{"id": invoiceID}, 1, 1)
 	if err != nil || len(invoices) == 0 {
@@ -193,13 +219,61 @@ func (uc *billingUsecase) SwitchToDPPayment(invoiceID int64) error {
 		return fmt.Errorf("hanya invoice Full yang bisa diubah ke DP")
 	}
 
-	// Hitung DP (total * 0.70)
-	dpAmount := invoice.Amount * 0.70
+	dpPct := 70.0
+	totalAmount := invoice.Amount
+	costDetail, _ := uc.BillingConfigRepo.GetSubmissionCostDetail(invoice.SubmissionID)
+	if costDetail != nil {
+		if costDetail.TotalAmount > 0 {
+			totalAmount = costDetail.TotalAmount
+		}
+		if costDetail.DPPercentage > 0 {
+			dpPct = costDetail.DPPercentage
+		}
+		costDetail.PaymentScheme = "TERMIN"
+		costDetail.DPPercentage = dpPct
+		_ = uc.BillingConfigRepo.SaveSubmissionCostDetail(costDetail)
+	}
+
+	dpAmount := totalAmount * (dpPct / 100.0)
 	invoice.Amount = dpAmount
 	invoice.Type = domain.InvoiceTypeDP
-	invoice.Notes = "Down Payment 70% (diubah dari Full)"
+	invoice.Percentage = dpPct
+	invoice.PaymentScheme = "TERMIN"
+	invoice.Notes = fmt.Sprintf("Termin 1 - Uang Muka (DP %.0f%%) Layanan Reguler", dpPct)
 
-	return uc.InvoiceRepo.Update(invoice)
+	if err := uc.InvoiceRepo.Update(invoice); err != nil {
+		return err
+	}
+
+	// Create or sync pelunasan invoice
+	pelunasanPct := 100.0 - dpPct
+	pelunasanAmount := totalAmount * (pelunasanPct / 100.0)
+	pelunasanInv, _ := uc.InvoiceRepo.FindBySubmissionIDAndType(invoice.SubmissionID, domain.InvoiceTypePelunasan)
+	if pelunasanInv != nil {
+		pelunasanInv.Amount = pelunasanAmount
+		pelunasanInv.Percentage = pelunasanPct
+		pelunasanInv.PaymentScheme = "TERMIN"
+		_ = uc.InvoiceRepo.Update(pelunasanInv)
+	} else {
+		newPelunasan := &domain.Invoice{
+			SubmissionID:  invoice.SubmissionID,
+			ServiceType:   invoice.ServiceType,
+			Type:          domain.InvoiceTypePelunasan,
+			PaymentScheme: "TERMIN",
+			Percentage:    pelunasanPct,
+			Amount:        pelunasanAmount,
+			Status:        domain.InvoiceStatusUnpaid,
+			PricingSource: "COST_DETAIL",
+			Notes:         fmt.Sprintf("Termin 2 - Pelunasan (%.0f%%) Layanan Reguler", pelunasanPct),
+			CreatedAt:     time.Now().Add(time.Second),
+		}
+		if invoice.PayerID != nil {
+			newPelunasan.PayerID = invoice.PayerID
+		}
+		_ = uc.InvoiceRepo.Create(newPelunasan)
+	}
+
+	return nil
 }
 
 

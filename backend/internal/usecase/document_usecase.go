@@ -23,7 +23,7 @@ type DocumentUsecase interface {
 	GenerateContract(submissionID uuid.UUID, format string) ([]byte, string, error)
 	GenerateSPH(submissionID uuid.UUID) ([]byte, string, error)
 	GenerateTeleAgreementPDF(agreementID uuid.UUID) ([]byte, string, error)
-	GenerateInvoicePDF(submissionID uuid.UUID) ([]byte, string, error)
+	GenerateInvoicePDF(submissionID uuid.UUID, invoiceType string, invoiceID *int64) ([]byte, string, error)
 	GenerateSJPH(submissionID uuid.UUID) ([]byte, string, error)
 }
 
@@ -1099,25 +1099,82 @@ func (uc *documentUsecase) generateQRImageWithLogo(url, logoPath string) ([]byte
 	return qrcode.GenerateWithLogo(url, logoPath)
 }
 
-// GenerateInvoicePDF generates the customized invoice PDF with a QR code signature.
-func (uc *documentUsecase) GenerateInvoicePDF(submissionID uuid.UUID) ([]byte, string, error) {
-	// Fetch Invoice
-	invoice, err := uc.InvoiceRepo.FindBySubmissionID(submissionID)
-	if err != nil || invoice == nil {
-		return nil, "", fmt.Errorf("invoice not found")
-	}
-
+// GenerateInvoicePDF generates the customized invoice PDF with dynamic termin breakdowns & payment status.
+func (uc *documentUsecase) GenerateInvoicePDF(submissionID uuid.UUID, invoiceType string, invoiceID *int64) ([]byte, string, error) {
 	// Fetch Submission to get client details
 	submission, err := uc.SubmissionRepo.FindByID(submissionID)
 	if err != nil {
 		return nil, "", fmt.Errorf("submission not found")
 	}
 
-	// Fetch Cost Detail
+	// Fetch all invoices for submission
+	invoices, _ := uc.InvoiceRepo.FindAllBySubmissionID(submissionID)
+	if len(invoices) == 0 {
+		return nil, "", fmt.Errorf("invoice not found")
+	}
+
+	// Select target invoice
+	var targetInvoice *domain.Invoice
+	if invoiceID != nil && *invoiceID > 0 {
+		for i := range invoices {
+			if invoices[i].ID == *invoiceID {
+				targetInvoice = &invoices[i]
+				break
+			}
+		}
+	} else if invoiceType != "" {
+		for i := range invoices {
+			if string(invoices[i].Type) == invoiceType {
+				targetInvoice = &invoices[i]
+				break
+			}
+		}
+	}
+
+	if targetInvoice == nil {
+		// Prioritize unpaid or first invoice
+		for i := range invoices {
+			if invoices[i].Status == domain.InvoiceStatusUnpaid {
+				targetInvoice = &invoices[i]
+				break
+			}
+		}
+		if targetInvoice == nil {
+			targetInvoice = &invoices[0]
+		}
+	}
+
+	// Fetch Cost Detail (100% services breakdown)
 	var breakdown []map[string]interface{}
 	costDetail, err := uc.BillingConfigRepo.GetSubmissionCostDetail(submissionID)
 	if err == nil && costDetail != nil && costDetail.CostBreakdownData != "" {
 		_ = json.Unmarshal([]byte(costDetail.CostBreakdownData), &breakdown)
+	}
+
+	totalContractAmount := 0.0
+	if costDetail != nil && costDetail.TotalAmount > 0 {
+		totalContractAmount = costDetail.TotalAmount
+	} else {
+		for _, inv := range invoices {
+			totalContractAmount += inv.Amount
+		}
+	}
+
+	dpPercentage := 70.0
+	if costDetail != nil && costDetail.DPPercentage > 0 {
+		dpPercentage = costDetail.DPPercentage
+	} else if targetInvoice.Type == domain.InvoiceTypeDP && targetInvoice.Percentage > 0 {
+		dpPercentage = targetInvoice.Percentage
+	}
+
+	var dpInvoice *domain.Invoice
+	var pelunasanInvoice *domain.Invoice
+	for i := range invoices {
+		if invoices[i].Type == domain.InvoiceTypeDP {
+			dpInvoice = &invoices[i]
+		} else if invoices[i].Type == domain.InvoiceTypePelunasan {
+			pelunasanInvoice = &invoices[i]
+		}
 	}
 
 	pdf := fpdf.New("P", "mm", "A4", "")
@@ -1133,39 +1190,50 @@ func (uc *documentUsecase) GenerateInvoicePDF(submissionID uuid.UUID) ([]byte, s
 	// Header
 	pdf.SetFont("Arial", "B", 24)
 	pdf.SetTextColor(50, 100, 150)
-	pdf.SetXY(120, 15)
-	pdf.CellFormat(75, 10, "Invoice", "", 1, "R", false, 0, "")
+	pdf.SetXY(110, 15)
+	pdf.CellFormat(85, 10, "INVOICE", "", 1, "R", false, 0, "")
+
+	// Invoice Type Subtitle Badge
+	pdf.SetXY(110, 25)
+	pdf.SetFont("Arial", "B", 10)
+	pdf.SetTextColor(100, 110, 130)
+	typeTitle := "TAGIHAN PEMBAYARAN"
+	if targetInvoice.Type == domain.InvoiceTypeDP {
+		typeTitle = fmt.Sprintf("TERMIN 1: UANG MUKA (DP %.0f%%)", dpPercentage)
+	} else if targetInvoice.Type == domain.InvoiceTypePelunasan {
+		typeTitle = fmt.Sprintf("TERMIN 2: PELUNASAN (%.0f%%)", 100.0-dpPercentage)
+	} else if targetInvoice.Type == domain.InvoiceTypeFull {
+		typeTitle = "PEMBAYARAN PENUH (100%)"
+	}
+	pdf.CellFormat(85, 5, typeTitle, "", 1, "R", false, 0, "")
 
 	// Invoice Info
-	pdf.SetFont("Arial", "B", 10)
+	pdf.SetFont("Arial", "B", 9)
 	pdf.SetTextColor(0, 0, 0)
-	pdf.SetXY(120, 30)
-	pdf.CellFormat(30, 5, "Referensi", "", 0, "R", false, 0, "")
-	pdf.SetFont("Arial", "", 10)
-	pdf.CellFormat(45, 5, fmt.Sprintf("INV/%d/%04d", invoice.CreatedAt.Year(), invoice.ID), "", 1, "R", false, 0, "")
+	pdf.SetXY(110, 32)
+	pdf.CellFormat(35, 5, "Nomor Invoice", "", 0, "R", false, 0, "")
+	pdf.SetFont("Arial", "", 9)
+	pdf.CellFormat(50, 5, fmt.Sprintf("INV/%d/%04d", targetInvoice.CreatedAt.Year(), targetInvoice.ID), "", 1, "R", false, 0, "")
 
-	pdf.SetXY(120, 35)
-	pdf.SetFont("Arial", "B", 10)
-	pdf.CellFormat(30, 5, "Tanggal", "", 0, "R", false, 0, "")
-	pdf.SetFont("Arial", "", 10)
-	pdf.CellFormat(45, 5, invoice.CreatedAt.Format("02/01/2006"), "", 1, "R", false, 0, "")
+	pdf.SetXY(110, 37)
+	pdf.SetFont("Arial", "B", 9)
+	pdf.CellFormat(35, 5, "Tanggal Tagihan", "", 0, "R", false, 0, "")
+	pdf.SetFont("Arial", "", 9)
+	pdf.CellFormat(50, 5, targetInvoice.CreatedAt.Format("02/01/2006"), "", 1, "R", false, 0, "")
 
-	pdf.SetXY(120, 40)
-	pdf.SetFont("Arial", "B", 10)
-	pdf.CellFormat(30, 5, "Tgl. Jatuh Tempo", "", 0, "R", false, 0, "")
-	pdf.SetFont("Arial", "", 10)
-	// Assume due date is 14 days after creation
-	pdf.CellFormat(45, 5, invoice.CreatedAt.AddDate(0, 0, 14).Format("02/01/2006"), "", 1, "R", false, 0, "")
+	pdf.SetXY(110, 42)
+	pdf.SetFont("Arial", "B", 9)
+	pdf.CellFormat(35, 5, "Jatuh Tempo", "", 0, "R", false, 0, "")
+	pdf.SetFont("Arial", "", 9)
+	pdf.CellFormat(50, 5, targetInvoice.CreatedAt.AddDate(0, 0, 14).Format("02/01/2006"), "", 1, "R", false, 0, "")
 
-	pdf.Ln(20)
+	pdf.Ln(18)
 
 	// Company Info & Billed To
-	yPos := pdf.GetY()
-	
 	pdf.SetFont("Arial", "B", 10)
-	pdf.CellFormat(90, 5, "Info Perusahaan", "B", 0, "L", false, 0, "")
+	pdf.CellFormat(90, 5, "Diterbitkan Oleh", "B", 0, "L", false, 0, "")
 	pdf.CellFormat(10, 5, "", "", 0, "", false, 0, "") // spacer
-	pdf.CellFormat(80, 5, "Tagihan Untuk", "B", 1, "L", false, 0, "")
+	pdf.CellFormat(80, 5, "Ditagihkan Kepada", "B", 1, "L", false, 0, "")
 	pdf.Ln(3)
 
 	pdf.SetFont("Arial", "B", 10)
@@ -1176,133 +1244,222 @@ func (uc *documentUsecase) GenerateInvoicePDF(submissionID uuid.UUID) ([]byte, s
 		businessName = submission.Client.ClientName
 	}
 	if businessName == "" {
-		businessName = "Unknown Client"
+		businessName = "Pelaku Usaha"
 	}
 	pdf.CellFormat(80, 5, businessName, "", 1, "L", false, 0, "")
-	
-	pdf.SetFont("Arial", "", 10)
-	
-	// Address and contact
-	companyAddress := "Jl Raya Banjarsari no 153 Desa Cibadak,\nKab Ciamis,\nJawa Barat,\nTelp: 081564955280\nEmail: ananahnuindonesia@gmail.com"
-	clientContact := fmt.Sprintf("Telp: %s", submission.Client.Phone)
-	
+
+	pdf.SetFont("Arial", "", 9)
+	companyAddress := "Jl Raya Banjarsari no 153 Desa Cibadak,\nKab Ciamis, Jawa Barat\nTelp: 081564955280\nEmail: ananahnuindonesia@gmail.com"
+	clientContact := fmt.Sprintf("Nama Klien: %s\nNIB: %s\nTelp: %s\nAlamat: %s", 
+		submission.Client.ClientName, submission.Client.NIB, submission.Client.Phone, submission.Client.Address)
+
 	xBefore := pdf.GetX()
 	yBefore := pdf.GetY()
-	pdf.MultiCell(90, 5, companyAddress, "", "L", false)
-	
-	pdf.SetXY(xBefore+100, yBefore)
-	pdf.MultiCell(80, 5, clientContact, "", "L", false)
-	
-	pdf.Ln(15)
+	pdf.MultiCell(90, 4.5, companyAddress, "", "L", false)
 
-	// Table Header
+	pdf.SetXY(xBefore+100, yBefore)
+	pdf.MultiCell(80, 4.5, clientContact, "", "L", false)
+
+	pdf.Ln(10)
+
+	// Table Header (Rincian Biaya Layanan)
 	pdf.SetFont("Arial", "B", 9)
 	pdf.SetFillColor(40, 50, 70) // Dark blue-grey
 	pdf.SetTextColor(255, 255, 255)
-	
-	pdf.CellFormat(60, 8, "Produk", "", 0, "L", true, 0, "")
-	pdf.CellFormat(30, 8, "Deskripsi", "", 0, "L", true, 0, "")
-	pdf.CellFormat(20, 8, "Kuantitas", "", 0, "C", true, 0, "")
-	pdf.CellFormat(30, 8, "Harga (Rp)", "", 0, "R", true, 0, "")
-	pdf.CellFormat(40, 8, "Jumlah (Rp)", "", 1, "R", true, 0, "")
-	
+
+	pdf.CellFormat(85, 7, "Deskripsi Layanan & Komponen", "", 0, "L", true, 0, "")
+	pdf.CellFormat(25, 7, "Kategori", "", 0, "C", true, 0, "")
+	pdf.CellFormat(15, 7, "Qty", "", 0, "C", true, 0, "")
+	pdf.CellFormat(25, 7, "Harga Satuan", "", 0, "R", true, 0, "")
+	pdf.CellFormat(30, 7, "Total (Rp)", "", 1, "R", true, 0, "")
+
 	// Table Body
-	pdf.SetFont("Arial", "", 9)
+	pdf.SetFont("Arial", "", 8.5)
 	pdf.SetTextColor(0, 0, 0)
-	pdf.SetFillColor(245, 245, 245)
-	
+	pdf.SetFillColor(248, 249, 250)
+
 	fill := false
-	
+
 	if len(breakdown) > 0 {
 		for _, item := range breakdown {
 			name := ""
-			if val, ok := item["category"].(string); ok {
+			if val, ok := item["name"].(string); ok {
 				name = val
-			} else if val, ok := item["item_name"].(string); ok {
+			} else if val, ok := item["category"].(string); ok {
 				name = val
-			}
-			
-			qty := 1.0
-			if val, ok := item["quantity"].(float64); ok {
-				qty = val
-			}
-			
-			price := 0.0
-			if val, ok := item["amount"].(float64); ok {
-				price = val
-			} else if val, ok := item["unit_price"].(float64); ok {
-				price = val
-			}
-			
-			total := qty * price
-			if val, ok := item["total"].(float64); ok {
-				total = val
 			}
 
-			// Add row
-			pdf.CellFormat(60, 8, name, "", 0, "L", fill, 0, "")
-			pdf.CellFormat(30, 8, "Layanan", "", 0, "L", fill, 0, "")
-			pdf.CellFormat(20, 8, fmt.Sprintf("%.0f", qty), "", 0, "C", fill, 0, "")
-			pdf.CellFormat(30, 8, uc.formatIDR(price), "", 0, "R", fill, 0, "")
-			pdf.CellFormat(40, 8, uc.formatIDR(total), "", 1, "R", fill, 0, "")
-			
+			cat := "-"
+			if val, ok := item["category"].(string); ok {
+				cat = val
+			}
+
+			qty := 1.0
+			if val, ok := item["multiplier"].(float64); ok {
+				qty = val
+			} else if val, ok := item["quantity"].(float64); ok {
+				qty = val
+			}
+
+			unitCost := 0.0
+			if val, ok := item["unit_cost"].(float64); ok {
+				unitCost = val
+			}
+
+			itemTotal := 0.0
+			if val, ok := item["total"].(float64); ok {
+				itemTotal = val
+			} else {
+				itemTotal = qty * unitCost
+			}
+
+			pdf.CellFormat(85, 6.5, name, "", 0, "L", fill, 0, "")
+			pdf.CellFormat(25, 6.5, cat, "", 0, "C", fill, 0, "")
+			pdf.CellFormat(15, 6.5, fmt.Sprintf("%.0f", qty), "", 0, "C", fill, 0, "")
+			pdf.CellFormat(25, 6.5, uc.formatIDR(unitCost), "", 0, "R", fill, 0, "")
+			pdf.CellFormat(30, 6.5, uc.formatIDR(itemTotal), "", 1, "R", fill, 0, "")
+
 			fill = !fill
 		}
 	} else {
-		// Fallback if no breakdown
-		pdf.CellFormat(60, 8, "Biaya Layanan Sertifikasi", "", 0, "L", fill, 0, "")
-		pdf.CellFormat(30, 8, "Layanan", "", 0, "L", fill, 0, "")
-		pdf.CellFormat(20, 8, "1", "", 0, "C", fill, 0, "")
-		pdf.CellFormat(30, 8, uc.formatIDR(invoice.Amount), "", 0, "R", fill, 0, "")
-		pdf.CellFormat(40, 8, uc.formatIDR(invoice.Amount), "", 1, "R", fill, 0, "")
+		pdf.CellFormat(85, 7, "Layanan Sertifikasi Halal", "", 0, "L", fill, 0, "")
+		pdf.CellFormat(25, 7, "REGULER", "", 0, "C", fill, 0, "")
+		pdf.CellFormat(15, 7, "1", "", 0, "C", fill, 0, "")
+		pdf.CellFormat(25, 7, uc.formatIDR(totalContractAmount), "", 0, "R", fill, 0, "")
+		pdf.CellFormat(30, 7, uc.formatIDR(totalContractAmount), "", 1, "R", fill, 0, "")
 	}
 
-	pdf.Ln(5)
+	pdf.Ln(4)
 
-	// Summary
-	pdf.SetFont("Arial", "B", 10)
-	pdf.SetX(100)
-	pdf.CellFormat(40, 7, "Subtotal", "B", 0, "L", false, 0, "")
-	pdf.SetFont("Arial", "", 10)
-	pdf.CellFormat(40, 7, "Rp "+uc.formatIDR(invoice.Amount), "B", 1, "R", false, 0, "")
-	
-	pdf.SetFont("Arial", "B", 10)
-	pdf.SetX(100)
-	pdf.CellFormat(40, 7, "Total", "B", 0, "L", false, 0, "")
-	pdf.SetFont("Arial", "", 10)
-	pdf.CellFormat(40, 7, "Rp "+uc.formatIDR(invoice.Amount), "B", 1, "R", false, 0, "")
-	
-	pdf.SetFont("Arial", "B", 10)
-	pdf.SetX(100)
-	pdf.CellFormat(40, 7, "Sisa Tagihan", "B", 0, "L", false, 0, "")
-	pdf.SetFont("Arial", "", 10)
-	if invoice.Status == "PAID" {
-		pdf.CellFormat(40, 7, "Rp 0", "B", 1, "R", false, 0, "")
+	// Summary & Payment Scheme Section
+	ySum := pdf.GetY()
+
+	// Left Box: Skema Pembayaran Kontrak
+	pdf.SetXY(15, ySum)
+	pdf.SetFont("Arial", "B", 9)
+	pdf.SetFillColor(240, 244, 248)
+	pdf.Rect(15, ySum, 90, 36, "F")
+	pdf.SetXY(18, ySum+2)
+	pdf.SetTextColor(30, 60, 100)
+	pdf.CellFormat(84, 5, "RINGKASAN SKEMA PEMBAYARAN KONTRAK", "", 1, "L", false, 0, "")
+
+	pdf.SetFont("Arial", "", 8.5)
+	pdf.SetTextColor(50, 50, 50)
+	pdf.SetX(18)
+	pdf.CellFormat(45, 4.5, "Total Nilai Kontrak Layanan:", "", 0, "L", false, 0, "")
+	pdf.SetFont("Arial", "B", 8.5)
+	pdf.CellFormat(39, 4.5, "Rp "+uc.formatIDR(totalContractAmount), "", 1, "R", false, 0, "")
+
+	if dpInvoice != nil || targetInvoice.PaymentScheme == "TERMIN" {
+		dpAmt := totalContractAmount * (dpPercentage / 100.0)
+		dpStatus := "Belum Dibayar"
+		if dpInvoice != nil && dpInvoice.Status == domain.InvoiceStatusPaid {
+			dpStatus = "LUNAS"
+		}
+		pdf.SetFont("Arial", "", 8)
+		pdf.SetX(18)
+		pdf.CellFormat(45, 4.5, fmt.Sprintf("Termin 1 (DP %.0f%%):", dpPercentage), "", 0, "L", false, 0, "")
+		pdf.CellFormat(39, 4.5, fmt.Sprintf("Rp %s (%s)", uc.formatIDR(dpAmt), dpStatus), "", 1, "R", false, 0, "")
+
+		pelunasanAmt := totalContractAmount * ((100.0 - dpPercentage) / 100.0)
+		pelunasanStatus := "Belum Dibayar"
+		if pelunasanInvoice != nil && pelunasanInvoice.Status == domain.InvoiceStatusPaid {
+			pelunasanStatus = "LUNAS"
+		}
+		pdf.SetX(18)
+		pdf.CellFormat(45, 4.5, fmt.Sprintf("Termin 2 (Pelunasan %.0f%%):", 100.0-dpPercentage), "", 0, "L", false, 0, "")
+		pdf.CellFormat(39, 4.5, fmt.Sprintf("Rp %s (%s)", uc.formatIDR(pelunasanAmt), pelunasanStatus), "", 1, "R", false, 0, "")
 	} else {
-		pdf.CellFormat(40, 7, "Rp "+uc.formatIDR(invoice.Amount), "B", 1, "R", false, 0, "")
+		pdf.SetFont("Arial", "", 8)
+		pdf.SetX(18)
+		pdf.CellFormat(45, 4.5, "Skema Pembayaran:", "", 0, "L", false, 0, "")
+		pdf.CellFormat(39, 4.5, "100% Penuh di Awal", "", 1, "R", false, 0, "")
 	}
 
-	pdf.Ln(20)
+	// Right Box: Tagihan Invoice Saat Ini
+	pdf.SetTextColor(0, 0, 0)
+	pdf.SetXY(115, ySum)
+	pdf.SetFont("Arial", "B", 9)
+	pdf.CellFormat(40, 6, "Total Kontrak Layanan", "B", 0, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 9)
+	pdf.CellFormat(40, 6, "Rp "+uc.formatIDR(totalContractAmount), "B", 1, "R", false, 0, "")
+
+	pdf.SetXY(115, ySum+6)
+	pdf.SetFont("Arial", "B", 9.5)
+	pdf.SetTextColor(30, 80, 150)
+	tagihanLabel := "Jumlah Tagihan Saat Ini"
+	if targetInvoice.Type == domain.InvoiceTypeDP {
+		tagihanLabel = fmt.Sprintf("Tagihan Termin 1 (DP %.0f%%)", dpPercentage)
+	} else if targetInvoice.Type == domain.InvoiceTypePelunasan {
+		tagihanLabel = fmt.Sprintf("Tagihan Termin 2 (Pelunasan %.0f%%)", 100.0-dpPercentage)
+	}
+	pdf.CellFormat(40, 7, tagihanLabel, "B", 0, "L", false, 0, "")
+	pdf.SetFont("Arial", "B", 10)
+	pdf.CellFormat(40, 7, "Rp "+uc.formatIDR(targetInvoice.Amount), "B", 1, "R", false, 0, "")
+
+	// Sisa Kontrak calculation
+	totalPaid := 0.0
+	for _, inv := range invoices {
+		if inv.Status == domain.InvoiceStatusPaid {
+			totalPaid += inv.Amount
+		}
+	}
+	remainingContract := totalContractAmount - totalPaid
+	if remainingContract < 0 {
+		remainingContract = 0
+	}
+
+	pdf.SetXY(115, ySum+13)
+	pdf.SetFont("Arial", "B", 9)
+	pdf.SetTextColor(0, 0, 0)
+	pdf.CellFormat(40, 6, "Sisa Tagihan Kontrak", "B", 0, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 9)
+	pdf.CellFormat(40, 6, "Rp "+uc.formatIDR(remainingContract), "B", 1, "R", false, 0, "")
+
+	// Status Stamp
+	pdf.SetXY(115, ySum+20)
+	if targetInvoice.Status == domain.InvoiceStatusPaid {
+		pdf.SetFillColor(220, 245, 230)
+		pdf.SetTextColor(20, 130, 60)
+		pdf.SetFont("Arial", "B", 10)
+		paidDateStr := ""
+		if targetInvoice.PaidAt != nil {
+			paidDateStr = " (" + targetInvoice.PaidAt.Format("02/01/2006") + ")"
+		}
+		pdf.CellFormat(80, 8, "STATUS: LUNAS"+paidDateStr, "1", 1, "C", true, 0, "")
+	} else {
+		pdf.SetFillColor(254, 243, 199)
+		pdf.SetTextColor(180, 83, 9)
+		pdf.SetFont("Arial", "B", 10)
+		pdf.CellFormat(80, 8, "STATUS: MENUNGGU PEMBAYARAN", "1", 1, "C", true, 0, "")
+	}
+
+	pdf.Ln(18)
 
 	// Keterangan & Signature
-	yPos = pdf.GetY()
-	
-	// Keterangan
+	yPos := pdf.GetY()
+	if yPos < ySum+38 {
+		yPos = ySum + 38
+	}
+
+	// Keterangan Pembayaran
 	pdf.SetXY(15, yPos)
-	pdf.SetFont("Arial", "B", 11)
-	pdf.CellFormat(90, 7, "Keterangan", "B", 1, "L", false, 0, "")
-	pdf.Ln(2)
-	pdf.SetFont("Arial", "B", 9)
-	pdf.CellFormat(90, 5, "Transfer Bank", "", 1, "L", false, 0, "")
-	pdf.CellFormat(90, 5, "Bank: BNI", "", 1, "L", false, 0, "")
-	pdf.CellFormat(90, 5, "Nomor Rekening: 1825073247", "", 1, "L", false, 0, "")
-	pdf.CellFormat(90, 5, "Atas Nama: PT. Ana Nahnu Indonesia", "", 1, "L", false, 0, "")
-	
-	// Signature (QR Code)
-	pdf.SetXY(130, yPos)
 	pdf.SetFont("Arial", "B", 10)
-	pdf.CellFormat(50, 7, time.Now().Format("02 Jan, 2006"), "", 1, "C", false, 0, "")
-	
+	pdf.SetTextColor(0, 0, 0)
+	pdf.CellFormat(90, 6, "Informasi Rekening Pembayaran", "B", 1, "L", false, 0, "")
+	pdf.Ln(2)
+	pdf.SetFont("Arial", "B", 8.5)
+	pdf.CellFormat(90, 4.5, "Transfer Bank:", "", 1, "L", false, 0, "")
+	pdf.SetFont("Arial", "", 8.5)
+	pdf.CellFormat(90, 4.5, "Bank: BNI (Bank Negara Indonesia)", "", 1, "L", false, 0, "")
+	pdf.CellFormat(90, 4.5, "Nomor Rekening: 1825073247", "", 1, "L", false, 0, "")
+	pdf.CellFormat(90, 4.5, "Atas Nama: PT. Ana Nahnu Indonesia", "", 1, "L", false, 0, "")
+
+	// Signature & QR Code
+	pdf.SetXY(130, yPos)
+	pdf.SetFont("Arial", "B", 9)
+	pdf.CellFormat(50, 5, time.Now().Format("02 Jan, 2006"), "", 1, "C", false, 0, "")
+
 	// Generate QR Code for Invoice Verification
 	settings, _ := uc.SettingRepo.GetAllSettings()
 	settingMap := make(map[string]string)
@@ -1316,25 +1473,26 @@ func (uc *documentUsecase) GenerateInvoicePDF(submissionID uuid.UUID) ([]byte, s
 	if frontendURL == "" {
 		frontendURL = uc.getSetting(settingMap, "FRONTEND_URL", "https://halalcore.id")
 	}
-	verifyURL := fmt.Sprintf("%s/verify-invoice/%s", frontendURL, submissionID.String())
-	
+	verifyURL := fmt.Sprintf("%s/verify-invoice/%s?invoice_id=%d", frontendURL, submissionID.String(), targetInvoice.ID)
+
 	qrPNG, err := uc.generateQRImageWithLogo(verifyURL, "templates/logo_halalcore.png")
 	if err == nil {
 		pdf.RegisterImageOptionsReader("invoice_qr", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(qrPNG))
 		pdf.ImageOptions("invoice_qr", 140, pdf.GetY()+2, 30, 30, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
 	}
 
-	pdf.SetY(pdf.GetY() + 35)
+	pdf.SetY(pdf.GetY() + 34)
 	pdf.SetX(130)
 	pdf.SetFont("Arial", "I", 8)
-	pdf.CellFormat(50, 5, "Validasi Elektronik", "", 1, "C", false, 0, "")
+	pdf.CellFormat(50, 4, "Validasi Elektronik PT ANI", "", 1, "C", false, 0, "")
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
 		return nil, "", err
 	}
 
-	filename := fmt.Sprintf("Invoice_%s.pdf", strings.ReplaceAll(businessName, " ", "_"))
+	invLabel := string(targetInvoice.Type)
+	filename := fmt.Sprintf("Invoice_%s_%s.pdf", invLabel, strings.ReplaceAll(businessName, " ", "_"))
 	return buf.Bytes(), filename, nil
 }
 

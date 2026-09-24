@@ -40,14 +40,18 @@ type Submission struct {
 	ConsultantID        *uuid.UUID       `gorm:"type:uuid" json:"consultant_id,omitempty"`
 	Consultant          *User            `gorm:"foreignKey:ConsultantID" json:"consultant,omitempty"`
 	SalesSchemeID       *int64           `json:"sales_scheme_id,omitempty"`
+	ProvinceID          *int64           `json:"province_id,omitempty"`
+	Province            *Province        `gorm:"foreignKey:ProvinceID" json:"province,omitempty"`
 	RegencyID           *int64           `json:"regency_id,omitempty"`
+	Regency             *Regency         `gorm:"foreignKey:RegencyID" json:"regency,omitempty"`
 	DistrictID          *int64           `json:"district_id,omitempty"`
+	District            *District        `gorm:"foreignKey:DistrictID" json:"district,omitempty"`
 	BusinessTypeID      *int64           `json:"business_type_id,omitempty"`
 	BusinessType        *BusinessType    `gorm:"foreignKey:BusinessTypeID" json:"business_type,omitempty"`
-	ProvinceID          *int64           `json:"province_id,omitempty"`
 	ProductCategoryID   *int64           `json:"product_category_id,omitempty"`
 	ProductCategory     *ProductCategory `gorm:"foreignKey:ProductCategoryID" json:"product_category,omitempty"`
 	BusinessScaleID     *int64           `json:"business_scale_id,omitempty"`
+	BusinessScale       *BusinessScale   `gorm:"foreignKey:BusinessScaleID" json:"business_scale,omitempty"`
 	ProductCount        int              `gorm:"default:1" json:"product_count"`
 	BranchCount         int              `gorm:"default:1" json:"branch_count"`
 	RejectNote          string           `json:"reject_note,omitempty"`

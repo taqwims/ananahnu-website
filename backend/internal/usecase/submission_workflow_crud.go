@@ -554,51 +554,8 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 		if err := uc.BillingConfigRepo.SaveSubmissionCostDetail(costDetail); err != nil {
 			return fmt.Errorf("failed to save cost detail: %w", err)
 		}
-		// Sync or create invoice
-		invoice, err := uc.InvoiceRepo.FindBySubmissionID(sub.ID)
-		if err == nil && invoice != nil {
-			invoice.PaymentScheme = paymentScheme
-			if paymentScheme == "FULL" || invoice.Type == domain.InvoiceTypeFull {
-				invoice.Amount = *input.TotalAmount
-				invoice.Percentage = 100.0
-			} else if invoice.Type == domain.InvoiceTypeDP {
-				invoice.Amount = *input.TotalAmount * (dpPercentage / 100.0)
-				invoice.Percentage = dpPercentage
-			} else if invoice.Type == domain.InvoiceTypePelunasan {
-				pelunasanPct := 100.0 - dpPercentage
-				invoice.Amount = *input.TotalAmount * (pelunasanPct / 100.0)
-				invoice.Percentage = pelunasanPct
-			} else {
-				invoice.Amount = *input.TotalAmount
-			}
-			invoice.PricingSource = "COST_DETAIL"
-			_ = uc.InvoiceRepo.Update(invoice)
-		} else {
-			// Create new invoice if none exists yet
-			invType := domain.InvoiceTypeFull
-			amount := *input.TotalAmount
-			percentage := 100.0
-			if paymentScheme == "TERMIN" {
-				invType = domain.InvoiceTypeDP
-				amount = *input.TotalAmount * (dpPercentage / 100.0)
-				percentage = dpPercentage
-			}
-			newInv := &domain.Invoice{
-				SubmissionID:  sub.ID,
-				ServiceType:   sub.ServiceType,
-				Type:          invType,
-				Amount:        amount,
-				Status:        domain.InvoiceStatusUnpaid,
-				PricingSource: "COST_DETAIL",
-				PaymentScheme: paymentScheme,
-				Percentage:    percentage,
-				CreatedAt:     time.Now(),
-			}
-			if sub.ClientID != uuid.Nil {
-				newInv.PayerID = &sub.ClientID
-			}
-			_ = uc.InvoiceRepo.Create(newInv)
-		}
+		// Sync or create multi-termin invoices
+		_ = uc.syncInvoicesForSubmission(sub, *input.TotalAmount, paymentScheme, dpPercentage)
 	} else {
 		if input.PaymentScheme != nil || input.DPPercentage != nil {
 			existingDetail, _ := uc.BillingConfigRepo.GetSubmissionCostDetail(sub.ID)
@@ -1156,52 +1113,151 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 		return fmt.Errorf("failed to save cost detail: %w", err)
 	}
 
-	// Sync or create invoice
-	invoice, err := uc.InvoiceRepo.FindBySubmissionID(sub.ID)
-	if err == nil && invoice != nil {
-		invoice.PaymentScheme = paymentScheme
-		if paymentScheme == "FULL" || sub.ServiceType == "SELF_DECLARE_MANDIRI" {
-			invoice.Amount = total
-			invoice.Type = domain.InvoiceTypeFull
-			invoice.Percentage = 100.0
-		} else if invoice.Type == domain.InvoiceTypeDP {
-			invoice.Amount = total * (dpPercentage / 100.0)
-			invoice.Percentage = dpPercentage
-		} else if invoice.Type == domain.InvoiceTypePelunasan {
-			pelunasanPct := 100.0 - dpPercentage
-			invoice.Amount = total * (pelunasanPct / 100.0)
-			invoice.Percentage = pelunasanPct
-		} else {
-			invoice.Amount = total
-			invoice.Percentage = 100.0
-		}
-		invoice.PricingSource = "COST_DETAIL"
-		return uc.InvoiceRepo.Update(invoice)
+	// Sync or create multi-termin invoices
+	return uc.syncInvoicesForSubmission(sub, total, paymentScheme, dpPercentage)
+}
+
+func (uc *submissionWorkflowUsecase) syncInvoicesForSubmission(sub *domain.Submission, totalAmount float64, paymentScheme string, dpPercentage float64) error {
+	if totalAmount <= 0 {
+		return nil
+	}
+	if dpPercentage <= 0 {
+		dpPercentage = 70.0
+	}
+	pelunasanPercentage := 100.0 - dpPercentage
+
+	invoices, err := uc.InvoiceRepo.FindAllBySubmissionID(sub.ID)
+	if err != nil {
+		return err
 	}
 
-	if sub.Status != domain.StatusDraft && sub.Status != domain.StatusRevision {
-		invType := domain.InvoiceTypeDP
-		invPercentage := dpPercentage
-		invAmount := total * (dpPercentage / 100.0)
-		notes := fmt.Sprintf("Uang Muka (DP %.0f%%) Layanan Reguler (Auto-sync from Client Info)", dpPercentage)
-		if paymentScheme == "FULL" || sub.ServiceType == "SELF_DECLARE_MANDIRI" {
-			invType = domain.InvoiceTypeFull
-			invPercentage = 100.0
-			invAmount = total
-			notes = fmt.Sprintf("Pembayaran Penuh 100%% %s (Auto-sync from Client Info)", sub.ServiceType)
+	var dpInvoice *domain.Invoice
+	var pelunasanInvoice *domain.Invoice
+	var regulerInvoice *domain.Invoice
+
+	for i := range invoices {
+		inv := &invoices[i]
+		if inv.Type == domain.InvoiceTypeDP {
+			dpInvoice = inv
+		} else if inv.Type == domain.InvoiceTypePelunasan {
+			pelunasanInvoice = inv
+		} else if inv.Type == domain.InvoiceTypeFull || string(inv.Type) == "REGULER" {
+			regulerInvoice = inv
 		}
-		newInvoice := &domain.Invoice{
+	}
+
+	if paymentScheme == "FULL" || sub.ServiceType == "SELF_DECLARE_MANDIRI" {
+		fullAmount := totalAmount
+		if regulerInvoice != nil {
+			regulerInvoice.PaymentScheme = "FULL"
+			regulerInvoice.Type = domain.InvoiceTypeFull
+			regulerInvoice.Percentage = 100.0
+			if regulerInvoice.Status != domain.InvoiceStatusPaid {
+				regulerInvoice.Amount = fullAmount
+			}
+			regulerInvoice.PricingSource = "COST_DETAIL"
+			_ = uc.InvoiceRepo.Update(regulerInvoice)
+		} else if dpInvoice != nil {
+			dpInvoice.PaymentScheme = "FULL"
+			dpInvoice.Type = domain.InvoiceTypeFull
+			dpInvoice.Percentage = 100.0
+			if dpInvoice.Status != domain.InvoiceStatusPaid {
+				dpInvoice.Amount = fullAmount
+			}
+			dpInvoice.PricingSource = "COST_DETAIL"
+			_ = uc.InvoiceRepo.Update(dpInvoice)
+		} else {
+			newInv := &domain.Invoice{
+				SubmissionID:  sub.ID,
+				ServiceType:   sub.ServiceType,
+				Type:          domain.InvoiceTypeFull,
+				PaymentScheme: "FULL",
+				Percentage:    100.0,
+				Amount:        fullAmount,
+				Status:        domain.InvoiceStatusUnpaid,
+				PricingSource: "COST_DETAIL",
+				Notes:         fmt.Sprintf("Pembayaran Penuh 100%% %s", sub.ServiceType),
+				CreatedAt:     time.Now(),
+			}
+			if sub.ClientID != uuid.Nil {
+				newInv.PayerID = &sub.ClientID
+			}
+			_ = uc.InvoiceRepo.Create(newInv)
+		}
+
+		// Delete unpaid pelunasan invoice if switching to full
+		if pelunasanInvoice != nil && pelunasanInvoice.Status != domain.InvoiceStatusPaid {
+			_ = uc.InvoiceRepo.Delete(pelunasanInvoice.ID)
+		}
+		return nil
+	}
+
+	// For TERMIN scheme:
+	dpAmount := totalAmount * (dpPercentage / 100.0)
+	pelunasanAmount := totalAmount * (pelunasanPercentage / 100.0)
+
+	// 1. Sync or create DP Invoice (Termin 1)
+	if dpInvoice != nil {
+		dpInvoice.PaymentScheme = "TERMIN"
+		dpInvoice.Percentage = dpPercentage
+		if dpInvoice.Status != domain.InvoiceStatusPaid {
+			dpInvoice.Amount = dpAmount
+		}
+		dpInvoice.PricingSource = "COST_DETAIL"
+		_ = uc.InvoiceRepo.Update(dpInvoice)
+	} else if regulerInvoice != nil && regulerInvoice.Status != domain.InvoiceStatusPaid {
+		regulerInvoice.PaymentScheme = "TERMIN"
+		regulerInvoice.Type = domain.InvoiceTypeDP
+		regulerInvoice.Percentage = dpPercentage
+		regulerInvoice.Amount = dpAmount
+		regulerInvoice.PricingSource = "COST_DETAIL"
+		_ = uc.InvoiceRepo.Update(regulerInvoice)
+		dpInvoice = regulerInvoice
+	} else {
+		newDP := &domain.Invoice{
 			SubmissionID:  sub.ID,
 			ServiceType:   sub.ServiceType,
-			Type:          invType,
-			PaymentScheme: paymentScheme,
-			Percentage:    invPercentage,
-			Amount:        invAmount,
+			Type:          domain.InvoiceTypeDP,
+			PaymentScheme: "TERMIN",
+			Percentage:    dpPercentage,
+			Amount:        dpAmount,
 			Status:        domain.InvoiceStatusUnpaid,
 			PricingSource: "COST_DETAIL",
-			Notes:         notes,
+			Notes:         fmt.Sprintf("Termin 1 - Uang Muka (DP %.0f%%) Layanan Reguler", dpPercentage),
+			CreatedAt:     time.Now(),
 		}
-		return uc.InvoiceRepo.Create(newInvoice)
+		if sub.ClientID != uuid.Nil {
+			newDP.PayerID = &sub.ClientID
+		}
+		_ = uc.InvoiceRepo.Create(newDP)
+	}
+
+	// 2. Sync or create Pelunasan Invoice (Termin 2)
+	if pelunasanInvoice != nil {
+		pelunasanInvoice.PaymentScheme = "TERMIN"
+		pelunasanInvoice.Percentage = pelunasanPercentage
+		if pelunasanInvoice.Status != domain.InvoiceStatusPaid {
+			pelunasanInvoice.Amount = pelunasanAmount
+		}
+		pelunasanInvoice.PricingSource = "COST_DETAIL"
+		_ = uc.InvoiceRepo.Update(pelunasanInvoice)
+	} else {
+		newPelunasan := &domain.Invoice{
+			SubmissionID:  sub.ID,
+			ServiceType:   sub.ServiceType,
+			Type:          domain.InvoiceTypePelunasan,
+			PaymentScheme: "TERMIN",
+			Percentage:    pelunasanPercentage,
+			Amount:        pelunasanAmount,
+			Status:        domain.InvoiceStatusUnpaid,
+			PricingSource: "COST_DETAIL",
+			Notes:         fmt.Sprintf("Termin 2 - Pelunasan (%.0f%%) Layanan Reguler", pelunasanPercentage),
+			CreatedAt:     time.Now().Add(time.Second),
+		}
+		if sub.ClientID != uuid.Nil {
+			newPelunasan.PayerID = &sub.ClientID
+		}
+		_ = uc.InvoiceRepo.Create(newPelunasan)
 	}
 
 	return nil

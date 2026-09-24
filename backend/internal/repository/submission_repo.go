@@ -36,6 +36,10 @@ func (r *submissionRepository) FindByID(id uuid.UUID) (*domain.Submission, error
 		Preload("Consultant").
 		Preload("BusinessType").
 		Preload("ProductCategory").
+		Preload("Province").
+		Preload("Regency").
+		Preload("District").
+		Preload("BusinessScale").
 		Preload("FieldValues").
 		Preload("FieldValues.FormField").
 		First(&submission, "id = ?", id).Error; err != nil {
@@ -49,6 +53,30 @@ func (r *submissionRepository) FindByID(id uuid.UUID) (*domain.Submission, error
 	}
 	if submission.BusinessTypeID == nil && submission.CostDetail != nil && submission.CostDetail.BusinessTypeID != nil {
 		submission.BusinessTypeID = submission.CostDetail.BusinessTypeID
+	}
+	if submission.ProvinceID == nil && submission.CostDetail != nil && submission.CostDetail.ProvinceID != nil {
+		submission.ProvinceID = submission.CostDetail.ProvinceID
+	}
+	if submission.Province == nil && submission.CostDetail != nil && submission.CostDetail.Province.ID != 0 {
+		submission.Province = &submission.CostDetail.Province
+	}
+	if submission.RegencyID == nil && submission.CostDetail != nil && submission.CostDetail.RegencyID != nil {
+		submission.RegencyID = submission.CostDetail.RegencyID
+	}
+	if submission.Regency == nil && submission.CostDetail != nil && submission.CostDetail.Regency.ID != 0 {
+		submission.Regency = &submission.CostDetail.Regency
+	}
+	if submission.DistrictID == nil && submission.CostDetail != nil && submission.CostDetail.DistrictID != nil {
+		submission.DistrictID = submission.CostDetail.DistrictID
+	}
+	if submission.District == nil && submission.CostDetail != nil && submission.CostDetail.District.ID != 0 {
+		submission.District = &submission.CostDetail.District
+	}
+	if submission.BusinessScaleID == nil && submission.CostDetail != nil && submission.CostDetail.BusinessScaleID != nil {
+		submission.BusinessScaleID = submission.CostDetail.BusinessScaleID
+	}
+	if submission.BusinessScale == nil && submission.CostDetail != nil && submission.CostDetail.BusinessScale.ID != 0 {
+		submission.BusinessScale = &submission.CostDetail.BusinessScale
 	}
 	return &submission, nil
 }

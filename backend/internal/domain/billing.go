@@ -71,9 +71,11 @@ type InvoiceRepository interface {
 	FindAll(filter map[string]interface{}, page, limit int) ([]Invoice, int64, error)
 	FindBySubmissionID(submissionID uuid.UUID) (*Invoice, error)
 	FindBySubmissionIDAndType(submissionID uuid.UUID, invoiceType InvoiceType) (*Invoice, error)
+	FindAllBySubmissionID(submissionID uuid.UUID) ([]Invoice, error)
 	FindByIDs(ids []int64) ([]Invoice, error)
 	Create(invoice *Invoice) error
 	Update(invoice *Invoice) error
+	Delete(id int64) error
 }
 
 type CoordinatorRateRepository interface {

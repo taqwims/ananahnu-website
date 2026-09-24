@@ -4,6 +4,7 @@ import (
 	"ananahnu/internal/delivery/middleware"
 	"ananahnu/internal/usecase"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -99,7 +100,15 @@ func (h *DocumentHandler) GenerateInvoicePDF(c *gin.Context) {
 		return
 	}
 
-	data, filename, err := h.documentUsecase.GenerateInvoicePDF(id)
+	invoiceType := c.Query("type")
+	var invoiceIDPtr *int64
+	if invIDStr := c.Query("invoice_id"); invIDStr != "" {
+		if invID, parseErr := strconv.ParseInt(invIDStr, 10, 64); parseErr == nil {
+			invoiceIDPtr = &invID
+		}
+	}
+
+	data, filename, err := h.documentUsecase.GenerateInvoicePDF(id, invoiceType, invoiceIDPtr)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

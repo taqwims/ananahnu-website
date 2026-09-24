@@ -16,27 +16,8 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
     const [showBreakdown, setShowBreakdown] = useState(false);
     const isPaid = invoice.status === 'PAID';
 
-    const handleDownload = async () => {
-        if (!submissionId) return;
-        try {
-            const toastId = toast.loading('Mengunduh Invoice...');
-            const res = await api.get(`/documents/submissions/${submissionId}/invoice-pdf`, { responseType: 'blob' });
-            const url = window.URL.createObjectURL(new Blob([res.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `Invoice_${isPaid ? 'Lunas' : 'Tagihan'}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            toast.success('Invoice berhasil diunduh', { id: toastId });
-        } catch (error) {
-            toast.error('Gagal mengunduh invoice');
-            console.error('Download error:', error);
-        }
-    };
-
     // Calculate total contract value (100%) and termin percentages
-    const isReguler = invoice.service_type === 'REGULER' || invoice.type === 'DP' || invoice.type === 'PELUNASAN';
+    const isReguler = invoice.service_type === 'REGULER' || invoice.type === 'DP' || invoice.type === 'PELUNASAN' || submission?.service_type === 'REGULER';
     const paymentScheme = submission?.cost_detail?.payment_scheme || (invoice.type === 'FULL' ? 'FULL' : (isReguler ? 'TERMIN' : 'FULL'));
     const isTermin = isReguler && paymentScheme !== 'FULL';
 
@@ -64,6 +45,47 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
     const dpAmount = Math.round(totalContractValue * (dpPct / 100));
     const pelunasanAmount = Math.round(totalContractValue * (pelunasanPct / 100));
 
+    // Find DP and Pelunasan invoices in submission.invoices list
+    const dpInvoice = submission?.invoices?.find(inv => inv.type === 'DP') || (isDP ? invoice : null);
+    const pelunasanInvoice = submission?.invoices?.find(inv => inv.type === 'PELUNASAN') || (isPelunasan ? invoice : null);
+
+    const isDpPaid = dpInvoice?.status === 'PAID' || (isDP && isPaid) || (isPelunasan && isPaid);
+    const isPelunasanPaid = pelunasanInvoice?.status === 'PAID' || (isPelunasan && isPaid);
+
+    // Remaining balance
+    let remainingBalance = 0;
+    if (isTermin) {
+        if (!isDpPaid && !isPelunasanPaid) {
+            remainingBalance = totalContractValue;
+        } else if (isDpPaid && !isPelunasanPaid) {
+            remainingBalance = pelunasanAmount;
+        } else {
+            remainingBalance = 0;
+        }
+    } else {
+        remainingBalance = isPaid ? 0 : totalContractValue;
+    }
+
+    const handleDownload = async (type?: 'DP' | 'PELUNASAN' | 'FULL') => {
+        if (!submissionId) return;
+        try {
+            const toastId = toast.loading(`Mengunduh Invoice ${type ? (type === 'DP' ? `Termin 1 (DP ${dpPct}%)` : `Termin 2 (Pelunasan ${pelunasanPct}%)`) : ''}...`);
+            const urlParam = type ? `?type=${type}` : '';
+            const res = await api.get(`/documents/submissions/${submissionId}/invoice-pdf${urlParam}`, { responseType: 'blob' });
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Invoice_${type || 'Tagihan'}_${submission?.client?.business_name || 'Pelanggan'}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            toast.success('Invoice berhasil diunduh', { id: toastId });
+        } catch (error) {
+            toast.error('Gagal mengunduh invoice');
+            console.error('Download error:', error);
+        }
+    };
+
     // Parse cost breakdown data if available
     let breakdownItems: any[] = [];
     if (submission?.cost_detail?.cost_breakdown_data) {
@@ -78,8 +100,9 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
     }
 
     return (
-        <div className={`glass-panel p-4 sm:p-7 shadow-xl border rounded-3xl transition-all space-y-5 sm:space-y-6 overflow-hidden ${isPaid ? 'bg-gradient-to-br from-emerald-50/40 via-white to-emerald-50/20 border-emerald-200' : 'bg-gradient-to-br from-amber-50/40 via-white to-amber-50/20 border-amber-200'
-            }`}>
+        <div className={`glass-panel p-4 sm:p-7 shadow-xl border rounded-3xl transition-all space-y-5 sm:space-y-6 overflow-hidden ${
+            isPaid ? 'bg-gradient-to-br from-emerald-50/40 via-white to-emerald-50/20 border-emerald-200' : 'bg-gradient-to-br from-amber-50/40 via-white to-amber-50/20 border-amber-200'
+        }`}>
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-5">
                 <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
@@ -106,7 +129,7 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
                         </div>
                         <p className="text-xs text-gray-500 font-medium mt-0.5 break-words">
                             {isDP
-                                ? `Tagihan Tahap 1: Uang Muka (Down Payment ${dpPct}%) untuk memulai audit & verifikasi dokumen`
+                                ? `Tagihan Tahap 1: Uang Muka (Down Payment ${dpPct}%) untuk memulai audit & verifikasi berkas`
                                 : isPelunasan
                                     ? `Tagihan Tahap 2: Pelunasan Akhir (${pelunasanPct}%) setelah Sertifikat Halal terbit`
                                     : 'Rincian biaya administrasi dan pendampingan sertifikasi halal'}
@@ -116,57 +139,97 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
 
                 <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto flex-wrap">
                     {submissionId && (
-                        <button
-                            onClick={handleDownload}
-                            className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-xl transition-all border border-gray-200 shadow-sm"
-                        >
-                            <Download className="w-4 h-4 text-brand-600 shrink-0" />
-                            <span>Unduh Invoice {isPaid ? 'Lunas' : ''}</span>
-                        </button>
+                        <>
+                            {isTermin ? (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <button
+                                        onClick={() => handleDownload('DP')}
+                                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-xl transition-all border border-blue-200 shadow-sm"
+                                        title={`Unduh Invoice Termin 1 DP ${dpPct}%`}
+                                    >
+                                        <Download className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                        <span>PDF Termin 1 (DP {dpPct}%)</span>
+                                    </button>
+                                    <button
+                                        onClick={() => handleDownload('PELUNASAN')}
+                                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl transition-all border border-indigo-200 shadow-sm"
+                                        title={`Unduh Invoice Termin 2 Pelunasan ${pelunasanPct}%`}
+                                    >
+                                        <Download className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                        <span>PDF Termin 2 (Pelunasan {pelunasanPct}%)</span>
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => handleDownload()}
+                                    className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-xl transition-all border border-gray-200 shadow-sm"
+                                >
+                                    <Download className="w-4 h-4 text-brand-600 shrink-0" />
+                                    <span>Unduh Invoice {isPaid ? 'Lunas' : ''}</span>
+                                </button>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
 
             {/* KPI Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                {/* 1. Tagihan Saat Ini (Nominal Aktif) */}
-                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-sm space-y-1 min-w-0">
-                    <div className="flex items-center justify-between text-gray-400 gap-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest truncate">
-                            {isDP ? 'Tagihan Termin 1 (70%)' : isPelunasan ? 'Tagihan Termin 2 (30%)' : 'Total Tagihan'}
-                        </span>
-                        <span className="text-[10px] font-black px-1.5 py-0.5 bg-brand-50 text-brand-700 rounded shrink-0">
-                            {isDP ? 'DP 70%' : isPelunasan ? 'Pelunasan 30%' : '100%'}
-                        </span>
-                    </div>
-                    <p className="text-[15px] sm:text-base font-black text-brand-700 truncate" title={formatCurrency(invoice.amount)}>{formatCurrency(invoice.amount)}</p>
-                    <p className="text-[11px] text-gray-400 font-medium truncate">
-                        {isDP ? 'Harus dibayar diawal' : isPelunasan ? 'Harus dibayar saat ini' : 'Nominal yang harus dibayar'}
-                    </p>
-                </div>
-
-                {/* 2. Total Nilai Kontrak Layanan (100%) */}
+                {/* 1. Total Nilai Kontrak Layanan (100%) */}
                 <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-sm space-y-1 min-w-0">
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block truncate">
                         Total Nilai Kontrak (100%)
                     </span>
-                    <p className="text-[15px] sm:text-base font-black text-gray-800 truncate" title={formatCurrency(totalContractValue)}>{formatCurrency(totalContractValue)}</p>
+                    <p className="text-[15px] sm:text-base font-black text-gray-900 truncate" title={formatCurrency(totalContractValue)}>
+                        {formatCurrency(totalContractValue)}
+                    </p>
                     <p className="text-[11px] text-gray-400 font-medium truncate">
-                        Sesuai tertera di kontrak layanan
+                        Sesuai kontrak pendampingan
                     </p>
                 </div>
 
-                {/* 3. Sisa Pelunasan / Status DP */}
-                {isReguler ? (
-                    <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-sm space-y-1 min-w-0">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block truncate">
-                            {isPelunasan ? 'DP Termin 1 (70%)' : 'Sisa Termin 2 (30%)'}
+                {/* 2. Termin 1: DP (X%) */}
+                <div className={`p-4 sm:p-5 rounded-2xl border shadow-sm space-y-1 min-w-0 ${
+                    isDpPaid ? 'bg-emerald-50/60 border-emerald-200' : 'bg-white border-gray-100'
+                }`}>
+                    <div className="flex items-center justify-between text-gray-400 gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest truncate">
+                            Termin 1: DP ({dpPct}%)
                         </span>
-                        <p className="text-[15px] sm:text-base font-black text-indigo-600 truncate" title={formatCurrency(isPelunasan ? dpAmount : pelunasanAmount)}>
-                            {formatCurrency(isPelunasan ? dpAmount : pelunasanAmount)}
+                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded shrink-0 ${
+                            isDpPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                            {isDpPaid ? 'LUNAS' : 'BELUM BAYAR'}
+                        </span>
+                    </div>
+                    <p className="text-[15px] sm:text-base font-black text-blue-700 truncate" title={formatCurrency(dpAmount)}>
+                        {formatCurrency(dpAmount)}
+                    </p>
+                    <p className="text-[11px] text-gray-400 font-medium truncate">
+                        {isDpPaid ? 'Terbayar di awal proses' : 'Harus dibayar sebelum proses'}
+                    </p>
+                </div>
+
+                {/* 3. Termin 2: Pelunasan (100-X%) */}
+                {isReguler ? (
+                    <div className={`p-4 sm:p-5 rounded-2xl border shadow-sm space-y-1 min-w-0 ${
+                        isPelunasanPaid ? 'bg-emerald-50/60 border-emerald-200' : 'bg-white border-gray-100'
+                    }`}>
+                        <div className="flex items-center justify-between text-gray-400 gap-2">
+                            <span className="text-[10px] font-black uppercase tracking-widest truncate">
+                                Termin 2: Pelunasan ({pelunasanPct}%)
+                            </span>
+                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded shrink-0 ${
+                                isPelunasanPaid ? 'bg-emerald-100 text-emerald-800' : (submission?.status === 'SH_TERBIT' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600')
+                            }`}>
+                                {isPelunasanPaid ? 'LUNAS' : (submission?.status === 'SH_TERBIT' ? 'DITAGIHKAN' : 'MENUNGGU SH')}
+                            </span>
+                        </div>
+                        <p className="text-[15px] sm:text-base font-black text-indigo-700 truncate" title={formatCurrency(pelunasanAmount)}>
+                            {formatCurrency(pelunasanAmount)}
                         </p>
                         <p className="text-[11px] text-gray-400 font-medium truncate">
-                            {isPelunasan ? 'Sudah terbayar di awal' : 'Ditagihkan saat SH Terbit'}
+                            {isPelunasanPaid ? 'Lunas terbayar' : (submission?.status === 'SH_TERBIT' ? 'Sertifikat Halal terbit - Silakan lunasi' : 'Ditagihkan saat SH Terbit')}
                         </p>
                     </div>
                 ) : (
@@ -183,16 +246,24 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
                     </div>
                 )}
 
-                {/* 4. Status Pembayaran */}
+                {/* 4. Sisa Tagihan Kontrak */}
                 <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-sm space-y-2 flex flex-col justify-between min-w-0">
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block truncate">
-                        Status Pembayaran
+                        Sisa Tagihan Kontrak
                     </span>
                     <div>
-                        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider shrink-0 ${isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                        <p className={`text-[15px] sm:text-base font-black truncate ${
+                            remainingBalance === 0 ? 'text-emerald-700' : 'text-rose-700'
+                        }`} title={formatCurrency(remainingBalance)}>
+                            {formatCurrency(remainingBalance)}
+                        </p>
+                        <div className="mt-1">
+                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0 ${
+                                remainingBalance === 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                             }`}>
-                            {isPaid ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <Clock className="w-4 h-4 shrink-0" />}
-                            <span className="truncate">{isPaid ? 'Lunas Terbayar' : 'Menunggu Bayar'}</span>
+                                {remainingBalance === 0 ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <Clock className="w-3.5 h-3.5 shrink-0" />}
+                                <span className="truncate">{remainingBalance === 0 ? 'Kontrak Lunas' : 'Belum Lunas'}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -209,8 +280,8 @@ export const SubmissionInvoice = ({ invoice, submissionId, submission }: Submiss
                         <p className="text-blue-800 leading-relaxed">
                             Total nilai kontrak layanan pendampingan sertifikasi halal adalah <strong className="font-black">{formatCurrency(totalContractValue)}</strong>.
                             Sesuai ketentuan, pembayaran dibagi dalam 2 termin:
-                            <strong> Termin 1 (DP 70% = {formatCurrency(dpAmount)})</strong> dibayarkan diawal untuk proses audit & verifikasi berkas, dan
-                            <strong> Termin 2 (Pelunasan 30% = {formatCurrency(pelunasanAmount)})</strong> dibayarkan saat Sertifikat Halal resmi terbit.
+                            <strong> Termin 1 (DP {dpPct}% = {formatCurrency(dpAmount)})</strong> dibayarkan diawal untuk proses audit & verifikasi berkas, dan
+                            <strong> Termin 2 (Pelunasan {pelunasanPct}% = {formatCurrency(pelunasanAmount)})</strong> dibayarkan saat Sertifikat Halal resmi terbit.
                         </p>
                     </div>
                 </div>

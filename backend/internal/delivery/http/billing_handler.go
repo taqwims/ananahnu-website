@@ -60,6 +60,7 @@ func NewBillingHandler(r *gin.Engine, bUC usecase.BillingUsecase, pUC usecase.Pa
 	invoices.Use(middleware.AuthMiddleware())
 	{
 		invoices.GET("/submission/:submissionId", handler.GetInvoiceBySubmission)
+		invoices.GET("/submission/:submissionId/all", handler.GetInvoicesBySubmission)
 		// Ganti mode pembayaran: DP → Full Payment (sebelum pembayaran dilakukan)
 		invoices.PUT("/:id/switch-full", handler.SwitchToFullPayment)
 		// Ganti mode pembayaran: Full → DP (sebelum pembayaran dilakukan)
@@ -238,8 +239,6 @@ func (h *BillingHandler) PayReferralCommission(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "commission marked as paid"})
 }
 
-// GetInvoiceBySubmission returns the invoice for a specific submission.
-// Fix: endpoint ini dipanggil frontend di submissionService.getInvoice()
 func (h *BillingHandler) GetInvoiceBySubmission(c *gin.Context) {
 	subID, err := uuid.Parse(c.Param("submissionId"))
 	if err != nil {
@@ -254,6 +253,22 @@ func (h *BillingHandler) GetInvoiceBySubmission(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, invoice)
+}
+
+func (h *BillingHandler) GetInvoicesBySubmission(c *gin.Context) {
+	subID, err := uuid.Parse(c.Param("submissionId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid submission_id"})
+		return
+	}
+
+	invoices, err := h.billingUC.GetInvoicesBySubmission(subID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, invoices)
 }
 
 // SwitchToFullPayment mengubah invoice DP menjadi Full Payment (100%) sebelum bayar.

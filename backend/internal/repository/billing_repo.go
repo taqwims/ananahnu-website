@@ -43,7 +43,11 @@ func (r *invoiceRepository) FindAll(filter map[string]interface{}, page, limit i
 
 func (r *invoiceRepository) FindBySubmissionID(submissionID uuid.UUID) (*domain.Invoice, error) {
 	var invoice domain.Invoice
-	if err := r.db.Where("submission_id = ?", submissionID).First(&invoice).Error; err != nil {
+	// Prioritize unpaid invoices so the active checkout points to the invoice due
+	if err := r.db.Where("submission_id = ? AND status = ?", submissionID, "UNPAID").Order("id ASC").First(&invoice).Error; err == nil {
+		return &invoice, nil
+	}
+	if err := r.db.Where("submission_id = ?", submissionID).Order("id ASC").First(&invoice).Error; err != nil {
 		return nil, err
 	}
 	return &invoice, nil
@@ -55,6 +59,14 @@ func (r *invoiceRepository) FindBySubmissionIDAndType(submissionID uuid.UUID, in
 		return nil, err
 	}
 	return &invoice, nil
+}
+
+func (r *invoiceRepository) FindAllBySubmissionID(submissionID uuid.UUID) ([]domain.Invoice, error) {
+	var invoices []domain.Invoice
+	if err := r.db.Where("submission_id = ?", submissionID).Order("id ASC").Find(&invoices).Error; err != nil {
+		return nil, err
+	}
+	return invoices, nil
 }
 
 func (r *invoiceRepository) FindByIDs(ids []int64) ([]domain.Invoice, error) {
@@ -71,6 +83,10 @@ func (r *invoiceRepository) Create(invoice *domain.Invoice) error {
 
 func (r *invoiceRepository) Update(invoice *domain.Invoice) error {
 	return r.db.Save(invoice).Error
+}
+
+func (r *invoiceRepository) Delete(id int64) error {
+	return r.db.Delete(&domain.Invoice{}, id).Error
 }
 
 // --- PaymentConfigRepository ---

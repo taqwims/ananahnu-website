@@ -49,6 +49,15 @@ class SubmissionService extends BaseService {
         }
     }
 
+    async getInvoices(id: string): Promise<Invoice[]> {
+        try {
+            const response = await this.api.get(`/invoices/submission/${id}/all`);
+            return response.data || [];
+        } catch (error) {
+            return [];
+        }
+    }
+
     async updateClient(clientId: string, data: Partial<Client>): Promise<void> {
         try {
             await this.api.put(`/clients/${clientId}`, data);

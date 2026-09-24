@@ -296,16 +296,16 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
     };
 
     // Invoice type display label
-    const invoiceLabel = invoiceType === 'PELUNASAN' ? 'Pelunasan (30%)'
-        : invoiceType === 'DP' ? 'Down Payment (70%)'
+    const invoiceLabel = invoiceType === 'PELUNASAN' ? `Pelunasan (${configuredPelunasanPct}%)`
+        : invoiceType === 'DP' ? `Down Payment (${configuredDPPct}%)`
             : 'Pembayaran';
 
     // Check for existing paid/pending payments or paid invoice
-    const foundPayment = paymentHistory.find(p => p.status === 'PAID');
+    const foundPayment = paymentHistory.find(p => p.status === 'PAID' && (resolvedInvoice ? p.invoice_id === resolvedInvoice.id : true));
     const isInvoicePaid = resolvedInvoice?.status === 'PAID';
-    const paidPayment = foundPayment || (isInvoicePaid ? { amount: resolvedInvoice?.amount || 0, status: 'PAID' } : null);
+    const paidPayment = (isInvoicePaid ? { amount: resolvedInvoice?.amount || 0, status: 'PAID' } : null) || foundPayment;
 
-    const pendingPayment = paymentHistory.find(p => p.status === 'PENDING');
+    const pendingPayment = paymentHistory.find(p => p.status === 'PENDING' && (resolvedInvoice ? p.invoice_id === resolvedInvoice.id : true));
 
     // Show "Payment Completed" state
     if (paidPayment) {

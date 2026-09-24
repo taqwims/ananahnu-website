@@ -85,6 +85,30 @@ export const ClientInfoSection = ({
     });
 
     useEffect(() => {
+        setClientForm({
+            business_name: submission.client?.business_name || '',
+            client_name: submission.client?.client_name || '',
+            nib: submission.client?.nib || '',
+            nib_file_url: submission.client?.nib_file_url || '',
+            nik: submission.client?.nik || '',
+            product_name: submission.client?.product_name || '',
+            address: submission.client?.address || '',
+            contact_person: submission.client?.contact_person || '',
+            phone: submission.client?.phone || '',
+            business_type_id: submission.business_type_id?.toString() || '',
+            province_id: (submission.province_id || submission.cost_detail?.province_id)?.toString() || '',
+            regency_id: (submission.regency_id || submission.cost_detail?.regency_id)?.toString() || '',
+            district_id: (submission.district_id || submission.cost_detail?.district_id)?.toString() || '',
+            product_category_id: (submission.product_category_id || submission.cost_detail?.product_category_id)?.toString() || '',
+            business_scale_id: (submission.business_scale_id || submission.cost_detail?.business_scale_id)?.toString() || '',
+            sales_scheme_id: submission.sales_scheme_id?.toString() || '1',
+            data_source: submission.data_source || 'ORGANIK',
+            product_count: submission.product_count || submission.cost_detail?.product_count || 1,
+            branch_count: submission.branch_count || submission.cost_detail?.branch_count || 1,
+        });
+    }, [submission]);
+
+    useEffect(() => {
         if (isEditingClient) {
             api.get('/geography/provinces').then(res => setProvinces(res.data || []));
             api.get('/billing-config/product-categories').then(res => setProductCategories(res.data || []));
@@ -333,10 +357,8 @@ export const ClientInfoSection = ({
                             <textarea className="glass-input w-full" rows={2} value={clientForm.address} onChange={e => setClientForm({...clientForm, address: e.target.value})} placeholder="Alamat lengkap usaha" />
                         </div>
 
-                        {(submission.service_type === 'REGULER' || submission.service_type === 'SELF_DECLARE_MANDIRI') && (
-                            <>
                                 <div className="sm:col-span-2 border-t border-gray-100 pt-4 mt-2">
-                                    <h4 className="text-xs font-bold text-brand-700 uppercase tracking-wider mb-2">Informasi Penentuan Harga</h4>
+                                    <h4 className="text-xs font-bold text-brand-700 uppercase tracking-wider mb-2">Informasi Wilayah & Penentuan Skala Harga</h4>
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Provinsi Usaha <span className="text-red-500">*</span></label>
@@ -504,8 +526,6 @@ export const ClientInfoSection = ({
                                          </div>
                                      );
                                  })()}
-                            </>
-                        )}
                     </div>
                     <div className="flex justify-end gap-3 pt-2">
                         <button onClick={() => setIsEditingClient(false)} className="px-4 py-2 text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors">Batal</button>
@@ -576,20 +596,16 @@ export const ClientInfoSection = ({
                     <InfoItem label="Produk Utama" value={submission.client?.product_name} />
                     <InfoItem label="Bidang Usaha" value={submission.business_type?.name} highlight />
                     <InfoItem label="Telepon" value={submission.client?.phone} />
-                    {(submission.service_type === 'REGULER' || submission.service_type === 'SELF_DECLARE_MANDIRI') && (
-                        <>
-                            <InfoItem label="Provinsi" value={submission.cost_detail?.province?.name || '-'} />
-                            <InfoItem label="Kabupaten / Kota" value={submission.cost_detail?.regency?.name || '-'} />
-                            <InfoItem label="Kecamatan" value={submission.cost_detail?.district?.name || '-'} />
-                            <InfoItem label="Kategori Produk" value={submission.cost_detail?.product_category?.name || '-'} />
-                            <InfoItem label="Skala Usaha" value={submission.cost_detail?.business_scale?.name || '-'} />
-                            {user?.role !== 'CLIENT' && (
-                                <InfoItem label="Sumber Data" value="Organik" />
-                            )}
-                            <InfoItem label="Jumlah Produk" value={submission.product_count?.toString() || submission.cost_detail?.product_count?.toString() || '1'} />
-                            <InfoItem label="Jumlah Cabang" value={submission.branch_count?.toString() || submission.cost_detail?.branch_count?.toString() || '1'} />
-                        </>
+                    <InfoItem label="Provinsi" value={submission.province?.name || submission.cost_detail?.province?.name || '-'} />
+                    <InfoItem label="Kabupaten / Kota" value={submission.regency?.name || submission.cost_detail?.regency?.name || '-'} />
+                    <InfoItem label="Kecamatan" value={submission.district?.name || submission.cost_detail?.district?.name || '-'} />
+                    <InfoItem label="Kategori Produk" value={submission.product_category?.name || submission.cost_detail?.product_category?.name || '-'} />
+                    <InfoItem label="Skala Usaha" value={submission.business_scale?.name || submission.cost_detail?.business_scale?.name || '-'} />
+                    {user?.role !== 'CLIENT' && (
+                        <InfoItem label="Sumber Data" value="Organik" />
                     )}
+                    <InfoItem label="Jumlah Produk" value={submission.product_count?.toString() || submission.cost_detail?.product_count?.toString() || '1'} />
+                    <InfoItem label="Jumlah Cabang" value={submission.branch_count?.toString() || submission.cost_detail?.branch_count?.toString() || '1'} />
                     {submission.consultant_id && (
                         <InfoItem label="Advisor Penanggung Jawab" value={submission.consultant?.full_name} highlight />
                     )}
