@@ -8,11 +8,30 @@ import RoleRoute from './components/auth/RoleRoute';
 // Public pages loaded eagerly for instant first paint
 import PublicLayout from './components/layout/PublicLayout';
 import LandingPage from './pages/landing/LandingPage';
-import NewsListPage from './pages/public/NewsListPage';
-import NewsDetailPage from './pages/public/NewsDetailPage';
 import TrackSubmission from './pages/tracking/TrackSubmission';
 import VerifyInvoice from './pages/tracking/VerifyInvoice';
 import VerifyAgreement from './pages/tracking/VerifyAgreement';
+
+const TELEMARKETING_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:5174'
+  : 'https://telemarketing.halalcore.id';
+
+const RedirectToTelemarketingNews = () => {
+  const { slug } = React.useMemo(() => {
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    return { slug: parts[1] || '' };
+  }, []);
+
+  React.useEffect(() => {
+    window.location.replace(slug ? `${TELEMARKETING_URL}/news/${slug}` : `${TELEMARKETING_URL}/news`);
+  }, [slug]);
+
+  return (
+    <div className="py-24 text-center">
+      <p className="text-sm text-gray-500 font-medium">Mengarahkan ke Portal Berita & Edukasi HalalCore...</p>
+    </div>
+  );
+};
 
 // Lazy loaded heavy dashboard and administrative components
 const DashboardLayout = lazy(() => import('./components/layout/DashboardLayout'));
@@ -308,8 +327,10 @@ function App() {
         {/* Public Routes */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/news" element={<NewsListPage />} />
-          <Route path="/news/:slug" element={<NewsDetailPage />} />
+          <Route path="/news" element={<RedirectToTelemarketingNews />} />
+          <Route path="/news/:slug" element={<RedirectToTelemarketingNews />} />
+          <Route path="/berita" element={<RedirectToTelemarketingNews />} />
+          <Route path="/berita/:slug" element={<RedirectToTelemarketingNews />} />
           <Route path="/track" element={<TrackSubmission />} />
           <Route path="/verify-invoice/:id" element={<VerifyInvoice />} />
           <Route path="/verify/agreement/:id/:token" element={<VerifyAgreement />} />

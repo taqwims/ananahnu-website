@@ -62,7 +62,7 @@ func NewCMSHandler(r *gin.Engine, uc usecase.CMSUsecase) {
 	// Admin endpoints (auth required)
 	admin := r.Group("/admin/cms")
 	admin.Use(middleware.AuthMiddleware())
-	admin.Use(middleware.RoleMiddleware("DIRECTOR", "MANAGER", "MARKETING", "BUSINESS_DEVELOPMENT", "ADMIN_PELATIHAN"))
+	admin.Use(middleware.RoleMiddleware("DIRECTOR", "MANAGER", "MARKETING", "BUSINESS_DEVELOPMENT", "ADMIN_PELATIHAN", "TELEMARKETER", "ADMIN"))
 	{
 		// News
 		admin.GET("/news", handler.AdminListNews)
@@ -1776,7 +1776,7 @@ func (h *CMSHandler) AdminGetNewsByID(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Artikel tidak ditemukan"})
 		return
 	}
-	c.JSON(http.StatusOK, news)
+	c.JSON(http.StatusOK, gin.H{"data": news})
 }
 
 func (h *CMSHandler) CreateNews(c *gin.Context) {

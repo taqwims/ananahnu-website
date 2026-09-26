@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import {
     ArrowRight, CheckCircle2, Newspaper, ArrowUpRight,
     FileText, MessageSquare, ClipboardList, Monitor, Award,
@@ -15,6 +14,10 @@ import { formatWhatsAppUrl } from '../../utils/format';
 import heroAdvisorImg from '../../assets/hero-advisors.jpg';
 import HalalIndonesiaBadge from '../../components/ui/HalalIndonesiaBadge';
 import SEOHead from '../../components/seo/SEOHead';
+
+const TELEMARKETING_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:5174'
+    : 'https://telemarketing.halalcore.id';
 
 // FAQ data for Google Search rich snippets & user trust
 const LANDING_FAQS = [
@@ -680,9 +683,12 @@ export default function LandingPage() {
                                 Berita & Regulasi Halal
                             </h2>
                         </div>
-                        <Link to="/news" className="hidden md:inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 hover:text-emerald-900 hover:underline">
+                        <a 
+                            href={`${TELEMARKETING_URL}/news`} 
+                            className="hidden md:inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 hover:text-emerald-900 hover:underline"
+                        >
                             Lihat Semua Artikel <ArrowUpRight className="w-4 h-4" />
-                        </Link>
+                        </a>
                     </div>
 
                     {news.length === 0 ? (
@@ -693,9 +699,9 @@ export default function LandingPage() {
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                             {news.map(article => (
-                                <Link
+                                <a
                                     key={article.id}
-                                    to={`/news/${article.slug}`}
+                                    href={`${TELEMARKETING_URL}/news/${article.slug}`}
                                     className="group bg-white rounded-3xl p-4 border border-gray-100 hover:border-emerald-200 hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
                                 >
                                     <div>
@@ -722,7 +728,7 @@ export default function LandingPage() {
                                         <span>Baca Selengkapnya</span>
                                         <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                                     </div>
-                                </Link>
+                                </a>
                             ))}
                         </div>
                     )}

@@ -10,6 +10,8 @@ import DashboardLayout from './components/layout/DashboardLayout';
 import LoginPage from './pages/auth/LoginPage';
 import LandingPage from './pages/public/LandingPage';
 import PublicFormPage from './pages/public/FormPage';
+import NewsListPage from './pages/public/NewsListPage';
+import NewsDetailPage from './pages/public/NewsDetailPage';
 import { VerifyAgreement } from './pages/public/VerifyAgreement';
 import DashboardHome from './pages/dashboard/DashboardHome';
 import ClientManagement from './pages/dashboard/ClientManagement';
@@ -17,6 +19,8 @@ import MeetingSchedule from './pages/dashboard/MeetingSchedule';
 import AnalyticsPage from './pages/dashboard/Analytics';
 import EstimasiReguler from './pages/dashboard/EstimasiReguler';
 import AdvisorsGeo from './pages/dashboard/AdvisorsGeo';
+import NewsManagement from './pages/dashboard/NewsManagement';
+import NewsEditorPage from './pages/dashboard/NewsEditorPage';
 
 // JWT expiry check
 function getTokenExpiry(token: string): number | null {
@@ -75,6 +79,10 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/form" element={<PublicFormPage />} />
+        <Route path="/news" element={<NewsListPage />} />
+        <Route path="/news/:slug" element={<NewsDetailPage />} />
+        <Route path="/berita" element={<NewsListPage />} />
+        <Route path="/berita/:slug" element={<NewsDetailPage />} />
         <Route path="/verify/:id/:token" element={<VerifyAgreement />} />
         <Route path="/login" element={<LoginPage />} />
 
@@ -90,6 +98,9 @@ function App() {
           <Route index element={<DashboardHome />} />
           <Route path="clients" element={<ClientManagement />} />
           <Route path="meetings" element={<MeetingSchedule />} />
+          <Route path="news" element={<NewsManagement />} />
+          <Route path="news/create" element={<NewsEditorPage />} />
+          <Route path="news/edit/:id" element={<NewsEditorPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="estimasi-reguler" element={<EstimasiReguler />} />
           <Route path="advisors" element={<AdvisorsGeo />} />

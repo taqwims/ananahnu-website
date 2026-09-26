@@ -159,7 +159,7 @@ export default function PublicLayout() {
 
                             <a href="/#proses" className="text-gray-700 hover:text-emerald-700 font-medium text-[15px] transition-colors">Alur Proses</a>
                             <a href="/#keunggulan" className="text-gray-700 hover:text-emerald-700 font-medium text-[15px] transition-colors">Keunggulan</a>
-                            <Link to="/news" className="text-gray-700 hover:text-emerald-700 font-medium text-[15px] transition-colors">Berita & Edukasi</Link>
+                            <a href={`${TELEMARKETING_URL}/news`} className="text-gray-700 hover:text-emerald-700 font-medium text-[15px] transition-colors">Berita & Edukasi</a>
                             <a href="/#kontak" className="text-gray-700 hover:text-emerald-700 font-medium text-[15px] transition-colors">Kontak</a>
                         </div>
 
@@ -267,7 +267,7 @@ export default function PublicLayout() {
                         <a href="/#layanan" className="block px-3 py-2.5 rounded-xl text-base font-semibold text-gray-800 hover:text-emerald-800 hover:bg-emerald-50">Layanan Pendampingan</a>
                         <a href="/#proses" className="block px-3 py-2.5 rounded-xl text-base font-semibold text-gray-800 hover:text-emerald-800 hover:bg-emerald-50">Alur Proses</a>
                         <a href="/#untuk-siapa" className="block px-3 py-2.5 rounded-xl text-base font-semibold text-gray-800 hover:text-emerald-800 hover:bg-emerald-50">Untuk Siapa</a>
-                        <Link to="/news" className="block px-3 py-2.5 rounded-xl text-base font-semibold text-gray-800 hover:text-emerald-800 hover:bg-emerald-50">Berita & Edukasi</Link>
+                        <a href={`${TELEMARKETING_URL}/news`} className="block px-3 py-2.5 rounded-xl text-base font-semibold text-gray-800 hover:text-emerald-800 hover:bg-emerald-50">Berita & Edukasi</a>
                         <a href="/#kontak" className="block px-3 py-2.5 rounded-xl text-base font-semibold text-gray-800 hover:text-emerald-800 hover:bg-emerald-50">Kontak Kami</a>
                         <a href={`${TELEMARKETING_URL}/form`} className="block px-3 py-2.5 rounded-xl text-base font-bold text-amber-700 bg-amber-50">Daftar Sertifikasi Halal</a>
                         
