@@ -10,6 +10,7 @@ import {
   Sparkles, ShieldCheck, Plus, Trash2, MapPin, Package,
   Layers, CheckCircle2, RefreshCw
 } from 'lucide-react';
+import { PenawaranLetter } from '../../components/PenawaranLetter';
 import toast from 'react-hot-toast';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -1595,118 +1596,28 @@ export default function ClientManagement() {
       {/* ─── PRINTABLE OFFICIAL ESTIMATE DOCUMENT (Formatted for A4 Print) ─── */}
       {selectedForm && (
         <div id="printable-estimate-document" className="hidden print:block font-sans text-slate-900">
-          {/* Header Kop Surat Resmi */}
-          <div className="flex items-start justify-between border-b-2 border-emerald-900 pb-4 mb-6">
-            <div>
-              <h1 className="text-2xl font-black text-emerald-900 tracking-tight">
-                HALAL CORE INDONESIA
-              </h1>
-              <p className="text-xs font-bold text-amber-700 tracking-wider uppercase">
-                PT Ana Nahnu Indonesia &bull; Pendampingan Sertifikasi Halal Resmi BPJPH
-              </p>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Website: telemarketing.halalcore.id &bull; Layanan Konsultasi: 0812-3456-7890 &bull; Email: info@halalcore.id
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="inline-block px-3 py-1 bg-emerald-50 border border-emerald-300 text-emerald-900 font-extrabold text-xs rounded-lg uppercase tracking-wider">
-                Surat Estimasi Biaya
-              </span>
-              <p className="text-xs font-mono text-slate-600 mt-1">
-                No: EST/HC/{new Date().getFullYear()}{String(new Date().getMonth() + 1).padStart(2, '0')}/{selectedForm.id.slice(0, 6).toUpperCase()}
-              </p>
-              <p className="text-xs text-slate-500">
-                Tanggal: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-              </p>
-            </div>
-          </div>
-
-          {/* Customer Profile */}
-          <div className="grid grid-cols-2 gap-4 mb-6 text-xs">
-            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-1">
-              <span className="font-bold text-emerald-900 uppercase text-[10px] tracking-wider block mb-1">
-                Penerima Penawaran / Klien:
-              </span>
-              <p className="font-extrabold text-sm text-slate-900">{selectedForm.name}</p>
-              <p className="text-slate-600">WhatsApp/Telp: {selectedForm.phone}</p>
-              <p className="text-slate-600">Email: {selectedForm.email || '-'}</p>
-              <p className="text-slate-600">Wilayah: {provinces.find(p => p.id.toString() === provinceId)?.name || selectedForm.province?.name || 'Indonesia'}</p>
-            </div>
-
-            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 space-y-1">
-              <span className="font-bold text-emerald-900 uppercase text-[10px] tracking-wider block mb-1">
-                Spesifikasi Usaha & Produk:
-              </span>
-              <p className="font-extrabold text-sm text-slate-900">{selectedForm.business_type}</p>
-              <p className="text-slate-600">Skala Usaha: {scales.find(s => s.id.toString() === businessScaleId)?.name || selectedForm.business_scale}</p>
-              <p className="text-slate-600">Jumlah Outlet / Cabang: {branchCount} Lokasi</p>
-              <p className="text-slate-600">Jumlah Varian Produk: {productCount} SKU</p>
-            </div>
-          </div>
-
-          {/* Itemized Pricing Table */}
-          <div className="mb-6">
-            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-2">
-              Rincian Komponen Biaya Layanan ({serviceType === 'REGULER' ? 'Sertifikasi Reguler BPJPH' : serviceType === 'SELF_DECLARE_MANDIRI' ? 'Self Declare Mandiri' : 'Self Declare SEHATI'})
-            </h3>
-            <table className="w-full border-collapse border border-slate-300 text-xs">
-              <thead className="bg-emerald-900 text-white font-bold">
-                <tr>
-                  <th className="border border-slate-300 p-2 text-center w-12">No</th>
-                  <th className="border border-slate-300 p-2 text-left">Deskripsi Komponen Layanan</th>
-                  <th className="border border-slate-300 p-2 text-center w-24">Kategori</th>
-                  <th className="border border-slate-300 p-2 text-right w-36">Biaya Satuan</th>
-                  <th className="border border-slate-300 p-2 text-right w-36">Total (IDR)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 text-slate-800">
-                {breakdown.map((it, idx) => (
-                  <tr key={idx}>
-                    <td className="border border-slate-300 p-2 text-center font-bold">{idx + 1}</td>
-                    <td className="border border-slate-300 p-2 font-bold text-slate-900">{it.name}</td>
-                    <td className="border border-slate-300 p-2 text-center font-semibold">{it.category}</td>
-                    <td className="border border-slate-300 p-2 text-right font-mono">{formatRupiah(it.unit_cost)}</td>
-                    <td className="border border-slate-300 p-2 text-right font-mono font-bold text-slate-900">{formatRupiah(it.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-slate-100 font-extrabold text-xs">
-                <tr>
-                  <td colSpan={4} className="border border-slate-300 p-2.5 text-right uppercase text-slate-900">
-                    Total Estimasi Biaya Sertifikasi Halal:
-                  </td>
-                  <td className="border border-slate-300 p-2.5 text-right text-emerald-900 font-mono text-sm">
-                    {formatRupiah(total)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          {/* Terms & Notes */}
-          <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/30 mb-8 text-[11px] text-slate-700 space-y-1.5">
-            <h4 className="font-bold text-slate-900 uppercase text-[10px]">Ketentuan & Catatan Layanan:</h4>
-            <p>&bull; <strong>Estimasi Durasi Pengerjaan:</strong> {duration} terhitung sejak seluruh berkas dinyatakan lengkap.</p>
-            <p>&bull; <strong>Catatan Khusus:</strong> {notes}</p>
-            <p>&bull; Surat estimasi ini berlaku selama 14 hari sejak tanggal diterbitkan sebagai acuan penawaran bimbingan sertifikasi halal.</p>
-          </div>
-
-          {/* Signatures */}
-          <div className="grid grid-cols-2 gap-8 text-xs text-center pt-2">
-            <div>
-              <p className="font-semibold text-slate-500 mb-14">Menyetujui, Klien / Pelaku Usaha</p>
-              <p className="font-extrabold text-slate-900 border-t border-slate-400 pt-1 inline-block min-w-[180px]">
-                ( {selectedForm.name} )
-              </p>
-            </div>
-
-            <div>
-              <p className="font-semibold text-slate-500 mb-14">Halal Advisor Telemarketing,</p>
-              <p className="font-extrabold text-emerald-900 border-t border-slate-400 pt-1 inline-block min-w-[180px]">
-                ( {advisorName} )
-              </p>
-            </div>
-          </div>
+          <PenawaranLetter
+            id="printable-estimate-content"
+            data={{
+              documentNumber: `001/PNW-HC/${new Date().getMonth() + 1}/${new Date().getFullYear()}`,
+              clientName: selectedForm.name,
+              businessName: selectedForm.name,
+              businessType: businessTypes.find(b => b.id.toString() === businessTypeId)?.name || selectedForm.business_type,
+              serviceType: serviceType,
+              serviceLabel: serviceType === 'REGULER' ? 'Sertifikasi reguler' : serviceType === 'SELF_DECLARE_MANDIRI' ? 'Self declare mandiri' : 'Self declare',
+              location: `${regencies.find(r => r.id.toString() === regencyId)?.name ? `${regencies.find(r => r.id.toString() === regencyId)?.name}, ` : ''}${provinces.find(p => p.id.toString() === provinceId)?.name || selectedForm.province?.name || 'Indonesia'}`,
+              businessScale: scales.find(s => s.id.toString() === businessScaleId)?.name || selectedForm.business_scale || 'Usaha Kecil',
+              branchCount: branchCount,
+              productCount: productCount,
+              breakdown: breakdown.map(it => ({
+                name: it.name,
+                category: it.category,
+                total: it.total
+              })),
+              grandTotal: total,
+              directorName: 'Hilpan Nugraha'
+            }}
+          />
         </div>
       )}
     </div>

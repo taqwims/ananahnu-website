@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import type { BillingComponent } from '../../types';
 import { calculateComponentCost } from '../../utils/billingCalculator';
 import { useAuthStore } from '../../store/authStore';
-import logoImg from '../../assets/logo.png';
+import { generatePenawaranHTML } from './PenawaranLetter';
 
 type Props = {
     onSaveClick?: (data: any) => void;
@@ -545,113 +545,32 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
             return;
         }
 
-        const selectedProv = provinces.find(p => p.id.toString() === provinceId)?.name || '-';
-        const selectedReg = regencies.find(r => r.id.toString() === regencyId)?.name || '-';
-        const selectedDist = districts.find(d => d.id.toString() === districtId)?.name || '-';
-        const selectedType = businessTypes.find(b => b.id.toString() === businessTypeId)?.name || '-';
-        const selectedProd = products.find(p => p.id.toString() === productId)?.name || '-';
-        const selectedScale = scales.find(s => s.id.toString() === businessScaleId)?.name || '-';
-        const selectedScheme = schemes.find(s => s.id.toString() === salesSchemeId)?.name || '-';
-        const serviceLabel = serviceType === 'REGULER' ? 'Sertifikasi Reguler' : serviceType === 'SELF_DECLARE_MANDIRI' ? 'Self Declare Mandiri' : 'Self Declare Fasilitasi (Gratis)';
+        const selectedProv = provinces.find(p => p.id.toString() === provinceId)?.name || '';
+        const selectedReg = regencies.find(r => r.id.toString() === regencyId)?.name || '';
+        const selectedType = businessTypes.find(b => b.id.toString() === businessTypeId)?.name || 'penyediaan makanan dan minuman dengan pengolahan';
+        const selectedScale = scales.find(s => s.id.toString() === businessScaleId)?.name || 'Usaha Kecil';
+        const serviceLabel = serviceType === 'REGULER' ? 'Sertifikasi reguler' : serviceType === 'SELF_DECLARE_MANDIRI' ? 'Self declare mandiri' : 'Self declare';
+        const locationStr = selectedReg ? `${selectedReg}, ${selectedProv || 'Indonesia'}` : (selectedProv || 'Indonesia');
 
-        const breakdownRows = breakdown.map((item, idx) => `
-            <tr style="border-bottom: 1px solid #e5e7eb;">
-                <td style="padding: 8px; font-size: 11px; color: #374151;">${idx + 1}</td>
-                <td style="padding: 8px; font-size: 11px; color: #374151;">
-                    <div style="font-weight: 600;">${item.name}</div>
-                    <span style="font-size: 8px; padding: 1px 4px; background-color: #f3f4f6; color: #4b5563; border-radius: 3px; font-weight: bold; text-transform: uppercase;">${getCategoryLabel(item.category)}</span>
-                </td>
-                <td style="padding: 8px; font-size: 11px; color: #047857; font-weight: bold; text-align: right;">
-                    ${item.total < 0 ? `- ${formatCurrency(Math.abs(item.total))}` : formatCurrency(item.total)}
-                </td>
-            </tr>
-        `).join('');
-
-        const content = `
-            <html>
-            <head>
-                <title>Estimasi Biaya Sertifikasi Halal</title>
-                <style>
-                    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1f2937; margin: 30px; line-height: 1.4; }
-                    .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #047857; padding-bottom: 15px; }
-                    .header h1 { color: #047857; margin: 0; font-size: 20px; }
-                    .header p { margin: 3px 0 0 0; color: #6b7280; font-size: 12px; }
-                    .details-grid { display: grid; grid-template-cols: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-                    .details-box { background: #f9fafb; padding: 10px; border-radius: 6px; border: 1px solid #e5e7eb; }
-                    .details-box h3 { margin: 0 0 8px 0; font-size: 12px; color: #374151; border-bottom: 1px dashed #d1d5db; padding-bottom: 3px; }
-                    .details-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
-                    .details-row span:first-child { color: #6b7280; font-weight: 500; }
-                    .details-row span:last-child { color: #1f2937; font-weight: 700; }
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                    th { background-color: #047857; color: white; padding: 8px; font-size: 10px; text-transform: uppercase; text-align: left; }
-                    .total-box { display: flex; justify-content: space-between; align-items: center; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
-                    .total-box span:first-child { font-size: 14px; font-weight: bold; color: #065f46; }
-                    .total-box span:last-child { font-size: 20px; font-weight: 900; color: #047857; }
-                    .disclaimer { background: #fffbeb; border: 1px solid #fef3c7; color: #92400e; padding: 12px; border-radius: 6px; font-size: 10px; font-style: italic; margin-top: 30px; line-height: 1.5; }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <img src="${logoImg}" style="height: 55px; margin-bottom: 8px; object-fit: contain;" />
-                    <h1>ESTIMASI BIAYA SERTIFIKASI HALAL</h1>
-                    <p>Dokumen Simulasi Perhitungan Mandiri</p>
-                </div>
-                
-                <div class="details-grid">
-                    <div class="details-box">
-                        <h3>Informasi Pemohon</h3>
-                        <div class="details-row"><span>Nama Klien:</span><span>${clientName || '-'}</span></div>
-                        <div class="details-row"><span>Nama Usaha:</span><span>${businessName || '-'}</span></div>
-                        <h3 style="margin-top: 10px;">Informasi Wilayah & Kriteria</h3>
-                        <div class="details-row"><span>Jenis Layanan:</span><span>${serviceLabel}</span></div>
-                        <div class="details-row"><span>Provinsi:</span><span>${selectedProv}</span></div>
-                        <div class="details-row"><span>Kabupaten:</span><span>${selectedReg}</span></div>
-                        <div class="details-row"><span>Kecamatan:</span><span>${selectedDist}</span></div>
-                        <div class="details-row"><span>Bidang Usaha:</span><span>${selectedType}</span></div>
-                        <div class="details-row"><span>Jenis Produk:</span><span>${selectedProd}</span></div>
-                    </div>
-                    <div class="details-box">
-                        <h3>Skema & Volume</h3>
-                        <div class="details-row"><span>Skala Usaha:</span><span>${selectedScale}</span></div>
-                        ${serviceType === 'REGULER' ? `<div class="details-row"><span>Skema Penjualan:</span><span>${selectedScheme}</span></div>` : ''}
-                        <div class="details-row"><span>Sumber Data:</span><span>Organik</span></div>
-                        <div class="details-row"><span>Jumlah Cabang:</span><span>${branchCount}</span></div>
-                        <div class="details-row"><span>Jumlah Produk:</span><span>${productCount}</span></div>
-                    </div>
-                </div>
-
-                <h3 style="font-size: 13px; color: #374151; margin-bottom: 8px;">Rincian Komponen Biaya</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 40px;">No</th>
-                            <th>Komponen Biaya</th>
-                            <th style="text-align: right; width: 120px;">Harga</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${breakdownRows}
-                    </tbody>
-                </table>
-
-                <div class="total-box">
-                    <span>Estimasi Grand Total</span>
-                    <span>${formatCurrency(total)}</span>
-                </div>
-
-                <div class="disclaimer">
-                    <strong>PENTING (DISCLAIMER):</strong> Perhitungan ini merupakan simulasi estimasi biaya berdasarkan kriteria yang Anda input. Biaya yang tertera di atas <b>belum tentu menjadi harga final</b>. Biaya sesungguhnya dapat disesuaikan kembali tergantung pada keadaan nyata dari fasilitas produksi, kehalalan bahan, dan kompleksitas proses sertifikasi usaha Anda.
-                </div>
-
-                <script>
-                    window.onload = function() {
-                        window.print();
-                        setTimeout(function() { window.close(); }, 500);
-                    };
-                </script>
-            </body>
-            </html>
-        `;
+        const content = generatePenawaranHTML({
+            documentNumber: `001/PNW-HC/${new Date().getMonth() + 1}/${new Date().getFullYear()}`,
+            clientName: clientName?.trim() || 'PT Cilacap Indah',
+            businessName: businessName?.trim() || clientName?.trim() || 'Sindoro Hotel',
+            businessType: selectedType,
+            serviceType: serviceType,
+            serviceLabel: serviceLabel,
+            location: locationStr,
+            businessScale: selectedScale,
+            branchCount: branchCount,
+            productCount: productCount,
+            breakdown: breakdown.map(item => ({
+                name: item.name,
+                category: item.category,
+                total: item.total
+            })),
+            grandTotal: total,
+            directorName: 'Hilpan Nugraha'
+        });
 
         printWindow.document.write(content);
         printWindow.document.close();
