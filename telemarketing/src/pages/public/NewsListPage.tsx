@@ -7,6 +7,7 @@ import {
   Newspaper, Menu, X, Sparkles, MessageCircle
 } from 'lucide-react';
 import Logo from '../../components/ui/Logo';
+import { resolveMediaUrl } from '../../utils/imageOptimizer';
 
 const MAIN_APP_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:5173'
@@ -264,7 +265,7 @@ export default function NewsListPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
                   <div className="lg:col-span-7 h-64 sm:h-80 lg:h-96 overflow-hidden relative">
                     <img
-                      src={featuredArticle.thumbnail_url || 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&w=1200&q=80'}
+                      src={resolveMediaUrl(featuredArticle.thumbnail_url) || 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&w=1200&q=80'}
                       alt={featuredArticle.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
@@ -324,7 +325,7 @@ export default function NewsListPage() {
                 >
                   <Link to={`/news/${article.slug}`} className="block relative h-48 overflow-hidden bg-dark-100">
                     <img
-                      src={article.thumbnail_url || 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&w=600&q=80'}
+                      src={resolveMediaUrl(article.thumbnail_url) || 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&w=600&q=80'}
                       alt={article.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       loading="lazy"

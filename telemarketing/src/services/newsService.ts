@@ -106,3 +106,13 @@ export const toggleNewsLanding = (id: number | string) =>
 
 export const deleteNews = (id: number | string) =>
   api.delete<{ message: string }>(`/admin/cms/news/${id}`);
+
+export const uploadNewsImage = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post<{ url: string; filename: string; size: number }>('/media/upload?subfolder=news', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+};

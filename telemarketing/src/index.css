@@ -243,3 +243,33 @@
 .table-row:hover {
   @apply bg-brand-50/50;
 }
+
+/* ─── Print Styles for Estimate Sheet ────────────────────────────── */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #printable-estimate-document,
+  #printable-estimate-document * {
+    visibility: visible !important;
+  }
+  #printable-estimate-document {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100vw !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    padding: 24px !important;
+    background: white !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    border: none !important;
+    z-index: 999999 !important;
+  }
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+}
+

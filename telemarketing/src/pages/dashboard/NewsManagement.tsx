@@ -13,6 +13,7 @@ import {
   TrendingUp, BookOpen, RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { resolveMediaUrl } from '../../utils/imageOptimizer';
 
 export default function NewsManagement() {
   const navigate = useNavigate();
@@ -296,7 +297,7 @@ export default function NewsManagement() {
                     <td className="px-5 py-4 max-w-md">
                       <div className="flex items-start gap-3">
                         <img
-                          src={art.thumbnail_url || 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&w=300&q=80'}
+                          src={resolveMediaUrl(art.thumbnail_url) || 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&w=300&q=80'}
                           alt={art.title}
                           className="w-14 h-14 rounded-xl object-cover border border-dark-150 flex-shrink-0 bg-dark-100"
                           onError={(e) => {

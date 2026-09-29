@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Logo from '../../components/ui/Logo';
+import { resolveMediaUrl } from '../../utils/imageOptimizer';
 
 export default function NewsDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -301,46 +302,144 @@ export default function NewsDetailPage() {
 
       {/* ─── Article Main Body ─── */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 w-full space-y-8 flex-1">
-        {/* Featured Image */}
+        {/* Featured Cover Image */}
         {article.thumbnail_url && (
-          <div className="rounded-3xl overflow-hidden border border-dark-150 shadow-md bg-dark-100 max-h-[450px]">
+          <div className="rounded-3xl overflow-hidden border border-dark-150 shadow-md bg-dark-100 max-h-[480px]">
             <img
-              src={article.thumbnail_url}
+              src={resolveMediaUrl(article.thumbnail_url)}
               alt={article.title}
               className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&w=1200&q=80';
+              }}
             />
           </div>
         )}
 
-        {/* Content Paragraphs */}
+        {/* Content Paragraphs & In-Content Images */}
         <article className="bg-white rounded-3xl border border-dark-100 p-6 sm:p-10 shadow-xs space-y-5 text-dark-800 text-sm sm:text-base leading-relaxed font-sans">
           {article.content.split('\n\n').map((block, i) => {
             const trimmed = block.trim();
             if (!trimmed) return null;
 
-            // Handle Markdown Subheadings (## or ###)
+            // 1. In-Content Image Parser (![Caption](url))
+            const imgMatch = trimmed.match(/^!\[(.*?)\]\((.*?)\)$/);
+            if (imgMatch) {
+              const caption = imgMatch[1];
+              const imgUrl = imgMatch[2];
+              return (
+                <figure key={i} className="my-8 rounded-2xl overflow-hidden border border-dark-200 bg-white shadow-xs">
+                  <img
+                    src={resolveMediaUrl(imgUrl)}
+                    alt={caption}
+                    loading="lazy"
+                    className="w-full max-h-[500px] object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&w=800&q=80';
+                    }}
+                  />
+                  {caption && (
+                    <figcaption className="p-3 text-center text-xs text-dark-500 font-medium italic bg-dark-50/70 border-t border-dark-100">
+                      📷 {caption}
+                    </figcaption>
+                  )}
+                </figure>
+              );
+            }
+
+            // 2. Table Parser (| Col 1 | Col 2 |)
+            if (trimmed.includes('|') && trimmed.includes('---')) {
+              const lines = trimmed.split('\n').map(l => l.trim()).filter(Boolean);
+              let headerRow: string[] = [];
+              const bodyRows: string[][] = [];
+              let foundHeader = false;
+
+              for (const line of lines) {
+                if (line.includes('---')) continue;
+                const cleanCells = line
+                  .replace(/^\|/, '')
+                  .replace(/\|$/, '')
+                  .split('|')
+                  .map(c => c.trim());
+
+                if (!foundHeader && cleanCells.length > 0) {
+                  headerRow = cleanCells;
+                  foundHeader = true;
+                } else if (cleanCells.length > 0) {
+                  bodyRows.push(cleanCells);
+                }
+              }
+
+              if (foundHeader) {
+                return (
+                  <div key={i} className="my-8 overflow-x-auto rounded-2xl border border-dark-200 bg-white shadow-xs">
+                    <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                      <thead className="bg-brand-50/80 border-b border-dark-200 text-brand-950 font-extrabold uppercase text-[11px] tracking-wider">
+                        <tr>
+                          {headerRow.map((th, thIdx) => (
+                            <th key={thIdx} className="px-4 py-3.5 border-r border-dark-200/60 last:border-r-0 whitespace-nowrap sm:whitespace-normal">
+                              {th}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-dark-100 text-dark-700">
+                        {bodyRows.map((row, rowIdx) => (
+                          <tr key={rowIdx} className="hover:bg-brand-50/20 transition-colors">
+                            {row.map((td, tdIdx) => (
+                              <td key={tdIdx} className="px-4 py-3.5 border-r border-dark-100 last:border-r-0 leading-relaxed whitespace-nowrap sm:whitespace-normal">
+                                {td}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              }
+            }
+
+            // 3. Handle Markdown Subheadings (## or ###)
             if (trimmed.startsWith('### ')) {
               return (
-                <h3 key={i} className="text-lg font-bold text-brand-900 pt-4 pb-1">
+                <h3 key={i} className="text-lg sm:text-xl font-bold text-brand-900 pt-5 pb-1">
                   {trimmed.replace('### ', '')}
                 </h3>
               );
             }
             if (trimmed.startsWith('## ')) {
               return (
-                <h2 key={i} className="text-xl font-extrabold text-brand-900 pt-6 pb-2 border-b border-dark-100">
+                <h2 key={i} className="text-xl sm:text-2xl font-extrabold text-brand-900 pt-7 pb-2 border-b border-dark-100">
                   {trimmed.replace('## ', '')}
                 </h2>
               );
             }
+
+            // 4. Blockquote / Tip Box
             if (trimmed.startsWith('> ')) {
               return (
-                <blockquote key={i} className="p-4 rounded-2xl bg-brand-50/60 border-l-4 border-brand-600 text-brand-900 font-medium italic my-4">
+                <blockquote key={i} className="p-4 sm:p-5 rounded-2xl bg-brand-50/70 border-l-4 border-brand-600 text-brand-950 font-medium italic my-5 shadow-xs">
                   {trimmed.replace('> ', '')}
                 </blockquote>
               );
             }
 
+            // 4. Bullet List
+            if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+              const items = trimmed.split('\n').filter(Boolean);
+              return (
+                <ul key={i} className="space-y-2 my-4 pl-2 list-disc list-inside text-dark-700">
+                  {items.map((it, idx) => (
+                    <li key={idx} className="leading-relaxed">
+                      {it.replace(/^[-*]\s+/, '')}
+                    </li>
+                  ))}
+                </ul>
+              );
+            }
+
+            // 5. Standard Paragraph
             return (
               <p key={i} className="text-dark-700 leading-relaxed font-normal">
                 {trimmed}
@@ -435,7 +534,7 @@ export default function NewsDetailPage() {
                   className="p-4 rounded-2xl bg-white border border-dark-100 shadow-xs hover:shadow-md hover:border-brand-200 transition-all flex gap-3.5 items-center group"
                 >
                   <img
-                    src={rel.thumbnail_url || 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&w=200&q=80'}
+                    src={resolveMediaUrl(rel.thumbnail_url) || 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&w=200&q=80'}
                     alt={rel.title}
                     className="w-16 h-16 rounded-xl object-cover border border-dark-150 flex-shrink-0"
                   />
