@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Loader2, Send, FileText, AlertTriangle, AlertCircle, CheckCircle2, CreditCard, Lock, FileCheck, ShieldCheck } from 'lucide-react';
+import { Loader2, Send, FileText, AlertCircle, CheckCircle2, CreditCard, Lock, FileCheck, ShieldCheck, Download, Award } from 'lucide-react';
 import PaymentSection from '../../components/dashboard/PaymentSection';
 import { useAuthStore } from '../../store/authStore';
 import { useSubmission } from '../../hooks/useSubmission';
@@ -15,10 +15,8 @@ import { DataReturnNoticeCard } from '../../components/dashboard/submission/Data
 import api from '../../services/api';
 import type { BusinessType } from '../../types';
 import ContractTextPreview from '../../components/dashboard/submission/ContractTextPreview';
-import SJPHTextPreview from '../../components/dashboard/submission/SJPHTextPreview';
-import SubmissionReportPreview from '../../components/dashboard/submission/SubmissionReportPreview';
-import Modal from '../../components/ui/Modal';
 import { submissionService } from '../../services/submissionService';
+import { resolveFileUrl } from '../../utils/format';
 import toast from 'react-hot-toast';
 
 export default function SubmissionDetail() {
@@ -50,7 +48,6 @@ export default function SubmissionDetail() {
 
     const user = useAuthStore(state => state.user);
     const [editingData, setEditingData] = useState(false);
-    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [contractConsent, setContractConsent] = useState(false);
     const [activeTab, setActiveTab] = useState<'DATA' | 'CONTRACT' | 'PAYMENT' | 'SJPH'>('DATA');
     const [sjphConsent, setSjphConsent] = useState(false);
@@ -73,6 +70,21 @@ export default function SubmissionDetail() {
 
                 {/* 4 Main Tabs Navigation */}
                 {(() => {
+                    const isTab2Unlocked = Boolean(
+                        submission.service_type &&
+                        submission.service_type !== 'PENDING_CONSULTATION' &&
+                        (
+                            submission.service_type === 'SELF_DECLARE' ||
+                            submission.cost_detail ||
+                            ((submission as any).total_cost && (submission as any).total_cost > 0) ||
+                            submission.status !== 'DRAFT'
+                        )
+                    );
+
+                    const isContractVerified = contractAgreed || Boolean((submission as any).contract_agreed_at) || Boolean((submission as any).contract_url) || (submission.status !== 'DRAFT' && submission.status !== 'WAITING_PAYMENT' && submission.status !== 'WAITING_ASSIGNMENT');
+
+                    const isTab3Unlocked = Boolean(isTab2Unlocked && isContractVerified);
+
                     const isPaid = Boolean(
                         submission.invoice?.status === 'PAID' ||
                         submission.invoices?.some(inv => inv.status === 'PAID') ||
@@ -86,7 +98,7 @@ export default function SubmissionDetail() {
                         submission.service_type === 'SELF_DECLARE'
                     );
 
-                    const isContractVerified = contractAgreed || Boolean((submission as any).contract_agreed_at) || Boolean((submission as any).contract_url) || (submission.status !== 'DRAFT' && submission.status !== 'WAITING_PAYMENT' && submission.status !== 'WAITING_ASSIGNMENT');
+                    const isTab4Unlocked = Boolean(isTab3Unlocked && isPaid);
 
                     const handleVerifyContract = () => {
                         setContractAgreed(true);
@@ -119,11 +131,17 @@ export default function SubmissionDetail() {
                                             : 'text-gray-400 border-transparent hover:text-gray-700'
                                     }`}
                                 >
-                                    <FileCheck className="w-4 h-4 shrink-0" />
-                                    <span>2. Dokumen Kontrak</span>
-                                    {isContractVerified && (
-                                        <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold shrink-0">Terverifikasi</span>
+                                    {!isTab2Unlocked ? (
+                                        <Lock className="w-4 h-4 text-amber-500 shrink-0" />
+                                    ) : (
+                                        <FileCheck className="w-4 h-4 shrink-0" />
                                     )}
+                                    <span>2. Dokumen Kontrak & Biaya</span>
+                                    {!isTab2Unlocked ? (
+                                        <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full font-bold shrink-0">Terkunci</span>
+                                    ) : isContractVerified ? (
+                                        <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold shrink-0">Terverifikasi</span>
+                                    ) : null}
                                 </button>
                                 <button
                                     type="button"
@@ -134,9 +152,15 @@ export default function SubmissionDetail() {
                                             : 'text-gray-400 border-transparent hover:text-gray-700'
                                     }`}
                                 >
-                                    <CreditCard className="w-4 h-4 shrink-0" />
+                                    {!isTab3Unlocked ? (
+                                        <Lock className="w-4 h-4 text-gray-400 shrink-0" />
+                                    ) : (
+                                        <CreditCard className="w-4 h-4 shrink-0" />
+                                    )}
                                     <span>3. Pembayaran</span>
-                                    {isPaid ? (
+                                    {!isTab3Unlocked ? (
+                                        <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-bold shrink-0">Terkunci</span>
+                                    ) : isPaid ? (
                                         <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold shrink-0">Lunas</span>
                                     ) : (
                                         <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0"></span>
@@ -151,46 +175,31 @@ export default function SubmissionDetail() {
                                             : 'text-gray-400 border-transparent hover:text-gray-700'
                                     }`}
                                 >
-                                    {!isPaid ? <Lock className="w-4 h-4 text-gray-400 shrink-0" /> : <ShieldCheck className="w-4 h-4 shrink-0" />}
-                                    <span>4. Dokumen SJPH & Laporan</span>
-                                    {submission.status === 'REVIEW_SJPH_CLIENT' && (
-                                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+                                    {!isTab4Unlocked ? (
+                                        <Lock className="w-4 h-4 text-gray-400 shrink-0" />
+                                    ) : (
+                                        <ShieldCheck className="w-4 h-4 shrink-0" />
                                     )}
-                                    {submission.sjph_approved_at && (
+                                    <span>4. Dokumen SJPH & Unduhan</span>
+                                    {!isTab4Unlocked ? (
+                                        <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-bold shrink-0">Terkunci</span>
+                                    ) : submission.sjph_approved_at ? (
                                         <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold shrink-0">Disetujui</span>
-                                    )}
+                                    ) : submission.status === 'REVIEW_SJPH_CLIENT' ? (
+                                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+                                    ) : null}
                                 </button>
                             </div>
 
                             {/* TAB 1: DATA PELAKU USAHA & USAHA */}
                             {activeTab === 'DATA' && (
                                 <div className="space-y-6">
-                                    {(submission.status === 'DRAFT' || submission.status === 'REVISION') && (
-                                        <div className="glass-panel p-6 bg-brand-900 text-white relative overflow-hidden rounded-[24px]">
-                                            <div className="absolute top-0 right-0 w-[40%] h-full bg-brand-800 rounded-full blur-[100px] opacity-35"></div>
-                                            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                                <div className="space-y-1.5 flex-1">
-                                                    <h3 className="text-lg font-black tracking-tight text-gold-400 uppercase tracking-wider">
-                                                        Lengkapi Data Pengajuan
-                                                    </h3>
-                                                    <p className="text-brand-100 text-sm leading-relaxed max-w-xl">
-                                                        Silakan lengkapi profil usaha dan dokumen persyaratan di bawah ini. Setelah semua data terisi dengan benar, klik tombol <strong>Kirim Pengajuan</strong> di sebelah kanan.
-                                                    </p>
-                                                    {submission.status === 'REVISION' && submission.reject_note && (
-                                                        <div className="p-3 bg-red-500/25 border border-red-500/30 rounded-xl mt-3">
-                                                            <p className="text-xs font-black text-red-200 uppercase tracking-wider mb-1">Catatan Revisi:</p>
-                                                            <p className="text-xs text-white leading-relaxed font-medium">{submission.reject_note}</p>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <button
-                                                    onClick={() => setIsConfirmOpen(true)}
-                                                    disabled={processing}
-                                                    className="w-full sm:w-auto px-5 py-3.5 bg-gold-400 hover:bg-gold-500 text-brand-900 rounded-2xl font-black text-xs sm:text-sm shadow-xl hover:scale-[1.02] active:scale-95 transition-all flex justify-center items-center gap-2 shrink-0 disabled:opacity-50"
-                                                >
-                                                    {processing ? <Loader2 className="animate-spin w-5 h-5" /> : <Send className="w-5 h-5" />}
-                                                    <span>Kirim Pengajuan</span>
-                                                </button>
+                                    {submission.status === 'REVISION' && submission.reject_note && (
+                                        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 shadow-sm">
+                                            <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                                            <div className="space-y-1 flex-1">
+                                                <h4 className="text-xs font-black text-red-900 uppercase tracking-wider">Catatan Revisi dari Petugas:</h4>
+                                                <p className="text-xs text-red-800 leading-relaxed font-medium">{submission.reject_note}</p>
                                             </div>
                                         </div>
                                     )}
@@ -201,38 +210,38 @@ export default function SubmissionDetail() {
                                             <div className="space-y-1">
                                                 <h4 className="text-sm font-black text-purple-900 uppercase tracking-wider">Menunggu Penentuan Pendamping Halal</h4>
                                                 <p className="text-xs text-purple-700 leading-relaxed font-medium">
-                                                    Pengajuan Anda telah berhasil dikirim dan sedang dalam antrian penentuan Pendamping Halal oleh tim Marketing.
+                                                    Pengajuan Anda telah berhasil tersimpan dan sedang dalam antrian penentuan Pendamping Halal (Advisor) resmi oleh tim kami.
                                                 </p>
                                             </div>
                                         </div>
                                     )}
 
                                     {submission.status === 'WAITING_PAYMENT' && (
-                                        <div className="glass-panel p-6 bg-amber-600 text-white rounded-2xl">
+                                        <div className="glass-panel p-6 bg-amber-600 text-white rounded-2xl shadow-sm">
                                             <h3 className="text-lg font-black tracking-tight mb-1">Menunggu Pembayaran</h3>
                                             <p className="text-amber-100 text-sm leading-relaxed">
-                                                Pengajuan Anda telah disetujui untuk diteruskan ke proses berikutnya. Silakan buka <strong>Tab 3: Pembayaran</strong> untuk menyelesaikan tagihan Anda.
+                                                Pengajuan Anda telah diverifikasi oleh Advisor. Silakan buka <strong>Tab 3: Pembayaran</strong> untuk menyelesaikan tagihan Anda.
                                             </p>
                                         </div>
                                     )}
 
                                     {['VERVAL_PENDAMPING', 'REVIEW_SJPH_CLIENT', 'QC_OFFICER', 'DRAFTER', 'QC_REVIEW', 'SIDANG_FATWA'].includes(submission.status) && (
-                                        <div className="glass-panel p-6 bg-brand-50 border border-brand-100 rounded-2xl flex items-start gap-4">
+                                        <div className="glass-panel p-6 bg-brand-50 border border-brand-100 rounded-2xl flex items-start gap-4 shadow-sm">
                                             <div className="w-2 h-2 rounded-full bg-brand-600 mt-2.5 shrink-0 animate-pulse"></div>
                                             <div className="space-y-1">
                                                 <h4 className="text-sm font-black text-brand-900 uppercase tracking-wider">Sedang Diproses</h4>
                                                 <p className="text-xs text-gray-600 leading-relaxed font-medium">
-                                                    Pengajuan Anda sedang diproses oleh tim kami (Status: <strong>{submission.status.replace(/_/g, ' ')}</strong>). Kami akan memverifikasi data dan dokumen Anda.
+                                                    Pengajuan Anda sedang diproses oleh tim kami (Status: <strong>{submission.status.replace(/_/g, ' ')}</strong>). Dokumen dan bahan usaha Anda sedang diverifikasi.
                                                 </p>
                                             </div>
                                         </div>
                                     )}
 
                                     {submission.status === 'SH_TERBIT' && (
-                                        <div className="glass-panel p-6 bg-green-900 text-white rounded-2xl">
+                                        <div className="glass-panel p-6 bg-green-900 text-white rounded-2xl shadow-sm">
                                             <h3 className="text-lg font-black tracking-tight mb-1">🎉 Sertifikat Halal Terbit</h3>
                                             <p className="text-green-100 text-sm leading-relaxed">
-                                                Selamat! Sertifikat Halal Anda telah berhasil diterbitkan. Silakan unduh sertifikat halal Anda melalui tombol unduh di bawah ini.
+                                                Selamat! Sertifikat Halal Anda telah berhasil diterbitkan. Silakan unduh dokumen sertifikat pada Tab 4.
                                             </p>
                                         </div>
                                     )}
@@ -249,41 +258,15 @@ export default function SubmissionDetail() {
                                         hideContractBanner={isContractVerified}
                                     />
 
-                                    {/* Jika kontrak sudah disetujui, Dokumen & Data disembunyikan dari Tab 1 karena sudah tercakup rapi di Tab 4 & Tab 2 */}
-                                    {!isContractVerified ? (
-                                        <DocumentList
-                                            submission={submission}
-                                            user={user}
-                                            fieldValues={fieldValues}
-                                            editingData={editingData}
-                                            setEditingData={setEditingData}
-                                            onRefresh={refresh}
-                                            defaultCollapsed={submission.status === 'WAITING_PAYMENT'}
-                                        />
-                                    ) : (
-                                        <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-                                            <div className="flex items-center gap-2.5 text-emerald-950 font-bold">
-                                                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                                                <span>Dokumen Kontrak telah disetujui. Seluruh rincian data pengajuan, produk, dan bahan dapat diakses pada Tab 2 &amp; Tab 4.</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 shrink-0">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setActiveTab('CONTRACT')}
-                                                    className="px-3 py-1.5 bg-white hover:bg-emerald-50 text-emerald-700 font-bold rounded-xl border border-emerald-200 transition-all text-[11px]"
-                                                >
-                                                    Lihat Kontrak (Tab 2)
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setActiveTab('SJPH')}
-                                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs transition-all text-[11px]"
-                                                >
-                                                    Lihat Laporan Data (Tab 4)
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
+                                    <DocumentList
+                                        submission={submission}
+                                        user={user}
+                                        fieldValues={fieldValues}
+                                        editingData={editingData}
+                                        setEditingData={setEditingData}
+                                        onRefresh={refresh}
+                                        defaultCollapsed={submission.status === 'WAITING_PAYMENT' || isContractVerified}
+                                    />
 
                                     {submission.sh_url && (
                                         <SubmissionCertificate
@@ -298,12 +281,31 @@ export default function SubmissionDetail() {
                                     )}
 
                                     {/* CTA Navigasi Sesuai Tahapan */}
-                                    {!isContractVerified ? (
+                                    {!isTab2Unlocked ? (
+                                        <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-900 via-brand-950 to-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg border border-white/10">
+                                            <div className="space-y-0.5">
+                                                <div className="inline-flex items-center gap-1.5 text-gold-400 text-xs font-bold uppercase tracking-wider mb-0.5">
+                                                    <Lock className="w-3.5 h-3.5" /> Menunggu Penentuan Layanan &amp; Biaya
+                                                </div>
+                                                <p className="text-xs text-gray-300 font-medium">
+                                                    Data pengajuan Anda telah tersimpan. Pendamping Halal (Advisor) sedang memverifikasi data untuk menentukan skema layanan &amp; harga.
+                                                </p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setActiveTab('CONTRACT')}
+                                                className="w-full sm:w-auto px-5 py-2.5 bg-white/15 hover:bg-white/25 text-white font-bold text-xs rounded-xl transition-all border border-white/20 flex items-center justify-center gap-2 shrink-0 active:scale-95"
+                                            >
+                                                <span>Lihat Status Tab 2</span>
+                                                <Lock className="w-3.5 h-3.5 text-gold-400" />
+                                            </button>
+                                        </div>
+                                    ) : !isContractVerified ? (
                                         <div className="p-5 rounded-2xl bg-gradient-to-r from-brand-900 to-indigo-950 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
                                             <div className="space-y-0.5">
-                                                <h4 className="text-sm font-black text-gold-400">Langkah Berikutnya: Dokumen Kontrak</h4>
+                                                <h4 className="text-sm font-black text-gold-400">Langkah Berikutnya: Dokumen Kontrak &amp; Biaya</h4>
                                                 <p className="text-xs text-gray-300 font-medium">
-                                                    Periksa dan verifikasi Dokumen Kontrak Layanan pada Tab 2 sebelum melanjutkan ke pembayaran.
+                                                    Skema layanan telah ditentukan. Periksa dan verifikasi Dokumen Kontrak Layanan pada Tab 2 sebelum melanjutkan ke pembayaran.
                                                 </p>
                                             </div>
                                             <button
@@ -335,9 +337,9 @@ export default function SubmissionDetail() {
                                     ) : (
                                         <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-950 to-brand-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
                                             <div className="space-y-0.5">
-                                                <h4 className="text-sm font-black text-blue-300">Langkah Berikutnya: Dokumen SJPH &amp; Laporan</h4>
+                                                <h4 className="text-sm font-black text-blue-300">Langkah Berikutnya: Dokumen SJPH &amp; Unduhan</h4>
                                                 <p className="text-xs text-gray-300 font-medium">
-                                                    Seluruh data laporan pengajuan dan persetujuan SJPH dapat diperiksa pada Tab 4.
+                                                    Seluruh dokumen sertifikasi, berkas kontrak, dan persetujuan SJPH dapat diunduh pada Tab 4.
                                                 </p>
                                             </div>
                                             <button
@@ -345,7 +347,7 @@ export default function SubmissionDetail() {
                                                 onClick={() => setActiveTab('SJPH')}
                                                 className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 shrink-0 active:scale-95"
                                             >
-                                                <span>Buka Dokumen SJPH &amp; Laporan</span>
+                                                <span>Buka Dokumen SJPH &amp; Unduhan</span>
                                                 <ShieldCheck className="w-4 h-4" />
                                             </button>
                                         </div>
@@ -353,75 +355,106 @@ export default function SubmissionDetail() {
                                 </div>
                             )}
 
-                            {/* TAB 2: DOKUMEN KONTRAK */}
+                            {/* TAB 2: DOKUMEN KONTRAK & BIAYA */}
                             {activeTab === 'CONTRACT' && (
                                 <div className="space-y-6">
-                                    <ContractTextPreview submission={submission} />
-
-                                    {submission.sjph_notes && (
-                                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl">
-                                            <p className="text-xs font-black text-amber-900 uppercase tracking-wider mb-1">Catatan Pendamping Halal:</p>
-                                            <p className="text-xs text-amber-800 font-medium italic">&ldquo;{submission.sjph_notes}&rdquo;</p>
-                                        </div>
-                                    )}
-
-                                    {/* Verifikasi Kontrak Layanan Sebelum Bayar */}
-                                    {isContractVerified ? (
-                                        <div className="p-4 sm:p-6 rounded-3xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-3">
-                                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                                                <div className="flex items-start sm:items-center gap-3 min-w-0">
-                                                    <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5 sm:mt-0" />
-                                                    <div className="min-w-0">
-                                                        <h4 className="text-sm font-black text-emerald-950">Dokumen Kontrak Telah Diverifikasi & Disetujui</h4>
-                                                        <p className="text-xs text-emerald-800 font-medium leading-relaxed">
-                                                            Anda telah memverifikasi Dokumen Kontrak Perjanjian Layanan. Silakan lanjutkan ke Tab 3 untuk menyelesaikan pembayaran.
-                                                        </p>
-                                                    </div>
+                                    {!isTab2Unlocked ? (
+                                        <div className="p-8 sm:p-10 rounded-3xl bg-gradient-to-br from-slate-900 via-brand-950 to-slate-900 text-white text-center space-y-5 border border-white/10 shadow-2xl relative overflow-hidden">
+                                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-white/10 backdrop-blur-md text-gold-400 flex items-center justify-center mx-auto border border-white/20 shadow-inner">
+                                                <Lock className="w-8 h-8 sm:w-10 sm:h-10 text-gold-400" />
+                                            </div>
+                                            <div className="space-y-2 max-w-lg mx-auto">
+                                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-black uppercase tracking-wider border border-amber-400/30">
+                                                    <ShieldCheck className="w-3.5 h-3.5" />
+                                                    Dokumen Terkunci &amp; Terenkripsi
                                                 </div>
+                                                <h3 className="text-lg sm:text-xl font-black tracking-tight text-white">
+                                                    Menunggu Penetapan Layanan &amp; Biaya oleh Advisor
+                                                </h3>
+                                                <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                                                    Pendamping Halal (Advisor) yang bertugas sedang menelaah profil usaha, kapasitas produk, dan dokumen yang Anda unggah untuk menentukan skema sertifikasi (Self Declare / Reguler) serta perhitungan biaya resmi. Dokumen Kontrak Layanan dan rincian biaya akan terbuka otomatis setelah ditentukan oleh advisor.
+                                                </p>
+                                            </div>
+                                            <div className="pt-2">
                                                 <button
                                                     type="button"
-                                                    onClick={() => setActiveTab('PAYMENT')}
-                                                    className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-95 shrink-0"
+                                                    onClick={() => setActiveTab('DATA')}
+                                                    className="px-6 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-xs font-bold transition-all border border-white/20"
                                                 >
-                                                    <span>Lanjut ke Tab 3 (Pembayaran)</span>
-                                                    <CreditCard className="w-4 h-4" />
+                                                    Kembali ke Tab 1: Data Pengajuan
                                                 </button>
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="p-4 sm:p-6 rounded-3xl bg-white border-2 border-brand-500 shadow-xl space-y-5">
-                                            <div className="space-y-1">
-                                                <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                                                    <FileCheck className="w-5 h-5 text-brand-600 shrink-0" />
-                                                    <span>Verifikasi & Persetujuan Dokumen Kontrak Layanan</span>
-                                                </h4>
-                                                <p className="text-xs text-gray-500 font-medium leading-relaxed">
-                                                    Sesuai alur, Anda wajib membaca dan memverifikasi Dokumen Kontrak Layanan Pendampingan di atas sebelum dapat melanjutkan ke tahap pembayaran.
-                                                </p>
-                                            </div>
+                                        <>
+                                            <ContractTextPreview submission={submission} />
 
-                                            <label className="flex items-start gap-3.5 p-3.5 sm:p-4 rounded-2xl border border-gray-200 bg-brand-50/40 cursor-pointer hover:bg-brand-50/70 hover:border-brand-300 transition-all select-none">
-                                                <input
-                                                    type="checkbox"
-                                                    className="mt-0.5 w-4 h-4 text-brand-600 accent-brand-600 rounded shrink-0"
-                                                    checked={contractConsent}
-                                                    onChange={(e) => setContractConsent(e.target.checked)}
-                                                />
-                                                <span className="text-xs font-bold text-gray-800 leading-relaxed">
-                                                    Saya selaku pelaku usaha telah membaca, memeriksa, dan menyetujui seluruh klausul perjanjian serta skema layanan dalam Dokumen Kontrak ini.
-                                                </span>
-                                            </label>
+                                            {submission.sjph_notes && (
+                                                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+                                                    <p className="text-xs font-black text-amber-900 uppercase tracking-wider mb-1">Catatan Pendamping Halal:</p>
+                                                    <p className="text-xs text-amber-800 font-medium italic">&ldquo;{submission.sjph_notes}&rdquo;</p>
+                                                </div>
+                                            )}
 
-                                            <button
-                                                type="button"
-                                                onClick={handleVerifyContract}
-                                                disabled={!contractConsent}
-                                                className="w-full py-3.5 sm:py-4 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-black text-xs sm:text-sm shadow-xl shadow-brand-100 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
-                                            >
-                                                <CheckCircle2 className="w-5 h-5" />
-                                                <span>Verifikasi Kontrak & Lanjut ke Pembayaran</span>
-                                            </button>
-                                        </div>
+                                            {/* Verifikasi Kontrak Layanan Sebelum Bayar */}
+                                            {isContractVerified ? (
+                                                <div className="p-4 sm:p-6 rounded-3xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-3">
+                                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                                        <div className="flex items-start sm:items-center gap-3 min-w-0">
+                                                            <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5 sm:mt-0" />
+                                                            <div className="min-w-0">
+                                                                <h4 className="text-sm font-black text-emerald-950">Dokumen Kontrak Telah Diverifikasi & Disetujui</h4>
+                                                                <p className="text-xs text-emerald-800 font-medium leading-relaxed">
+                                                                    Anda telah memverifikasi Dokumen Kontrak Perjanjian Layanan. Silakan lanjutkan ke Tab 3 untuk menyelesaikan pembayaran.
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setActiveTab('PAYMENT')}
+                                                            className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-95 shrink-0"
+                                                        >
+                                                            <span>Lanjut ke Tab 3 (Pembayaran)</span>
+                                                            <CreditCard className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="p-4 sm:p-6 rounded-3xl bg-white border-2 border-brand-500 shadow-xl space-y-5">
+                                                    <div className="space-y-1">
+                                                        <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                                                            <FileCheck className="w-5 h-5 text-brand-600 shrink-0" />
+                                                            <span>Verifikasi & Persetujuan Dokumen Kontrak Layanan</span>
+                                                        </h4>
+                                                        <p className="text-xs text-gray-500 font-medium leading-relaxed">
+                                                            Sesuai alur resmi sertifikasi, Anda wajib membaca dan memverifikasi Dokumen Kontrak Layanan Pendampingan di atas sebelum dapat melanjutkan ke tahap pembayaran.
+                                                        </p>
+                                                    </div>
+
+                                                    <label className="flex items-start gap-3.5 p-3.5 sm:p-4 rounded-2xl border border-gray-200 bg-brand-50/40 cursor-pointer hover:bg-brand-50/70 hover:border-brand-300 transition-all select-none">
+                                                        <input
+                                                            type="checkbox"
+                                                            className="mt-0.5 w-4 h-4 text-brand-600 accent-brand-600 rounded shrink-0"
+                                                            checked={contractConsent}
+                                                            onChange={(e) => setContractConsent(e.target.checked)}
+                                                        />
+                                                        <span className="text-xs font-bold text-gray-800 leading-relaxed">
+                                                            Saya selaku pelaku usaha telah membaca, memeriksa, dan menyetujui seluruh klausul perjanjian serta skema layanan dalam Dokumen Kontrak ini.
+                                                        </span>
+                                                    </label>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleVerifyContract}
+                                                        disabled={!contractConsent}
+                                                        className="w-full py-3.5 sm:py-4 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-black text-xs sm:text-sm shadow-xl shadow-brand-100 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+                                                    >
+                                                        <CheckCircle2 className="w-5 h-5" />
+                                                        <span>Verifikasi Kontrak & Lanjut ke Pembayaran</span>
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             )}
@@ -429,13 +462,20 @@ export default function SubmissionDetail() {
                             {/* TAB 3: PEMBAYARAN */}
                             {activeTab === 'PAYMENT' && (
                                 <div className="space-y-6">
-                                    {!isContractVerified && !isPaid ? (
+                                    {!isTab3Unlocked ? (
                                         <div className="p-6 sm:p-8 rounded-3xl bg-amber-50 border border-amber-200 text-center space-y-4">
-                                            <AlertTriangle className="w-10 h-10 sm:w-12 sm:h-12 text-amber-500 mx-auto" />
+                                            <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+                                                <Lock className="w-6 h-6" />
+                                            </div>
                                             <div className="space-y-1.5 max-w-md mx-auto">
-                                                <h4 className="text-sm sm:text-base font-black text-amber-900">Verifikasi Kontrak Layanan Terlebih Dahulu</h4>
+                                                <h4 className="text-sm sm:text-base font-black text-amber-900">
+                                                    {!isTab2Unlocked ? 'Tahap Pembayaran Belum Tersedia' : 'Verifikasi Kontrak Layanan Terlebih Dahulu'}
+                                                </h4>
                                                 <p className="text-xs text-amber-700 leading-relaxed font-medium">
-                                                    Sesuai SOP, Anda wajib membaca dan memverifikasi Dokumen Kontrak Layanan pada Tab 2 sebelum dapat melakukan pembayaran tagihan.
+                                                    {!isTab2Unlocked
+                                                        ? 'Layanan dan skema biaya belum ditentukan oleh Advisor. Harap tunggu penetapan dari Advisor pada Tab 2.'
+                                                        : 'Sesuai SOP, Anda wajib membaca dan memverifikasi Dokumen Kontrak Layanan pada Tab 2 sebelum dapat melakukan pembayaran tagihan.'
+                                                    }
                                                 </p>
                                             </div>
                                             <button
@@ -457,7 +497,7 @@ export default function SubmissionDetail() {
                                                             <div className="min-w-0">
                                                                 <h4 className="text-sm font-black text-emerald-950">Pembayaran Telah Selesai (Lunas)</h4>
                                                                 <p className="text-xs text-emerald-800 font-medium">
-                                                                    Kewajiban pembayaran telah terpenuhi. Dokumen SJPH kini dapat diakses dan disetujui di Tab 4.
+                                                                    Kewajiban pembayaran telah terpenuhi. Dokumen SJPH dan berkas unduhan kini dapat diakses di Tab 4.
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -466,7 +506,7 @@ export default function SubmissionDetail() {
                                                             onClick={() => setActiveTab('SJPH')}
                                                             className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-95 shrink-0"
                                                         >
-                                                            <span>Buka Dokumen SJPH di Tab 4</span>
+                                                            <span>Buka Dokumen di Tab 4</span>
                                                             <ShieldCheck className="w-4 h-4" />
                                                         </button>
                                                     </div>
@@ -503,23 +543,18 @@ export default function SubmissionDetail() {
                                 </div>
                             )}
 
-                            {/* TAB 4: DOKUMEN SJPH & LAPORAN */}
+                            {/* TAB 4: DOKUMEN SJPH & UNDUHAN FILE */}
                             {activeTab === 'SJPH' && (
                                 <div className="space-y-6">
-                                    <SubmissionReportPreview
-                                        submission={submission}
-                                        fieldValues={fieldValues}
-                                    />
-
-                                    {!isPaid ? (
+                                    {!isTab4Unlocked ? (
                                         <div className="p-6 sm:p-8 rounded-3xl bg-slate-50 border border-slate-200 text-center space-y-4">
                                             <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center mx-auto">
                                                 <Lock className="w-6 h-6 sm:w-7 sm:h-7" />
                                             </div>
                                             <div className="space-y-1.5 max-w-md mx-auto">
-                                                <h4 className="text-sm sm:text-base font-black text-slate-900">Dokumen SJPH Masih Terkunci</h4>
+                                                <h4 className="text-sm sm:text-base font-black text-slate-900">Dokumen SJPH &amp; Unduhan Masih Terkunci</h4>
                                                 <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                                                    Setelah bayar, Anda dapat melihat dokumen SJPH. Harap selesaikan pembayaran tagihan terlebih dahulu pada Tab 3.
+                                                    Dokumen SJPH dan berkas pengajuan hanya dapat diakses setelah kewajiban pembayaran tagihan diselesaikan pada Tab 3.
                                                 </p>
                                             </div>
                                             <button
@@ -533,7 +568,145 @@ export default function SubmissionDetail() {
                                         </div>
                                     ) : (
                                         <>
-                                            <SJPHTextPreview submission={submission} />
+                                            {/* Download Center Header */}
+                                            <div className="p-6 rounded-3xl bg-gradient-to-r from-brand-900 via-indigo-950 to-slate-900 text-white shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                                <div className="space-y-1">
+                                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-gold-400 text-xs font-black uppercase tracking-wider border border-white/10">
+                                                        <ShieldCheck className="w-3.5 h-3.5" />
+                                                        Pusat Unduhan Dokumen Resmi
+                                                    </div>
+                                                    <h3 className="text-lg sm:text-xl font-black text-white">
+                                                        Dokumen Sertifikasi &amp; Laporan Berkas
+                                                    </h3>
+                                                    <p className="text-xs text-gray-300 max-w-xl">
+                                                        Unduh berkas resmi sertifikasi halal usaha Anda dalam format PDF langsung melalui tombol unduh di bawah ini.
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {/* Downloadable Cards Grid (No Previews) */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {/* Card 1: Dokumen SJPH */}
+                                                <div className="p-5 rounded-2xl bg-white border border-gray-200 hover:border-emerald-300 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4">
+                                                    <div className="space-y-2">
+                                                        <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                                                            <ShieldCheck className="w-5 h-5" />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="text-sm font-black text-gray-900">Dokumen Manual SJPH</h4>
+                                                            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                                                                Manual Sistem Jaminan Produk Halal yang telah disusun sesuai standar BPJPH &amp; Komisi Fatwa MUI.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            try {
+                                                                toast.loading('Mengunduh Dokumen SJPH...', { id: 'download-sjph' });
+                                                                await submissionService.downloadSJPH(submission.id, 'pdf');
+                                                                toast.success('Dokumen SJPH berhasil diunduh', { id: 'download-sjph' });
+                                                            } catch (e: any) {
+                                                                toast.error(e.message || 'Gagal mengunduh SJPH', { id: 'download-sjph' });
+                                                            }
+                                                        }}
+                                                        className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 active:scale-95"
+                                                    >
+                                                        <Download className="w-4 h-4" />
+                                                        <span>Unduh Dokumen SJPH (.pdf)</span>
+                                                    </button>
+                                                </div>
+
+                                                {/* Card 2: Dokumen Kontrak Layanan */}
+                                                <div className="p-5 rounded-2xl bg-white border border-gray-200 hover:border-blue-300 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4">
+                                                    <div className="space-y-2">
+                                                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
+                                                            <FileCheck className="w-5 h-5" />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="text-sm font-black text-gray-900">Dokumen Kontrak Perjanjian</h4>
+                                                            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                                                                Surat Perjanjian Kerja Sama pendampingan sertifikasi halal antara Pelaku Usaha dan LP3H.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            try {
+                                                                toast.loading('Mengunduh Kontrak Layanan...', { id: 'download-contract' });
+                                                                await submissionService.downloadContract(submission.id, 'pdf');
+                                                                toast.success('Kontrak Layanan berhasil diunduh', { id: 'download-contract' });
+                                                            } catch (e: any) {
+                                                                toast.error(e.message || 'Gagal mengunduh kontrak', { id: 'download-contract' });
+                                                            }
+                                                        }}
+                                                        className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 active:scale-95"
+                                                    >
+                                                        <Download className="w-4 h-4" />
+                                                        <span>Unduh Dokumen Kontrak (.pdf)</span>
+                                                    </button>
+                                                </div>
+
+                                                {/* Card 3: Dokumen SPH */}
+                                                {(submission.service_type === 'REGULER' || submission.cost_detail) && (
+                                                    <div className="p-5 rounded-2xl bg-white border border-gray-200 hover:border-amber-300 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4">
+                                                        <div className="space-y-2">
+                                                            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
+                                                                <CreditCard className="w-5 h-5" />
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="text-sm font-black text-gray-900">Surat Penawaran Harga (SPH)</h4>
+                                                                <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                                                                    Rincian estimasi biaya sertifikasi halal resmi dan komponen biaya operasional pendampingan.
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={async () => {
+                                                                try {
+                                                                    toast.loading('Mengunduh Dokumen SPH...', { id: 'download-sph' });
+                                                                    await submissionService.downloadSPH(submission.id);
+                                                                    toast.success('Dokumen SPH berhasil diunduh', { id: 'download-sph' });
+                                                                } catch (e: any) {
+                                                                    toast.error(e.message || 'Gagal mengunduh SPH', { id: 'download-sph' });
+                                                                }
+                                                            }}
+                                                            className="w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 active:scale-95"
+                                                        >
+                                                            <Download className="w-4 h-4" />
+                                                            <span>Unduh Dokumen SPH (.pdf)</span>
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                {/* Card 4: Sertifikat Halal Resmi (jika terbit) */}
+                                                {submission.sh_url && (
+                                                    <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-50 to-gold-50/40 border border-gold-300 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4">
+                                                        <div className="space-y-2">
+                                                            <div className="w-10 h-10 rounded-xl bg-gold-400 text-brand-950 flex items-center justify-center shadow-xs">
+                                                                <Award className="w-5 h-5" />
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="text-sm font-black text-brand-950">Sertifikat Halal Resmi BPJPH</h4>
+                                                                <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                                                                    Sertifikat Halal resmi yang telah diterbitkan oleh Badan Penyelenggara Jaminan Produk Halal (BPJPH).
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <a
+                                                            href={resolveFileUrl(submission.sh_url)}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="w-full py-2.5 px-4 bg-gold-500 hover:bg-gold-600 text-brand-950 font-black text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 active:scale-95 text-center"
+                                                        >
+                                                            <Download className="w-4 h-4" />
+                                                            <span>Unduh Sertifikat Halal</span>
+                                                        </a>
+                                                    </div>
+                                                )}
+                                            </div>
 
                                             {submission.sjph_notes && (
                                                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl">
@@ -561,7 +734,7 @@ export default function SubmissionDetail() {
                                                             <span>Persetujuan Dokumen SJPH oleh Pelaku Usaha</span>
                                                         </h4>
                                                         <p className="text-xs text-gray-500 font-medium leading-relaxed">
-                                                            Silakan unduh dan pelajari Dokumen SJPH di atas. Aktifkan toggle persetujuan di bawah ini untuk menyetujui dan melanjutkan proses pengajuan ke tahap berikutnya.
+                                                            Silakan unduh dan pelajari Dokumen Manual SJPH di atas. Aktifkan toggle persetujuan di bawah ini untuk menyetujui dan melanjutkan proses pengajuan ke tahap verifikasi berikutnya.
                                                         </p>
                                                     </div>
 
@@ -607,90 +780,6 @@ export default function SubmissionDetail() {
                         </>
                     );
                 })()}
-
-                <Modal
-                    isOpen={isConfirmOpen}
-                    onClose={() => {
-                        setIsConfirmOpen(false);
-                        setContractConsent(false);
-                    }}
-                    title="Kirim Pengajuan"
-                    maxWidth="md"
-                >
-                    <div className="space-y-5">
-                        <div className="flex items-start gap-4">
-                            <div className="p-3 rounded-2xl text-brand-600 bg-brand-50 shrink-0">
-                                <AlertTriangle size={24} />
-                            </div>
-                            <div className="flex-1">
-                                <h4 className="text-sm font-bold text-gray-800">Apakah Anda yakin ingin mengirimkan pengajuan ini untuk diverifikasi?</h4>
-                                <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                                    Setelah dikirim, data pengajuan tidak dapat diubah kembali kecuali diminta revisi oleh petugas.
-                                </p>
-                            </div>
-                        </div>
-
-                        {submission.service_type === 'REGULER' && (
-                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
-                                <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
-                                    <span className="text-xs font-black text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
-                                        <FileText size={16} className="text-brand-600" /> Dokumen Perjanjian Layanan
-                                    </span>
-                                    <button
-                                        type="button"
-                                        onClick={async () => {
-                                            try {
-                                                toast.loading('Mengunduh Kontrak...', { id: 'download-contract' });
-                                                await submissionService.downloadContract(submission.id, 'pdf');
-                                                toast.success('Kontrak berhasil diunduh', { id: 'download-contract' });
-                                            } catch (e: any) {
-                                                toast.error(e.message || 'Gagal mengunduh kontrak', { id: 'download-contract' });
-                                            }
-                                        }}
-                                        className="text-[10px] font-black text-brand-600 underline hover:text-brand-700"
-                                    >
-                                        Unduh Draft Kontrak (.pdf)
-                                    </button>
-                                </div>
-
-                                <label className="flex items-start gap-3.5 p-3 rounded-xl border border-slate-200 bg-white cursor-pointer hover:border-brand-300 transition-all select-none">
-                                    <input
-                                        type="checkbox"
-                                        className="form-checkbox mt-0.5"
-                                        checked={contractConsent}
-                                        onChange={(e) => setContractConsent(e.target.checked)}
-                                    />
-                                    <span className="text-xs font-bold text-slate-700 leading-relaxed">
-                                        Saya telah membaca, memahami, dan menyetujui seluruh isi Perjanjian Layanan Pendampingan Sertifikasi Halal secara Elektronik.
-                                    </span>
-                                </label>
-                            </div>
-                        )}
-
-                        <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
-                            <button
-                                onClick={() => {
-                                    setIsConfirmOpen(false);
-                                    setContractConsent(false);
-                                }}
-                                className="btn-secondary px-4 py-2.5 text-xs font-bold"
-                            >
-                                Batal
-                            </button>
-                            <button
-                                onClick={async () => {
-                                    setIsConfirmOpen(false);
-                                    await handleAction('submit');
-                                    setContractConsent(false);
-                                }}
-                                disabled={submission.service_type === 'REGULER' && !contractConsent}
-                                className="px-5 py-2.5 bg-brand-600 text-white font-bold rounded-xl text-xs shadow-md transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-brand-700"
-                            >
-                                Kirim Sekarang
-                            </button>
-                        </div>
-                    </div>
-                </Modal>
             </div>
         );
     }

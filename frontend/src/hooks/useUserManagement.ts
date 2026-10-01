@@ -153,18 +153,24 @@ export const useUserManagement = () => {
         }
     };
 
-    const handleDelete = (id: string) => {
+    const [showLogsModal, setShowLogsModal] = useState(false);
+
+    const handleDelete = (idOrUser: string | User) => {
+        const id = typeof idOrUser === 'string' ? idOrUser : idOrUser.id;
+        const targetUser = typeof idOrUser === 'string' ? users.find(u => u.id === id) : idOrUser;
+        const userLabel = targetUser ? `${targetUser.full_name} (${targetUser.email})` : 'user ini';
+
         setConfirmModal({
             isOpen: true,
-            title: 'Hapus User',
-            message: 'Apakah Anda yakin ingin menghapus user ini? Tindakan ini tidak dapat dibatalkan.',
+            title: 'Hapus User & Bersihkan Relasi',
+            message: `Apakah Anda yakin ingin menghapus user ${userLabel}? Seluruh data profil, penugasan, dan relasi terkait akan dibersihkan secara otomatis, dan riwayat penghapusan akan dicatat ke dalam audit log.`,
             onConfirm: async () => {
                 try {
                     await userService.deleteUser(id);
-                    toast.success('User berhasil dihapus');
+                    toast.success('User dan seluruh relasi terkait berhasil dihapus');
                     loadData();
                 } catch (err: any) {
-                    toast.error(err.response?.data?.error || 'Gagal menghapus');
+                    toast.error(err.response?.data?.error || 'Gagal menghapus user');
                 }
             }
         });
@@ -191,7 +197,7 @@ export const useUserManagement = () => {
 
     return {
         users, roles, total, loading, page, setPage, search, setSearch, roleFilter, setRoleFilter,
-        coordinators, showModal, setShowModal, editingUser, saving, generatedPassword, setGeneratedPassword,
+        coordinators, showModal, setShowModal, showLogsModal, setShowLogsModal, editingUser, saving, generatedPassword, setGeneratedPassword,
         formData, setFormData, confirmModal, setConfirmModal,
         openCreate, openEdit, handleSave, handleDelete, handleResetPassword
     };

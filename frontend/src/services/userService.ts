@@ -25,6 +25,10 @@ class UserService extends BaseService {
         return (await this.api.put(`/admin/users/${id}/reset-password`)).data;
     }
 
+    async getUserAuditLogs() {
+        return (await this.api.get('/admin/users/logs')).data;
+    }
+
     async getProfile() {
         return (await this.api.get('/profile')).data;
     }

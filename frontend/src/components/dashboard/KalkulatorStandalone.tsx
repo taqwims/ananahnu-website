@@ -634,7 +634,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                 <div className="bg-brand-50 border border-brand-100 p-3 rounded-xl flex gap-2 text-brand-850 text-xs">
                     <BookOpen className="w-4 h-4 text-brand-600 shrink-0 mt-0.5" />
                     <div>
-                        <h4 className="font-bold mb-0.5">Panduan Penggunaan Kalkulator</h4>
+                        <h4 className="font-bold mb-0.5">Panduan Estimasi Reguler</h4>
                         <ul className="list-disc pl-3.5 space-y-0.5 text-[10px] text-brand-700/80">
                             <li>Semua tag komponen dan tarif otomatis disinkronkan dari Master Biaya.</li>
                             <li>Pilih Jenis Layanan untuk menyesuaikan komponen biaya yang relevan.</li>

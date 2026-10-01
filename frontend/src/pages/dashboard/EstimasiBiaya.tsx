@@ -10,9 +10,9 @@ export default function EstimasiBiaya() {
                         <div className="p-2 bg-brand-50 rounded-xl">
                             <Calculator className="w-6 h-6 text-brand-600" />
                         </div>
-                        Perhitungan Biaya
+                        Estimasi Reguler
                     </h1>
-                    <p className="text-sm text-gray-500 mt-1 ml-12">Hitung dan simulasikan rincian biaya sertifikasi halal secara instan</p>
+                    <p className="text-sm text-gray-500 mt-1 ml-12">Hitung dan simulasikan rincian biaya sertifikasi halal secara instan sesuai Master Biaya</p>
                 </div>
             </div>
 

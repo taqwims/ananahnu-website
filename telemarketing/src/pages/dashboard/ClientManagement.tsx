@@ -920,7 +920,7 @@ export default function ClientManagement() {
                   </div>
                   <div>
                     <h3 className="text-base font-extrabold text-brand-900 flex items-center gap-2">
-                      Detail Klien & Kalkulator Estimasi Biaya
+                      Detail Klien & Estimasi Reguler
                       <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md">
                         Master Data Real-Time
                       </span>
@@ -1061,7 +1061,7 @@ export default function ClientManagement() {
                       <div className="flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-gold-500" />
                         <h4 className="text-sm font-black text-brand-950 uppercase tracking-wider">
-                          Kalkulator Penetapan Biaya Sesuai Master Biaya & Wilayah
+                          Estimasi Reguler Sesuai Master Biaya & Wilayah
                         </h4>
                       </div>
                       {loadingComponents && (

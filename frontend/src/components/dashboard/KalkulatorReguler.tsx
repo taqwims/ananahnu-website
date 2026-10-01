@@ -640,12 +640,12 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 <div className="flex items-center gap-3">
                     <div className="w-2.5 h-2.5 rounded-full bg-brand-600"></div>
                     <div>
-                        <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Form Perhitungan Biaya</h4>
+                        <h4 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Form Estimasi Reguler</h4>
                         <p className="text-xs text-gray-500">Form parameter & rincian biaya dapat di-expand dan diedit.</p>
                     </div>
                 </div>
                 <button type="button" onClick={(e) => { e.stopPropagation(); setIsCollapsed(false); }} className="px-4 py-2 bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-bold rounded-xl border border-brand-200 transition-all flex items-center gap-1.5">
-                    <span>Buka Form Kalkulasi</span>
+                    <span>Buka Form Estimasi Reguler</span>
                     <ChevronDown className="w-4 h-4" />
                 </button>
             </div>
@@ -658,7 +658,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 <div className="flex items-center gap-3">
                     <div className="w-2 h-6 bg-brand-600 rounded-full"></div>
                     <div>
-                        <h3 className="text-xl font-black text-brand-700 uppercase tracking-wider">Form Perhitungan Biaya</h3>
+                        <h3 className="text-xl font-black text-brand-700 uppercase tracking-wider">Form Estimasi Reguler</h3>
                         <p className="text-xs text-gray-500">Parameter & opsi biaya pendampingan (Editable)</p>
                     </div>
                 </div>
@@ -687,7 +687,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 <div className="bg-brand-50 border border-brand-100 p-4 rounded-2xl flex gap-3 text-brand-800 text-sm">
                     <BookOpen className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" />
                     <div>
-                        <h4 className="font-bold mb-1">Panduan Penggunaan Kalkulator</h4>
+                        <h4 className="font-bold mb-1">Panduan Estimasi Reguler</h4>
                         <ul className="list-disc pl-4 space-y-1 text-xs text-brand-700/80">
                             <li>Harga akan <b>berubah otomatis</b> saat Anda memilih kombinasi Provinsi, Bidang, atau Produk.</li>
                             <li>Jika ada <b>Tarif Khusus Wilayah</b> untuk daerah yang Anda pilih, sistem akan menimpa harga umum dengan harga khusus tersebut.</li>

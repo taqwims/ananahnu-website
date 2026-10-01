@@ -28,6 +28,16 @@ export const formatServiceType = (serviceType: string): string => {
 
 export const formatCurrency = formatRupiah;
 
+export const resolveFileUrl = (url?: string): string => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('data:')) {
+        return url;
+    }
+    const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+    const cleanPath = url.startsWith('/') ? url : `/${url}`;
+    return `${apiUrl}${cleanPath}`;
+};
+
 export const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('id-ID', {

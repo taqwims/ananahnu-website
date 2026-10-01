@@ -371,7 +371,7 @@ export default function MarketingManagerDashboard() {
                             className="px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs border border-white/20 transition-all flex items-center gap-2 active:scale-95 backdrop-blur-sm"
                         >
                             <Calculator className="w-4 h-4 text-emerald-300" />
-                            <span>Kalkulator Tarif</span>
+                            <span>Estimasi Reguler</span>
                         </button>
                         <button
                             onClick={() => setShowTargetModal(true)}

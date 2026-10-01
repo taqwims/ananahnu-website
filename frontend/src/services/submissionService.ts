@@ -232,16 +232,39 @@ class SubmissionService extends BaseService {
         }
     }
 
-    async downloadSJPH(id: string): Promise<void> {
+    async downloadSJPH(id: string, format: string = 'pdf'): Promise<void> {
         try {
-            const response = await this.api.get(`/documents/submissions/${id}/sjph`, {
+            const response = await this.api.get(`/documents/submissions/${id}/sjph?format=${format}`, {
                 responseType: 'blob'
             });
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
             const contentDisposition = response.headers['content-disposition'];
-            let fileName = 'Dokumen_SJPH.pdf';
+            let fileName = `Dokumen_SJPH.${format}`;
+            if (contentDisposition) {
+                const fileNameMatch = contentDisposition.match(/filename=(.+)/);
+                if (fileNameMatch) fileName = fileNameMatch[1].replace(/['"]/g, '');
+            }
+            link.setAttribute('download', fileName);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
+    async downloadSPH(id: string, format: string = 'pdf'): Promise<void> {
+        try {
+            const response = await this.api.get(`/documents/submissions/${id}/sph?format=${format}`, {
+                responseType: 'blob'
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            const contentDisposition = response.headers['content-disposition'];
+            let fileName = `Surat_Penawaran_Harga_SPH.${format}`;
             if (contentDisposition) {
                 const fileNameMatch = contentDisposition.match(/filename=(.+)/);
                 if (fileNameMatch) fileName = fileNameMatch[1].replace(/['"]/g, '');

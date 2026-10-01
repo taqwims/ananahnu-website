@@ -22,6 +22,7 @@ import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import FileUpload from '../../components/dashboard/FileUpload';
 import type { FormFieldConfig } from '../../types';
+import { resolveFileUrl } from '../../utils/format';
 
 interface AdvisorInfo {
     id: string;
@@ -242,17 +243,17 @@ export default function ClientPengajuanPage() {
             // Prepare field_values array
             const fieldValuesPayload: any[] = [];
 
-            // Add standard document URLs if uploaded
+            // Add standard document URLs if uploaded with flexible key lookup
             if (ktpUrl) {
-                const ktpCfg = formConfigs.find(f => f.field_key === 'ktp');
+                const ktpCfg = formConfigs.find(f => ['ktp', 'dokumen_ktp', 'foto_ktp', 'file_ktp', 'ktp_file'].includes(f.field_key));
                 if (ktpCfg) fieldValuesPayload.push({ form_field_id: ktpCfg.id, file_url: ktpUrl });
             }
             if (nibFileUrl) {
-                const nibCfg = formConfigs.find(f => f.field_key === 'nib_file');
+                const nibCfg = formConfigs.find(f => ['nib_file', 'dokumen_nib', 'file_nib', 'nib_doc', 'nib_url'].includes(f.field_key));
                 if (nibCfg) fieldValuesPayload.push({ form_field_id: nibCfg.id, file_url: nibFileUrl });
             }
             if (productPhotoUrl) {
-                const photoCfg = formConfigs.find(f => f.field_key === 'foto_produk');
+                const photoCfg = formConfigs.find(f => ['foto_produk', 'product_photo', 'product_photo_url', 'foto_produk_url', 'dokumen_produk'].includes(f.field_key));
                 if (photoCfg) fieldValuesPayload.push({ form_field_id: photoCfg.id, file_url: productPhotoUrl });
             }
 
@@ -279,6 +280,9 @@ export default function ClientPengajuanPage() {
                     address: address,
                     product_name: productName,
                     nib: nib,
+                    ktp_url: ktpUrl || undefined,
+                    nib_file_url: nibFileUrl || undefined,
+                    product_photo_url: productPhotoUrl || undefined,
                     service_type: 'PENDING_CONSULTATION',
                     advisor_code: advisorInfo ? advisorInfo.referral_code : (advisorCode.trim() || undefined),
                     facilitator_id: advisorInfo ? advisorInfo.id : undefined,
@@ -419,7 +423,7 @@ export default function ClientPengajuanPage() {
                             />
                             {ktpUrl && (
                                 <a 
-                                    href={ktpUrl} 
+                                    href={resolveFileUrl(ktpUrl)} 
                                     target="_blank" 
                                     rel="noreferrer" 
                                     className="inline-flex items-center gap-1.5 text-xs text-brand-600 font-bold hover:underline"
@@ -499,7 +503,7 @@ export default function ClientPengajuanPage() {
                             />
                             {nibFileUrl && (
                                 <a 
-                                    href={nibFileUrl} 
+                                    href={resolveFileUrl(nibFileUrl)} 
                                     target="_blank" 
                                     rel="noreferrer" 
                                     className="inline-flex items-center gap-1.5 text-xs text-brand-600 font-bold hover:underline"
@@ -683,7 +687,7 @@ export default function ClientPengajuanPage() {
                             />
                             {productPhotoUrl && (
                                 <a 
-                                    href={productPhotoUrl} 
+                                    href={resolveFileUrl(productPhotoUrl)} 
                                     target="_blank" 
                                     rel="noreferrer" 
                                     className="inline-flex items-center gap-1.5 text-xs text-brand-600 font-bold hover:underline"
@@ -719,7 +723,7 @@ export default function ClientPengajuanPage() {
                                         />
                                         {dynamicValues[field.field_key] && (
                                             <a 
-                                                href={dynamicValues[field.field_key]} 
+                                                href={resolveFileUrl(dynamicValues[field.field_key])} 
                                                 target="_blank" 
                                                 rel="noreferrer" 
                                                 className="inline-flex items-center gap-1.5 text-xs text-brand-600 font-bold hover:underline"

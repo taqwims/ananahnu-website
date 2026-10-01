@@ -342,7 +342,7 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
                         <Calculator className="w-5 h-5" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold text-gray-800">Kalkulator Estimasi Biaya</h3>
+                        <h3 className="text-sm font-bold text-gray-800">Estimasi Reguler</h3>
                         <p className="text-[11px] text-gray-400">Kalkulasi harga real-time berbasis parameter Usaha</p>
                     </div>
                 </div>

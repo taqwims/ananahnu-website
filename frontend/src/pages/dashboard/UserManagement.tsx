@@ -4,19 +4,23 @@ import { UserFilters } from '../../components/dashboard/users/UserFilters';
 import { UserTable } from '../../components/dashboard/users/UserTable';
 import { UserFormModal } from '../../components/dashboard/users/UserFormModal';
 import { PasswordResultModal } from '../../components/dashboard/users/PasswordResultModal';
+import { UserAuditLogsModal } from '../../components/dashboard/users/UserAuditLogsModal';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 
 export default function UserManagement() {
     const {
         users, roles, total, loading, page, setPage, search, setSearch, roleFilter, setRoleFilter,
-        coordinators, showModal, setShowModal, editingUser, saving, generatedPassword, setGeneratedPassword,
+        coordinators, showModal, setShowModal, showLogsModal, setShowLogsModal, editingUser, saving, generatedPassword, setGeneratedPassword,
         formData, setFormData, confirmModal, setConfirmModal,
         openCreate, openEdit, handleSave, handleDelete, handleResetPassword
     } = useUserManagement();
 
     return (
         <div className="max-w-[1440px] mx-auto space-y-6 px-4 sm:px-6 pb-12">
-            <UserTableHeader onAddClick={openCreate} />
+            <UserTableHeader 
+                onAddClick={openCreate} 
+                onLogsClick={() => setShowLogsModal(true)} 
+            />
 
             <UserFilters 
                 search={search}
@@ -58,6 +62,11 @@ export default function UserManagement() {
                     saving={saving}
                 />
             )}
+
+            <UserAuditLogsModal 
+                isOpen={showLogsModal}
+                onClose={() => setShowLogsModal(false)}
+            />
 
             <ConfirmModal 
                 isOpen={confirmModal.isOpen}

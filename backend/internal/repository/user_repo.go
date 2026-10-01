@@ -136,7 +136,112 @@ func (r *userRepository) FindAll(filter map[string]interface{}, page, limit int)
 }
 
 func (r *userRepository) Delete(id uuid.UUID) error {
-	return r.db.Delete(&domain.User{}, id).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// 1. Unlink users referencing this user as leader or referrer
+		if err := tx.Exec("UPDATE users SET leader_id = NULL WHERE leader_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE users SET referred_by_id = NULL WHERE referred_by_id = ?", id).Error; err != nil {
+			return err
+		}
+
+		// 2. Delete password reset tokens
+		if err := tx.Exec("DELETE FROM password_reset_tokens WHERE user_id = ?", id).Error; err != nil {
+			return err
+		}
+
+		// 3. Delete consultant profile
+		if err := tx.Exec("DELETE FROM consultant_profiles WHERE user_id = ?", id).Error; err != nil {
+			return err
+		}
+
+		// 4. Delete notifications
+		if err := tx.Exec("DELETE FROM notifications WHERE user_id = ?", id).Error; err != nil {
+			return err
+		}
+
+		// 5. Delete KPI performances
+		if err := tx.Exec("DELETE FROM kpi_performances WHERE user_id = ?", id).Error; err != nil {
+			return err
+		}
+
+		// 6. Delete commissions
+		if err := tx.Exec("DELETE FROM commissions WHERE user_id = ? OR referrer_id = ? OR referred_id = ?", id, id, id).Error; err != nil {
+			return err
+		}
+
+		// 7. Promotion requests
+		if err := tx.Exec("DELETE FROM promotion_requests WHERE user_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE promotion_requests SET approved_by = NULL WHERE approved_by = ?", id).Error; err != nil {
+			return err
+		}
+
+		// 8. Training participants & trainings
+		if err := tx.Exec("DELETE FROM training_participants WHERE user_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE trainings SET proposed_by = NULL WHERE proposed_by = ?", id).Error; err != nil {
+			return err
+		}
+
+		// 9. Clients
+		if err := tx.Exec("UPDATE clients SET user_id = NULL WHERE user_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE clients SET facilitator_id = NULL WHERE facilitator_id = ?", id).Error; err != nil {
+			return err
+		}
+
+		// 10. Submissions
+		if err := tx.Exec("UPDATE submissions SET consultant_id = NULL WHERE consultant_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE submissions SET assigned_drafter_id = NULL WHERE assigned_drafter_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE submissions SET assigned_qc_id = NULL WHERE assigned_qc_id = ?", id).Error; err != nil {
+			return err
+		}
+
+		// 11. Invoices
+		if err := tx.Exec("UPDATE invoices SET payer_id = NULL WHERE payer_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE invoices SET coordinator_id = NULL WHERE coordinator_id = ?", id).Error; err != nil {
+			return err
+		}
+
+		// 12. Telemarketing
+		if err := tx.Exec("UPDATE tele_forms SET telemarketer_id = NULL WHERE telemarketer_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE tele_forms SET client_user_id = NULL WHERE client_user_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE tele_forms SET shared_by_id = NULL WHERE shared_by_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE tele_meetings SET telemarketer_id = NULL WHERE telemarketer_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("UPDATE tele_agreements SET client_user_id = NULL WHERE client_user_id = ?", id).Error; err != nil {
+			return err
+		}
+
+		// 13. Audit logs (keep history intact by nullifying user_id so logs aren't lost)
+		if err := tx.Exec("UPDATE audit_logs SET user_id = NULL WHERE user_id = ?", id).Error; err != nil {
+			return err
+		}
+
+		// 14. Finally delete the user
+		if err := tx.Exec("DELETE FROM users WHERE id = ?", id).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 // Commission Implementation

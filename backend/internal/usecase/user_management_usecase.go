@@ -3,11 +3,14 @@ package usecase
 import (
 	"ananahnu/internal/domain"
 	"ananahnu/pkg/utils"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 )
 
 type CreateUserInput struct {
@@ -46,19 +49,21 @@ type UserManagementUsecase interface {
 	CreateUser(input CreateUserInput) (*domain.User, string, error) // Returns user + plaintext password
 	UpdateUser(id uuid.UUID, input UpdateUserInput) error
 	UpdateProfile(id uuid.UUID, input UpdateProfileInput) error
-	DeleteUser(id uuid.UUID) error
+	DeleteUser(id uuid.UUID, actorID *uuid.UUID) error
 	ResetUserPassword(id uuid.UUID) (string, error) // Returns new plaintext password
 	ListRoles() ([]domain.Role, error)
 	GetReferrals(userID uuid.UUID) ([]domain.User, error)
 	GetMyCommissions(userID uuid.UUID) ([]domain.Commission, error)
 	GetAllReferralAnalytics() ([]map[string]interface{}, error)
 	RegenerateReferralCode(userID uuid.UUID) (string, error) // Regenerate referral code using new format (no vowels)
+	GetUserAuditLogs() ([]domain.AuditLog, error)
 }
 
 type UserManagementUsecaseDeps struct {
 	UserRepo       domain.UserRepository
 	RoleRepo       domain.RoleRepository
 	CommissionRepo domain.CommissionRepository
+	AuditRepo      domain.AuditLogRepository
 }
 
 type userManagementUsecase struct {
@@ -209,11 +214,54 @@ func (uc *userManagementUsecase) UpdateProfile(id uuid.UUID, input UpdateProfile
 	return uc.UserRepo.Update(user)
 }
 
-func (uc *userManagementUsecase) DeleteUser(id uuid.UUID) error {
-	if _, err := uc.UserRepo.FindByID(id); err != nil {
-		return errors.New("user not found")
+func (uc *userManagementUsecase) DeleteUser(id uuid.UUID, actorID *uuid.UUID) error {
+	user, err := uc.UserRepo.FindByID(id)
+	if err != nil {
+		return errors.New("user tidak ditemukan")
 	}
-	return uc.UserRepo.Delete(id)
+
+	// Prepare audit log payload with user snapshot before deletion
+	roleName := user.Role.Name
+	payloadMap := map[string]interface{}{
+		"deleted_user_id": user.ID.String(),
+		"full_name":       user.FullName,
+		"email":           user.Email,
+		"role":            roleName,
+		"phone":           user.Phone,
+		"address":         user.Address,
+		"referral_code":   user.ReferralCode,
+		"leader_id":       user.LeaderID,
+		"referred_by_id":  user.ReferredByID,
+		"created_at":      user.CreatedAt,
+	}
+	payloadBytes, _ := json.Marshal(payloadMap)
+
+	// Execute transactional cascade delete
+	if err := uc.UserRepo.Delete(id); err != nil {
+		return err
+	}
+
+	// Record audit log
+	if uc.AuditRepo != nil {
+		_ = uc.AuditRepo.Create(&domain.AuditLog{
+			UserID:     actorID,
+			Action:     "DELETE_USER",
+			EntityType: "USER",
+			EntityID:   id.String(),
+			Payload:    datatypes.JSON(payloadBytes),
+			Notes:      fmt.Sprintf("User %s (%s) dengan role %s berhasil dihapus beserta seluruh relasi terkait", user.FullName, user.Email, roleName),
+			CreatedAt:  time.Now(),
+		})
+	}
+
+	return nil
+}
+
+func (uc *userManagementUsecase) GetUserAuditLogs() ([]domain.AuditLog, error) {
+	if uc.AuditRepo == nil {
+		return []domain.AuditLog{}, nil
+	}
+	return uc.AuditRepo.FindLogsByEntity("USER", "")
 }
 
 func (uc *userManagementUsecase) ResetUserPassword(id uuid.UUID) (string, error) {

@@ -33,6 +33,7 @@ func NewUserManagementHandler(r *gin.Engine, uc usecase.UserManagementUsecase) {
 			directorOnly.PUT("/:id", handler.UpdateUser)
 			directorOnly.DELETE("/:id", handler.DeleteUser)
 			directorOnly.PUT("/:id/reset-password", handler.ResetPassword)
+			directorOnly.GET("/logs", handler.GetUserAuditLogs)
 		}
 
 		// List & detail user — DIRECTOR + ADMIN_PELATIHAN (untuk lihat daftar pendaftar HALAL_ADVISOR)
@@ -251,12 +252,28 @@ func (h *UserManagementHandler) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	if err := h.userMgmtUC.DeleteUser(id); err != nil {
+	var actorID *uuid.UUID
+	if val, exists := c.Get("userID"); exists {
+		if uid, ok := val.(uuid.UUID); ok {
+			actorID = &uid
+		}
+	}
+
+	if err := h.userMgmtUC.DeleteUser(id, actorID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "user deleted"})
+	c.JSON(http.StatusOK, gin.H{"message": "User berhasil dihapus beserta seluruh relasi terkait"})
+}
+
+func (h *UserManagementHandler) GetUserAuditLogs(c *gin.Context) {
+	logs, err := h.userMgmtUC.GetUserAuditLogs()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, logs)
 }
 
 func (h *UserManagementHandler) ResetPassword(c *gin.Context) {

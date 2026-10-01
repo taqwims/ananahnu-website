@@ -303,7 +303,7 @@ export default function HalalAdvisorDashboard() {
                             className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all flex items-center gap-1.5 border border-white/15"
                         >
                             <Calculator className="w-3.5 h-3.5 text-emerald-300" />
-                            <span>Kalkulator Tarif Layanan</span>
+                            <span>Estimasi Reguler</span>
                         </button>
                         <button
                             onClick={() => navigate('/dashboard/karir')}

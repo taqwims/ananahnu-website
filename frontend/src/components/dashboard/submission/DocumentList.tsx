@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { FileText, Upload, Link as LinkIcon, ChevronDown, ChevronUp, Calendar, List } from 'lucide-react';
+import { FileText, Upload, Link as LinkIcon, ChevronDown, ChevronUp, Calendar, List, ExternalLink } from 'lucide-react';
 import type { Submission, User, FormFieldValue } from '../../../types';
 import DynamicSubmissionForm from '../DynamicSubmissionForm';
+import { resolveFileUrl } from '../../../utils/format';
 
 interface DocumentListProps {
     submission: Submission;
@@ -237,9 +238,9 @@ export const DocumentList = ({
                                                                                             <td className="p-2 font-bold text-gray-800">{p.nama}</td>
                                                                                             <td className="p-2">
                                                                                                 {p.foto_url ? (
-                                                                                                    <a href={`${import.meta.env.VITE_API_URL}${p.foto_url}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:underline text-brand-600">
+                                                                                                    <a href={resolveFileUrl(p.foto_url)} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:underline text-brand-600">
                                                                                                         <img 
-                                                                                                            src={`${import.meta.env.VITE_API_URL}${p.foto_url}`} 
+                                                                                                            src={resolveFileUrl(p.foto_url)} 
                                                                                                             alt={p.nama} 
                                                                                                             className="w-8 h-8 object-cover rounded border border-gray-100 shrink-0"
                                                                                                         />
@@ -376,13 +377,13 @@ export const DocumentList = ({
                                                                                                     {(row.fotos || []).map((fUrl, fIdx) => (
                                                                                                         <a
                                                                                                             key={fIdx}
-                                                                                                            href={`${import.meta.env.VITE_API_URL}${fUrl}`}
+                                                                                                            href={resolveFileUrl(fUrl)}
                                                                                                             target="_blank"
                                                                                                             rel="noreferrer"
                                                                                                             className="block w-14 h-14 rounded-lg overflow-hidden border border-gray-200 hover:border-brand-400 transition-colors shrink-0 bg-gray-50"
                                                                                                         >
                                                                                                             <img
-                                                                                                                src={`${import.meta.env.VITE_API_URL}${fUrl}`}
+                                                                                                                src={resolveFileUrl(fUrl)}
                                                                                                                 alt="Kegiatan"
                                                                                                                 className="w-full h-full object-cover"
                                                                                                             />
@@ -436,13 +437,13 @@ export const DocumentList = ({
                                                                                             <td className="p-2">
                                                                                                 {row.ttd_url ? (
                                                                                                     <a
-                                                                                                        href={`${import.meta.env.VITE_API_URL}${row.ttd_url}`}
+                                                                                                        href={resolveFileUrl(row.ttd_url)}
                                                                                                         target="_blank"
                                                                                                         rel="noreferrer"
                                                                                                         className="block w-10 h-10 rounded border border-gray-200 hover:border-brand-400 transition-colors shrink-0 bg-white"
                                                                                                     >
                                                                                                         <img
-                                                                                                            src={`${import.meta.env.VITE_API_URL}${row.ttd_url}`}
+                                                                                                            src={resolveFileUrl(row.ttd_url)}
                                                                                                             alt="Ttd"
                                                                                                             className="w-full h-full object-contain"
                                                                                                         />
@@ -462,16 +463,51 @@ export const DocumentList = ({
                                                                 <p className="text-[10px] text-gray-400 truncate">{fv.text_value}</p>
                                                             )
                                                         )}
+                                                        {fv.file_url && (
+                                                            <div className="mt-2">
+                                                                {/\.(jpg|jpeg|png|webp|gif|svg)(\?.*)?$/i.test(fv.file_url) ? (
+                                                                    <div className="flex items-center gap-3 p-2 bg-gray-50/90 rounded-xl border border-gray-200/80">
+                                                                        <img 
+                                                                            src={resolveFileUrl(fv.file_url)} 
+                                                                            alt={fv.form_field?.field_label || "Dokumen"} 
+                                                                            className="w-12 h-12 object-cover rounded-lg border border-gray-200 bg-white shrink-0" 
+                                                                        />
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <span className="text-[10px] font-bold text-gray-700 block truncate">{fv.file_url.split('/').pop()}</span>
+                                                                            <a 
+                                                                                href={resolveFileUrl(fv.file_url)} 
+                                                                                target="_blank" 
+                                                                                rel="noreferrer" 
+                                                                                className="inline-flex items-center gap-1 text-[10px] font-black text-brand-600 hover:text-brand-700 underline mt-0.5"
+                                                                            >
+                                                                                <ExternalLink className="w-3 h-3" /> Buka Gambar
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <a 
+                                                                        href={resolveFileUrl(fv.file_url)} 
+                                                                        target="_blank" 
+                                                                        rel="noreferrer"
+                                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg text-xs font-bold transition-all border border-brand-100"
+                                                                    >
+                                                                        <FileText className="w-3.5 h-3.5" />
+                                                                        <span>Lihat Dokumen ({fv.file_url.split('.').pop()?.toUpperCase() || 'FILE'})</span>
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 {!isProductList && (
                                                     <div className="flex items-center gap-1 ml-2 shrink-0">
                                                         {fv.file_url && (
                                                             <a 
-                                                                href={`${import.meta.env.VITE_API_URL}${fv.file_url}`} 
+                                                                href={resolveFileUrl(fv.file_url)} 
                                                                 target="_blank" 
-                                                                rel="noreferrer"
+                                                                rel="noreferrer" 
                                                                 className="p-2 hover:bg-brand-600 hover:text-white rounded-lg text-brand-600 transition-all"
+                                                                title="Buka Berkas"
                                                             >
                                                                 <FileText className="w-4 h-4" />
                                                             </a>
@@ -480,8 +516,9 @@ export const DocumentList = ({
                                                             <a 
                                                                 href={fv.link_value} 
                                                                 target="_blank" 
-                                                                rel="noreferrer"
+                                                                rel="noreferrer" 
                                                                 className="p-2 hover:bg-blue-600 hover:text-white rounded-lg text-blue-600 transition-all"
+                                                                title="Buka Link"
                                                             >
                                                                 <LinkIcon className="w-4 h-4" />
                                                             </a>

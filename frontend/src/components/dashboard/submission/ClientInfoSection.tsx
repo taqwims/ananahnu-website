@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Submission, User, Client, BusinessType } from '../../../types';
-import { formatDate, formatRupiah } from '../../../utils/format';
+import { formatDate, formatRupiah, resolveFileUrl } from '../../../utils/format';
 import api from '../../../services/api';
 import { toast } from 'react-hot-toast';
 import { submissionService } from '../../../services/submissionService';
@@ -548,7 +548,7 @@ export const ClientInfoSection = ({
                             <span className="truncate max-w-full">{submission.client?.nib || '-'}</span>
                             {submission.client?.nib_file_url && (
                                 <a 
-                                    href={submission.client.nib_file_url} 
+                                    href={resolveFileUrl(submission.client.nib_file_url)} 
                                     target="_blank" 
                                     rel="noreferrer"
                                     className="px-2 py-1 bg-brand-50 text-brand-600 rounded text-[10px] uppercase font-black tracking-wider hover:bg-brand-100 transition-colors flex items-center gap-1 shrink-0"
@@ -561,14 +561,15 @@ export const ClientInfoSection = ({
                         {submission.client?.nib_file_url && (
                             <div className="mt-2 pt-2 border-t border-gray-100/60">
                                 {(() => {
-                                    const url = submission.client.nib_file_url;
-                                    const isImg = /\.(jpg|jpeg|png|webp|gif|svg)(\?.*)?$/i.test(url);
+                                    const rawUrl = submission.client.nib_file_url;
+                                    const fullUrl = resolveFileUrl(rawUrl);
+                                    const isImg = /\.(jpg|jpeg|png|webp|gif|svg)(\?.*)?$/i.test(rawUrl);
                                     if (isImg) {
                                         return (
                                             <div className="mt-1 border border-gray-100 rounded-xl overflow-hidden max-w-sm shadow-sm bg-white">
-                                                <img src={url} alt="NIB File" className="w-full h-auto object-contain max-h-64" />
+                                                <img src={fullUrl} alt="NIB File" className="w-full h-auto object-contain max-h-64" />
                                                 <div className="p-2 text-center bg-gray-50 border-t border-gray-100">
-                                                    <a href={url} target="_blank" rel="noreferrer" className="text-[10px] font-black text-brand-600 hover:text-brand-700 uppercase tracking-wider">
+                                                    <a href={fullUrl} target="_blank" rel="noreferrer" className="text-[10px] font-black text-brand-600 hover:text-brand-700 uppercase tracking-wider">
                                                         Buka Gambar Penuh
                                                     </a>
                                                 </div>
@@ -582,7 +583,7 @@ export const ClientInfoSection = ({
                                             </svg>
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-[9px] font-black text-red-500 uppercase tracking-widest">Dokumen PDF</p>
-                                                <a href={url} target="_blank" rel="noreferrer" className="text-xs font-bold text-gray-700 hover:text-brand-600 truncate block underline">
+                                                <a href={fullUrl} target="_blank" rel="noreferrer" className="text-xs font-bold text-gray-700 hover:text-brand-600 truncate block underline">
                                                     Lihat File NIB (PDF)
                                                 </a>
                                             </div>
@@ -631,9 +632,9 @@ export const ClientInfoSection = ({
                         <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-100 min-w-0">
                             <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest mb-1">📄 Hasil Audit</p>
                             <div className="flex gap-2 mt-1 flex-wrap">
-                                <a href={`${import.meta.env.VITE_API_URL}${submission.audit_result_1_url}`} target="_blank" rel="noreferrer" className="text-xs font-bold text-indigo-700 underline">File 1</a>
+                                <a href={resolveFileUrl(submission.audit_result_1_url)} target="_blank" rel="noreferrer" className="text-xs font-bold text-indigo-700 underline">File 1</a>
                                 {submission.audit_result_2_url && (
-                                    <a href={`${import.meta.env.VITE_API_URL}${submission.audit_result_2_url}`} target="_blank" rel="noreferrer" className="text-xs font-bold text-indigo-700 underline">File 2</a>
+                                    <a href={resolveFileUrl(submission.audit_result_2_url)} target="_blank" rel="noreferrer" className="text-xs font-bold text-indigo-700 underline">File 2</a>
                                 )}
                             </div>
                         </div>

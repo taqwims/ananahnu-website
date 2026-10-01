@@ -330,6 +330,7 @@ func main() {
 		UserRepo:       userRepo,
 		RoleRepo:       roleRepo,
 		CommissionRepo: commissionRepo,
+		AuditRepo:      auditRepo,
 	})
 	billingConfigUC := usecase.NewBillingConfigUsecase(usecase.BillingConfigUsecaseDeps{
 		Repo:           billingConfigRepo,
