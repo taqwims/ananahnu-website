@@ -49,6 +49,8 @@ func NewSubmissionHandler(r *gin.Engine, uc usecase.SubmissionWorkflowUsecase) {
 
 	r.GET("/public/track/:tracking_number", handler.TrackSubmission)
 	r.GET("/public/verify-invoice/:id", handler.VerifyInvoice)
+	r.GET("/public/verify-contract/:id", handler.VerifyContract)
+	r.GET("/public/verify-agreement/:id", handler.VerifyContract)
 }
 
 func (h *SubmissionHandler) CreateDraft(c *gin.Context) {
@@ -636,6 +638,83 @@ func (h *SubmissionHandler) VerifyInvoice(c *gin.Context) {
 		"invoices":       sub.Invoices,
 		"updated_at":     sub.UpdatedAt,
 		"created_at":     sub.CreatedAt,
+	})
+}
+
+func (h *SubmissionHandler) VerifyContract(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID kontrak atau pengajuan tidak valid"})
+		return
+	}
+
+	sub, err := h.workflowUC.GetSubmission(id)
+	if err != nil || sub == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Dokumen kontrak tidak ditemukan di sistem Halalcore"})
+		return
+	}
+
+	isPaidOrActive := false
+	if sub.Invoice != nil && sub.Invoice.Status == "PAID" {
+		isPaidOrActive = true
+	}
+	for _, inv := range sub.Invoices {
+		if inv.Status == "PAID" {
+			isPaidOrActive = true
+			break
+		}
+	}
+	for _, p := range sub.Payments {
+		if p.Status == "PAID" {
+			isPaidOrActive = true
+			break
+		}
+	}
+	activeStatuses := []string{
+		"QC_OFFICER", "DRAFTER", "QC_REVIEW", "SUBMITTED_TO_BPJPH", "SIDANG_FATWA", "SH_TERBIT", "COMPLETED", "SIGNED",
+	}
+	for _, s := range activeStatuses {
+		if string(sub.Status) == s {
+			isPaidOrActive = true
+			break
+		}
+	}
+
+	advisorName := "PT ANA NAHNU INDONESIA"
+	advisorID := "-"
+	if sub.Consultant != nil {
+		advisorName = sub.Consultant.FullName
+		advisorID = sub.Consultant.ID.String()[:8]
+	}
+
+	contractNo := "DRAFT"
+	if sub.ContractNumber != nil && *sub.ContractNumber != "" {
+		contractNo = *sub.ContractNumber
+	}
+
+	trackingNo := "-"
+	if sub.TrackingNumber != nil && *sub.TrackingNumber != "" {
+		trackingNo = *sub.TrackingNumber
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":            "VALID",
+		"document_type":     "KONTRAK_PENDAMPINGAN",
+		"id":                sub.ID,
+		"contract_number":   contractNo,
+		"agreement_number":  contractNo,
+		"tracking_number":   trackingNo,
+		"submission_status": sub.Status,
+		"is_paid_or_active": isPaidOrActive,
+		"business_name":     sub.Client.BusinessName,
+		"pic_name":          sub.Client.ClientName,
+		"client_name":       sub.Client.ClientName,
+		"service_type":      sub.ServiceType,
+		"advisor_name":      advisorName,
+		"advisor_id":        advisorID,
+		"created_at":        sub.CreatedAt,
+		"signed_at":         sub.CreatedAt,
 	})
 }
 

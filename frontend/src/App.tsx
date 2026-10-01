@@ -333,7 +333,11 @@ function App() {
           <Route path="/berita/:slug" element={<RedirectToTelemarketingNews />} />
           <Route path="/track" element={<TrackSubmission />} />
           <Route path="/verify-invoice/:id" element={<VerifyInvoice />} />
+          <Route path="/verify-agreement/:id" element={<VerifyAgreement />} />
+          <Route path="/verify-agreement/:id/:token" element={<VerifyAgreement />} />
+          <Route path="/verify/agreement/:id" element={<VerifyAgreement />} />
           <Route path="/verify/agreement/:id/:token" element={<VerifyAgreement />} />
+          <Route path="/verify-contract/:id" element={<VerifyAgreement />} />
         </Route>
       </Routes>
       </Suspense>
