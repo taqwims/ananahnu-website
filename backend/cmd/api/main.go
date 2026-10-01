@@ -125,11 +125,11 @@ func main() {
 	// 4. Seed Roles (Idempotent)
 	log.Println("Seeding Roles...")
 	roles := []string{
-		"DIRECTOR", "MANAGER", "QC_OFFICER", "VERIFIKATOR", "DRAFTER",
+		"DIRECTOR", "MANAGER", "QC_OFFICER", "DRAFTER",
 		"HALAL_ADVISOR", "MARKETING",
 		"CLIENT",
 		"HALAL_MANAGER", "HALAL_DIRECTOR", "ADMIN_PELATIHAN", "ADMIN_KEUANGAN",
-		"BUSINESS_DEVELOPMENT", "DRAFT_MANAGER",
+		"BUSINESS_DEVELOPMENT",
 		"TELEMARKETER",
 	}
 	for _, roleName := range roles {
@@ -139,6 +139,25 @@ func main() {
 		}
 	}
 	log.Println("Seeding completed.")
+
+	// 4.1 Automatic Server Migration & Obsolete Role Cleanup (Idempotent)
+	var qcRole domain.Role
+	if err := db.Where("name = ?", "QC_OFFICER").First(&qcRole).Error; err == nil {
+		var verifikatorRole domain.Role
+		if err := db.Where("name = ?", "VERIFIKATOR").First(&verifikatorRole).Error; err == nil {
+			db.Model(&domain.User{}).Where("role_id = ?", verifikatorRole.ID).Update("role_id", qcRole.ID)
+		}
+	}
+	var mgrRole domain.Role
+	if err := db.Where("name = ?", "MANAGER").First(&mgrRole).Error; err == nil {
+		var draftMgrRole domain.Role
+		if err := db.Where("name = ?", "DRAFT_MANAGER").First(&draftMgrRole).Error; err == nil {
+			db.Model(&domain.User{}).Where("role_id = ?", draftMgrRole.ID).Update("role_id", mgrRole.ID)
+		}
+	}
+	// Clean up permissions and obsolete roles if they exist on the server database
+	db.Exec("DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE name IN ('', 'FINANCE', 'AUDIT_MANAGER', 'VERIFIKATOR', 'DRAFT_MANAGER') OR name IS NULL)")
+	db.Exec("DELETE FROM roles WHERE name IN ('', 'FINANCE', 'AUDIT_MANAGER', 'VERIFIKATOR', 'DRAFT_MANAGER') OR name IS NULL")
 
 	// 4.5 Seed Admin User
 	var adminUser domain.User

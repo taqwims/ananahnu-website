@@ -19,7 +19,8 @@ import {
     Edit3,
     CalendarDays,
     Building2,
-    Check
+    Check,
+    ChevronDown
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { operationalService } from '../../services/operationalService';
@@ -488,6 +489,31 @@ export default function OperationalAuditManagement() {
             default:
                 return <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">{status}</span>;
         }
+    };
+
+    const ALL_AUDIT_STATUSES: AuditItem['auditStatus'][] = [
+        'Siap Dijadwalkan',
+        'Draft Jadwal',
+        'Menunggu Konfirmasi',
+        'Terkonfirmasi',
+        'Audit Berlangsung',
+        'Audit Selesai',
+        'Ada Temuan',
+        'Dijadwalkan Ulang',
+        'Dibatalkan'
+    ];
+
+    const handleDirectUpdateStatus = (id: string, newStatus: AuditItem['auditStatus']) => {
+        setAudits(prev => prev.map(item => {
+            if (item.id === id) {
+                return { ...item, auditStatus: newStatus };
+            }
+            return item;
+        }));
+        if (detailItem && detailItem.id === id) {
+            setDetailItem(prev => prev ? { ...prev, auditStatus: newStatus } : null);
+        }
+        toast.success(`Status audit berhasil diubah ke "${newStatus}"`);
     };
 
     const getConfirmBadge = (status: string) => {
@@ -1721,7 +1747,31 @@ export default function OperationalAuditManagement() {
                                                 <td className="py-3 px-3 font-medium text-gray-800">{item.auditDate}</td>
                                                 <td className="py-3 px-3 text-gray-600">{item.location}</td>
                                                 <td className="py-3 px-3">{getConfirmBadge(item.confirmStatus)}</td>
-                                                <td className="py-3 px-3">{getAuditStatusBadge(item.auditStatus)}</td>
+                                                <td className="py-3 px-3">
+                                                    <div className="relative inline-flex items-center">
+                                                        <select
+                                                            value={item.auditStatus}
+                                                            onChange={(e) => handleDirectUpdateStatus(item.id, e.target.value as AuditItem['auditStatus'])}
+                                                            className={`text-[11px] font-bold py-1 pl-2.5 pr-6 rounded-full border cursor-pointer outline-none transition-all appearance-none shadow-2xs ${
+                                                                item.auditStatus === 'Audit Berlangsung' ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100' :
+                                                                item.auditStatus === 'Audit Selesai' ? 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100' :
+                                                                item.auditStatus === 'Terkonfirmasi' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' :
+                                                                item.auditStatus === 'Ada Temuan' ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' :
+                                                                item.auditStatus === 'Dijadwalkan Ulang' ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' :
+                                                                item.auditStatus === 'Dibatalkan' ? 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200' :
+                                                                'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                                            }`}
+                                                            title="Klik untuk langsung ubah status audit"
+                                                        >
+                                                            {ALL_AUDIT_STATUSES.map(st => (
+                                                                <option key={st} value={st} className="bg-white text-gray-800 font-medium">
+                                                                    {st}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <ChevronDown className="w-3 h-3 text-gray-400 absolute right-1.5 pointer-events-none" />
+                                                    </div>
+                                                </td>
                                                 <td className="py-3 px-3 text-gray-600 font-medium">{item.findings}</td>
                                                 <td className="py-3 px-3">
                                                     <span className="font-medium text-gray-700">
@@ -1750,12 +1800,12 @@ export default function OperationalAuditManagement() {
 
                                                         {/* Dropdown Popup */}
                                                         {activeDropdown === item.id && (
-                                                            <div className="absolute right-0 top-8 z-30 w-48 bg-white rounded-2xl shadow-xl border border-gray-150 py-2 text-left text-xs font-semibold text-gray-700 animate-in fade-in zoom-in-95 duration-150">
+                                                            <div className="absolute right-0 top-8 z-30 w-52 bg-white rounded-2xl shadow-xl border border-gray-150 py-2 text-left text-xs font-semibold text-gray-700 animate-in fade-in zoom-in-95 duration-150">
                                                                 <button
                                                                     onClick={() => { setActiveDropdown(null); setDetailItem(item); }}
                                                                     className="w-full px-3.5 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-700 cursor-pointer"
                                                                 >
-                                                                    <Eye className="w-3.5 h-3.5 text-gray-400" /> Lihat Detail
+                                                                    <Eye className="w-3.5 h-3.5 text-gray-400" /> Lihat Detail &amp; Ubah Status
                                                                 </button>
                                                                 <button
                                                                     onClick={() => handleOpenEditSchedule(item)}
@@ -1763,6 +1813,40 @@ export default function OperationalAuditManagement() {
                                                                 >
                                                                     <Edit3 className="w-3.5 h-3.5 text-emerald-600" /> Ubah Jadwal
                                                                 </button>
+                                                                
+                                                                <div className="my-1 border-t border-gray-100 px-3 py-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                                                    Ubah Status Cepat
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setActiveDropdown(null);
+                                                                        handleDirectUpdateStatus(item.id, 'Audit Berlangsung');
+                                                                    }}
+                                                                    className="w-full px-3.5 py-1.5 hover:bg-indigo-50 flex items-center gap-2 text-indigo-700 cursor-pointer text-[11px]"
+                                                                >
+                                                                    <Clock className="w-3 h-3 text-indigo-500" /> Audit Berlangsung
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setActiveDropdown(null);
+                                                                        handleDirectUpdateStatus(item.id, 'Audit Selesai');
+                                                                    }}
+                                                                    className="w-full px-3.5 py-1.5 hover:bg-teal-50 flex items-center gap-2 text-teal-700 cursor-pointer text-[11px]"
+                                                                >
+                                                                    <CheckCircle2 className="w-3 h-3 text-teal-500" /> Audit Selesai
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setActiveDropdown(null);
+                                                                        handleDirectUpdateStatus(item.id, 'Ada Temuan');
+                                                                    }}
+                                                                    className="w-full px-3.5 py-1.5 hover:bg-rose-50 flex items-center gap-2 text-rose-700 cursor-pointer text-[11px]"
+                                                                >
+                                                                    <AlertTriangle className="w-3 h-3 text-rose-500" /> Ada Temuan
+                                                                </button>
+
+                                                                <div className="my-1 border-t border-gray-100"></div>
+
                                                                 <button
                                                                     onClick={async () => {
                                                                         setActiveDropdown(null);
@@ -1787,8 +1871,7 @@ export default function OperationalAuditManagement() {
                                                                 <button
                                                                     onClick={() => {
                                                                         setActiveDropdown(null);
-                                                                        setAudits(prev => prev.map(a => a.id === item.id ? { ...a, auditStatus: 'Dibatalkan' } : a));
-                                                                        toast.success(`Jadwal audit ${item.no} dibatalkan.`);
+                                                                        handleDirectUpdateStatus(item.id, 'Dibatalkan');
                                                                     }}
                                                                     className="w-full px-3.5 py-2 hover:bg-red-50 flex items-center gap-2 text-red-600 cursor-pointer"
                                                                 >
@@ -1905,8 +1988,30 @@ export default function OperationalAuditManagement() {
                             </div>
                             <div className="p-3 bg-gray-50 rounded-2xl border border-gray-150 space-y-1">
                                 <p className="text-gray-400 font-medium">Status &amp; Temuan</p>
-                                <p className="font-bold text-gray-900">{detailItem.auditStatus}</p>
-                                <p className="text-gray-500">Temuan: {detailItem.findings}</p>
+                                <div className="mt-1">{getAuditStatusBadge(detailItem.auditStatus)}</div>
+                                <p className="text-gray-500 mt-1">Temuan: {detailItem.findings}</p>
+                            </div>
+                        </div>
+
+                        {/* Direct Status Selector in Modal */}
+                        <div className="p-4 bg-brand-50/70 rounded-2xl border border-brand-150 space-y-2.5">
+                            <div className="flex items-center justify-between">
+                                <label className="text-brand-900 font-black uppercase text-[10px] tracking-wider flex items-center gap-1.5">
+                                    <Clock className="w-3.5 h-3.5 text-brand-600" /> Ubah Status Audit Langsung:
+                                </label>
+                                <span className="text-[10px] text-gray-500 italic">Tanpa perlu ubah jadwal</span>
+                            </div>
+                            <div className="relative">
+                                <select
+                                    value={detailItem.auditStatus}
+                                    onChange={(e) => handleDirectUpdateStatus(detailItem.id, e.target.value as AuditItem['auditStatus'])}
+                                    className="w-full py-2.5 pl-3 pr-8 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-brand-500 shadow-2xs cursor-pointer appearance-none"
+                                >
+                                    {ALL_AUDIT_STATUSES.map(st => (
+                                        <option key={st} value={st}>{st}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                             </div>
                         </div>
 

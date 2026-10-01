@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { operationalService, type OperationalStats } from '../../services/operationalService';
+import { AuditAgendaPreview } from '../../components/dashboard/audit/AuditAgendaPreview';
 
 // ─── Skeleton Components ───────────────────────────────────────
 const SkeletonPulse = ({ className = '' }: { className?: string }) => (
@@ -629,6 +630,11 @@ export default function OperationalManagerDashboard() {
                         </div>
                     )}
                 </div>
+            </div>
+
+            {/* Audit Agenda & Calendar Preview Widget */}
+            <div className="w-full">
+                <AuditAgendaPreview />
             </div>
 
             {/* Bottom 3 Columns Grid: Status Distribution, Team Workload, Recent Activity */}

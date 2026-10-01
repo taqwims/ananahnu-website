@@ -11,6 +11,7 @@ import type { AuditLog } from '../../types';
 import OperationalManagerDashboard from './OperationalManagerDashboard';
 import MarketingManagerDashboard from './MarketingManagerDashboard';
 import HalalAdvisorDashboard from './HalalAdvisorDashboard';
+import { AuditAgendaPreview } from '../../components/dashboard/audit/AuditAgendaPreview';
 
 interface DashboardStats {
     total_clients: number;
@@ -609,6 +610,11 @@ export default function DashboardHome() {
                         )}
                     </div>
                 </div>
+            </div>
+
+            {/* Audit Agenda & Calendar Preview Widget */}
+            <div className="mt-2">
+                <AuditAgendaPreview />
             </div>
         </div>
     );

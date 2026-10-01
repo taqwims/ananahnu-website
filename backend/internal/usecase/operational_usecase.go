@@ -272,6 +272,25 @@ func (u *operationalUsecase) ScheduleAudit(input domain.ScheduleAuditInput, mana
 		)
 	}
 
+	// Dispatch In-App & WhatsApp notification to assigned Drafter
+	if sub != nil && sub.AssignedDrafterID != nil {
+		drafter, _ := u.userRepo.FindByID(*sub.AssignedDrafterID)
+		if drafter != nil {
+			_ = u.notifUC.CreateNotification(
+				drafter.ID,
+				"Tugas Hasil Audit",
+				fmt.Sprintf("Jadwal audit untuk %s telah ditetapkan pada tanggal %s (LPH: %s, Auditor: %s). Mohon input dan unggah laporan hasil audit di Ruang Kerja Drafter Anda.", businessName, auditDate.Format("02 Jan 2006"), input.LPHName, input.AuditorName),
+				subID,
+			)
+			if drafter.Phone != "" {
+				_ = u.notifUC.SendWhatsAppNotification(
+					drafter.Phone,
+					fmt.Sprintf("Halo %s,\nJadwal audit untuk pengajuan %s telah ditetapkan pada tanggal %s bersama LPH %s (Auditor: %s).\nMohon persiapkan dan unggah laporan hasil audit di Ruang Kerja Drafter Anda setelah audit selesai.\nTerima kasih.", drafter.FullName, businessName, auditDate.Format("02 January 2006"), input.LPHName, input.AuditorName),
+				)
+			}
+		}
+	}
+
 	return nil
 }
 

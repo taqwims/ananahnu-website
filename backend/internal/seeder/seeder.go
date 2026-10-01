@@ -87,8 +87,8 @@ func PerformResetAndSeed(db *gorm.DB) error {
 		"HALAL_ADVISOR", "MARKETING",
 		"CLIENT",
 		"HALAL_MANAGER", "HALAL_DIRECTOR", "ADMIN_PELATIHAN", "ADMIN_KEUANGAN",
-		"BUSINESS_DEVELOPMENT", "DRAFT_MANAGER",
-		"TELEMARKETER", "VERIFIKATOR",
+		"BUSINESS_DEVELOPMENT",
+		"TELEMARKETER",
 	}
 	for _, name := range roles {
 		var role domain.Role
