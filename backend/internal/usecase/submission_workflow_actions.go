@@ -838,6 +838,21 @@ func (uc *submissionWorkflowUsecase) SetAdvisorServiceType(id uuid.UUID, service
 		costDetail.PaymentScheme = paymentScheme
 		costDetail.DPPercentage = dpPercentage
 		_ = uc.BillingConfigRepo.SaveSubmissionCostDetail(costDetail)
+	} else {
+		costDetail = &domain.SubmissionCostDetail{
+			SubmissionID:      id,
+			ProductCategoryID: sub.ProductCategoryID,
+			BusinessTypeID:    sub.BusinessTypeID,
+			BusinessScaleID:   sub.BusinessScaleID,
+			ProvinceID:        sub.ProvinceID,
+			RegencyID:         sub.RegencyID,
+			DistrictID:        sub.DistrictID,
+			ProductCount:      sub.ProductCount,
+			BranchCount:       sub.BranchCount,
+			PaymentScheme:     paymentScheme,
+			DPPercentage:      dpPercentage,
+		}
+		_ = uc.BillingConfigRepo.SaveSubmissionCostDetail(costDetail)
 	}
 
 	// If regular or self declare mandiri, generate / recalculate cost detail accordingly and update status to WAITING_PAYMENT

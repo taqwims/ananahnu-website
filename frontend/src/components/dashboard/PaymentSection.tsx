@@ -33,9 +33,6 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
         accountNo: '1825073247',
         accountName: 'PT. Ana Nahnu Indonesia'
     });
-    // Mode pembayaran: DP (70%) atau Full (100%) — hanya untuk DP invoice
-    const [paymentMode, setPaymentMode] = useState<'DP' | 'FULL'>('DP');
-
     const user = useAuthStore((state) => state.user);
     const isEditable = user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR';
 
@@ -73,6 +70,22 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
 
     const configuredDPPct = submission.cost_detail?.dp_percentage || resolvedInvoice?.percentage || 70;
     const configuredPelunasanPct = 100 - configuredDPPct;
+    const isPaymentSchemeFull = 
+        submission.cost_detail?.payment_scheme === 'FULL' || 
+        resolvedInvoice?.payment_scheme === 'FULL' || 
+        resolvedInvoice?.type === 'FULL' || 
+        submission.service_type === 'SELF_DECLARE_MANDIRI';
+
+    // Mode pembayaran: DP atau Full
+    const [paymentMode, setPaymentMode] = useState<'DP' | 'FULL'>(isPaymentSchemeFull ? 'FULL' : 'DP');
+
+    useEffect(() => {
+        if (isPaymentSchemeFull) {
+            setPaymentMode('FULL');
+        } else if (invoiceType === 'DP') {
+            setPaymentMode('DP');
+        }
+    }, [isPaymentSchemeFull, invoiceType, submission.cost_detail?.payment_scheme, resolvedInvoice?.payment_scheme, resolvedInvoice?.type]);
 
     // Sync amount from submission.cost_detail (primary source) or resolvedInvoice + paymentMode
     useEffect(() => {
@@ -92,12 +105,10 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
         if (total > 0) {
             if (invoiceType === 'PELUNASAN') {
                 setAmount(Math.round(total * (configuredPelunasanPct / 100)));
+            } else if (isPaymentSchemeFull || paymentMode === 'FULL' || invoiceType === 'FULL') {
+                setAmount(Math.round(total));
             } else if (invoiceType === 'DP') {
-                if (paymentMode === 'FULL') {
-                    setAmount(Math.round(total));
-                } else {
-                    setAmount(Math.round(total * (configuredDPPct / 100)));
-                }
+                setAmount(Math.round(total * (configuredDPPct / 100)));
             } else {
                 setAmount(Math.round(total));
             }
@@ -111,7 +122,7 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
                 .catch(err => console.error("Failed to load cost config", err))
                 .finally(() => setLoadingConfig(false));
         }
-    }, [submission, submission.id, submission.cost_detail?.total_amount, submission.service_type, resolvedInvoice, invoiceType, paymentMode, configuredDPPct, configuredPelunasanPct]);
+    }, [submission, submission.id, submission.cost_detail?.total_amount, submission.service_type, resolvedInvoice, invoiceType, paymentMode, isPaymentSchemeFull, configuredDPPct, configuredPelunasanPct]);
 
     // Load payment history for this submission
     const loadHistory = useCallback(async () => {
@@ -297,8 +308,8 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
 
     // Invoice type display label
     const invoiceLabel = invoiceType === 'PELUNASAN' ? `Pelunasan (${configuredPelunasanPct}%)`
-        : invoiceType === 'DP' ? `Down Payment (${configuredDPPct}%)`
-            : 'Pembayaran';
+        : isPaymentSchemeFull || paymentMode === 'FULL' || invoiceType === 'FULL' ? 'Pembayaran Penuh (100%)'
+        : `Down Payment (${configuredDPPct}%)`;
 
     // Check for existing paid/pending payments or paid invoice
     const foundPayment = paymentHistory.find(p => p.status === 'PAID' && (resolvedInvoice ? p.invoice_id === resolvedInvoice.id : true));
@@ -514,13 +525,15 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
                 </div>
                 <p className="text-xs sm:text-sm text-gray-500 mt-1">
                     {invoiceType === 'PELUNASAN'
-                        ? 'Selesaikan pembayaran pelunasan 30% untuk mengunduh Sertifikat Halal Anda.'
-                        : 'Silakan selesaikan pembayaran untuk melanjutkan proses verifikasi.'}
+                        ? `Selesaikan pembayaran pelunasan ${configuredPelunasanPct}% untuk mengunduh Sertifikat Halal Anda.`
+                        : isPaymentSchemeFull || paymentMode === 'FULL' || invoiceType === 'FULL'
+                            ? 'Silakan selesaikan pembayaran penuh (100%) untuk melanjutkan proses verifikasi.'
+                            : `Silakan selesaikan pembayaran Down Payment (${configuredDPPct}%) untuk melanjutkan proses verifikasi.`}
                 </p>
             </div>
 
             {/* Toggle DP vs Full Payment */}
-            {invoiceType === 'DP' && resolvedInvoice && (resolvedInvoice.type === 'DP' || resolvedInvoice.type === 'FULL') && (
+            {invoiceType === 'DP' && !isPaymentSchemeFull && resolvedInvoice && (resolvedInvoice.type === 'DP' || resolvedInvoice.type === 'FULL') && (
                 <div>
                     <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">Mode Pembayaran</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -541,9 +554,9 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
                                 <span className={`text-sm font-bold truncate ${paymentMode === 'DP' ? 'text-amber-700' : 'text-gray-600'
                                     }`}>Down Payment</span>
                                 <span className={`ml-auto text-xs font-black px-2 py-0.5 rounded-full shrink-0 ${paymentMode === 'DP' ? 'bg-amber-200 text-amber-800' : 'bg-gray-100 text-gray-500'
-                                    }`}>70%</span>
+                                    }`}>{configuredDPPct}%</span>
                             </div>
-                            <p className="text-xs text-gray-400 ml-6">Bayar sebagian, lunasi saat SH terbit</p>
+                            <p className="text-xs text-gray-400 ml-6">Bayar sebagian ({configuredDPPct}%), lunasi saat SH terbit ({configuredPelunasanPct}%)</p>
                         </button>
 
                         <button

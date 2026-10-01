@@ -236,7 +236,8 @@ func (r *billingConfigRepo) SaveSubmissionCostDetail(detail *domain.SubmissionCo
 		DoUpdates: clause.AssignmentColumns([]string{
 			"product_category_id", "business_type_id", "business_scale_id",
 			"province_id", "regency_id", "district_id",
-			"product_count", "branch_count", "total_amount", "cost_breakdown_data", "updated_at",
+			"product_count", "branch_count", "total_amount", "cost_breakdown_data",
+			"payment_scheme", "dp_percentage", "updated_at",
 		}),
 	}).Create(detail).Error
 }

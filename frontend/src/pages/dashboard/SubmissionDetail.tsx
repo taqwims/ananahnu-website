@@ -519,7 +519,7 @@ export default function SubmissionDetail() {
                                                     submission={submission}
                                                     fieldValues={fieldValues}
                                                     onPaymentSuccess={refresh}
-                                                    invoiceType={invoice?.type === 'PELUNASAN' ? 'PELUNASAN' : 'DP'}
+                                                    invoiceType={invoice?.type === 'PELUNASAN' ? 'PELUNASAN' : (submission.cost_detail?.payment_scheme === 'FULL' || invoice?.type === 'FULL' ? 'FULL' : 'DP')}
                                                 />
                                             )}
 
@@ -852,6 +852,7 @@ export default function SubmissionDetail() {
                                 submission={submission}
                                 fieldValues={fieldValues}
                                 onPaymentSuccess={refresh}
+                                invoiceType={invoice?.type === 'PELUNASAN' ? 'PELUNASAN' : (submission.cost_detail?.payment_scheme === 'FULL' || invoice?.type === 'FULL' ? 'FULL' : 'DP')}
                             />
                         )}
 

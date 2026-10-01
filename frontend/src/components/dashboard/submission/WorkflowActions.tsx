@@ -83,6 +83,24 @@ export const WorkflowActions = ({
     const effectiveDrafterId = selectedDrafterId || submission.assigned_drafter_id || '';
 
     useEffect(() => {
+        if (submission.service_type && submission.service_type !== 'PENDING_CONSULTATION') {
+            setSelectedServiceType(submission.service_type);
+        }
+        if (submission.self_declare_type) {
+            setSelectedSelfDeclareType(submission.self_declare_type);
+        }
+        if (submission.cost_detail?.payment_scheme) {
+            setSelectedPaymentScheme(submission.cost_detail.payment_scheme === 'FULL' ? 'FULL' : 'TERMIN');
+        }
+        if (submission.cost_detail?.dp_percentage) {
+            setSelectedDPPercentage(submission.cost_detail.dp_percentage);
+            if (![50, 60, 70, 80].includes(submission.cost_detail.dp_percentage)) {
+                setCustomDPPercentage(String(submission.cost_detail.dp_percentage));
+            }
+        }
+    }, [submission.service_type, submission.self_declare_type, submission.cost_detail?.payment_scheme, submission.cost_detail?.dp_percentage]);
+
+    useEffect(() => {
         if (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) {
             submissionService.getDrafters().then(setDrafters).catch(() => toast.error('Gagal memuat data drafter'));
         }
