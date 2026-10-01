@@ -27,7 +27,7 @@ const Header = ({ toggleSidebar }: { toggleSidebar: () => void }) => {
     };
 
     return (
-        <header className="glass-panel mx-4 mt-4 lg:mx-0 lg:mr-4 p-4 flex items-center justify-between sticky top-4 z-30">
+        <header className="glass-panel mx-2 mt-2 sm:mx-4 sm:mt-4 lg:mx-0 lg:mr-4 px-3 py-2.5 sm:p-4 flex items-center justify-between sticky top-2 sm:top-4 z-30">
             <div className="flex items-center gap-4">
                 <button onClick={toggleSidebar} className="lg:hidden p-2 hover:bg-white/50 rounded-lg text-gray-600">
                     <Menu className="w-6 h-6" />

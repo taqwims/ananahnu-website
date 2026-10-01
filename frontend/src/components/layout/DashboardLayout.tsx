@@ -35,7 +35,7 @@ export default function DashboardLayout() {
             <div className="flex-1 flex flex-col h-full overflow-hidden relative">
                 <Header toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 
-                <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 lg:p-6">
+                <main className="flex-1 overflow-x-hidden overflow-y-auto px-2 py-3 sm:p-4 lg:p-6">
                     <Outlet />
                 </main>
             </div>

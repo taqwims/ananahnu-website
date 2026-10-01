@@ -16,7 +16,7 @@ import api from '../../services/api';
 import type { BusinessType } from '../../types';
 import ContractTextPreview from '../../components/dashboard/submission/ContractTextPreview';
 import { submissionService } from '../../services/submissionService';
-import { resolveFileUrl } from '../../utils/format';
+import { resolveFileUrl, formatCurrency } from '../../utils/format';
 import toast from 'react-hot-toast';
 
 export default function SubmissionDetail() {
@@ -107,6 +107,26 @@ export default function SubmissionDetail() {
                         setActiveTab('PAYMENT');
                     };
 
+                    const handleDownloadInvoice = async (type?: 'DP' | 'PELUNASAN' | 'FULL') => {
+                        if (!id) return;
+                        try {
+                            const toastId = toast.loading(`Mengunduh Invoice / Kwitansi Resmi...`);
+                            const urlParam = type ? `?type=${type}` : '';
+                            const res = await api.get(`/documents/submissions/${id}/invoice-pdf${urlParam}`, { responseType: 'blob' });
+                            const url = window.URL.createObjectURL(new Blob([res.data]));
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.setAttribute('download', `Invoice_${type || 'Lunas'}_${submission.client?.business_name || 'Pelanggan'}.pdf`);
+                            document.body.appendChild(link);
+                            link.click();
+                            link.remove();
+                            toast.success('Invoice berhasil diunduh', { id: toastId });
+                        } catch (error) {
+                            toast.error('Gagal mengunduh invoice');
+                            console.error('Download error:', error);
+                        }
+                    };
+
                     return (
                         <>
                             <div className="flex border-b border-gray-200 gap-1.5 sm:gap-3 overflow-x-auto pb-px no-scrollbar select-none">
@@ -138,7 +158,7 @@ export default function SubmissionDetail() {
                                     )}
                                     <span>2. Dokumen Kontrak & Biaya</span>
                                     {!isTab2Unlocked ? (
-                                        <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full font-bold shrink-0">Terkunci</span>
+                                        <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full font-bold shrink-0">Terkunci</span>
                                     ) : isContractVerified ? (
                                         <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold shrink-0">Terverifikasi</span>
                                     ) : null}
@@ -153,13 +173,13 @@ export default function SubmissionDetail() {
                                     }`}
                                 >
                                     {!isTab3Unlocked ? (
-                                        <Lock className="w-4 h-4 text-gray-400 shrink-0" />
+                                        <Lock className="w-4 h-4 text-amber-500 shrink-0" />
                                     ) : (
                                         <CreditCard className="w-4 h-4 shrink-0" />
                                     )}
                                     <span>3. Pembayaran</span>
                                     {!isTab3Unlocked ? (
-                                        <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-bold shrink-0">Terkunci</span>
+                                        <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full font-bold shrink-0">Terkunci</span>
                                     ) : isPaid ? (
                                         <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold shrink-0">Lunas</span>
                                     ) : (
@@ -176,13 +196,13 @@ export default function SubmissionDetail() {
                                     }`}
                                 >
                                     {!isTab4Unlocked ? (
-                                        <Lock className="w-4 h-4 text-gray-400 shrink-0" />
+                                        <Lock className="w-4 h-4 text-amber-500 shrink-0" />
                                     ) : (
                                         <ShieldCheck className="w-4 h-4 shrink-0" />
                                     )}
                                     <span>4. Dokumen SJPH & Unduhan</span>
                                     {!isTab4Unlocked ? (
-                                        <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-bold shrink-0">Terkunci</span>
+                                        <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full font-bold shrink-0">Terkunci</span>
                                     ) : submission.sjph_approved_at ? (
                                         <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold shrink-0">Disetujui</span>
                                     ) : submission.status === 'REVIEW_SJPH_CLIENT' ? (
@@ -359,27 +379,27 @@ export default function SubmissionDetail() {
                             {activeTab === 'CONTRACT' && (
                                 <div className="space-y-6">
                                     {!isTab2Unlocked ? (
-                                        <div className="p-8 sm:p-10 rounded-3xl bg-gradient-to-br from-slate-900 via-brand-950 to-slate-900 text-white text-center space-y-5 border border-white/10 shadow-2xl relative overflow-hidden">
-                                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-white/10 backdrop-blur-md text-gold-400 flex items-center justify-center mx-auto border border-white/20 shadow-inner">
-                                                <Lock className="w-8 h-8 sm:w-10 sm:h-10 text-gold-400" />
+                                        <div className="p-6 sm:p-8 rounded-3xl bg-slate-900 border border-slate-800 text-white text-center space-y-4 shadow-xl relative overflow-hidden">
+                                            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/10 backdrop-blur-md text-amber-400 flex items-center justify-center mx-auto border border-white/20 shadow-inner">
+                                                <Lock className="w-7 h-7 sm:w-8 sm:h-8 text-amber-400" />
                                             </div>
                                             <div className="space-y-2 max-w-lg mx-auto">
-                                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-black uppercase tracking-wider border border-amber-400/30">
-                                                    <ShieldCheck className="w-3.5 h-3.5" />
-                                                    Dokumen Terkunci &amp; Terenkripsi
+                                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-black uppercase tracking-wider border border-amber-400/30">
+                                                    <Lock className="w-3.5 h-3.5 text-amber-400" />
+                                                    Dokumen Terkunci
                                                 </div>
                                                 <h3 className="text-lg sm:text-xl font-black tracking-tight text-white">
-                                                    Menunggu Penetapan Layanan &amp; Biaya oleh Advisor
+                                                    Dokumen Kontrak &amp; Biaya Terkunci
                                                 </h3>
-                                                <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">
-                                                    Pendamping Halal (Advisor) yang bertugas sedang menelaah profil usaha, kapasitas produk, dan dokumen yang Anda unggah untuk menentukan skema sertifikasi (Self Declare / Reguler) serta perhitungan biaya resmi. Dokumen Kontrak Layanan dan rincian biaya akan terbuka otomatis setelah ditentukan oleh advisor.
+                                                <p className="text-xs sm:text-sm text-gray-300 leading-relaxed font-medium">
+                                                    Pendamping Halal (Advisor) yang bertugas sedang menelaah profil usaha, kapasitas produk, dan dokumen yang Anda unggah untuk menentukan skema sertifikasi (Self Declare / Reguler) serta perhitungan biaya resmi. Dokumen Kontrak Layanan dan rincian biaya akan terbuka otomatis setelah ditentukan oleh Halal Advisor.
                                                 </p>
                                             </div>
                                             <div className="pt-2">
                                                 <button
                                                     type="button"
                                                     onClick={() => setActiveTab('DATA')}
-                                                    className="px-6 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-xs font-bold transition-all border border-white/20"
+                                                    className="px-5 py-2.5 bg-white/15 hover:bg-white/25 active:scale-95 text-white rounded-xl text-xs font-bold transition-all border border-white/20 cursor-pointer"
                                                 >
                                                     Kembali ke Tab 1: Data Pengajuan
                                                 </button>
@@ -463,52 +483,103 @@ export default function SubmissionDetail() {
                             {activeTab === 'PAYMENT' && (
                                 <div className="space-y-6">
                                     {!isTab3Unlocked ? (
-                                        <div className="p-6 sm:p-8 rounded-3xl bg-amber-50 border border-amber-200 text-center space-y-4">
-                                            <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
-                                                <Lock className="w-6 h-6" />
+                                        <div className="p-6 sm:p-8 rounded-3xl bg-slate-900 border border-slate-800 text-white text-center space-y-4 shadow-xl relative overflow-hidden">
+                                            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/10 backdrop-blur-md text-amber-400 flex items-center justify-center mx-auto border border-white/20 shadow-inner">
+                                                <Lock className="w-7 h-7 sm:w-8 sm:h-8 text-amber-400" />
                                             </div>
-                                            <div className="space-y-1.5 max-w-md mx-auto">
-                                                <h4 className="text-sm sm:text-base font-black text-amber-900">
-                                                    {!isTab2Unlocked ? 'Tahap Pembayaran Belum Tersedia' : 'Verifikasi Kontrak Layanan Terlebih Dahulu'}
-                                                </h4>
-                                                <p className="text-xs text-amber-700 leading-relaxed font-medium">
+                                            <div className="space-y-2 max-w-lg mx-auto">
+                                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-black uppercase tracking-wider border border-amber-400/30">
+                                                    <Lock className="w-3.5 h-3.5 text-amber-400" />
+                                                    Dokumen Terkunci
+                                                </div>
+                                                <h3 className="text-lg sm:text-xl font-black tracking-tight text-white">
+                                                    Dokumen Pembayaran Terkunci
+                                                </h3>
+                                                <p className="text-xs sm:text-sm text-gray-300 leading-relaxed font-medium">
                                                     {!isTab2Unlocked
-                                                        ? 'Layanan dan skema biaya belum ditentukan oleh Advisor. Harap tunggu penetapan dari Advisor pada Tab 2.'
-                                                        : 'Sesuai SOP, Anda wajib membaca dan memverifikasi Dokumen Kontrak Layanan pada Tab 2 sebelum dapat melakukan pembayaran tagihan.'
+                                                        ? 'Layanan dan skema biaya belum ditentukan oleh Halal Advisor. Harap tunggu penetapan dari Advisor pada Tab 2.'
+                                                        : 'Sesuai SOP sertifikasi, Anda wajib membaca dan memverifikasi Dokumen Kontrak Layanan pada Tab 2 terlebih dahulu sebelum dapat melakukan pembayaran tagihan.'
                                                     }
                                                 </p>
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setActiveTab('CONTRACT')}
-                                                className="w-full sm:w-auto px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl text-xs font-bold shadow-lg shadow-amber-600/25 transition-all inline-flex items-center justify-center gap-2 active:scale-95"
-                                            >
-                                                <span>Buka Tab 2: Dokumen Kontrak</span>
-                                                <FileCheck className="w-4 h-4" />
-                                            </button>
+                                            <div className="pt-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setActiveTab('CONTRACT')}
+                                                    className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 rounded-xl text-xs font-black transition-all shadow-md inline-flex items-center justify-center gap-2 cursor-pointer"
+                                                >
+                                                    <FileCheck className="w-4 h-4" />
+                                                    <span>Buka Tab 2: Dokumen Kontrak</span>
+                                                </button>
+                                            </div>
                                         </div>
                                     ) : (
                                         <>
                                             {isPaid && (
-                                                <div className="p-4 sm:p-6 rounded-3xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-3">
-                                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                                                        <div className="flex items-start sm:items-center gap-3 min-w-0">
-                                                            <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5 sm:mt-0" />
-                                                            <div className="min-w-0">
-                                                                <h4 className="text-sm font-black text-emerald-950">Pembayaran Telah Selesai (Lunas)</h4>
-                                                                <p className="text-xs text-emerald-800 font-medium">
-                                                                    Kewajiban pembayaran telah terpenuhi. Dokumen SJPH dan berkas unduhan kini dapat diakses di Tab 4.
+                                                <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-emerald-50/40 border-2 border-emerald-300 text-emerald-950 shadow-sm space-y-4">
+                                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-emerald-100 pb-4">
+                                                        <div className="flex items-start sm:items-center gap-3">
+                                                            <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20">
+                                                                <CheckCircle2 className="w-6 h-6" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <h4 className="text-base font-black text-emerald-950">Pembayaran Lunas &amp; Terverifikasi</h4>
+                                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-600 text-white">
+                                                                        LUNAS
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-xs text-emerald-800 font-medium mt-0.5">
+                                                                    Kewajiban pembayaran telah terpenuhi. Dokumen SJPH &amp; seluruh berkas unduhan dapat diakses di Tab 4.
                                                                 </p>
                                                             </div>
                                                         </div>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setActiveTab('SJPH')}
-                                                            className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-95 shrink-0"
-                                                        >
-                                                            <span>Buka Dokumen di Tab 4</span>
-                                                            <ShieldCheck className="w-4 h-4" />
-                                                        </button>
+                                                        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleDownloadInvoice()}
+                                                                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-xl font-bold text-xs shadow-2xs transition-all cursor-pointer"
+                                                            >
+                                                                <Download className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                                                                <span>Unduh Invoice (PDF)</span>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setActiveTab('SJPH')}
+                                                                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs shadow-md shadow-emerald-600/20 transition-all active:scale-95 cursor-pointer"
+                                                            >
+                                                                <span>Buka Tab 4 (Dokumen SJPH)</span>
+                                                                <ShieldCheck className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Detail Transaksi Pembayaran */}
+                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                                                        <div className="p-3 bg-white rounded-xl border border-emerald-100 shadow-2xs">
+                                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">No. Kwitansi / Ref</span>
+                                                            <span className="font-mono font-bold text-gray-800 text-xs truncate block mt-0.5">
+                                                                {(submission as any).nomor_pembayaran || (invoice as any)?.nomor_invoice || ((submission as any).registration_number ? `INV-${(submission as any).registration_number}` : `INV-${submission.id.substring(0, 8).toUpperCase()}`)}
+                                                            </span>
+                                                        </div>
+                                                        <div className="p-3 bg-white rounded-xl border border-emerald-100 shadow-2xs">
+                                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Terbayar</span>
+                                                            <span className="font-bold text-emerald-700 text-xs truncate block mt-0.5">
+                                                                {formatCurrency(submission.cost_detail?.total_amount || invoice?.amount || 0)}
+                                                            </span>
+                                                        </div>
+                                                        <div className="p-3 bg-white rounded-xl border border-emerald-100 shadow-2xs">
+                                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Skema Layanan</span>
+                                                            <span className="font-bold text-gray-800 text-xs truncate block mt-0.5">
+                                                                {submission.service_type === 'SELF_DECLARE' ? 'Self Declare (Fasilitasi)' : 'Reguler (Pendampingan)'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="p-3 bg-white rounded-xl border border-emerald-100 shadow-2xs">
+                                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Status Verifikasi</span>
+                                                            <span className="font-bold text-emerald-700 text-xs flex items-center gap-1 mt-0.5">
+                                                                <CheckCircle2 className="w-3.5 h-3.5" /> Terverifikasi Keuangan
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             )}
@@ -547,24 +618,32 @@ export default function SubmissionDetail() {
                             {activeTab === 'SJPH' && (
                                 <div className="space-y-6">
                                     {!isTab4Unlocked ? (
-                                        <div className="p-6 sm:p-8 rounded-3xl bg-slate-50 border border-slate-200 text-center space-y-4">
-                                            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center mx-auto">
-                                                <Lock className="w-6 h-6 sm:w-7 sm:h-7" />
+                                        <div className="p-6 sm:p-8 rounded-3xl bg-slate-900 border border-slate-800 text-white text-center space-y-4 shadow-xl relative overflow-hidden">
+                                            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/10 backdrop-blur-md text-amber-400 flex items-center justify-center mx-auto border border-white/20 shadow-inner">
+                                                <Lock className="w-7 h-7 sm:w-8 sm:h-8 text-amber-400" />
                                             </div>
-                                            <div className="space-y-1.5 max-w-md mx-auto">
-                                                <h4 className="text-sm sm:text-base font-black text-slate-900">Dokumen SJPH &amp; Unduhan Masih Terkunci</h4>
-                                                <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                                                    Dokumen SJPH dan berkas pengajuan hanya dapat diakses setelah kewajiban pembayaran tagihan diselesaikan pada Tab 3.
+                                            <div className="space-y-2 max-w-lg mx-auto">
+                                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-black uppercase tracking-wider border border-amber-400/30">
+                                                    <Lock className="w-3.5 h-3.5 text-amber-400" />
+                                                    Dokumen Terkunci
+                                                </div>
+                                                <h3 className="text-lg sm:text-xl font-black tracking-tight text-white">
+                                                    Dokumen SJPH &amp; Unduhan Terkunci
+                                                </h3>
+                                                <p className="text-xs sm:text-sm text-gray-300 leading-relaxed font-medium">
+                                                    Dokumen Manual SJPH dan seluruh berkas pengajuan sertifikasi hanya dapat diakses dan diunduh setelah kewajiban pembayaran tagihan diselesaikan pada Tab 3.
                                                 </p>
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setActiveTab('PAYMENT')}
-                                                className="w-full sm:w-auto px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl text-xs font-bold shadow-lg shadow-brand-600/25 transition-all inline-flex items-center justify-center gap-2 active:scale-95"
-                                            >
-                                                <span>Buka Tab 3: Pembayaran</span>
-                                                <CreditCard className="w-4 h-4" />
-                                            </button>
+                                            <div className="pt-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setActiveTab('PAYMENT')}
+                                                    className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 rounded-xl text-xs font-black transition-all shadow-md inline-flex items-center justify-center gap-2 cursor-pointer"
+                                                >
+                                                    <CreditCard className="w-4 h-4" />
+                                                    <span>Buka Tab 3: Pembayaran</span>
+                                                </button>
+                                            </div>
                                         </div>
                                     ) : (
                                         <>
