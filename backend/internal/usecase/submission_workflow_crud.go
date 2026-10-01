@@ -58,7 +58,34 @@ func (uc *submissionWorkflowUsecase) GetSubmissions(userID uuid.UUID, role strin
 }
 
 func (uc *submissionWorkflowUsecase) GetSubmission(id uuid.UUID) (*domain.Submission, error) {
-	return uc.SubmissionRepo.FindByID(id)
+	sub, err := uc.SubmissionRepo.FindByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	needsUpdate := false
+	now := time.Now()
+	if sub.TrackingNumber == nil || *sub.TrackingNumber == "" {
+		randomPart := strings.ToUpper(uuid.New().String()[:4])
+		trackingNo := fmt.Sprintf("AN-%s-%s", now.Format("0601"), randomPart)
+		sub.TrackingNumber = &trackingNo
+		_ = uc.SubmissionRepo.UpdateTrackingNumber(id, trackingNo)
+	}
+
+	if (sub.ServiceType == "REGULER" || sub.ServiceType == "SELF_DECLARE_MANDIRI") && (sub.ContractNumber == nil || *sub.ContractNumber == "") {
+		count, err := uc.SubmissionRepo.CountSubmissionsWithContractInYear(now.Year())
+		if err == nil {
+			contractNum := fmt.Sprintf("HC/PK-SH/%d/%05d", now.Year(), count+1)
+			sub.ContractNumber = &contractNum
+			needsUpdate = true
+		}
+	}
+
+	if needsUpdate {
+		_ = uc.SubmissionRepo.Update(sub)
+	}
+
+	return sub, nil
 }
 
 func (uc *submissionWorkflowUsecase) GetHistory(id uuid.UUID) ([]domain.AuditLog, error) {
@@ -309,12 +336,27 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 		}
 	}
 
+	now := time.Now()
+	randomPart := strings.ToUpper(uuid.New().String()[:4])
+	trackingNo := fmt.Sprintf("AN-%s-%s", now.Format("0601"), randomPart)
+
+	var contractNumPtr *string
+	if input.ClientData.ServiceType == "REGULER" || input.ClientData.ServiceType == "SELF_DECLARE_MANDIRI" {
+		count, err := uc.SubmissionRepo.CountSubmissionsWithContractInYear(now.Year())
+		if err == nil {
+			contractNum := fmt.Sprintf("HC/PK-SH/%d/%05d", now.Year(), count+1)
+			contractNumPtr = &contractNum
+		}
+	}
+
 	// 2. Create Submission
 	sub := &domain.Submission{
 		ID:                uuid.New(),
 		ClientID:          client.ID,
 		Status:            domain.StatusDraft,
 		ServiceType:       input.ClientData.ServiceType,
+		TrackingNumber:    &trackingNo,
+		ContractNumber:    contractNumPtr,
 		DataSource:        dataSource,
 		ConsultantID:      consultantIDPtr,
 		BusinessTypeID:    input.ClientData.BusinessTypeID,
@@ -326,8 +368,8 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 		ProductCount:      input.ClientData.ProductCount,
 		BranchCount:       input.ClientData.BranchCount,
 		SalesSchemeID:     &defaultSalesSchemeID,
-		CreatedAt:         time.Now(),
-		UpdatedAt:         time.Now(),
+		CreatedAt:         now,
+		UpdatedAt:         now,
 	}
 
 	if err := uc.SubmissionRepo.Create(sub); err != nil {

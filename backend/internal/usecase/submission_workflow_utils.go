@@ -4,6 +4,8 @@ import (
 	"ananahnu/internal/domain"
 	"fmt"
 	"log"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -25,6 +27,28 @@ func (uc *submissionWorkflowUsecase) HandlePaymentSuccess(id uuid.UUID, amount f
 	}
 
 	log.Printf("[WORKFLOW] Handling payment success for submission %s, amount %f", id, amount)
+
+	now := time.Now()
+	needsSubUpdate := false
+	if sub.TrackingNumber == nil || *sub.TrackingNumber == "" {
+		randomPart := strings.ToUpper(uuid.New().String()[:4])
+		trackingNo := fmt.Sprintf("AN-%s-%s", now.Format("0601"), randomPart)
+		sub.TrackingNumber = &trackingNo
+		_ = uc.SubmissionRepo.UpdateTrackingNumber(id, trackingNo)
+	}
+
+	if (sub.ServiceType == "REGULER" || sub.ServiceType == "SELF_DECLARE_MANDIRI") && (sub.ContractNumber == nil || *sub.ContractNumber == "") {
+		count, err := uc.SubmissionRepo.CountSubmissionsWithContractInYear(now.Year())
+		if err == nil {
+			contractNum := fmt.Sprintf("HC/PK-SH/%d/%05d", now.Year(), count+1)
+			sub.ContractNumber = &contractNum
+			needsSubUpdate = true
+		}
+	}
+
+	if needsSubUpdate {
+		_ = uc.SubmissionRepo.Update(sub)
+	}
 
 	// Update status if it was waiting for payment
 	if sub.Status == domain.StatusWaitingPayment {

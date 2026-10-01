@@ -303,11 +303,25 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
                     <tbody>
                         <tr>
                             <td className="w-1/3 border border-gray-200 bg-sky-50/50 p-2.5 font-bold text-sky-900">Nomor Pengajuan</td>
-                            <td className="border border-gray-200 p-2.5 text-gray-700">{submission.tracking_number || '-'}</td>
+                            <td className="border border-gray-200 p-2.5 text-gray-700 font-mono font-bold">{submission.tracking_number || '-'}</td>
                         </tr>
                         <tr>
                             <td className="border border-gray-200 bg-sky-50/50 p-2.5 font-bold text-sky-900">Status Dokumen</td>
-                            <td className="border border-gray-200 p-2.5 font-bold text-gray-700">{(submission.status as string) === 'READY_FOR_SIGNATURE' ? 'READY FOR SIGNATURE' : (submission.status as string) === 'SIGNED' ? 'SIGNED' : 'DRAFT'}</td>
+                            <td className="border border-gray-200 p-2.5 font-bold text-gray-700">
+                                {(() => {
+                                    const isPaidOrActive = Boolean(
+                                        submission.invoice?.status === 'PAID' ||
+                                        submission.invoices?.some(inv => inv.status === 'PAID') ||
+                                        submission.payments?.some(p => p.status === 'PAID') ||
+                                        ['QC_OFFICER', 'DRAFTER', 'QC_REVIEW', 'SUBMITTED_TO_BPJPH', 'SIDANG_FATWA', 'SH_TERBIT', 'COMPLETED', 'SIGNED'].includes(submission.status as string)
+                                    );
+                                    if (isPaidOrActive) return <span className="text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">AKTIF / SIGNED (EFEKTIF)</span>;
+                                    if ((submission.status as string) === 'WAITING_PAYMENT' || (submission.status as string) === 'READY_FOR_SIGNATURE') {
+                                        return <span className="text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">MENUNGGU PEMBAYARAN</span>;
+                                    }
+                                    return <span className="text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">DRAFT</span>;
+                                })()}
+                            </td>
                         </tr>
                         <tr>
                             <td className="border border-gray-200 bg-sky-50/50 p-2.5 font-bold text-sky-900">Skema / Paket</td>
@@ -321,13 +335,34 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
                 </table>
             </div>
 
-            {/* Orange Notice Block */}
-            <div className="bg-slate-50 border border-slate-200 p-4 rounded-lg font-sans">
-                <p className="text-xs text-slate-700">
-                    <strong className="text-amber-700">PENTING. </strong>
-                    Dokumen berstatus DRAFT belum mengikat Para Pihak. Perjanjian menjadi efektif setelah ditandatangani oleh kedua pihak dan persyaratan mulai layanan pada Pasal 6 terpenuhi.
-                </p>
-            </div>
+            {/* Notice Block */}
+            {(() => {
+                const isPaidOrActive = Boolean(
+                    submission.invoice?.status === 'PAID' ||
+                    submission.invoices?.some(inv => inv.status === 'PAID') ||
+                    submission.payments?.some(p => p.status === 'PAID') ||
+                    ['QC_OFFICER', 'DRAFTER', 'QC_REVIEW', 'SUBMITTED_TO_BPJPH', 'SIDANG_FATWA', 'SH_TERBIT', 'COMPLETED', 'SIGNED'].includes(submission.status as string)
+                );
+                return (
+                    <div className={`p-4 rounded-lg font-sans border ${
+                        isPaidOrActive ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                        <p className="text-xs text-slate-700">
+                            {isPaidOrActive ? (
+                                <>
+                                    <strong className="text-emerald-700">DOKUMEN EFEKTIF & BERLAKU. </strong>
+                                    Perjanjian ini telah sah, mengikat Para Pihak, dan persyaratan pembayaran telah dipenuhi untuk pelaksanaan pendampingan sertifikasi halal.
+                                </>
+                            ) : (
+                                <>
+                                    <strong className="text-amber-700">PENTING. </strong>
+                                    Dokumen berstatus DRAFT belum mengikat Para Pihak. Perjanjian menjadi efektif setelah pembayaran dipenuhi sesuai ketentuan pada Pasal 6.
+                                </>
+                            )}
+                        </p>
+                    </div>
+                );
+            })()}
 
             {/* Intro */}
             <div className="space-y-4 font-sans text-xs text-gray-700 text-justify">
@@ -421,7 +456,13 @@ export default function ContractTextPreview({ submission }: ContractTextPreviewP
                     <h4 className="font-bold text-center uppercase mb-1 text-sky-900">PASAL 7</h4>
                     <h5 className="font-bold text-center uppercase mb-2 text-sky-900">BIAYA, DAN PEMBAYARAN</h5>
                     <p className="pl-6 -indent-6">    (1)  Nilai Perjanjian adalah sebesar {formatRupiah(totalAmount)} ({submission.cost_detail?.total_amount ? 'Terbilang Terlampir' : '-'}), dengan rincian pada Lampiran 1.</p>
-                    <p className="pl-6 -indent-6">    (2)  Pembayaran dilakukan 100% ketika tanda tangan kontrak.</p>
+                    <p className="pl-6 -indent-6">
+                        {submission.cost_detail?.payment_scheme && submission.cost_detail.payment_scheme !== 'FULL' && (submission.cost_detail.dp_percentage || 0) > 0 ? (
+                            `    (2)  Pembayaran dilakukan dengan skema Uang Muka (DP) sebesar ${submission.cost_detail.dp_percentage}% pada saat penandatanganan kontrak, dan pelunasan sisanya sebesar ${100 - (submission.cost_detail.dp_percentage || 0)}% sebelum penerbitan sertifikat / penyelesaian layanan.`
+                        ) : (
+                            '    (2)  Pembayaran dilakukan 100% ketika tanda tangan kontrak.'
+                        )}
+                    </p>
                     <p className="pl-6 -indent-6">    (3)  Setiap perubahan nilai Perjanjian wajib tercatat dalam dashboard, invoice, atau addendum yang disetujui Para Pihak.</p>
                 </div>
 

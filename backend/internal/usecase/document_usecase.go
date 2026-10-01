@@ -81,25 +81,72 @@ func (uc *documentUsecase) GenerateContract(submissionID uuid.UUID, format strin
 	}
 
 	contractNum := "DRAFT"
-	if submission.ContractNumber != nil {
+	if submission.ContractNumber != nil && *submission.ContractNumber != "" {
 		contractNum = *submission.ContractNumber
 	}
 	vars["{{contract_number}}"] = contractNum
 
+	if submission.TrackingNumber == nil || *submission.TrackingNumber == "" {
+		randomPart := strings.ToUpper(uuid.New().String()[:4])
+		trackingNo := fmt.Sprintf("AN-%s-%s", now.Format("0601"), randomPart)
+		submission.TrackingNumber = &trackingNo
+		_ = uc.SubmissionRepo.UpdateTrackingNumber(submissionID, trackingNo)
+	}
+
 	trackingNum := "-"
-	if submission.TrackingNumber != nil {
+	if submission.TrackingNumber != nil && *submission.TrackingNumber != "" {
 		trackingNum = *submission.TrackingNumber
 	}
 	vars["{{application_number}}"] = trackingNum
+	vars["{{tracking_number}}"] = trackingNum
+	vars["{{nomor_pengajuan}}"] = trackingNum
+
+	isPaidOrActive := false
+	if submission.Invoice != nil && submission.Invoice.Status == "PAID" {
+		isPaidOrActive = true
+	}
+	for _, inv := range submission.Invoices {
+		if inv.Status == "PAID" {
+			isPaidOrActive = true
+			break
+		}
+	}
+	for _, p := range submission.Payments {
+		if p.Status == "PAID" {
+			isPaidOrActive = true
+			break
+		}
+	}
+	activeStatuses := []string{
+		"QC_OFFICER", "DRAFTER", "QC_REVIEW", "SUBMITTED_TO_BPJPH", "SIDANG_FATWA", "SH_TERBIT", "COMPLETED", "SIGNED",
+	}
+	for _, s := range activeStatuses {
+		if string(submission.Status) == s {
+			isPaidOrActive = true
+			break
+		}
+	}
 
 	status := "DRAFT"
-	if submission.Status == "READY_FOR_SIGNATURE" {
-		status = "READY FOR SIGNATURE"
-	} else if submission.Status == "SIGNED" {
-		status = "SIGNED"
+	if isPaidOrActive {
+		status = "AKTIF / SIGNED (EFEKTIF)"
+		vars["{{is_paid_or_active}}"] = "true"
+	} else if submission.Status == "WAITING_PAYMENT" || submission.Status == "READY_FOR_SIGNATURE" {
+		status = "MENUNGGU PEMBAYARAN"
+		vars["{{is_paid_or_active}}"] = "false"
+	} else {
+		vars["{{is_paid_or_active}}"] = "false"
 	}
 	vars["{{contract_status}}"] = status
 	vars["{{service_scheme}}"] = submission.ServiceType
+
+	paymentTermsText := "Pembayaran dilakukan 100% ketika tanda tangan kontrak."
+	if submission.CostDetail != nil && submission.CostDetail.PaymentScheme != "" && submission.CostDetail.PaymentScheme != "FULL" && submission.CostDetail.DPPercentage > 0 {
+		dpPct := int(submission.CostDetail.DPPercentage)
+		paymentTermsText = fmt.Sprintf("Pembayaran dilakukan dengan skema Uang Muka (DP) sebesar %d%% pada saat penandatanganan kontrak, dan pelunasan sisanya sebesar %d%% sebelum penerbitan sertifikat / penyelesaian layanan.", 
+			dpPct, 100-dpPct)
+	}
+	vars["{{payment_terms_text}}"] = paymentTermsText
 
 	// Client Info
 	client := submission.Client
@@ -426,17 +473,30 @@ func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 
 	// Notice Block
 	yNotice := pdf.GetY()
-	pdf.SetFillColor(248, 250, 252) // slate-50
 	pdf.SetDrawColor(226, 232, 240) // slate-200
-	pdf.Rect(20, yNotice, 170, 16, "DF")
-	
-	pdf.SetXY(22, yNotice + 2.5)
-	pdf.SetFont("Times", "B", 9.5)
-	pdf.SetTextColor(194, 65, 12) // amber-700
-	pdf.Write(5, cleanStr("PENTING. "))
-	pdf.SetFont("Times", "", 9.5)
-	pdf.SetTextColor(71, 85, 105) // slate-600
-	pdf.Write(5, cleanStr("Dokumen berstatus DRAFT belum mengikat Para Pihak. Perjanjian menjadi efektif setelah\nditandatangani oleh kedua pihak dan persyaratan mulai layanan pada Pasal 6 terpenuhi."))
+	if vars["{{is_paid_or_active}}"] == "true" {
+		pdf.SetFillColor(236, 253, 245) // emerald-50
+		pdf.Rect(20, yNotice, 170, 16, "DF")
+		
+		pdf.SetXY(22, yNotice + 2.5)
+		pdf.SetFont("Times", "B", 9.5)
+		pdf.SetTextColor(4, 120, 87) // emerald-700
+		pdf.Write(5, cleanStr("DOKUMEN EFEKTIF & BERLAKU. "))
+		pdf.SetFont("Times", "", 9.5)
+		pdf.SetTextColor(51, 65, 85) // slate-700
+		pdf.Write(5, cleanStr("Perjanjian ini telah sah, mengikat Para Pihak, dan persyaratan pembayaran telah\ndipenuhi untuk pelaksanaan pendampingan sertifikasi halal."))
+	} else {
+		pdf.SetFillColor(248, 250, 252) // slate-50
+		pdf.Rect(20, yNotice, 170, 16, "DF")
+		
+		pdf.SetXY(22, yNotice + 2.5)
+		pdf.SetFont("Times", "B", 9.5)
+		pdf.SetTextColor(194, 65, 12) // amber-700
+		pdf.Write(5, cleanStr("PENTING. "))
+		pdf.SetFont("Times", "", 9.5)
+		pdf.SetTextColor(71, 85, 105) // slate-600
+		pdf.Write(5, cleanStr("Dokumen berstatus DRAFT belum mengikat Para Pihak. Perjanjian menjadi efektif setelah\npembayaran dipenuhi sesuai ketentuan pada Pasal 6."))
+	}
 	pdf.SetXY(20, yNotice + 16)
 	pdf.Ln(6)
 
@@ -574,10 +634,14 @@ func (uc *documentUsecase) generatePDF(vars map[string]string) ([]byte, error) {
 		"    (4)  Jika PIHAK KEDUA tidak merespons atau tidak melengkapi persyaratan selama 3 (Tiga) hari kalender sejak pengingat terakhir, pengajuan dapat berstatus Ditunda. Setelah 15 (Lima Belas) hari kalender, PIHAK PERTAMA dapat menutup layanan dengan pemberitahuan, tanpa menghapus hak PIHAK KEDUA atas rekonsiliasi pembayaran menurut Pasal 8.")
 
 	// PASAL 7
+	paymentTermsStr := vars["{{payment_terms_text}}"]
+	if paymentTermsStr == "" {
+		paymentTermsStr = "Pembayaran dilakukan 100% ketika tanda tangan kontrak."
+	}
 	pasalHeader("PASAL 7", "BIAYA, DAN PEMBAYARAN")
 	pasalBody(fmt.Sprintf("    (1)  Nilai Perjanjian adalah sebesar %s (%s), dengan rincian pada Lampiran 1.\n"+
-		"    (2)  Pembayaran dilakukan 100%% ketika tanda tangan kontrak.\n"+
-		"    (3)  Setiap perubahan nilai Perjanjian wajib tercatat dalam dashboard, invoice, atau addendum yang disetujui Para Pihak.", vars["{{total_contract_amount_formatted}}"], vars["{{total_contract_amount_words}}"]))
+		"    (2)  %s\n"+
+		"    (3)  Setiap perubahan nilai Perjanjian wajib tercatat dalam dashboard, invoice, atau addendum yang disetujui Para Pihak.", vars["{{total_contract_amount_formatted}}"], vars["{{total_contract_amount_words}}"], paymentTermsStr))
 
 	// PASAL 8
 	pasalHeader("PASAL 8", "PEMBATALAN, PENGAKHIRAN, DAN PENGEMBALIAN DANA")
