@@ -22,7 +22,6 @@ export default function EstimasiReguler() {
     const [provinces, setProvinces] = useState<any[]>([]);
     const [regencies, setRegencies] = useState<any[]>([]);
     const [districts, setDistricts] = useState<any[]>([]);
-    const [schemes, setSchemes] = useState<any[]>([]);
 
     const [serviceType, setServiceType] = useState('REGULER');
     const [systemSettings, setSystemSettings] = useState<Record<string, string>>({});
@@ -30,7 +29,6 @@ export default function EstimasiReguler() {
     // Dynamic cost components from master biaya
     const [masterComponents, setMasterComponents] = useState<any[]>([]);
     const [loadingComponents, setLoadingComponents] = useState(false);
-    const [salesSchemePrice, setSalesSchemePrice] = useState<any | null>(null);
 
     const user = useAuthStore(state => state.user);
 
@@ -40,7 +38,6 @@ export default function EstimasiReguler() {
     useEffect(() => {
         setDataSource('ORGANIK');
     }, [user?.role]);
-    const [salesSchemeId, setSalesSchemeId] = useState('');
     const [businessTypeId, setBusinessTypeId] = useState('');
     const [productId, setProductId] = useState('');
     const [businessScaleId, setBusinessScaleId] = useState('');
@@ -99,68 +96,26 @@ export default function EstimasiReguler() {
                 params.data_source = dataSource === 'TELEMARKETING' ? 'ORGANIK' : dataSource;
             }
             
-            const targetSchemeId = salesSchemeId;
-            if (targetSchemeId) params.sales_scheme_id = targetSchemeId;
-            
             params.resolve_geography = 'true';
 
-            const promises: [Promise<any>, Promise<any>?] = [
-                api.get('/billing-config/components', { params })
-            ];
-
-            if (targetSchemeId && serviceType === 'REGULER') {
-                const priceParams: Record<string, string> = {
-                    sales_scheme_id: targetSchemeId,
-                    is_active: 'true'
-                };
-                if (businessTypeId) priceParams.business_type_id = businessTypeId;
-                if (businessScaleId) priceParams.business_scale_id = businessScaleId;
-                if (dataSource) priceParams.data_source = dataSource === 'TELEMARKETING' ? 'ORGANIK' : dataSource;
-                promises.push(api.get('/billing-config/scheme-prices', { params: priceParams }));
-            }
-
-            const [compRes, priceRes] = await Promise.all(promises);
-
+            const compRes = await api.get('/billing-config/components', { params });
             setMasterComponents(compRes.data || []);
-
-            if (priceRes && priceRes.data && priceRes.data.length > 0) {
-                // Sort by specificity
-                const prices = priceRes.data;
-                prices.sort((a: any, b: any) => {
-                    let scoreA = 0;
-                    if (a.product_category_id) scoreA += 100;
-                    if (a.business_scale_id) scoreA += 10;
-                    if (a.business_type_id) scoreA += 1;
-
-                    let scoreB = 0;
-                    if (b.product_category_id) scoreB += 100;
-                    if (b.business_scale_id) scoreB += 10;
-                    if (b.business_type_id) scoreB += 1;
-
-                    return scoreB - scoreA;
-                });
-                setSalesSchemePrice(prices[0]);
-            } else {
-                setSalesSchemePrice(null);
-            }
-
         } catch (err) {
             console.error('Failed to load components:', err);
         } finally {
             setLoadingComponents(false);
         }
-    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, salesSchemeId, dataSource, serviceType]);
+    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, dataSource, serviceType]);
 
     // Load master data on mount
     useEffect(() => {
         const fetchMasterData = async () => {
             try {
-                const [btRes, pRes, bsRes, provRes, scRes, sysRes] = await Promise.all([
+                const [btRes, pRes, bsRes, provRes, sysRes] = await Promise.all([
                     api.get('/billing-config/business-types').catch(() => ({ data: [] })),
                     api.get('/billing-config/product-categories').catch(() => ({ data: [] })),
                     api.get('/billing-config/business-scales').catch(() => ({ data: [] })),
                     api.get('/geography/provinces').catch(() => ({ data: [] })),
-                    api.get('/billing-config/sales-schemes').catch(() => ({ data: [] })),
                     api.get('/system-settings').catch(() => ({ data: {} }))
                 ]);
 
@@ -168,7 +123,6 @@ export default function EstimasiReguler() {
                 setProducts(pRes.data || []);
                 setScales(bsRes.data || []);
                 setProvinces(provRes.data || []);
-                setSchemes(scRes.data || []);
 
                 const settingsMap: Record<string, string> = {};
                 if (sysRes.data && Array.isArray(sysRes.data)) {
@@ -189,7 +143,7 @@ export default function EstimasiReguler() {
     // Re-fetch components when any filter changes
     useEffect(() => {
         if (!loading) fetchComponents();
-    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, salesSchemeId, dataSource, serviceType, fetchComponents, loading]);
+    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, dataSource, serviceType, fetchComponents, loading]);
 
     const addOptionalCost = () => {
         if (!newOptName || !newOptAmount) return;
@@ -243,13 +197,11 @@ export default function EstimasiReguler() {
             if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId) return;
             if (comp.product_category_id && comp.product_category_id.toString() !== productId) return;
             if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId) return;
-            if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== salesSchemeId) return;
 
             let score = 0;
             if (comp.district_id) score += 1000;
             if (comp.regency_id) score += 100;
             if (comp.province_id) score += 10;
-            if (comp.sales_scheme_id) score += 8;
             if (comp.business_scale_id) score += 5;
             if (comp.product_category_id) score += 2;
             if (comp.business_type_id) score += 1;
@@ -263,7 +215,7 @@ export default function EstimasiReguler() {
             }
         });
 
-        // 2. Handle PENDAMPINGAN from Master Biaya or SalesSchemePrice or SD Mandiri Cost
+        // 2. Handle PENDAMPINGAN from Master Biaya or SD Mandiri Cost
         let bestPend: any = null;
         let bestPendScore = -1;
         masterComponents.forEach(comp => {
@@ -276,13 +228,11 @@ export default function EstimasiReguler() {
             if (comp.district_id && comp.district_id.toString() !== districtId) return;
             if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId) return;
             if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId) return;
-            if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== salesSchemeId) return;
 
             let score = 0;
             if (comp.district_id) score += 1000;
             if (comp.regency_id) score += 100;
             if (comp.province_id) score += 10;
-            if (comp.sales_scheme_id) score += 8;
             if (comp.business_scale_id) score += 5;
             if (comp.product_category_id) score += 2;
             if (comp.business_type_id) score += 1;
@@ -304,14 +254,6 @@ export default function EstimasiReguler() {
             dispCategory = bestPend.category.toUpperCase();
             if (bestPend.discount_percent && bestPend.discount_percent > 0) {
                 pendDiscountPercent = bestPend.discount_percent;
-            }
-        } else if (serviceType === 'REGULER' && salesSchemePrice) {
-            finalPrice = salesSchemePrice.base_price;
-            if (salesSchemePrice.sales_scheme?.name) {
-                dispName = salesSchemePrice.sales_scheme.name;
-            }
-            if (salesSchemePrice.discount_percent > 0) {
-                pendDiscountPercent = salesSchemePrice.discount_percent;
             }
         } else if (serviceType === 'SELF_DECLARE_MANDIRI') {
             const sysCost = systemSettings['SD_MANDIRI_COST'];
@@ -420,24 +362,6 @@ export default function EstimasiReguler() {
             }
         });
 
-        // 3. Partnership discount on pendampingan
-        const currentScheme = schemes.find((s: any) => s.id === parseInt(salesSchemeId));
-        if (currentScheme && currentScheme.name.toUpperCase() === 'PARTNERSHIP' && serviceType === 'REGULER') {
-            const pendItem = currentBreakdown.find(item => item.category === 'PENDAMPINGAN');
-            if (pendItem) {
-                const discountAmount = pendItem.total * 0.1;
-                currentBreakdown.push({
-                    name: 'Diskon Partnership (10%)',
-                    category: 'DISKON',
-                    unit_cost: -(discountAmount / pendMultiplier),
-                    multiplier: pendMultiplier > 1 ? pendMultiplier : null,
-                    total: -discountAmount,
-                    is_optional: false
-                });
-                currentTotal -= discountAmount;
-            }
-        }
-
         // 4. Optional components from master biaya
         masterComponents.forEach(comp => {
             if (!comp || !comp.category || comp.is_mandatory) return;
@@ -509,7 +433,7 @@ export default function EstimasiReguler() {
         });
 
         return { total: currentTotal, breakdown: currentBreakdown, activeMandayComponents: mandayList };
-    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, optionalQuantities, productCount, selectedOptionalComponentIds, serviceType, systemSettings, provinceId, regencyId, districtId, businessTypeId, productId, businessScaleId]);
+    }, [masterComponents, optionalCosts, branchCount, optionalQuantities, productCount, selectedOptionalComponentIds, serviceType, systemSettings, provinceId, regencyId, districtId, businessTypeId, productId, businessScaleId]);
 
     const getCategoryBadgeClass = (cat: string) => {
         switch (cat) {
@@ -652,22 +576,6 @@ export default function EstimasiReguler() {
                         </select>
                     </div>
 
-                    {/* Skema Selection - only for REGULER */}
-                    {serviceType === 'REGULER' && (
-                        <div className="grid grid-cols-1 gap-3">
-                            <div>
-                                <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Skema Penjualan</label>
-                                <select
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all font-bold text-brand-700"
-                                    value={salesSchemeId}
-                                    onChange={e => setSalesSchemeId(e.target.value)}
-                                >
-                                    <option value="">Pilih Skema...</option>
-                                    {schemes.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                </select>
-                            </div>
-                        </div>
-                    )}
 
                     {/* Guide Section */}
                     <div className="bg-brand-50 border border-brand-100 p-3 rounded-xl flex gap-2 text-brand-850 text-xs">

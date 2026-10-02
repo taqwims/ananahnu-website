@@ -92,13 +92,10 @@ func main() {
 		&domain.Invoice{},
 		&domain.PaymentConfig{},
 		// Dynamic Cost/Billing
-		&domain.SalesScheme{},
-		&domain.RoleSchemeMapping{},
 		&domain.BusinessType{},
 		&domain.ProductCategory{},
 		&domain.BusinessScale{},
 		&domain.BillingComponent{},
-		&domain.SalesSchemePrice{},
 		&domain.SubmissionCostDetail{},
 		&domain.CoordinatorRate{},
 		&domain.SystemSetting{},

@@ -11,7 +11,6 @@ interface BillingComponentTableProps {
     provinces: any[];
     businessTypes: any[];
     products: any[];
-    schemes: any[];
     scales: any[];
 }
 
@@ -23,7 +22,6 @@ export const BillingComponentTable = ({
     provinces,
     businessTypes,
     products,
-    schemes,
     scales
 }: BillingComponentTableProps) => {
     // Search and Filters
@@ -506,11 +504,10 @@ export const BillingComponentTable = ({
                                                         {c.product_category_id ? ` • ${products.find(p => p.id === c.product_category_id)?.name}` : ''}
                                                     </span>
                                                 )}
-                                                {(c.sales_scheme_id || c.business_scale_id) && (
+                                                {c.business_scale_id && (
                                                     <span className="flex items-center gap-1.5">
                                                         <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0"></span>
-                                                        {c.sales_scheme_id ? schemes.find(s => s.id === c.sales_scheme_id)?.name : 'Semua Skema'} 
-                                                        {c.business_scale_id ? ` • ${scales.find(s => s.id === c.business_scale_id)?.name}` : ''}
+                                                        {scales.find(s => s.id === c.business_scale_id)?.name}
                                                     </span>
                                                 )}
                                                 <span className="flex items-center gap-1.5">

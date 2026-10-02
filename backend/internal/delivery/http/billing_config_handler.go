@@ -25,22 +25,16 @@ func NewBillingConfigHandler(r *gin.Engine, uc usecase.BillingConfigUsecase) {
 	g.Use(middleware.AuthMiddleware())
 	{
 		// GET boleh diakses semua role yang sudah login (dipakai di form submission)
-		g.GET("/sales-schemes", handler.GetSalesSchemes)
 		g.GET("/business-types", handler.GetBusinessTypes)
 		g.GET("/product-categories", handler.GetProductCategories)
 		g.GET("/business-scales", handler.GetBusinessScales)
 		g.GET("/components", handler.GetBillingComponents)
-		g.GET("/scheme-prices", handler.GetSalesSchemePrices)
 		g.GET("/coordinator-rates", handler.GetCoordinatorRates)
 
 		// Write operations — hanya admin billing
 		adminOnly := g.Group("")
 		adminOnly.Use(middleware.RoleMiddleware(billingConfigAdminRoles...))
 		{
-			adminOnly.POST("/sales-schemes", handler.CreateSalesScheme)
-			adminOnly.PUT("/sales-schemes/:id", handler.UpdateSalesScheme)
-			adminOnly.DELETE("/sales-schemes/:id", handler.DeleteSalesScheme)
-
 			adminOnly.POST("/business-types", handler.CreateBusinessType)
 			adminOnly.PUT("/business-types/:id", handler.UpdateBusinessType)
 			adminOnly.DELETE("/business-types/:id", handler.DeleteBusinessType)
@@ -57,17 +51,7 @@ func NewBillingConfigHandler(r *gin.Engine, uc usecase.BillingConfigUsecase) {
 			adminOnly.PUT("/components/:id", handler.UpdateBillingComponent)
 			adminOnly.DELETE("/components/:id", handler.DeleteBillingComponent)
 
-			adminOnly.POST("/scheme-prices", handler.CreateSalesSchemePrice)
-			adminOnly.PUT("/scheme-prices/:id", handler.UpdateSalesSchemePrice)
-			adminOnly.DELETE("/scheme-prices/:id", handler.DeleteSalesSchemePrice)
-
 			adminOnly.POST("/coordinator-rates", handler.SaveCoordinatorRate)
-
-			// RoleSchemeMapping CRUD
-			g.GET("/role-scheme-mappings", handler.GetRoleSchemeMappings)
-			adminOnly.POST("/role-scheme-mappings", handler.CreateRoleSchemeMapping)
-			adminOnly.PUT("/role-scheme-mappings/:id", handler.UpdateRoleSchemeMapping)
-			adminOnly.DELETE("/role-scheme-mappings/:id", handler.DeleteRoleSchemeMapping)
 		}
 	}
 
@@ -80,61 +64,6 @@ func NewBillingConfigHandler(r *gin.Engine, uc usecase.BillingConfigUsecase) {
 	}
 }
 
-func (h *BillingConfigHandler) GetSalesSchemes(c *gin.Context) {
-	data, err := h.uc.GetSalesSchemes()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, data)
-}
-
-func (h *BillingConfigHandler) CreateSalesScheme(c *gin.Context) {
-	var input domain.SalesScheme
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	if err := h.uc.CreateSalesScheme(&input); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusCreated, input)
-}
-
-func (h *BillingConfigHandler) UpdateSalesScheme(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
-		return
-	}
-	var input domain.SalesScheme
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	input.ID = id
-	if err := h.uc.UpdateSalesScheme(&input); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, input)
-}
-
-func (h *BillingConfigHandler) DeleteSalesScheme(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
-		return
-	}
-	if err := h.uc.DeleteSalesScheme(id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"deleted": true})
-}
 
 func (h *BillingConfigHandler) GetBusinessTypes(c *gin.Context) {
 	data, err := h.uc.GetBusinessTypes()
@@ -329,9 +258,6 @@ func (h *BillingConfigHandler) GetBillingComponents(c *gin.Context) {
 	if v := c.Query("business_scale_id"); v != "" {
 		filter["business_scale_id"] = v
 	}
-	if v := c.Query("sales_scheme_id"); v != "" {
-		filter["sales_scheme_id"] = v
-	}
 	if v := c.Query("data_source"); v != "" {
 		filter["data_source"] = v
 	}
@@ -472,138 +398,4 @@ func (h *BillingConfigHandler) SaveCoordinatorRate(c *gin.Context) {
 	c.JSON(http.StatusOK, input)
 }
 
-// --- SalesSchemePrice Handlers ---
-
-func (h *BillingConfigHandler) GetSalesSchemePrices(c *gin.Context) {
-	filter := map[string]interface{}{}
-	if v := c.Query("sales_scheme_id"); v != "" {
-		filter["sales_scheme_id"] = v
-	}
-	if v := c.Query("data_source"); v != "" {
-		filter["data_source"] = v
-	}
-	if v := c.Query("product_category_id"); v != "" {
-		filter["product_category_id"] = v
-	}
-	if v := c.Query("business_type_id"); v != "" {
-		filter["business_type_id"] = v
-	}
-	if v := c.Query("business_scale_id"); v != "" {
-		filter["business_scale_id"] = v
-	}
-
-	data, err := h.uc.GetSalesSchemePrices(filter)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, data)
-}
-
-func (h *BillingConfigHandler) CreateSalesSchemePrice(c *gin.Context) {
-	var input domain.SalesSchemePrice
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	if err := h.uc.CreateSalesSchemePrice(&input); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusCreated, input)
-}
-
-func (h *BillingConfigHandler) UpdateSalesSchemePrice(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
-		return
-	}
-
-	var input domain.SalesSchemePrice
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	input.ID = id
-	if err := h.uc.UpdateSalesSchemePrice(&input); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, input)
-}
-
-func (h *BillingConfigHandler) DeleteSalesSchemePrice(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
-		return
-	}
-	if err := h.uc.DeleteSalesSchemePrice(id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"deleted": true})
-}
-
-// --- RoleSchemeMapping Handlers ---
-
-func (h *BillingConfigHandler) GetRoleSchemeMappings(c *gin.Context) {
-	data, err := h.uc.GetRoleSchemeMappings()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, data)
-}
-
-func (h *BillingConfigHandler) CreateRoleSchemeMapping(c *gin.Context) {
-	var input domain.RoleSchemeMapping
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	if err := h.uc.CreateRoleSchemeMapping(&input); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusCreated, input)
-}
-
-func (h *BillingConfigHandler) UpdateRoleSchemeMapping(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
-		return
-	}
-
-	var input domain.RoleSchemeMapping
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	input.ID = id
-	if err := h.uc.UpdateRoleSchemeMapping(&input); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, input)
-}
-
-func (h *BillingConfigHandler) DeleteRoleSchemeMapping(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
-		return
-	}
-	if err := h.uc.DeleteRoleSchemeMapping(id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"deleted": true})
-}
 

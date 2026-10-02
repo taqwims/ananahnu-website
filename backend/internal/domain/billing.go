@@ -41,7 +41,6 @@ type Invoice struct {
 	PricingSource   string        `json:"pricing_source"`
 	PaymentScheme   string        `json:"payment_scheme,omitempty"`
 	Percentage      float64       `json:"percentage,omitempty"`
-	SalesSchemeID   *int64        `json:"sales_scheme_id,omitempty"`
 	DiscountApplied float64       `json:"discount_applied"`
 	Notes           string        `json:"notes"`
 	CreatedAt       time.Time     `json:"created_at"`

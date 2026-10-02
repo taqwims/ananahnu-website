@@ -6,8 +6,6 @@ import { BillingComponentForm } from '../../components/dashboard/billing/Billing
 import { BillingComponentTable } from '../../components/dashboard/billing/BillingComponentTable';
 import { MasterDataManagement } from '../../components/dashboard/billing/MasterDataManagement';
 import { QuotaSettings } from '../../components/dashboard/billing/QuotaSettings';
-import { DiscountPanel } from '../../components/dashboard/billing/DiscountPanel';
-import { RoleSchemePanel } from '../../components/dashboard/billing/RoleSchemePanel';
 import { PaymentGatewaySettingsPanel } from '../../components/dashboard/billing/PaymentGatewaySettingsPanel';
 import CoordinatorRates from './CoordinatorRates';
 
@@ -24,7 +22,6 @@ export default function BillingConfigAdmin() {
         regencies,
         districts,
         components,
-        schemes,
         businessTypes,
         systemSettings,
         setSystemSettings,
@@ -59,7 +56,7 @@ export default function BillingConfigAdmin() {
                         </div>
                         Master Biaya &amp; Klasifikasi
                     </h1>
-                    <p className="text-sm text-gray-500 mt-1 ml-12">Atur skema harga, komponen biaya, dan klasifikasi produk dengan mudah</p>
+                    <p className="text-sm text-gray-500 mt-1 ml-12">Atur komponen biaya dan klasifikasi produk dengan mudah</p>
                 </div>
             </div>
 
@@ -92,7 +89,6 @@ export default function BillingConfigAdmin() {
                         districts={districts}
                         businessTypes={businessTypes}
                         products={products}
-                        schemes={schemes}
                         scales={scales}
                         formFields={formFields}
                     />
@@ -104,7 +100,6 @@ export default function BillingConfigAdmin() {
                         provinces={provinces}
                         businessTypes={businessTypes}
                         products={products}
-                        schemes={schemes}
                         scales={scales}
                     />
                 </div>
@@ -124,7 +119,6 @@ export default function BillingConfigAdmin() {
                     businessTypes={businessTypes}
                     products={products}
                     scales={scales}
-                    schemes={schemes}
                 />
             )}
 
@@ -133,18 +127,6 @@ export default function BillingConfigAdmin() {
                     systemSettings={systemSettings}
                     setSystemSettings={setSystemSettings}
                     onUpdate={handleUpdateSystemSetting}
-                />
-            )}
-
-            {activeMainTab === 'discounts' && (
-                <DiscountPanel
-                    schemes={schemes}
-                />
-            )}
-
-            {activeMainTab === 'role_scheme' && (
-                <RoleSchemePanel
-                    schemes={schemes}
                 />
             )}
 

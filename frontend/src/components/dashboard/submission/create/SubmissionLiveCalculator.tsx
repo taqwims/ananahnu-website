@@ -11,7 +11,6 @@ interface SubmissionLiveCalculatorProps {
 
 export const SubmissionLiveCalculator = ({ clientData, setClientData }: SubmissionLiveCalculatorProps) => {
     const [masterComponents, setMasterComponents] = useState<BillingComponent[]>([]);
-    const [salesSchemePrice, setSalesSchemePrice] = useState<any | null>(null);
     const [systemSettings, setSystemSettings] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(false);
 
@@ -40,18 +39,6 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
                     Object.assign(settingsMap, sysRes.data);
                 }
                 setSystemSettings(settingsMap);
-
-                // Fetch default sales scheme price (Direct Sale / ID 1) if REGULER
-                if (serviceType === 'REGULER') {
-                    const spRes = await api.get('/billing-config/sales-scheme-prices', {
-                        params: { sales_scheme_id: 1 }
-                    }).catch(() => ({ data: [] }));
-                    if (spRes.data && spRes.data.length > 0) {
-                        setSalesSchemePrice(spRes.data[0]);
-                    }
-                } else {
-                    setSalesSchemePrice(null);
-                }
             } catch (err) {
                 console.error('Failed to load live pricing data:', err);
             } finally {
@@ -145,7 +132,6 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
             if (comp.district_id) score += 1000;
             if (comp.regency_id) score += 100;
             if (comp.province_id) score += 10;
-            if (comp.sales_scheme_id) score += 8;
             if (comp.business_scale_id) score += 5;
             if (comp.product_category_id) score += 2;
             if (comp.business_type_id) score += 1;
@@ -249,7 +235,6 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
             if (comp.district_id) score += 1000;
             if (comp.regency_id) score += 100;
             if (comp.province_id) score += 10;
-            if (comp.sales_scheme_id) score += 8;
             if (comp.business_scale_id) score += 5;
             if (comp.product_category_id) score += 2;
             if (comp.business_type_id) score += 1;
@@ -269,14 +254,6 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
             dispName = bestPend.name;
             if (bestPend.discount_percent && bestPend.discount_percent > 0) {
                 pendDiscountPercent = bestPend.discount_percent;
-            }
-        } else if (serviceType === 'REGULER' && salesSchemePrice) {
-            finalPrice = salesSchemePrice.base_price;
-            if (salesSchemePrice.sales_scheme?.name) {
-                dispName = salesSchemePrice.sales_scheme.name;
-            }
-            if (salesSchemePrice.discount_percent > 0) {
-                pendDiscountPercent = salesSchemePrice.discount_percent;
             }
         } else if (serviceType === 'SELF_DECLARE_MANDIRI') {
             const sysCost = systemSettings['SD_MANDIRI_COST'];
@@ -324,7 +301,7 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
         });
 
         return { total: currentTotal, breakdown: currentBreakdown, activeMandayComponents: mandayList };
-    }, [masterComponents, salesSchemePrice, systemSettings, serviceType, clientData, selectedOptionalIds, optionalQuantities, optionalComponents]);
+    }, [masterComponents, systemSettings, serviceType, clientData, selectedOptionalIds, optionalQuantities, optionalComponents]);
 
     const formatCurrency = (val: number) => {
         return new Intl.NumberFormat('id-ID', {

@@ -62,18 +62,15 @@ func PerformResetAndSeed(db *gorm.DB) error {
 		&domain.ConsultantProfile{},
 		&domain.Invoice{},
 		&domain.PaymentConfig{},
-		&domain.SalesScheme{},
 		&domain.BusinessType{},
 		&domain.ProductCategory{},
 		&domain.BusinessScale{},
 		&domain.BillingComponent{},
-		&domain.SalesSchemePrice{},
 		&domain.SubmissionCostDetail{},
 		&domain.CoordinatorRate{},
 		&domain.SystemSetting{},
 		&domain.Commission{},
 		&domain.PromotionRequest{},
-		&domain.RoleSchemeMapping{},
 	)
 	if err != nil {
 		return err
@@ -413,15 +410,6 @@ func seedKalkulatorData(db *gorm.DB) {
 		}
 	}
 
-	// 4. Seed Sales Schemes
-	schemes := []domain.SalesScheme{
-		{Name: "Direct Sale", Description: "Penjualan langsung ke klien"},
-		{Name: "Partnership", Description: "Kerjasama pihak ketiga"},
-	}
-	for i := range schemes {
-		db.Where("name = ?", schemes[i].Name).FirstOrCreate(&schemes[i])
-	}
-
 	// Get DKI Jakarta ID if exists
 	var dki domain.Province
 	db.Where("name ILIKE ?", "%DKI JAKARTA%").First(&dki)
@@ -452,42 +440,6 @@ func seedKalkulatorData(db *gorm.DB) {
 		} else if existing.Type == "" || (components[i].Category == "PENDAMPINGAN" && existing.Type != components[i].Type) {
 			db.Model(&existing).Update("type", components[i].Type)
 		}
-	}
-
-	// 6. Seed Sales Scheme Prices
-	prices := []domain.SalesSchemePrice{
-		{SalesSchemeID: schemes[0].ID, BasePrice: 3500000, DataSource: "ORGANIK", Description: "Harga Dasar Umum", IsActive: true},
-		{SalesSchemeID: schemes[0].ID, BusinessTypeID: &bTypes[0].ID, BusinessScaleID: &scales[0].ID, BasePrice: 3000000, DataSource: "ORGANIK", Description: "Promo Makanan Mikro", IsActive: true},
-		{SalesSchemeID: schemes[0].ID, BusinessTypeID: &bTypes[1].ID, BasePrice: 8000000, DataSource: "ORGANIK", Description: "Harga Dasar Kosmetik", IsActive: true},
-		{SalesSchemeID: schemes[1].ID, BasePrice: 4000000, DataSource: "MARKETING", Description: "Harga Dasar Partnership", IsActive: true},
-	}
-	for i := range prices {
-		var existing domain.SalesSchemePrice
-		tx := db.Where("sales_scheme_id = ? AND data_source = ?", prices[i].SalesSchemeID, prices[i].DataSource)
-		if prices[i].BusinessTypeID != nil {
-			tx = tx.Where("business_type_id = ?", prices[i].BusinessTypeID)
-		} else {
-			tx = tx.Where("business_type_id IS NULL")
-		}
-		if prices[i].BusinessScaleID != nil {
-			tx = tx.Where("business_scale_id = ?", prices[i].BusinessScaleID)
-		} else {
-			tx = tx.Where("business_scale_id IS NULL")
-		}
-		err := tx.First(&existing).Error
-		if err != nil {
-			db.Create(&prices[i])
-		}
-	}
-
-	// 8. Seed Role-Scheme Mappings
-	defaultMappings := []domain.RoleSchemeMapping{
-		{RoleName: "MARKETING", SalesSchemeID: 2},
-		{RoleName: "TELEMARKETING", SalesSchemeID: 2},
-		{RoleName: "HALAL_ADVISOR", SalesSchemeID: 1},
-	}
-	for _, m := range defaultMappings {
-		db.Where("role_name = ?", m.RoleName).FirstOrCreate(&m)
 	}
 }
 

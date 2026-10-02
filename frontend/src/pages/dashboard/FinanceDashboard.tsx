@@ -928,7 +928,6 @@ function ExpandedSubmissionDetail({ submissionId, onClose }: { submissionId: str
                 <KalkulatorReguler
                     submissionId={submissionId}
                     onSaved={onClose}
-                    salesSchemeId={submission.sales_scheme_id || undefined}
                     dataSource={submission.data_source}
                 />
             </div>

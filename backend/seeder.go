@@ -9,14 +9,6 @@ import (
 	"time"
 )
 
-type SalesScheme struct {
-	ID          int64     `gorm:"primaryKey"`
-	Name        string    `gorm:"not null"`
-	Description string    
-	CreatedAt   time.Time 
-	UpdatedAt   time.Time 
-}
-
 type BusinessType struct {
 	ID          int64     `gorm:"primaryKey"`
 	Name        string    `gorm:"not null"`
@@ -62,21 +54,6 @@ type BillingComponent struct {
 	UpdatedAt       time.Time 
 }
 
-type SalesSchemePrice struct {
-	ID                int64        `gorm:"primaryKey"`
-	SalesSchemeID     int64        `gorm:"not null;index"`
-	ProductCategoryID *int64       
-	BusinessTypeID    *int64       
-	BusinessScaleID   *int64       
-	DataSource        string       `gorm:"not null;default:'ORGANIK'"` 
-	BasePrice         float64      `gorm:"not null"`
-	DiscountPercent   float64      `gorm:"default:0"` 
-	Description       string       
-	IsActive          bool         `gorm:"default:true"`
-	CreatedAt         time.Time    
-	UpdatedAt         time.Time    
-}
-
 type Province struct {
 	ID   int64  `gorm:"primaryKey"`
 	Name string 
@@ -120,15 +97,6 @@ func main() {
 		db.FirstOrCreate(&pCats[i], ProductCategory{Name: pc.Name})
 	}
 
-	// 4. Seed Sales Schemes
-	schemes := []SalesScheme{
-		{Name: "Direct Sale"},
-		{Name: "Partnership"},
-	}
-	for i, s := range schemes {
-		db.FirstOrCreate(&schemes[i], SalesScheme{Name: s.Name})
-	}
-
 	// Get DKI Jakarta ID if exists
 	var dki Province
 	db.Where("name ILIKE ?", "%DKI JAKARTA%").First(&dki)
@@ -137,7 +105,7 @@ func main() {
 		dkiId = &dki.ID
 	}
 
-	// 5. Seed Billing Components
+	// 4. Seed Billing Components
 	components := []BillingComponent{
 		{Name: "Biaya Pendaftaran BPJPH", Category: "BPJPH", Type: "FIXED", BaseAmount: 500000, IsMandatory: true, ServiceType: "REGULER"},
 		{Name: "Biaya Audit LPH (Umum)", Category: "LPH", Type: "PER_CABANG", BaseAmount: 3000000, IsMandatory: true, ServiceType: "REGULER"},
@@ -148,21 +116,6 @@ func main() {
 	}
 	for _, c := range components {
 		db.FirstOrCreate(&c, BillingComponent{Name: c.Name})
-	}
-
-	// 6. Seed Sales Scheme Prices
-	prices := []SalesSchemePrice{
-		// Default generic price for Direct Sale (3.5 juta)
-		{SalesSchemeID: schemes[0].ID, BasePrice: 3500000, DataSource: "ORGANIK", Description: "Harga Dasar Umum"},
-		// Specific price for Direct Sale -> Makanan -> Skala Mikro (3 juta)
-		{SalesSchemeID: schemes[0].ID, BusinessTypeID: &bTypes[0].ID, BusinessScaleID: &scales[0].ID, BasePrice: 3000000, DataSource: "ORGANIK", Description: "Promo Makanan Mikro"},
-		// Specific price for Direct Sale -> Kosmetik -> Semua Skala (8 juta)
-		{SalesSchemeID: schemes[0].ID, BusinessTypeID: &bTypes[1].ID, BasePrice: 8000000, DataSource: "ORGANIK", Description: "Harga Dasar Kosmetik"},
-		// Partnership generic price (4 juta, with 10% discount on LPH via frontend logic)
-		{SalesSchemeID: schemes[1].ID, BasePrice: 4000000, DataSource: "MARKETING", Description: "Harga Dasar Partnership"},
-	}
-	for _, p := range prices {
-		db.FirstOrCreate(&p, SalesSchemePrice{Description: p.Description})
 	}
 
 	fmt.Println("Seed data successfully applied!")

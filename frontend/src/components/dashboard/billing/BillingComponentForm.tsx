@@ -13,7 +13,6 @@ interface BillingComponentFormProps {
     districts: any[];
     businessTypes: any[];
     products: any[];
-    schemes: any[];
     scales: any[];
     formFields: any[];
 }
@@ -37,7 +36,6 @@ export const BillingComponentForm = ({
     districts,
     businessTypes,
     products,
-    schemes,
     scales,
     formFields
 }: BillingComponentFormProps) => {
@@ -314,13 +312,6 @@ export const BillingComponentForm = ({
                                 {products
                                     .filter(p => !formData.businessTypeId || p.business_type_id === parseInt(formData.businessTypeId))
                                     .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </select>
-                        </div>
-                        <div className="col-span-2 md:col-span-1">
-                            <label className="block text-xs font-bold text-gray-700 mb-1.5">Skema Penjualan</label>
-                            <select className="w-full bg-white border border-gray-200 text-sm rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" value={formData.salesSchemeId} onChange={e => setFormData({ ...formData, salesSchemeId: e.target.value })}>
-                                <option value="">Semua Skema</option>
-                                {schemes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                             </select>
                         </div>
 

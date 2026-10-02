@@ -166,7 +166,6 @@ type CalculateRegulerInput struct {
 	DistrictID         *int64        `json:"district_id"`
 	ProductCount       int           `json:"product_count"`
 	BranchCount        int           `json:"branch_count"`
-	SalesSchemeID      int64         `json:"sales_scheme_id" binding:"required"`
 	DataSource         string        `json:"data_source"` // ORGANIK or MARKETING
 	OptionalQuantities map[int64]int `json:"optional_quantities"`
 }
@@ -177,12 +176,6 @@ type BreakdownItem struct {
 	Amount   float64 `json:"amount"`
 }
 
-type SchemePriceInfo struct {
-	BasePrice       float64 `json:"base_price"`
-	DiscountPercent float64 `json:"discount_percent"`
-	Description     string  `json:"description"`
-}
-
 type RegulerEstimation struct {
 	TotalAmount  float64           `json:"total_amount"`
 	DPAmount     float64           `json:"dp_amount"`
@@ -190,7 +183,6 @@ type RegulerEstimation struct {
 	FinalAmount  float64           `json:"final_amount"`
 	FinalPercent float64           `json:"final_percent"`
 	Breakdown    []BreakdownItem   `json:"breakdown"`
-	SchemePrice  SchemePriceInfo   `json:"scheme_price"`
 }
 
 type VerificationResult struct {
@@ -601,7 +593,6 @@ func (uc *telemarketingUsecase) GenerateClientAccount(formID uuid.UUID, telemark
 			return nil, err
 		}
 
-		var salesSchemeID int64 = 1 // Direct Sale
 		var scaleID int64
 		switch form.BusinessScale {
 		case "mikro_kecil":
@@ -629,9 +620,6 @@ func (uc *telemarketingUsecase) GenerateClientAccount(formID uuid.UUID, telemark
 		}
 		if scaleID > 0 {
 			sub.BusinessScaleID = &scaleID
-		}
-		if serviceType == "REGULER" {
-			sub.SalesSchemeID = &salesSchemeID
 		}
 		if err := uc.SubmissionRepo.Create(sub); err != nil {
 			return nil, err
@@ -847,23 +835,7 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 		return nil, errors.New("billing config not available")
 	}
 
-	// 1. Ambil skema penjualan
-	schemes, err := uc.BillingConfigRepo.FindAllSalesSchemePrices(map[string]interface{}{
-		"sales_scheme_id":   input.SalesSchemeID,
-		"business_type_id":  input.BusinessTypeID,
-		"business_scale_id": input.BusinessScaleID,
-		"is_active":         true,
-	})
-	if err != nil {
-		return nil, errors.New("gagal mengambil harga skema penjualan: " + err.Error())
-	}
-	
-	var scheme *domain.SalesSchemePrice
-	if len(schemes) > 0 {
-		scheme = &schemes[0]
-	}
-
-	// 2. Ambil semua komponen biaya yg aktif
+	// 1. Ambil semua komponen biaya yg aktif
 	components, err := uc.BillingConfigRepo.FindAllBillingComponents(map[string]interface{}{"is_active": true})
 	if err != nil {
 		return nil, errors.New("gagal mengambil komponen biaya: " + err.Error())
@@ -896,16 +868,12 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 		if comp.BusinessScaleID != nil && *comp.BusinessScaleID != input.BusinessScaleID {
 			continue
 		}
-		if comp.SalesSchemeID != nil && *comp.SalesSchemeID != input.SalesSchemeID {
-			continue
-		}
 
 		// Score specificity
 		score := 0
 		if comp.DistrictID != nil { score += 1000 }
 		if comp.RegencyID != nil { score += 100 }
 		if comp.ProvinceID != nil { score += 10 }
-		if comp.SalesSchemeID != nil { score += 8 }
 		if comp.BusinessScaleID != nil { score += 5 }
 		if comp.ProductCategoryID != nil { score += 2 }
 		if comp.BusinessTypeID != nil { score += 1 }
@@ -926,12 +894,6 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 		if bestPendampingan.Type != "" {
 			pendType = bestPendampingan.Type
 		}
-	} else if scheme != nil {
-		price = scheme.BasePrice
-		if scheme.SalesScheme.Name != "" {
-			name = scheme.SalesScheme.Name
-		}
-		pendType = "PER_CABANG"
 	}
 
 	branchCount := input.BranchCount
@@ -957,8 +919,8 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 	unitPrice, multiplier, multiplierLabel := domain.CalculateComponentPriceAndMultiplier(pendType, price, pendTiers, productCount, branchCount, qty)
 	totalPendPrice := unitPrice * float64(multiplier)
 	var discountAmount float64
-	if scheme != nil && scheme.DiscountPercent > 0 {
-		discountAmount = totalPendPrice * (scheme.DiscountPercent / 100.0)
+	if bestPendampingan != nil && bestPendampingan.DiscountPercent > 0 {
+		discountAmount = totalPendPrice * (bestPendampingan.DiscountPercent / 100.0)
 	}
 
 	if price > 0 {
@@ -971,7 +933,7 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 
 		if discountAmount > 0 {
 			breakdown = append(breakdown, BreakdownItem{
-				Name:     fmt.Sprintf("Diskon %s (%.0f%%)", name, scheme.DiscountPercent),
+				Name:     fmt.Sprintf("Diskon %s (%.0f%%)", name, bestPendampingan.DiscountPercent),
 				Category: "DISKON",
 				Amount:   -discountAmount,
 			})
@@ -1012,15 +974,10 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 		if comp.BusinessScaleID != nil && *comp.BusinessScaleID != input.BusinessScaleID {
 			continue
 		}
-		if comp.SalesSchemeID != nil && *comp.SalesSchemeID != input.SalesSchemeID {
-			continue
-		}
-
 		score := 0
 		if comp.DistrictID != nil { score += 1000 }
 		if comp.RegencyID != nil { score += 100 }
 		if comp.ProvinceID != nil { score += 10 }
-		if comp.SalesSchemeID != nil { score += 8 }
 		if comp.BusinessScaleID != nil { score += 5 }
 		if comp.ProductCategoryID != nil { score += 2 }
 		if comp.BusinessTypeID != nil { score += 1 }
@@ -1093,26 +1050,6 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 	dpAmount := total * (dpPercent / 100.0)
 	finalAmount := total - dpAmount
 
-	var schemePriceInfo SchemePriceInfo
-	basePriceVal := price
-	if scheme != nil && scheme.DiscountPercent > 0 {
-		// Calculate the basePrice before discount to display correctly
-		basePriceVal = price / (1.0 - (scheme.DiscountPercent / 100.0))
-	}
-	if scheme != nil {
-		schemePriceInfo = SchemePriceInfo{
-			BasePrice:       basePriceVal,
-			DiscountPercent: scheme.DiscountPercent,
-			Description:     scheme.Description,
-		}
-	} else if bestPendampingan != nil {
-		schemePriceInfo = SchemePriceInfo{
-			BasePrice:       basePriceVal,
-			DiscountPercent: 0,
-			Description:     "Harga Berdasarkan Kategori Pendampingan",
-		}
-	}
-
 	return &RegulerEstimation{
 		TotalAmount:  total,
 		DPAmount:     dpAmount,
@@ -1120,7 +1057,6 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 		FinalAmount:  finalAmount,
 		FinalPercent: 100.0 - dpPercent,
 		Breakdown:    breakdown,
-		SchemePrice:  schemePriceInfo,
 	}, nil
 }
 

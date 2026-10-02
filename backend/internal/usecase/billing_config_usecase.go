@@ -9,11 +9,6 @@ import (
 
 type BillingConfigUsecase interface {
 	// Master Data CRUDs
-	GetSalesSchemes() ([]domain.SalesScheme, error)
-	CreateSalesScheme(ss *domain.SalesScheme) error
-	UpdateSalesScheme(ss *domain.SalesScheme) error
-	DeleteSalesScheme(id int64) error
-
 	GetBusinessTypes() ([]domain.BusinessType, error)
 	CreateBusinessType(bt *domain.BusinessType) error
 	UpdateBusinessType(bt *domain.BusinessType) error
@@ -35,12 +30,6 @@ type BillingConfigUsecase interface {
 	CreateBillingComponent(bc *domain.BillingComponent) error
 	UpdateBillingComponent(bc *domain.BillingComponent) error
 	DeleteBillingComponent(id int64) error
-
-	// SalesSchemePrice CRUD
-	GetSalesSchemePrices(filter map[string]interface{}) ([]domain.SalesSchemePrice, error)
-	CreateSalesSchemePrice(sp *domain.SalesSchemePrice) error
-	UpdateSalesSchemePrice(sp *domain.SalesSchemePrice) error
-	DeleteSalesSchemePrice(id int64) error
 	
 	// Calculation
 	SaveSubmissionCost(detail *domain.SubmissionCostDetail) error
@@ -49,12 +38,6 @@ type BillingConfigUsecase interface {
 	// Coordinator Rates
 	GetCoordinatorRates() ([]domain.CoordinatorRate, error)
 	SetCoordinatorRate(rate *domain.CoordinatorRate) error
-
-	// RoleSchemeMapping CRUD
-	GetRoleSchemeMappings() ([]domain.RoleSchemeMapping, error)
-	CreateRoleSchemeMapping(m *domain.RoleSchemeMapping) error
-	UpdateRoleSchemeMapping(m *domain.RoleSchemeMapping) error
-	DeleteRoleSchemeMapping(id int64) error
 }
 
 type BillingConfigUsecaseDeps struct {
@@ -72,19 +55,6 @@ func NewBillingConfigUsecase(deps BillingConfigUsecaseDeps) BillingConfigUsecase
 	return &billingConfigUsecase{
 		BillingConfigUsecaseDeps: deps,
 	}
-}
-
-func (uc *billingConfigUsecase) GetSalesSchemes() ([]domain.SalesScheme, error) {
-	return uc.Repo.FindAllSalesSchemes()
-}
-func (uc *billingConfigUsecase) CreateSalesScheme(ss *domain.SalesScheme) error {
-	return uc.Repo.CreateSalesScheme(ss)
-}
-func (uc *billingConfigUsecase) UpdateSalesScheme(ss *domain.SalesScheme) error {
-	return uc.Repo.UpdateSalesScheme(ss)
-}
-func (uc *billingConfigUsecase) DeleteSalesScheme(id int64) error {
-	return uc.Repo.DeleteSalesScheme(id)
 }
 
 func (uc *billingConfigUsecase) GetBusinessTypes() ([]domain.BusinessType, error) {
@@ -145,20 +115,6 @@ func (uc *billingConfigUsecase) DeleteBillingComponent(id int64) error {
 	return uc.Repo.DeleteBillingComponent(id)
 }
 
-// SalesSchemePrice
-func (uc *billingConfigUsecase) GetSalesSchemePrices(filter map[string]interface{}) ([]domain.SalesSchemePrice, error) {
-	return uc.Repo.FindAllSalesSchemePrices(filter)
-}
-func (uc *billingConfigUsecase) CreateSalesSchemePrice(sp *domain.SalesSchemePrice) error {
-	return uc.Repo.CreateSalesSchemePrice(sp)
-}
-func (uc *billingConfigUsecase) UpdateSalesSchemePrice(sp *domain.SalesSchemePrice) error {
-	return uc.Repo.UpdateSalesSchemePrice(sp)
-}
-func (uc *billingConfigUsecase) DeleteSalesSchemePrice(id int64) error {
-	return uc.Repo.DeleteSalesSchemePrice(id)
-}
-
 func (uc *billingConfigUsecase) SaveSubmissionCost(detail *domain.SubmissionCostDetail) error {
 	if err := uc.Repo.SaveSubmissionCostDetail(detail); err != nil {
 		return err
@@ -201,18 +157,4 @@ func (uc *billingConfigUsecase) GetCoordinatorRates() ([]domain.CoordinatorRate,
 
 func (uc *billingConfigUsecase) SetCoordinatorRate(rate *domain.CoordinatorRate) error {
 	return uc.RateRepo.Save(rate)
-}
-
-// RoleSchemeMapping
-func (uc *billingConfigUsecase) GetRoleSchemeMappings() ([]domain.RoleSchemeMapping, error) {
-	return uc.Repo.FindAllRoleSchemeMappings()
-}
-func (uc *billingConfigUsecase) CreateRoleSchemeMapping(m *domain.RoleSchemeMapping) error {
-	return uc.Repo.CreateRoleSchemeMapping(m)
-}
-func (uc *billingConfigUsecase) UpdateRoleSchemeMapping(m *domain.RoleSchemeMapping) error {
-	return uc.Repo.UpdateRoleSchemeMapping(m)
-}
-func (uc *billingConfigUsecase) DeleteRoleSchemeMapping(id int64) error {
-	return uc.Repo.DeleteRoleSchemeMapping(id)
 }

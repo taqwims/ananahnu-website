@@ -78,7 +78,6 @@ export const ClientInfoSection = ({
         district_id: (submission.district_id || submission.cost_detail?.district_id)?.toString() || '',
         product_category_id: (submission.product_category_id || submission.cost_detail?.product_category_id)?.toString() || '',
         business_scale_id: (submission.business_scale_id || submission.cost_detail?.business_scale_id)?.toString() || '',
-        sales_scheme_id: submission.sales_scheme_id?.toString() || '1',
         data_source: submission.data_source || 'ORGANIK',
         product_count: submission.product_count || submission.cost_detail?.product_count || 1,
         branch_count: submission.branch_count || submission.cost_detail?.branch_count || 1,
@@ -101,7 +100,6 @@ export const ClientInfoSection = ({
             district_id: (submission.district_id || submission.cost_detail?.district_id)?.toString() || '',
             product_category_id: (submission.product_category_id || submission.cost_detail?.product_category_id)?.toString() || '',
             business_scale_id: (submission.business_scale_id || submission.cost_detail?.business_scale_id)?.toString() || '',
-            sales_scheme_id: submission.sales_scheme_id?.toString() || '1',
             data_source: submission.data_source || 'ORGANIK',
             product_count: submission.product_count || submission.cost_detail?.product_count || 1,
             branch_count: submission.branch_count || submission.cost_detail?.branch_count || 1,
@@ -167,7 +165,6 @@ export const ClientInfoSection = ({
 
         const updatedClientForm = {
             ...clientForm,
-            sales_scheme_id: '1',
             data_source: 'ORGANIK',
         };
 
@@ -194,7 +191,6 @@ export const ClientInfoSection = ({
                 regency_id: updatedClientForm.regency_id ? parseInt(updatedClientForm.regency_id) : null,
                 district_id: updatedClientForm.district_id ? parseInt(updatedClientForm.district_id) : null,
                 business_scale_id: updatedClientForm.business_scale_id ? parseInt(updatedClientForm.business_scale_id) : null,
-                sales_scheme_id: updatedClientForm.sales_scheme_id ? parseInt(updatedClientForm.sales_scheme_id) : null,
                 product_count: updatedClientForm.product_count,
                 branch_count: updatedClientForm.branch_count,
                 selected_optional_component_ids: selectedOptionalComponentIds,
@@ -449,7 +445,6 @@ export const ClientInfoSection = ({
                                          if (comp.regency_id && comp.regency_id.toString() !== clientForm.regency_id) return false;
                                          if (comp.business_type_id && comp.business_type_id.toString() !== clientForm.business_type_id) return false;
                                          if (comp.business_scale_id && comp.business_scale_id.toString() !== clientForm.business_scale_id) return false;
-                                         if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== clientForm.sales_scheme_id) return false;
                                          
                                          return true;
                                      });

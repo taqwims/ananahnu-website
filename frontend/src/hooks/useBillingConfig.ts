@@ -3,8 +3,8 @@ import { billingService } from '../services/billingService';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
-export type MainTab = 'master_data' | 'components' | 'settings' | 'quota' | 'discounts' | 'facilitation' | 'role_scheme' | 'payment_gateway';
-export type TabKey = 'schemes' | 'business_types' | 'products' | 'scales' | 'components';
+export type MainTab = 'master_data' | 'components' | 'settings' | 'quota' | 'facilitation' | 'payment_gateway';
+export type TabKey = 'business_types' | 'products' | 'scales' | 'components';
 
 export const useBillingConfig = () => {
     const [loading, setLoading] = useState(true);
@@ -18,7 +18,6 @@ export const useBillingConfig = () => {
     const [regencies, setRegencies] = useState<any[]>([]);
     const [districts, setDistricts] = useState<any[]>([]);
     const [components, setComponents] = useState<any[]>([]);
-    const [schemes, setSchemes] = useState<any[]>([]);
     const [businessTypes, setBusinessTypes] = useState<any[]>([]);
     const [systemSettings, setSystemSettings] = useState<Record<string, string>>({});
     const [formFields, setFormFields] = useState<any[]>([]);
@@ -37,7 +36,6 @@ export const useBillingConfig = () => {
         serviceType: 'REGULER',
         businessTypeId: '',
         productCategoryId: '',
-        salesSchemeId: '',
         dataSource: 'ORGANIK',
         businessScaleId: '',
         provinceId: '',
@@ -50,11 +48,10 @@ export const useBillingConfig = () => {
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const [p, s, c, sc, bt, prov, sys, regulerFields, sdFields] = await Promise.all([
+            const [p, s, c, bt, prov, sys, regulerFields, sdFields] = await Promise.all([
                 billingService.getProductCategories(),
                 billingService.getBusinessScales(),
                 billingService.getComponents(),
-                billingService.getSalesSchemes(),
                 billingService.getBusinessTypes(),
                 billingService.getProvinces(),
                 billingService.getSystemSettings(),
@@ -64,7 +61,6 @@ export const useBillingConfig = () => {
             setProducts(p);
             setScales(s);
             setComponents(c);
-            setSchemes(sc);
             setBusinessTypes(bt);
             setProvinces(prov);
             setSystemSettings(sys);
@@ -112,7 +108,6 @@ export const useBillingConfig = () => {
             serviceType: 'REGULER',
             businessTypeId: '',
             productCategoryId: '',
-            salesSchemeId: '',
             dataSource: 'ORGANIK',
             businessScaleId: '',
             provinceId: '',
@@ -163,8 +158,6 @@ export const useBillingConfig = () => {
 
                 if (activeTab === 'scales') {
                     endpoint = '/billing-config/business-scales';
-                } else if (activeTab === 'schemes') {
-                    endpoint = '/billing-config/sales-schemes';
                 } else if (activeTab === 'business_types') {
                     endpoint = '/billing-config/business-types';
                 } else if (activeTab === 'components') {
@@ -195,7 +188,6 @@ export const useBillingConfig = () => {
                     payload.province_id = formData.provinceId ? parseInt(formData.provinceId) : null;
                     payload.regency_id = formData.regencyId ? parseInt(formData.regencyId) : null;
                     payload.district_id = formData.districtId ? parseInt(formData.districtId) : null;
-                    payload.sales_scheme_id = formData.salesSchemeId ? parseInt(formData.salesSchemeId) : null;
                     payload.data_source = formData.dataSource;
                     payload.business_scale_id = formData.businessScaleId ? parseInt(formData.businessScaleId) : null;
                     payload.form_field_config_id = formData.formFieldConfigId ? parseInt(formData.formFieldConfigId) : null;
@@ -270,7 +262,6 @@ export const useBillingConfig = () => {
             serviceType: item.service_type || 'REGULER',
             businessTypeId: item.business_type_id?.toString() || '',
             productCategoryId: item.product_category_id?.toString() || '',
-            salesSchemeId: item.sales_scheme_id?.toString() || '',
             dataSource: item.data_source || 'ORGANIK',
             businessScaleId: item.business_scale_id?.toString() || '',
             provinceId: item.province_id?.toString() || '',
@@ -316,7 +307,6 @@ export const useBillingConfig = () => {
         regencies,
         districts,
         components,
-        schemes,
         businessTypes,
         systemSettings,
         setSystemSettings,

@@ -10,10 +10,6 @@ class BillingService extends BaseService {
         return (await this.api.get('/billing-config/business-scales')).data || [];
     }
 
-    async getSalesSchemes() {
-        return (await this.api.get('/billing-config/sales-schemes')).data || [];
-    }
-
     async getBusinessTypes() {
         return (await this.api.get('/billing-config/business-types')).data || [];
     }

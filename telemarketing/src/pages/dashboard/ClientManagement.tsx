@@ -61,13 +61,11 @@ export default function ClientManagement() {
   const [provinces, setProvinces] = useState<any[]>([]);
   const [regencies, setRegencies] = useState<any[]>([]);
   const [districts, setDistricts] = useState<any[]>([]);
-  const [schemes, setSchemes] = useState<any[]>([]);
   const [systemSettings, setSystemSettings] = useState<Record<string, string>>({});
 
   // Dynamic Master Biaya Components
   const [masterComponents, setMasterComponents] = useState<any[]>([]);
   const [loadingComponents, setLoadingComponents] = useState(false);
-  const [salesSchemePrice, setSalesSchemePrice] = useState<any | null>(null);
 
   // Active Calculator Configuration for Selected Client
   const [serviceType, setServiceType] = useState<'REGULER' | 'SELF_DECLARE_MANDIRI' | 'SELF_DECLARE'>('REGULER');
@@ -77,7 +75,6 @@ export default function ClientManagement() {
   const [businessTypeId, setBusinessTypeId] = useState('');
   const [productId, setProductId] = useState('');
   const [businessScaleId, setBusinessScaleId] = useState('');
-  const [salesSchemeId, setSalesSchemeId] = useState('');
 
   const [branchCount, setBranchCount] = useState(1);
   const [productCount, setProductCount] = useState(1);
@@ -95,12 +92,11 @@ export default function ClientManagement() {
   useEffect(() => {
     const fetchMasterData = async () => {
       try {
-        const [btRes, pRes, bsRes, provRes, scRes, sysRes] = await Promise.all([
+        const [btRes, pRes, bsRes, provRes, sysRes] = await Promise.all([
           api.get('/billing-config/business-types').catch(() => ({ data: [] })),
           api.get('/billing-config/product-categories').catch(() => ({ data: [] })),
           api.get('/billing-config/business-scales').catch(() => ({ data: [] })),
           api.get('/geography/provinces').catch(() => ({ data: [] })),
-          api.get('/billing-config/sales-schemes').catch(() => ({ data: [] })),
           api.get('/system-settings').catch(() => ({ data: {} }))
         ]);
 
@@ -108,7 +104,6 @@ export default function ClientManagement() {
         setProducts(pRes.data || []);
         setScales(bsRes.data || []);
         setProvinces(provRes.data || []);
-        setSchemes(scRes.data || []);
 
         const settingsMap: Record<string, string> = {};
         if (sysRes.data && Array.isArray(sysRes.data)) {
@@ -184,59 +179,23 @@ export default function ClientManagement() {
       if (districtId) params.district_id = districtId;
       if (serviceType) params.service_type = serviceType;
       params.data_source = 'ORGANIK';
-      if (salesSchemeId) params.sales_scheme_id = salesSchemeId;
       params.resolve_geography = 'true';
 
-      const promises: [Promise<any>, Promise<any>?] = [
-        api.get('/billing-config/components', { params })
-      ];
-
-      if (salesSchemeId && serviceType === 'REGULER') {
-        const priceParams: Record<string, string> = {
-          sales_scheme_id: salesSchemeId,
-          is_active: 'true',
-          data_source: 'ORGANIK'
-        };
-        if (businessTypeId) priceParams.business_type_id = businessTypeId;
-        if (businessScaleId) priceParams.business_scale_id = businessScaleId;
-        promises.push(api.get('/billing-config/scheme-prices', { params: priceParams }));
-      }
-
-      const [compRes, priceRes] = await Promise.all(promises);
+      const compRes = await api.get('/billing-config/components', { params });
       setMasterComponents(compRes.data || []);
-
-      if (priceRes && priceRes.data && priceRes.data.length > 0) {
-        const prices = priceRes.data;
-        prices.sort((a: any, b: any) => {
-          let scoreA = 0;
-          if (a.product_category_id) scoreA += 100;
-          if (a.business_scale_id) scoreA += 10;
-          if (a.business_type_id) scoreA += 1;
-
-          let scoreB = 0;
-          if (b.product_category_id) scoreB += 100;
-          if (b.business_scale_id) scoreB += 10;
-          if (b.business_type_id) scoreB += 1;
-
-          return scoreB - scoreA;
-        });
-        setSalesSchemePrice(prices[0]);
-      } else {
-        setSalesSchemePrice(null);
-      }
     } catch (err) {
       console.error('Failed to load pricing components:', err);
     } finally {
       setLoadingComponents(false);
     }
-  }, [selectedForm, businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, salesSchemeId, serviceType]);
+  }, [selectedForm, businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, serviceType]);
 
   // Re-fetch master components whenever relevant filter changes in modal
   useEffect(() => {
     if (selectedForm) {
       fetchComponents();
     }
-  }, [selectedForm, businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, salesSchemeId, serviceType, fetchComponents]);
+  }, [selectedForm, businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, serviceType, fetchComponents]);
 
   // Prepopulate Calculator with Client Data
   const handleOpenDetail = (form: TeleForm) => {
@@ -283,10 +242,9 @@ export default function ClientManagement() {
     });
     setProductId(matchedProd ? matchedProd.id.toString() : (products[0]?.id?.toString() || ''));
 
-    // 5. Quantities & Schemes
+    // 5. Quantities & Options
     setBranchCount(Math.max(1, form.branch_count || 1));
     setProductCount(1);
-    setSalesSchemeId(schemes[0]?.id?.toString() || '1');
     setOptionalQuantities({});
     setSelectedOptionalComponentIds([]);
     setOptionalCosts([]);
@@ -372,13 +330,11 @@ export default function ClientManagement() {
       if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId) return;
       if (comp.product_category_id && comp.product_category_id.toString() !== productId) return;
       if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId) return;
-      if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== salesSchemeId) return;
 
       let score = 0;
       if (comp.district_id) score += 1000;
       if (comp.regency_id) score += 100;
       if (comp.province_id) score += 10;
-      if (comp.sales_scheme_id) score += 8;
       if (comp.business_scale_id) score += 5;
       if (comp.product_category_id) score += 2;
       if (comp.business_type_id) score += 1;
@@ -405,13 +361,11 @@ export default function ClientManagement() {
       if (comp.district_id && comp.district_id.toString() !== districtId) return;
       if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId) return;
       if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId) return;
-      if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== salesSchemeId) return;
 
       let score = 0;
       if (comp.district_id) score += 1000;
       if (comp.regency_id) score += 100;
       if (comp.province_id) score += 10;
-      if (comp.sales_scheme_id) score += 8;
       if (comp.business_scale_id) score += 5;
       if (comp.product_category_id) score += 2;
       if (comp.business_type_id) score += 1;
@@ -433,14 +387,6 @@ export default function ClientManagement() {
       dispCategory = bestPend.category.toUpperCase();
       if (bestPend.discount_percent && bestPend.discount_percent > 0) {
         pendDiscountPercent = bestPend.discount_percent;
-      }
-    } else if (serviceType === 'REGULER' && salesSchemePrice) {
-      finalPrice = salesSchemePrice.base_price;
-      if (salesSchemePrice.sales_scheme?.name) {
-        dispName = salesSchemePrice.sales_scheme.name;
-      }
-      if (salesSchemePrice.discount_percent > 0) {
-        pendDiscountPercent = salesSchemePrice.discount_percent;
       }
     } else if (serviceType === 'SELF_DECLARE_MANDIRI') {
       const sysCost = systemSettings['SD_MANDIRI_COST'];
@@ -548,24 +494,6 @@ export default function ClientManagement() {
       }
     });
 
-    // 4. Partnership Scheme Discount
-    const currentScheme = schemes.find((s: any) => s.id === parseInt(salesSchemeId));
-    if (currentScheme && currentScheme.name.toUpperCase() === 'PARTNERSHIP' && serviceType === 'REGULER') {
-      const pendItem = currentBreakdown.find(item => item.category === 'PENDAMPINGAN');
-      if (pendItem) {
-        const discountAmount = pendItem.total * 0.1;
-        currentBreakdown.push({
-          name: 'Diskon Skema Partnership (10%)',
-          category: 'DISKON',
-          unit_cost: -(discountAmount / pendMultiplier),
-          multiplier: pendMultiplier > 1 ? pendMultiplier : null,
-          total: -discountAmount,
-          is_optional: false
-        });
-        currentTotal -= discountAmount;
-      }
-    }
-
     // 5. Selected Master Optional Components
     masterComponents.forEach(comp => {
       if (!comp || !comp.category || comp.is_mandatory) return;
@@ -654,7 +582,7 @@ export default function ClientManagement() {
       activeMandayComponents: mandayList
     };
   }, [
-    masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount,
+    masterComponents, optionalCosts, branchCount,
     optionalQuantities, productCount, selectedOptionalComponentIds, serviceType, systemSettings,
     provinceId, regencyId, districtId, businessTypeId, productId, businessScaleId, customDiscount
   ]);
@@ -684,10 +612,9 @@ export default function ClientManagement() {
     const phone = formatCleanPhone(selectedForm.phone);
     const selectedProv = provinces.find(p => p.id.toString() === provinceId)?.name || selectedForm.province?.name || 'Indonesia';
     const selectedScaleName = scales.find(s => s.id.toString() === businessScaleId)?.name || selectedForm.business_scale;
-    const selectedSchemeName = schemes.find(s => s.id.toString() === salesSchemeId)?.name || 'Standard';
 
     const schemeTitle = serviceType === 'REGULER'
-      ? `Sertifikasi Halal Reguler BPJPH (Paket ${selectedSchemeName})`
+      ? 'Sertifikasi Halal Reguler BPJPH'
       : serviceType === 'SELF_DECLARE_MANDIRI'
       ? 'Self Declare Mandiri (Pendampingan HalalCore)'
       : 'Self Declare SEHATI (Subsidi Pemerintah BPJPH)';
@@ -1254,23 +1181,6 @@ export default function ClientManagement() {
                         </select>
                       </div>
 
-                      {/* 7. Skema Penjualan / Paket */}
-                      {serviceType === 'REGULER' && (
-                        <div>
-                          <label className="text-dark-700 font-bold block mb-1 flex items-center gap-1">
-                            <Sparkles className="w-3.5 h-3.5 text-gold-500" /> Skema Penjualan (Paket):
-                          </label>
-                          <select
-                            value={salesSchemeId}
-                            onChange={(e) => setSalesSchemeId(e.target.value)}
-                            className="w-full form-input text-xs font-bold text-brand-900 bg-white"
-                          >
-                            {schemes.map(sc => (
-                              <option key={sc.id} value={sc.id}>{sc.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
 
                       {/* 8. Jumlah Cabang */}
                       <div>

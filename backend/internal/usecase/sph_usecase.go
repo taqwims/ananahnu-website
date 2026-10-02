@@ -123,15 +123,10 @@ func (uc *sphUsecase) GenerateSPH(submissionID uuid.UUID) (*domain.SPH, error) {
 			if comp.BusinessScaleID != nil && (submission.BusinessScaleID == nil || *comp.BusinessScaleID != *submission.BusinessScaleID) {
 				continue
 			}
-			if comp.SalesSchemeID != nil && (submission.SalesSchemeID == nil || *comp.SalesSchemeID != *submission.SalesSchemeID) {
-				continue
-			}
-
 			score := 0
 			if comp.DistrictID != nil { score += 1000 }
 			if comp.RegencyID != nil { score += 100 }
 			if comp.ProvinceID != nil { score += 10 }
-			if comp.SalesSchemeID != nil { score += 8 }
 			if comp.BusinessScaleID != nil { score += 5 }
 			if comp.ProductCategoryID != nil { score += 2 }
 			if comp.BusinessTypeID != nil { score += 1 }
@@ -168,35 +163,6 @@ func (uc *sphUsecase) GenerateSPH(submissionID uuid.UUID) (*domain.SPH, error) {
 			}
 			items = append(items, item)
 			totalAmount += amount
-		}
-
-		// Also include configured scheme prices if submission has a sales scheme
-		if submission.SalesSchemeID != nil {
-			priceFilter := map[string]interface{}{
-				"sales_scheme_id": *submission.SalesSchemeID,
-			}
-			if submission.BusinessTypeID != nil {
-				priceFilter["business_type_id"] = *submission.BusinessTypeID
-			}
-
-			prices, _ := uc.BillingConfigRepo.FindAllSalesSchemePrices(priceFilter)
-			for _, p := range prices {
-				if !p.IsActive {
-					continue
-				}
-				desc := p.Description
-				if desc == "" {
-					desc = "Biaya Skema"
-				}
-				item := CostItem{
-					Name:     desc,
-					Category: "SKEMA",
-					Type:     "FIXED",
-					Amount:   p.BasePrice,
-				}
-				items = append(items, item)
-				totalAmount += p.BasePrice
-			}
 		}
 
 		breakdownJSON, _ = json.Marshal(items)

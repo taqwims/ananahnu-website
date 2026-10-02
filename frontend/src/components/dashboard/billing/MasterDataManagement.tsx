@@ -18,7 +18,6 @@ interface MasterDataManagementProps {
     businessTypes: any[];
     products: any[];
     scales: any[];
-    schemes: any[];
 }
 
 export const MasterDataManagement = ({
@@ -33,8 +32,7 @@ export const MasterDataManagement = ({
     onBulkDelete,
     businessTypes,
     products,
-    scales,
-    schemes
+    scales
 }: MasterDataManagementProps) => {
     const [productRows, setProductRows] = useState<Array<{ name: string; description: string }>>([{ name: '', description: '' }]);
 
@@ -76,7 +74,6 @@ export const MasterDataManagement = ({
 
     const getEndpoint = () => {
         switch (activeTab) {
-            case 'schemes': return '/billing-config/sales-schemes';
             case 'business_types': return '/billing-config/business-types';
             case 'products': return '/billing-config/product-categories';
             case 'scales': return '/billing-config/business-scales';
@@ -86,7 +83,6 @@ export const MasterDataManagement = ({
 
     const getList = () => {
         switch (activeTab) {
-            case 'schemes': return schemes;
             case 'business_types': return businessTypes;
             case 'products': return products;
             case 'scales': return scales;
@@ -205,7 +201,6 @@ export const MasterDataManagement = ({
 
     const getTabTitle = () => {
         switch (activeTab) {
-            case 'schemes': return 'Skema Penjualan';
             case 'business_types': return 'Jenis Bidang';
             case 'products': return 'Jenis Produk';
             case 'scales': return 'Skala Usaha';

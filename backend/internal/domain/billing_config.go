@@ -9,16 +9,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// SalesScheme represents "Skema Penjualan" (e.g., Direct Sale, Partnership)
-type SalesScheme struct {
-	ID              int64     `gorm:"primaryKey" json:"id"`
-	Name            string    `gorm:"not null" json:"name"`
-	Description     string    `json:"description"`
-	DiscountPercent float64   `gorm:"default:0" json:"discount_percent"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
-}
-
 // BusinessType represents "Jenis Bidang"
 type BusinessType struct {
 	ID          int64     `gorm:"primaryKey" json:"id"`
@@ -69,8 +59,6 @@ type BillingComponent struct {
 	BusinessTypeID    *int64    `json:"business_type_id,omitempty"`
 	ProductCategoryID *int64    `json:"product_category_id,omitempty"`
 	
-	SalesSchemeID     *int64       `json:"sales_scheme_id,omitempty"`
-	SalesScheme       *SalesScheme `gorm:"foreignKey:SalesSchemeID" json:"sales_scheme,omitempty"`
 	DataSource        string       `gorm:"default:'ORGANIK'" json:"data_source"` // ORGANIK, MARKETING, BOTH
 	
 	FormFieldConfigID *int64            `json:"form_field_config_id,omitempty"`
@@ -163,27 +151,6 @@ func CalculateComponentPriceAndMultiplier(compType string, baseAmount float64, p
 	return unitPrice, multiplier, labelStr
 }
 
-// SalesSchemePrice stores configured prices per sales scheme, product, business type, and data source.
-// This enables differential pricing: Direct Sale vs Partnership, Marketing vs Organic.
-type SalesSchemePrice struct {
-	ID                int64        `gorm:"primaryKey" json:"id"`
-	SalesSchemeID     int64        `gorm:"not null;index" json:"sales_scheme_id"`
-	SalesScheme       SalesScheme  `gorm:"foreignKey:SalesSchemeID" json:"sales_scheme,omitempty"`
-	ProductCategoryID *int64       `json:"product_category_id,omitempty"`
-	ProductCategory   *ProductCategory `gorm:"foreignKey:ProductCategoryID" json:"product_category,omitempty"`
-	BusinessTypeID    *int64       `json:"business_type_id,omitempty"`
-	BusinessType      *BusinessType `gorm:"foreignKey:BusinessTypeID" json:"business_type,omitempty"`
-	BusinessScaleID   *int64       `json:"business_scale_id,omitempty"`
-	BusinessScale     *BusinessScale `gorm:"foreignKey:BusinessScaleID" json:"business_scale,omitempty"`
-	DataSource        string       `gorm:"not null;default:'ORGANIK'" json:"data_source"` // ORGANIK, MARKETING, BOTH
-	BasePrice         float64      `gorm:"not null" json:"base_price"`
-	DiscountPercent   float64      `gorm:"default:0" json:"discount_percent"` // e.g. 10% for Partnership pendampingan
-	Description       string       `json:"description"`
-	IsActive          bool         `gorm:"default:true" json:"is_active"`
-	CreatedAt         time.Time    `json:"created_at"`
-	UpdatedAt         time.Time    `json:"updated_at"`
-}
-
 // SubmissionCostDetail saves the result of the Drafter's calculation for a Submission.
 type SubmissionCostDetail struct {
 	ID                int64           `gorm:"primaryKey" json:"id"`
@@ -220,25 +187,8 @@ type SubmissionCostDetail struct {
 	UpdatedAt         time.Time       `json:"updated_at"`
 }
 
-// RoleSchemeMapping maps a user role to a default sales scheme.
-// When a user with a given role creates a submission, the system auto-assigns the mapped scheme.
-type RoleSchemeMapping struct {
-	ID            int64       `gorm:"primaryKey" json:"id"`
-	RoleName      string      `gorm:"not null;uniqueIndex" json:"role_name"` // e.g. "HALAL_ADVISOR", "MARKETING"
-	SalesSchemeID int64       `gorm:"not null" json:"sales_scheme_id"`
-	SalesScheme   SalesScheme `gorm:"foreignKey:SalesSchemeID" json:"sales_scheme,omitempty"`
-	CreatedAt     time.Time   `json:"created_at"`
-	UpdatedAt     time.Time   `json:"updated_at"`
-}
-
 // BillingConfigRepository Interface
 type BillingConfigRepository interface {
-	// SalesScheme CRUD
-	FindAllSalesSchemes() ([]SalesScheme, error)
-	CreateSalesScheme(ss *SalesScheme) error
-	UpdateSalesScheme(ss *SalesScheme) error
-	DeleteSalesScheme(id int64) error
-
 	// BusinessType CRUD
 	FindAllBusinessTypes() ([]BusinessType, error)
 	CreateBusinessType(bt *BusinessType) error
@@ -262,19 +212,6 @@ type BillingConfigRepository interface {
 	CreateBillingComponent(bc *BillingComponent) error
 	UpdateBillingComponent(bc *BillingComponent) error
 	DeleteBillingComponent(id int64) error
-
-	// SalesSchemePrice CRUD
-	FindAllSalesSchemePrices(filter map[string]interface{}) ([]SalesSchemePrice, error)
-	CreateSalesSchemePrice(sp *SalesSchemePrice) error
-	UpdateSalesSchemePrice(sp *SalesSchemePrice) error
-	DeleteSalesSchemePrice(id int64) error
-
-	// RoleSchemeMapping CRUD
-	FindAllRoleSchemeMappings() ([]RoleSchemeMapping, error)
-	FindRoleSchemeMappingByRole(roleName string) (*RoleSchemeMapping, error)
-	CreateRoleSchemeMapping(m *RoleSchemeMapping) error
-	UpdateRoleSchemeMapping(m *RoleSchemeMapping) error
-	DeleteRoleSchemeMapping(id int64) error
 
 	// SubmissionCostDetail (For Drafter saving calculation)
 	SaveSubmissionCostDetail(detail *SubmissionCostDetail) error

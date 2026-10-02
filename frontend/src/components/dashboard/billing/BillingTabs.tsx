@@ -21,8 +21,6 @@ export const BillingTabs = ({
     const tabs = [
         { key: 'components', label: 'Biaya', icon: Plus },
         { key: 'payment_gateway', label: 'Gateway Pembayaran', icon: CreditCard },
-        { key: 'discounts', label: 'Diskon Jasa Pendampingan', icon: Tag },
-        { key: 'role_scheme', label: 'Pemetaan Role-Skema', icon: Tag },
         ...(isDirector ? [{ key: 'quota', label: 'Kuota Fasilitasi', icon: Tag }] : []),
         { key: 'facilitation', label: 'Tarif SH Fasilitasi', icon: Tag },
         { key: 'master_data', label: 'Klasifikasi & Master', icon: Tag },
@@ -56,7 +54,6 @@ export const BillingTabs = ({
                         { key: 'business_types', label: 'Bidang' },
                         { key: 'products', label: 'Produk' },
                         { key: 'scales', label: 'Skala Usaha' },
-                        { key: 'schemes', label: 'Skema Penjualan' },
                     ].map(sub => (
                         <button
                             key={sub.key}

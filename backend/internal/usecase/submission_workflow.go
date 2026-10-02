@@ -103,7 +103,6 @@ type UpdateClientInfoAndPricingInput struct {
 	DistrictID        *int64 `json:"district_id"`
 	ProductCount      int    `json:"product_count"`
 	BranchCount       int    `json:"branch_count"`
-	SalesSchemeID     *int64 `json:"sales_scheme_id"`
 	DataSource        string `json:"data_source"`
 	SelectedOptionalComponentIDs *[]int64 `json:"selected_optional_component_ids"`
 	OptionalQuantities           map[int64]int `json:"optional_quantities"`

@@ -78,7 +78,6 @@ export interface Submission {
     service_type: string;
     self_declare_type?: string;
     current_assignee_role: number;
-    sales_scheme_id?: number;
     consultant_id?: string;
     consultant?: User;
     assigned_drafter_id?: string;
@@ -265,7 +264,6 @@ export interface Invoice {
     regency_id?: number;
     district_id?: number;
     pricing_source?: string;
-    sales_scheme_id?: number;
     discount_applied?: number;
     notes: string;
     created_at: string;
@@ -331,11 +329,6 @@ export interface ProductCategory {
     name: string;
 }
 
-export interface SalesScheme {
-    id: number;
-    name: string;
-}
-
 export interface SubmissionCostDetail {
     id: number;
     submission_id: string;
@@ -381,7 +374,6 @@ export interface BillingComponent {
     district_id?: number;
     business_type_id?: number;
     product_category_id?: number;
-    sales_scheme_id?: number;
     data_source?: string;
     form_field_config_id?: number;
     form_field_config?: FormFieldConfig;

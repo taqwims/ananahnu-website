@@ -18,25 +18,6 @@ func NewBillingConfigRepository(db *gorm.DB) domain.BillingConfigRepository {
 	return &billingConfigRepo{db: db}
 }
 
-// SalesScheme
-func (r *billingConfigRepo) FindAllSalesSchemes() ([]domain.SalesScheme, error) {
-	var schemes []domain.SalesScheme
-	err := r.db.Find(&schemes).Error
-	return schemes, err
-}
-
-func (r *billingConfigRepo) CreateSalesScheme(ss *domain.SalesScheme) error {
-	return r.db.Create(ss).Error
-}
-
-func (r *billingConfigRepo) UpdateSalesScheme(ss *domain.SalesScheme) error {
-	return r.db.Save(ss).Error
-}
-
-func (r *billingConfigRepo) DeleteSalesScheme(id int64) error {
-	return r.db.Delete(&domain.SalesScheme{}, id).Error
-}
-
 // BusinessType
 func (r *billingConfigRepo) FindAllBusinessTypes() ([]domain.BusinessType, error) {
 	var types []domain.BusinessType
@@ -122,9 +103,6 @@ func (r *billingConfigRepo) FindAllBillingComponents(filter map[string]interface
 	if val, ok := filter["business_scale_id"]; ok && val != "" {
 		query = query.Where("business_scale_id = ? OR business_scale_id IS NULL", val)
 	}
-	if val, ok := filter["sales_scheme_id"]; ok && val != "" {
-		query = query.Where("sales_scheme_id = ? OR sales_scheme_id IS NULL", val)
-	}
 	if val, ok := filter["data_source"]; ok && val != "" {
 		query = query.Where("data_source = ? OR data_source = 'BOTH'", val)
 	}
@@ -184,50 +162,6 @@ func (r *billingConfigRepo) DeleteBillingComponent(id int64) error {
 	return r.db.Delete(&domain.BillingComponent{}, id).Error
 }
 
-// SalesSchemePrice
-func (r *billingConfigRepo) FindAllSalesSchemePrices(filter map[string]interface{}) ([]domain.SalesSchemePrice, error) {
-	var prices []domain.SalesSchemePrice
-	query := r.db.Model(&domain.SalesSchemePrice{}).
-		Preload("SalesScheme").
-		Preload("ProductCategory").
-		Preload("BusinessType").
-		Preload("BusinessScale")
-	
-	if val, ok := filter["sales_scheme_id"]; ok && val != "" {
-		query = query.Where("sales_scheme_id = ?", val)
-	}
-	if val, ok := filter["business_scale_id"]; ok && val != "" {
-		query = query.Where("business_scale_id = ? OR business_scale_id IS NULL", val)
-	}
-	if val, ok := filter["data_source"]; ok && val != "" {
-		query = query.Where("data_source = ? OR data_source = 'BOTH'", val)
-	}
-	if val, ok := filter["product_category_id"]; ok && val != "" {
-		query = query.Where("product_category_id = ? OR product_category_id IS NULL", val)
-	}
-	if val, ok := filter["business_type_id"]; ok && val != "" {
-		query = query.Where("business_type_id = ? OR business_type_id IS NULL", val)
-	}
-	if val, ok := filter["is_active"]; ok {
-		query = query.Where("is_active = ?", val)
-	}
-	
-	err := query.Order("sales_scheme_id, data_source").Find(&prices).Error
-	return prices, err
-}
-
-func (r *billingConfigRepo) CreateSalesSchemePrice(sp *domain.SalesSchemePrice) error {
-	return r.db.Create(sp).Error
-}
-
-func (r *billingConfigRepo) UpdateSalesSchemePrice(sp *domain.SalesSchemePrice) error {
-	return r.db.Save(sp).Error
-}
-
-func (r *billingConfigRepo) DeleteSalesSchemePrice(id int64) error {
-	return r.db.Delete(&domain.SalesSchemePrice{}, id).Error
-}
-
 // SubmissionCostDetail
 func (r *billingConfigRepo) SaveSubmissionCostDetail(detail *domain.SubmissionCostDetail) error {
 	// Use clause.OnConflict to update if exists
@@ -254,32 +188,4 @@ func (r *billingConfigRepo) GetSubmissionCostDetail(submissionID uuid.UUID) (*do
 		return nil, err
 	}
 	return &detail, nil
-}
-
-// RoleSchemeMapping CRUD
-func (r *billingConfigRepo) FindAllRoleSchemeMappings() ([]domain.RoleSchemeMapping, error) {
-	var mappings []domain.RoleSchemeMapping
-	err := r.db.Preload("SalesScheme").Order("role_name").Find(&mappings).Error
-	return mappings, err
-}
-
-func (r *billingConfigRepo) FindRoleSchemeMappingByRole(roleName string) (*domain.RoleSchemeMapping, error) {
-	var mapping domain.RoleSchemeMapping
-	err := r.db.Preload("SalesScheme").Where("role_name = ?", roleName).First(&mapping).Error
-	if err != nil {
-		return nil, err
-	}
-	return &mapping, nil
-}
-
-func (r *billingConfigRepo) CreateRoleSchemeMapping(m *domain.RoleSchemeMapping) error {
-	return r.db.Create(m).Error
-}
-
-func (r *billingConfigRepo) UpdateRoleSchemeMapping(m *domain.RoleSchemeMapping) error {
-	return r.db.Save(m).Error
-}
-
-func (r *billingConfigRepo) DeleteRoleSchemeMapping(id int64) error {
-	return r.db.Delete(&domain.RoleSchemeMapping{}, id).Error
 }

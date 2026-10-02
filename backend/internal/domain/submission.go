@@ -39,7 +39,6 @@ type Submission struct {
 	AssignedDrafter     *User            `gorm:"foreignKey:AssignedDrafterID" json:"assigned_drafter,omitempty"`
 	ConsultantID        *uuid.UUID       `gorm:"type:uuid" json:"consultant_id,omitempty"`
 	Consultant          *User            `gorm:"foreignKey:ConsultantID" json:"consultant,omitempty"`
-	SalesSchemeID       *int64           `json:"sales_scheme_id,omitempty"`
 	ProvinceID          *int64           `json:"province_id,omitempty"`
 	Province            *Province        `gorm:"foreignKey:ProvinceID" json:"province,omitempty"`
 	RegencyID           *int64           `json:"regency_id,omitempty"`

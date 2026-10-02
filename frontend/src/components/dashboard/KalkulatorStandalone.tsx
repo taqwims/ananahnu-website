@@ -31,7 +31,6 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
     const [provinces, setProvinces] = useState<any[]>([]);
     const [regencies, setRegencies] = useState<any[]>([]);
     const [districts, setDistricts] = useState<any[]>([]);
-    const [schemes, setSchemes] = useState<any[]>([]);
 
     const [serviceType, setServiceType] = useState('REGULER');
     const [systemSettings, setSystemSettings] = useState<Record<string, string>>({});
@@ -39,7 +38,6 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
     // Dynamic cost components from master biaya
     const [masterComponents, setMasterComponents] = useState<BillingComponent[]>([]);
     const [loadingComponents, setLoadingComponents] = useState(false);
-    const [salesSchemePrice, setSalesSchemePrice] = useState<any | null>(null);
 
     // Form State
     const [dataSource, setDataSource] = useState('ORGANIK');
@@ -47,7 +45,6 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
     useEffect(() => {
         setDataSource('ORGANIK');
     }, [user?.role]);
-    const [salesSchemeId, setSalesSchemeId] = useState('1');
     const [businessTypeId, setBusinessTypeId] = useState('');
     const [productId, setProductId] = useState('');
     const [businessScaleId, setBusinessScaleId] = useState('');
@@ -109,68 +106,26 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                 params.data_source = dataSource === 'TELEMARKETING' ? 'ORGANIK' : dataSource;
             }
             
-            const targetSchemeId = salesSchemeId;
-            if (targetSchemeId) params.sales_scheme_id = targetSchemeId;
-            
             params.resolve_geography = 'true';
 
-            const promises: [Promise<any>, Promise<any>?] = [
-                api.get('/billing-config/components', { params })
-            ];
-
-            if (targetSchemeId && serviceType === 'REGULER') {
-                const priceParams: Record<string, string> = {
-                    sales_scheme_id: targetSchemeId,
-                    is_active: 'true'
-                };
-                if (businessTypeId) priceParams.business_type_id = businessTypeId;
-                if (businessScaleId) priceParams.business_scale_id = businessScaleId;
-                if (dataSource) priceParams.data_source = dataSource === 'TELEMARKETING' ? 'ORGANIK' : dataSource;
-                promises.push(api.get('/billing-config/scheme-prices', { params: priceParams }));
-            }
-
-            const [compRes, priceRes] = await Promise.all(promises);
-
+            const compRes = await api.get('/billing-config/components', { params });
             setMasterComponents(compRes.data || []);
-
-            if (priceRes && priceRes.data && priceRes.data.length > 0) {
-                // Sort by specificity
-                const prices = priceRes.data;
-                prices.sort((a: any, b: any) => {
-                    let scoreA = 0;
-                    if (a.product_category_id) scoreA += 100;
-                    if (a.business_scale_id) scoreA += 10;
-                    if (a.business_type_id) scoreA += 1;
-
-                    let scoreB = 0;
-                    if (b.product_category_id) scoreB += 100;
-                    if (b.business_scale_id) scoreB += 10;
-                    if (b.business_type_id) scoreB += 1;
-
-                    return scoreB - scoreA;
-                });
-                setSalesSchemePrice(prices[0]);
-            } else {
-                setSalesSchemePrice(null);
-            }
-
         } catch (err) {
             console.error('Failed to load components:', err);
         } finally {
             setLoadingComponents(false);
         }
-    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, salesSchemeId, dataSource, serviceType]);
+    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, dataSource, serviceType]);
 
     // Load master data on mount
     useEffect(() => {
         const fetchMasterData = async () => {
             try {
-                const [btRes, pRes, bsRes, provRes, scRes, sysRes] = await Promise.all([
+                const [btRes, pRes, bsRes, provRes, sysRes] = await Promise.all([
                     api.get('/billing-config/business-types').catch(() => ({ data: [] })),
                     api.get('/billing-config/product-categories').catch(() => ({ data: [] })),
                     api.get('/billing-config/business-scales').catch(() => ({ data: [] })),
                     api.get('/geography/provinces').catch(() => ({ data: [] })),
-                    api.get('/billing-config/sales-schemes').catch(() => ({ data: [] })),
                     api.get('/system-settings').catch(() => ({ data: {} }))
                 ]);
 
@@ -178,8 +133,6 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                 setProducts(pRes.data || []);
                 setScales(bsRes.data || []);
                 setProvinces(provRes.data || []);
-                const schemeList = scRes.data || [];
-                setSchemes(schemeList);
 
                 const settingsMap: Record<string, string> = {};
                 if (sysRes.data && Array.isArray(sysRes.data)) {
@@ -189,12 +142,8 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                 }
                 setSystemSettings(settingsMap);
 
-                const directSaleScheme = schemeList.find((s: any) => s.name.toLowerCase().includes('direct'));
                 if (isAdvisorOrManager) {
                     setDataSource('ORGANIK');
-                    if (directSaleScheme) {
-                        setSalesSchemeId(directSaleScheme.id.toString());
-                    }
                 }
             } catch (err) {
                 console.error(err);
@@ -208,7 +157,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
     // Re-fetch components when any filter changes
     useEffect(() => {
         if (!loading) fetchComponents();
-    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, salesSchemeId, dataSource, serviceType, fetchComponents, loading]);
+    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, dataSource, serviceType, fetchComponents, loading]);
 
     const addOptionalCost = () => {
         if (!newOptName || !newOptAmount) return;
@@ -264,13 +213,11 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
             if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId) return;
             if (comp.product_category_id && comp.product_category_id.toString() !== productId) return;
             if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId) return;
-            if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== salesSchemeId) return;
 
             let score = 0;
             if (comp.district_id) score += 1000;
             if (comp.regency_id) score += 100;
             if (comp.province_id) score += 10;
-            if (comp.sales_scheme_id) score += 8;
             if (comp.business_scale_id) score += 5;
             if (comp.product_category_id) score += 2;
             if (comp.business_type_id) score += 1;
@@ -285,7 +232,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
             }
         });
 
-        // 2. Handle PENDAMPINGAN from Master Biaya or SalesSchemePrice or SD Mandiri Cost
+        // 2. Handle PENDAMPINGAN from Master Biaya or SD Mandiri Cost
         let bestPend: any = null;
         let bestPendScore = -1;
         masterComponents.forEach(comp => {
@@ -298,13 +245,11 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
             if (comp.district_id && comp.district_id.toString() !== districtId) return;
             if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId) return;
             if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId) return;
-            if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== salesSchemeId) return;
 
             let score = 0;
             if (comp.district_id) score += 1000;
             if (comp.regency_id) score += 100;
             if (comp.province_id) score += 10;
-            if (comp.sales_scheme_id) score += 8;
             if (comp.business_scale_id) score += 5;
             if (comp.product_category_id) score += 2;
             if (comp.business_type_id) score += 1;
@@ -326,14 +271,6 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
             dispCategory = bestPend.category.toUpperCase();
             if (bestPend.discount_percent && bestPend.discount_percent > 0) {
                 pendDiscountPercent = bestPend.discount_percent;
-            }
-        } else if (serviceType === 'REGULER' && salesSchemePrice) {
-            finalPrice = salesSchemePrice.base_price;
-            if (salesSchemePrice.sales_scheme?.name) {
-                dispName = salesSchemePrice.sales_scheme.name;
-            }
-            if (salesSchemePrice.discount_percent > 0) {
-                pendDiscountPercent = salesSchemePrice.discount_percent;
             }
         } else if (serviceType === 'SELF_DECLARE_MANDIRI') {
             const sysCost = systemSettings['SD_MANDIRI_COST'];
@@ -424,25 +361,6 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
             }
         });
 
-        // 3. Partnership discount on pendampingan
-        const currentScheme = schemes.find((s: any) => s.id === parseInt(salesSchemeId));
-        if (currentScheme && currentScheme.name.toUpperCase() === 'PARTNERSHIP' && serviceType === 'REGULER') {
-            const pendItem = currentBreakdown.find(item => item.category === 'PENDAMPINGAN');
-            if (pendItem) {
-                const discountAmount = pendItem.total * 0.1;
-                const pMult = pendCalc.multiplier > 1 ? pendCalc.multiplier : 1;
-                currentBreakdown.push({
-                    name: 'Diskon Partnership (10%)',
-                    category: 'DISKON',
-                    unit_cost: -(discountAmount / pMult),
-                    multiplier: pMult > 1 ? pMult : null,
-                    total: -discountAmount,
-                    is_optional: false
-                });
-                currentTotal -= discountAmount;
-            }
-        }
-
         // 4. Optional components from master biaya
         masterComponents.forEach(comp => {
             if (!comp || !comp.category || comp.is_mandatory) return;
@@ -509,7 +427,7 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
         });
 
         return { total: currentTotal, breakdown: currentBreakdown, activeMandayComponents: mandayList };
-    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, schemes, branchCount, optionalQuantities, productCount, selectedOptionalComponentIds, serviceType, systemSettings, provinceId, regencyId, districtId, businessTypeId, productId, businessScaleId]);
+    }, [masterComponents, optionalCosts, branchCount, optionalQuantities, productCount, selectedOptionalComponentIds, serviceType, systemSettings, provinceId, regencyId, districtId, businessTypeId, productId, businessScaleId]);
 
     const getCategoryBadgeClass = (cat: string) => {
         switch (cat) {
@@ -582,7 +500,6 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
             const data = {
                 data_source: dataSource,
                 service_type: serviceType,
-                sales_scheme_id: serviceType === 'REGULER' ? (parseInt(salesSchemeId) || null) : null,
                 business_type_id: parseInt(businessTypeId) || null,
                 product_category_id: parseInt(productId) || null,
                 business_scale_id: parseInt(businessScaleId) || null,

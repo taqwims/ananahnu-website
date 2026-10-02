@@ -194,23 +194,13 @@ func (uc *submissionWorkflowUsecase) CreateDraft(clientID *uuid.UUID, businessNa
 		return nil, errors.New("either client_id or business_name is required")
 	}
 
-	var defaultSalesSchemeID int64 = 1
-	creator, err := uc.UserRepo.FindByID(facilitatorID)
-	if err == nil && creator != nil {
-		mapping, mapErr := uc.BillingConfigRepo.FindRoleSchemeMappingByRole(creator.Role.Name)
-		if mapErr == nil && mapping != nil {
-			defaultSalesSchemeID = mapping.SalesSchemeID
-		}
-	}
-
 	sub := &domain.Submission{
-		ID:            uuid.New(),
-		ClientID:      actualClientID,
-		ServiceType:   serviceType,
-		Status:        domain.StatusDraft,
-		SalesSchemeID: &defaultSalesSchemeID,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
+		ID:          uuid.New(),
+		ClientID:    actualClientID,
+		ServiceType: serviceType,
+		Status:      domain.StatusDraft,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 
 	if err := uc.SubmissionRepo.Create(sub); err != nil {
@@ -328,14 +318,6 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 		}
 	}
 
-	var defaultSalesSchemeID int64 = 1
-	{
-		mapping, mapErr := uc.BillingConfigRepo.FindRoleSchemeMappingByRole(userRole)
-		if mapErr == nil && mapping != nil {
-			defaultSalesSchemeID = mapping.SalesSchemeID
-		}
-	}
-
 	now := time.Now()
 	randomPart := strings.ToUpper(uuid.New().String()[:4])
 	trackingNo := fmt.Sprintf("AN-%s-%s", now.Format("0601"), randomPart)
@@ -367,7 +349,6 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 		DistrictID:        input.ClientData.DistrictID,
 		ProductCount:      input.ClientData.ProductCount,
 		BranchCount:       input.ClientData.BranchCount,
-		SalesSchemeID:     &defaultSalesSchemeID,
 		CreatedAt:         now,
 		UpdatedAt:         now,
 	}
@@ -555,9 +536,6 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 	if input.BranchCount > 0 {
 		sub.BranchCount = input.BranchCount
 	}
-	if input.SalesSchemeID != nil {
-		sub.SalesSchemeID = input.SalesSchemeID
-	}
 	if input.DataSource != "" {
 		sub.DataSource = input.DataSource
 	}
@@ -661,61 +639,10 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 		return nil
 	}
 
-	if sub.SalesSchemeID == nil && sub.ServiceType == "REGULER" {
-		var defaultSalesSchemeID int64 = 1
-		sub.SalesSchemeID = &defaultSalesSchemeID
-	}
-
 	// Check if required fields are present for REGULER
 	if sub.ServiceType == "REGULER" && (sub.BusinessTypeID == nil || sub.BusinessScaleID == nil || sub.ProvinceID == nil) {
 		// Pricing fields not fully filled, skip calculation (not an error, just incomplete client info)
 		return nil
-	}
-
-	// Fetch sales scheme prices if SalesSchemeID is set (only relevant for REGULER)
-	var scheme *domain.SalesSchemePrice
-	if sub.ServiceType == "REGULER" && sub.SalesSchemeID != nil && sub.BusinessTypeID != nil && sub.BusinessScaleID != nil {
-		ds := sub.DataSource
-		if ds == "TELEMARKETING" || ds == "" {
-			ds = "ORGANIK"
-		}
-
-		schemes, err := uc.BillingConfigRepo.FindAllSalesSchemePrices(map[string]interface{}{
-			"sales_scheme_id":   *sub.SalesSchemeID,
-			"business_type_id":  *sub.BusinessTypeID,
-			"business_scale_id": *sub.BusinessScaleID,
-			"data_source":       ds,
-			"is_active":         true,
-		})
-		if err == nil && len(schemes) > 0 {
-			// Sort schemes by specificity: non-null fields first
-			sort.Slice(schemes, func(i, j int) bool {
-				scoreI := 0
-				if schemes[i].ProductCategoryID != nil {
-					scoreI += 100
-				}
-				if schemes[i].BusinessScaleID != nil {
-					scoreI += 10
-				}
-				if schemes[i].BusinessTypeID != nil {
-					scoreI += 1
-				}
-
-				scoreJ := 0
-				if schemes[j].ProductCategoryID != nil {
-					scoreJ += 100
-				}
-				if schemes[j].BusinessScaleID != nil {
-					scoreJ += 10
-				}
-				if schemes[j].BusinessTypeID != nil {
-					scoreJ += 1
-				}
-
-				return scoreI > scoreJ // Descending order of specificity
-			})
-			scheme = &schemes[0]
-		}
 	}
 
 	// Fetch active billing components filtered by service_type
@@ -778,10 +705,6 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 		if comp.BusinessScaleID != nil && sub.BusinessScaleID != nil && *comp.BusinessScaleID != *sub.BusinessScaleID {
 			continue
 		}
-		if comp.SalesSchemeID != nil && sub.SalesSchemeID != nil && *comp.SalesSchemeID != *sub.SalesSchemeID {
-			continue
-		}
-
 		// Score specificity
 		score := 0
 		if comp.DistrictID != nil {
@@ -792,9 +715,6 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 		}
 		if comp.ProvinceID != nil {
 			score += 10
-		}
-		if comp.SalesSchemeID != nil {
-			score += 8
 		}
 		if comp.BusinessScaleID != nil {
 			score += 5
@@ -828,12 +748,6 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 		if bestPendampingan.Type != "" {
 			pendType = bestPendampingan.Type
 		}
-	} else if sub.ServiceType == "REGULER" && scheme != nil {
-		price = scheme.BasePrice
-		if scheme.SalesScheme.Name != "" {
-			pendampinganName = scheme.SalesScheme.Name
-		}
-		pendType = "PER_CABANG"
 	} else if sub.ServiceType == "SELF_DECLARE_MANDIRI" {
 		price = 230000.0
 		if setting, err := uc.SettingRepo.GetSetting("SD_MANDIRI_COST"); err == nil && setting != nil {
@@ -843,10 +757,6 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 		}
 		pendampinganName = "Biaya Self Declare Mandiri"
 		pendType = "FIXED"
-	}
-
-	if pendDiscount == 0 && scheme != nil && scheme.DiscountPercent > 0 {
-		pendDiscount = scheme.DiscountPercent
 	}
 
 	if price > 0 {
@@ -936,9 +846,6 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 		if comp.BusinessScaleID != nil && (sub.BusinessScaleID == nil || *comp.BusinessScaleID != *sub.BusinessScaleID) {
 			continue
 		}
-		if comp.SalesSchemeID != nil && (sub.SalesSchemeID == nil || *comp.SalesSchemeID != *sub.SalesSchemeID) {
-			continue
-		}
 
 		// If optional component, only include if explicitly passed or previously present in the breakdown
 		if !comp.IsMandatory {
@@ -967,9 +874,6 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 			}
 			if comp.ProvinceID != nil {
 				score += 10
-			}
-			if comp.SalesSchemeID != nil {
-				score += 8
 			}
 			if comp.BusinessScaleID != nil {
 				score += 5
@@ -1089,24 +993,7 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 		}
 	}
 
-	// Partnership discount
-	if scheme != nil && strings.ToUpper(scheme.SalesScheme.Name) == "PARTNERSHIP" {
-		for _, item := range breakdown {
-			if cat, ok := item["category"].(string); ok && cat == pendampinganCategory {
-				if cost, ok := item["total"].(float64); ok {
-					discountAmount := cost * 0.1
-					breakdown = append(breakdown, map[string]interface{}{
-						"name":      "Diskon Partnership (10%)",
-						"category":  "DISKON",
-						"unit_cost": -discountAmount,
-						"total":     -discountAmount,
-					})
-					total -= discountAmount
-					break
-				}
-			}
-		}
-	}
+
 
 	// Marshal breakdown
 	jsonBreakdown, err := json.Marshal(breakdown)

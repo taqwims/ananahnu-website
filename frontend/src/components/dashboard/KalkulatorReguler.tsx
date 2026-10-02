@@ -11,7 +11,6 @@ type Props = {
     submissionId: string;
     onSaved?: () => void;
     readOnly?: boolean;
-    salesSchemeId?: number;
     dataSource?: string;
     defaultCollapsed?: boolean;
 };
@@ -22,7 +21,7 @@ type OptionalCost = {
     qty?: number;
 };
 
-export default function KalkulatorReguler({ submissionId, onSaved, readOnly = false, salesSchemeId, dataSource = 'ORGANIK', defaultCollapsed = false }: Props) {
+export default function KalkulatorReguler({ submissionId, onSaved, readOnly = false, dataSource = 'ORGANIK', defaultCollapsed = false }: Props) {
     const user = useAuthStore(state => state.user);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -35,11 +34,9 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     const [provinces, setProvinces] = useState<any[]>([]);
     const [regencies, setRegencies] = useState<any[]>([]);
     const [districts, setDistricts] = useState<any[]>([]);
-    const [schemes, setSchemes] = useState<any[]>([]);
 
     // Dynamic cost components from master biaya
     const [masterComponents, setMasterComponents] = useState<BillingComponent[]>([]);
-    const [salesSchemePrice, setSalesSchemePrice] = useState<any | null>(null);
     const [loadingComponents, setLoadingComponents] = useState(false);
     const [systemSettings, setSystemSettings] = useState<Record<string, string>>({});
 
@@ -60,7 +57,6 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
     const [nik, setNik] = useState('');
     const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
-    const [salesSchemeVal, setSalesSchemeVal] = useState('1');
     const [dataSourceVal, setDataSourceVal] = useState('ORGANIK');
     const [serviceTypeVal, setServiceTypeVal] = useState('');
 
@@ -115,70 +111,26 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 params.data_source = dataSource === 'TELEMARKETING' ? 'ORGANIK' : dataSource;
             }
             
-            // Target scheme: either the one passed via props, or if marketing, try to find partnership
-            const isMarketing = dataSource === 'MARKETING';
-            const targetSchemeId = salesSchemeId || (isMarketing ? schemes.find(s => s.name.toUpperCase() === 'PARTNERSHIP' || s.name.toUpperCase() === 'PARTNER')?.id : null);
-            if (targetSchemeId) params.sales_scheme_id = targetSchemeId.toString();
-            
             params.resolve_geography = 'true';
 
-            const promises: [Promise<any>, Promise<any>?] = [
-                api.get('/billing-config/components', { params })
-            ];
-
-            if (targetSchemeId) {
-                const priceParams: Record<string, string> = {
-                    sales_scheme_id: targetSchemeId.toString(),
-                    is_active: 'true'
-                };
-                if (businessTypeId) priceParams.business_type_id = businessTypeId;
-                if (businessScaleId) priceParams.business_scale_id = businessScaleId;
-                if (dataSource) priceParams.data_source = dataSource === 'TELEMARKETING' ? 'ORGANIK' : dataSource;
-                promises.push(api.get('/billing-config/scheme-prices', { params: priceParams }));
-            }
-
-            const [compRes, priceRes] = await Promise.all(promises);
-
+            const compRes = await api.get('/billing-config/components', { params });
             setMasterComponents(compRes.data || []);
-
-            if (priceRes && priceRes.data && priceRes.data.length > 0) {
-                // Sort by specificity
-                const prices = priceRes.data;
-                prices.sort((a: any, b: any) => {
-                    let scoreA = 0;
-                    if (a.product_category_id) scoreA += 100;
-                    if (a.business_scale_id) scoreA += 10;
-                    if (a.business_type_id) scoreA += 1;
-
-                    let scoreB = 0;
-                    if (b.product_category_id) scoreB += 100;
-                    if (b.business_scale_id) scoreB += 10;
-                    if (b.business_type_id) scoreB += 1;
-
-                    return scoreB - scoreA;
-                });
-                setSalesSchemePrice(prices[0]);
-            } else {
-                setSalesSchemePrice(null);
-            }
-
         } catch (err) {
             console.error('Failed to load components:', err);
         } finally {
             setLoadingComponents(false);
         }
-    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, salesSchemeId, dataSource, schemes, serviceTypeVal]);
+    }, [businessTypeId, productId, businessScaleId, provinceId, regencyId, districtId, dataSource, serviceTypeVal]);
 
     // Load master data + existing cost detail on mount
     useEffect(() => {
         const fetchMasterData = async () => {
             try {
-                const [btRes, pRes, bsRes, provRes, scRes, detailRes, formValsRes, subRes, sysRes] = await Promise.all([
+                const [btRes, pRes, bsRes, provRes, detailRes, formValsRes, subRes, sysRes] = await Promise.all([
                     api.get('/billing-config/business-types').catch(() => ({ data: [] })),
                     api.get('/billing-config/product-categories').catch(() => ({ data: [] })),
                     api.get('/billing-config/business-scales').catch(() => ({ data: [] })),
                     api.get('/geography/provinces').catch(() => ({ data: [] })),
-                    api.get('/billing-config/sales-schemes').catch(() => ({ data: [] })),
                     api.get(`/submissions/${submissionId}/cost-detail`).catch(() => ({ data: null })),
                     api.get(`/submission-fields/${submissionId}`).catch(() => ({ data: [] })),
                     api.get(`/submissions/${submissionId}`).catch(() => ({ data: null })),
@@ -189,7 +141,6 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 setProducts(pRes.data || []);
                 setScales(bsRes.data || []);
                 setProvinces(provRes.data || []);
-                setSchemes(scRes.data || []);
                 setSubmissionFieldValues(formValsRes.data || []);
 
                 const settingsMap: Record<string, string> = {};
@@ -209,7 +160,6 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                     setNik(c.nik || '');
                     setPhone(c.phone || '');
                     setAddress(c.address || '');
-                    setSalesSchemeVal(subRes.data.sales_scheme_id?.toString() || '');
                     setDataSourceVal(subRes.data.data_source || 'ORGANIK');
                     setServiceTypeVal(subRes.data.service_type || 'REGULER');
                 }
@@ -307,8 +257,6 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         let currentTotal = 0;
         const currentBreakdown: any[] = [];
 
-        const activeSchemeId = salesSchemeVal || salesSchemeId?.toString();
-
         // 1. Components from master biaya
         // De-duplicate variants of the same component (e.g. regional vs general) by normalized base name
         const categoryMap = new Map<string, any>();
@@ -329,13 +277,11 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId?.toString()) return;
             if (comp.product_category_id && comp.product_category_id.toString() !== productId?.toString()) return;
             if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId?.toString()) return;
-            if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== activeSchemeId) return;
 
             let score = 0;
             if (comp.district_id) score += 1000;
             if (comp.regency_id) score += 100;
             if (comp.province_id) score += 10;
-            if (comp.sales_scheme_id) score += 8;
             if (comp.business_scale_id) score += 5;
             if (comp.product_category_id) score += 2;
             if (comp.business_type_id) score += 1;
@@ -390,7 +336,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             currentTotal += itemTotal;
         });
 
-        // Handle PENDAMPINGAN manually with fallback to salesSchemePrice
+        // Handle PENDAMPINGAN manually
         let bestPend: any = null;
         let bestPendScore = -1;
         masterComponents.forEach(comp => {
@@ -404,13 +350,11 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             if (comp.district_id && comp.district_id.toString() !== districtId?.toString()) return;
             if (comp.business_type_id && comp.business_type_id.toString() !== businessTypeId?.toString()) return;
             if (comp.business_scale_id && comp.business_scale_id.toString() !== businessScaleId?.toString()) return;
-            if (comp.sales_scheme_id && comp.sales_scheme_id.toString() !== activeSchemeId) return;
 
             let score = 0;
             if (comp.district_id) score += 1000;
             if (comp.regency_id) score += 100;
             if (comp.province_id) score += 10;
-            if (comp.sales_scheme_id) score += 8;
             if (comp.business_scale_id) score += 5;
             if (comp.product_category_id) score += 2;
             if (comp.business_type_id) score += 1;
@@ -433,19 +377,10 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
             if (bestPend.discount_percent && bestPend.discount_percent > 0) {
                 pendDiscountPercent = bestPend.discount_percent;
             }
-        } else if (serviceTypeVal === 'REGULER' && salesSchemePrice) {
-            finalPrice = salesSchemePrice.base_price;
-            if (salesSchemePrice.sales_scheme?.name) {
-                dispName = salesSchemePrice.sales_scheme.name;
-            }
         } else if (serviceTypeVal === 'SELF_DECLARE_MANDIRI') {
             const sysCost = systemSettings['SD_MANDIRI_COST'];
             finalPrice = sysCost ? parseFloat(sysCost) : 230000;
             dispName = 'Biaya Self Declare Mandiri';
-        }
-
-        if (pendDiscountPercent === 0 && salesSchemePrice && salesSchemePrice.discount_percent > 0) {
-            pendDiscountPercent = salesSchemePrice.discount_percent;
         }
 
         const pendType = bestPend?.type || (serviceTypeVal === 'REGULER' ? 'PER_CABANG' : 'FIXED');
@@ -488,25 +423,6 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 mandayList.push(comp);
             }
         });
-
-        // 2. Partnership discount on pendampingan
-        const currentScheme = schemes.find((s: any) => s.id === (salesSchemeId || -1));
-        if (currentScheme && currentScheme.name.toUpperCase() === 'PARTNERSHIP') {
-            const jaseItem = currentBreakdown.find(item => item.category === 'PENDAMPINGAN');
-            if (jaseItem) {
-                const discountAmount = jaseItem.total * 0.1;
-                const pMult = pendCalc.multiplier > 1 ? pendCalc.multiplier : 1;
-                currentBreakdown.push({
-                    name: 'Diskon Partnership (10%)',
-                    category: 'DISKON',
-                    unit_cost: -(discountAmount / pMult),
-                    multiplier: pMult > 1 ? pMult : null,
-                    total: -discountAmount,
-                    is_optional: false
-                });
-                currentTotal -= discountAmount;
-            }
-        }
 
         // 1b. Optional components from master biaya (if selected or form connection logic applies)
         masterComponents.forEach(comp => {
@@ -582,7 +498,7 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
         });
 
         return { total: currentTotal, breakdown: currentBreakdown, activeMandayComponents: mandayList };
-    }, [masterComponents, salesSchemePrice, optionalCosts, salesSchemeId, salesSchemeVal, schemes, branchCount, optionalQuantities, productCount, selectedOptionalComponentIds, isFormFieldFilled, serviceTypeVal, provinceId, regencyId, districtId, businessTypeId, productId, businessScaleId, systemSettings]);
+    }, [masterComponents, optionalCosts, branchCount, optionalQuantities, productCount, selectedOptionalComponentIds, isFormFieldFilled, serviceTypeVal, provinceId, regencyId, districtId, businessTypeId, productId, businessScaleId, systemSettings]);
 
     const handleSave = async () => {
         setSaving(true);
@@ -608,7 +524,6 @@ export default function KalkulatorReguler({ submissionId, onSaved, readOnly = fa
                 district_id: parseInt(districtId) || null,
                 product_count: productCount,
                 branch_count: branchCount,
-                sales_scheme_id: salesSchemeVal ? parseInt(salesSchemeVal) : null,
                 data_source: dataSourceVal || 'ORGANIK',
                 selected_optional_component_ids: selectedOptionalComponentIds,
                 total_amount: total,
