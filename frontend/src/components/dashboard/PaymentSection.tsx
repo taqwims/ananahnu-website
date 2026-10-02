@@ -371,7 +371,7 @@ export default function PaymentSection({ submission, fieldValues: _fieldValues =
                         </div>
                         <div className="min-w-0">
                             <h3 className="text-base font-black truncate">Bukti Transfer Manual Terkirim</h3>
-                            <p className="text-xs text-amber-700 font-medium">Sedang diverifikasi oleh Admin Finance & Legal</p>
+                            <p className="text-xs text-amber-700 font-medium">Sedang diverifikasi oleh Admin Finance</p>
                         </div>
                     </div>
                     <span className="self-start sm:self-auto px-3 py-1 bg-amber-200/70 text-amber-900 rounded-full text-xs font-black uppercase tracking-wider shrink-0">

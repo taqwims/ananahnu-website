@@ -98,8 +98,8 @@ func (uc *billingUsecase) GetMyInvoices(userID uuid.UUID, roleName string, statu
 			}
 		}
 		filter["payer_id"] = ids
-	case "FINANCE_LEGAL", "FINANCE", "LEGAL", "ADMIN_KEUANGAN", "DIRECTOR":
-		// Finance & Legal sees all invoices of all agents
+	case "FINANCE", "ADMIN_KEUANGAN", "DIRECTOR":
+		// Finance sees all invoices of all agents
 		// Do not set filter["payer_id"]
 	default:
 		filter["payer_id"] = userID

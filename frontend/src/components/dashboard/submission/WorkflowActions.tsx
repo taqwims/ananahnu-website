@@ -287,16 +287,16 @@ export const WorkflowActions = ({
                         (submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'DRAFTER' && (user?.role === 'DRAFTER' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
-                        (submission.status === 'SUBMITTED_TO_BPJPH' && (user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'LEGAL' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')));
+                        (submission.status === 'SUBMITTED_TO_BPJPH' && (user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')));
 
     const showReject = ((submission.status === 'QC_OFFICER' && (user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
                         (submission.status === 'DRAFTER' && user?.role === 'DRAFTER') ||
                         (submission.status === 'QC_REVIEW' && (user?.role === 'QC_OFFICER' || user?.role === 'VERIFIKATOR' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
-                        (submission.status === 'SUBMITTED_TO_BPJPH' && (user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'LEGAL' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
-                        (submission.status === 'SIDANG_FATWA' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'LEGAL')));
+                        (submission.status === 'SUBMITTED_TO_BPJPH' && (user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR')) ||
+                        (submission.status === 'SIDANG_FATWA' && (user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE')));
 
     const canIssueSHDirect = (submission.status === 'SIDANG_FATWA' || submission.status === 'SUBMITTED_TO_BPJPH') && 
-                            (user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'LEGAL' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR');
+                            (user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR');
 
     const handleDownload = async (format: 'docx' | 'pdf') => {
         try {
@@ -821,7 +821,7 @@ export const WorkflowActions = ({
                         </div>
                     )}
 
-                    {submission.status === 'SH_TERBIT' && (user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'LEGAL' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'MANAGER') && (
+                    {submission.status === 'SH_TERBIT' && (user?.role === 'ADMIN_KEUANGAN' || user?.role === 'FINANCE' || user?.role === 'ADMIN' || user?.role === 'DIRECTOR' || user?.role === 'MANAGER') && (
                         <div className="pt-2">
                             <button
                                 onClick={() => triggerConfirm(

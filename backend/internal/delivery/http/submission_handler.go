@@ -395,7 +395,7 @@ func (h *SubmissionHandler) IssueSH(c *gin.Context) {
 
 	role := middleware.GetUserRole(c)
 	if role == "HALAL_ADVISOR" || role == "HALAL_MANAGER" || role == "HALAL_DIRECTOR" {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Halal Agency / Halal Manager tidak memiliki akses untuk menerbitkan Sertifikat Halal. Penerbitan SH hanya untuk tim Finance & Legal."})
+		c.JSON(http.StatusForbidden, gin.H{"error": "Halal Agency / Halal Manager tidak memiliki akses untuk menerbitkan Sertifikat Halal. Penerbitan SH hanya untuk tim Finance."})
 		return
 	}
 

@@ -166,7 +166,7 @@ export default function SHWorkspace() {
                     <div>
                         <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full text-xs font-black uppercase tracking-wider mb-3">
                             <Award className="w-4 h-4 text-emerald-400" />
-                            Ruang Kerja Legal & Finance
+                            Ruang Kerja Finance
                         </div>
                         <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
                             Penerbitan Sertifikat Halal (SH)

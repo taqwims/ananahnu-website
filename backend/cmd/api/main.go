@@ -153,8 +153,12 @@ func main() {
 		}
 	}
 	// Clean up permissions and obsolete roles if they exist on the server database
-	db.Exec("DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE name IN ('', 'FINANCE', 'AUDIT_MANAGER', 'VERIFIKATOR', 'DRAFT_MANAGER') OR name IS NULL)")
-	db.Exec("DELETE FROM roles WHERE name IN ('', 'FINANCE', 'AUDIT_MANAGER', 'VERIFIKATOR', 'DRAFT_MANAGER') OR name IS NULL")
+	var financeRole domain.Role
+	if err := db.Where("name = ?", "ADMIN_KEUANGAN").First(&financeRole).Error; err == nil {
+		db.Model(&domain.User{}).Where("role_id IN (SELECT id FROM roles WHERE name IN ('LEGAL', 'FINANCE_LEGAL'))").Update("role_id", financeRole.ID)
+	}
+	db.Exec("DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE name IN ('', 'LEGAL', 'FINANCE_LEGAL', 'AUDIT_MANAGER', 'VERIFIKATOR', 'DRAFT_MANAGER') OR name IS NULL)")
+	db.Exec("DELETE FROM roles WHERE name IN ('', 'LEGAL', 'FINANCE_LEGAL', 'AUDIT_MANAGER', 'VERIFIKATOR', 'DRAFT_MANAGER') OR name IS NULL")
 
 	// 4.5 Seed Admin User
 	var adminUser domain.User

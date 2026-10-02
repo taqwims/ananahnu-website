@@ -102,6 +102,14 @@ func RoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
 				c.Next()
 				return
 			}
+			if (roleStr == "ADMIN_KEUANGAN" || roleStr == "FINANCE") && (allowed == "ADMIN_KEUANGAN" || allowed == "FINANCE") {
+				c.Next()
+				return
+			}
+			if (roleStr == "QC_OFFICER" || roleStr == "VERIFIKATOR") && (allowed == "QC_OFFICER" || allowed == "VERIFIKATOR") {
+				c.Next()
+				return
+			}
 		}
 
 		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permissions"})

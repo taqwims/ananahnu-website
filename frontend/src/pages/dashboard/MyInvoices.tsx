@@ -43,9 +43,7 @@ export default function MyInvoices() {
     const currentUser = useAuthStore(state => state.user);
     const isCoordinator = currentUser?.role === 'HALAL_MANAGER' || 
                           currentUser?.role === 'HALAL_DIRECTOR' || 
-                          currentUser?.role === 'FINANCE_LEGAL' || 
                           currentUser?.role === 'FINANCE' || 
-                          currentUser?.role === 'LEGAL' || 
                           currentUser?.role === 'ADMIN_KEUANGAN' || 
                           currentUser?.role === 'DIRECTOR';
 

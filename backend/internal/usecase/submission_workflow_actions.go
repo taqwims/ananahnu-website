@@ -634,7 +634,7 @@ func (uc *submissionWorkflowUsecase) RevokeSH(id uuid.UUID, userID uuid.UUID, us
 		return errors.New("hanya pengajuan berstatus SH_TERBIT yang dapat dibatalkan penerbitannya")
 	}
 
-	if userRole != "ADMIN_KEUANGAN" && userRole != "FINANCE" && userRole != "LEGAL" && userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "MANAGER" {
+	if userRole != "ADMIN_KEUANGAN" && userRole != "FINANCE" && userRole != "ADMIN" && userRole != "DIRECTOR" && userRole != "MANAGER" {
 		return errors.New("unauthorized: role Anda tidak memiliki wewenang untuk membatalkan penerbitan SH")
 	}
 
