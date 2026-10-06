@@ -8,13 +8,14 @@ import { compressImage, resolveMediaUrl } from '../../utils/imageOptimizer';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft, CheckCircle2, Eye, Globe,
-  FileText, Sparkles, Layers,
+  FileText, Sparkles, Layers, Share2,
   Bold, Italic, Heading2, Heading3, Quote, List,
   ListOrdered, Link as LinkIcon, ImagePlus, UploadCloud,
   Clock, Tag, User, Save, ExternalLink, X,
   Check, Zap, Table as TableIcon, Plus, Minus
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ArticleContentRenderer from '../../components/common/ArticleContentRenderer';
 
 const CATEGORY_PRESETS = [
   'Edukasi Halal',
@@ -204,6 +205,19 @@ export default function NewsEditorPage() {
     }, 50);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'b' || e.key === 'B')) {
+      e.preventDefault();
+      insertFormatting('**', '**');
+    } else if ((e.metaKey || e.ctrlKey) && (e.key === 'i' || e.key === 'I')) {
+      e.preventDefault();
+      insertFormatting('*', '*');
+    } else if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault();
+      insertFormatting('[Teks Tautan](', 'https://...)');
+    }
+  };
+
   // ─── Handle Cover Image Upload ───
   const handleCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -219,7 +233,7 @@ export default function NewsEditorPage() {
       setForm(prev => ({
         ...prev,
         thumbnail_url: uploadedUrl,
-        og_image_url: prev.og_image_url || uploadedUrl,
+        og_image_url: uploadedUrl,
       }));
       toast.success('Gambar sampul berhasil diunggah & dioptimasi!', { id: toastId });
     } catch (err: unknown) {
@@ -645,109 +659,18 @@ export default function NewsEditorPage() {
             </div>
 
             {previewMode ? (
-              <div className="min-h-[450px] p-6 rounded-2xl border border-dark-200 bg-brand-50/20 text-dark-800 space-y-4 leading-relaxed font-sans text-sm sm:text-base">
-                {form.content.split('\n\n').map((block, idx) => {
-                  const trimmed = block.trim();
-                  if (!trimmed) return null;
-
-                  // 1. In-Content Image Parser
-                  const imgMatch = trimmed.match(/^!\[(.*?)\]\((.*?)\)$/);
-                  if (imgMatch) {
-                    const caption = imgMatch[1];
-                    const imgUrl = imgMatch[2];
-                    return (
-                      <figure key={idx} className="my-5 rounded-2xl overflow-hidden border border-dark-200 bg-white shadow-xs">
-                        <img
-                          src={resolveMediaUrl(imgUrl)}
-                          alt={caption}
-                          loading="lazy"
-                          className="w-full max-h-[480px] object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&w=800&q=80';
-                          }}
-                        />
-                        {caption && (
-                          <figcaption className="p-2.5 text-center text-xs text-dark-500 font-medium italic bg-dark-50/70 border-t border-dark-100">
-                            📷 {caption}
-                          </figcaption>
-                        )}
-                      </figure>
-                    );
-                  }
-
-                  // 2. Table Parser (| Col 1 | Col 2 |)
-                  if (trimmed.includes('|') && trimmed.includes('---')) {
-                    const lines = trimmed.split('\n').map(l => l.trim()).filter(Boolean);
-                    let headerRow: string[] = [];
-                    const bodyRows: string[][] = [];
-                    let foundHeader = false;
-
-                    for (const line of lines) {
-                      if (line.includes('---')) continue;
-                      const cleanCells = line
-                        .replace(/^\|/, '')
-                        .replace(/\|$/, '')
-                        .split('|')
-                        .map(c => c.trim());
-
-                      if (!foundHeader && cleanCells.length > 0) {
-                        headerRow = cleanCells;
-                        foundHeader = true;
-                      } else if (cleanCells.length > 0) {
-                        bodyRows.push(cleanCells);
-                      }
-                    }
-
-                    if (foundHeader) {
-                      return (
-                        <div key={idx} className="my-6 overflow-x-auto rounded-2xl border border-dark-200 bg-white shadow-xs">
-                          <table className="w-full text-left border-collapse text-xs sm:text-sm">
-                            <thead className="bg-brand-50/80 border-b border-dark-200 text-brand-950 font-extrabold uppercase text-[11px] tracking-wider">
-                              <tr>
-                                {headerRow.map((th, thIdx) => (
-                                  <th key={thIdx} className="px-4 py-3 border-r border-dark-200/60 last:border-r-0">
-                                    {th}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-dark-100 text-dark-700">
-                              {bodyRows.map((row, rowIdx) => (
-                                <tr key={rowIdx} className="hover:bg-brand-50/20 transition-colors">
-                                  {row.map((td, tdIdx) => (
-                                    <td key={tdIdx} className="px-4 py-3 border-r border-dark-100 last:border-r-0 leading-relaxed">
-                                      {td}
-                                    </td>
-                                  ))}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      );
-                    }
-                  }
-
-                  if (trimmed.startsWith('### ')) {
-                    return <h3 key={idx} className="text-lg font-bold text-brand-900 pt-3">{trimmed.replace('### ', '')}</h3>;
-                  }
-                  if (trimmed.startsWith('## ')) {
-                    return <h2 key={idx} className="text-xl font-extrabold text-brand-900 pt-5 border-b border-dark-200 pb-1">{trimmed.replace('## ', '')}</h2>;
-                  }
-                  if (trimmed.startsWith('> ')) {
-                    return <blockquote key={idx} className="p-4 rounded-xl bg-brand-100/50 border-l-4 border-brand-600 text-brand-900 font-medium italic my-2">{trimmed.replace('> ', '')}</blockquote>;
-                  }
-                  return <p key={idx} className="text-dark-700">{trimmed}</p>;
-                })}
+              <div className="min-h-[450px] p-6 sm:p-8 rounded-2xl border border-dark-200 bg-brand-50/20 text-dark-800 space-y-4 leading-relaxed font-sans text-sm sm:text-base">
+                <ArticleContentRenderer content={form.content} />
               </div>
             ) : (
               <textarea
                 id="news-content-area"
                 rows={18}
                 required
-                placeholder="Tulis artikel lengkap di sini. Gunakan tombol '+ Gambar' untuk menyisipkan foto atau '+ Tabel' untuk menyisipkan tabel perbandingan/data..."
+                placeholder="Tulis artikel lengkap di sini. Gunakan tombol '+ Gambar' untuk menyisipkan foto atau '+ Tabel' untuk menyisipkan tabel perbandingan/data... Pintasan keyboard: Ctrl+B / Cmd+B untuk **Tebal**, Ctrl+I / Cmd+I untuk *Miring*."
                 value={form.content}
                 onChange={(e) => handleContentChange(e.target.value)}
+                onKeyDown={handleKeyDown}
                 className="w-full p-4 rounded-2xl border border-dark-200 focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 text-xs sm:text-sm font-sans leading-relaxed resize-y custom-scrollbar font-mono"
               />
             )}
@@ -1036,15 +959,48 @@ export default function NewsEditorPage() {
               />
             </div>
 
-            {/* Meta Keywords */}
+            {/* Social Share & WhatsApp Card Preview */}
+            <div className="p-4 rounded-2xl bg-brand-50/50 border border-brand-200/70 space-y-2">
+              <div className="text-[10px] font-bold text-brand-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Share2 className="w-3 h-3 text-brand-600" /> Pratinjau Share WhatsApp / Sosmed
+              </div>
+              <div className="rounded-xl overflow-hidden border border-dark-200 bg-white shadow-xs">
+                <div className="h-28 bg-dark-100 overflow-hidden relative">
+                  <img
+                    src={resolveMediaUrl(form.og_image_url || form.thumbnail_url)}
+                    alt="Share Thumbnail"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&w=600&q=80';
+                    }}
+                  />
+                  <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded bg-black/60 text-white text-[9px] font-semibold">
+                    Gambar Headline Share
+                  </span>
+                </div>
+                <div className="p-2.5 space-y-0.5 bg-white">
+                  <p className="text-[10px] text-dark-400 font-mono">telemarketing.halalcore.id</p>
+                  <p className="text-xs font-bold text-dark-900 line-clamp-1">
+                    {form.meta_title || form.title || 'Judul Artikel HalalCore'}
+                  </p>
+                  <p className="text-[10px] text-dark-500 line-clamp-2">
+                    {form.meta_description || form.excerpt || 'Ringkasan artikel saat dibagikan ke WhatsApp dan media sosial.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Custom OG Image URL (Optional) */}
             <div>
-              <label className="form-label font-bold text-dark-900 text-xs">Meta Keywords</label>
+              <label className="form-label font-bold text-dark-900 text-xs">
+                Gambar Khusus Social Share (OpenGraph)
+              </label>
               <input
                 type="text"
-                value={form.meta_keywords}
-                onChange={(e) => setForm(prev => ({ ...prev, meta_keywords: e.target.value }))}
-                className="form-input text-xs"
-                placeholder="sertifikasi halal gratis, panduan bpjph, halal mui"
+                value={form.og_image_url}
+                onChange={(e) => setForm(prev => ({ ...prev, og_image_url: e.target.value }))}
+                className="form-input text-[11px] font-mono"
+                placeholder="Otomatis mengikuti Gambar Sampul jika dikosongkan"
               />
             </div>
           </div>

@@ -135,32 +135,8 @@ func (h *CMSHandler) GetNewsShareHTML(c *gin.Context) {
 		return
 	}
 
-	// 1. Determine base protocol & host dynamically
-	scheme := "https"
-	if c.Request.TLS == nil && c.GetHeader("X-Forwarded-Proto") != "https" {
-		if strings.HasPrefix(c.Request.Host, "localhost") || strings.HasPrefix(c.Request.Host, "127.0.0.1") {
-			scheme = "http"
-		}
-	}
-	currentOrigin := fmt.Sprintf("%s://%s", scheme, c.Request.Host)
-
-	siteURL := os.Getenv("FRONTEND_URL")
-	if siteURL == "" {
-		siteURL = os.Getenv("APP_FRONTEND_URL")
-	}
-	if siteURL == "" {
-		siteURL = currentOrigin
-	}
-	if strings.Contains(siteURL, ",") {
-		siteURL = strings.Split(siteURL, ",")[0]
-	}
-	siteURL = strings.TrimRight(siteURL, "/")
-
-	apiURL := os.Getenv("API_BASE_URL")
-	if apiURL == "" {
-		apiURL = currentOrigin
-	}
-	apiURL = strings.TrimRight(apiURL, "/")
+	siteURL := getBaseSiteURL(c)
+	apiURL := getBaseAPIURL(c)
 
 	title := news.MetaTitle
 	if title == "" {
@@ -172,11 +148,7 @@ func (h *CMSHandler) GetNewsShareHTML(c *gin.Context) {
 		desc = news.Excerpt
 	}
 	if desc == "" && news.Content != "" {
-		clean := strings.ReplaceAll(news.Content, "#", "")
-		clean = strings.ReplaceAll(clean, "*", "")
-		if len(clean) > 160 {
-			clean = clean[:160] + "..."
-		}
+		clean := cleanPlainText(news.Content, 160)
 		desc = clean
 	}
 
@@ -186,14 +158,9 @@ func (h *CMSHandler) GetNewsShareHTML(c *gin.Context) {
 		rawImg = strings.TrimSpace(news.ThumbnailURL)
 	}
 
-	imgURL := rawImg
+	imgURL := resolveMediaURL(rawImg, apiURL, siteURL)
 	if imgURL == "" {
 		imgURL = siteURL + "/icon.png"
-	} else if !strings.HasPrefix(imgURL, "http://") && !strings.HasPrefix(imgURL, "https://") {
-		if !strings.HasPrefix(imgURL, "/") {
-			imgURL = "/" + imgURL
-		}
-		imgURL = apiURL + imgURL
 	}
 
 	imgType := "image/jpeg"
@@ -1452,18 +1419,28 @@ func renderLeadHTML(excerpt string) string {
 }
 
 func getBaseSiteURL(c *gin.Context) string {
+	scheme := "https"
+	if c.Request.TLS == nil && c.GetHeader("X-Forwarded-Proto") != "https" {
+		if strings.HasPrefix(c.Request.Host, "localhost") || strings.HasPrefix(c.Request.Host, "127.0.0.1") {
+			scheme = "http"
+		}
+	}
+	currentOrigin := fmt.Sprintf("%s://%s", scheme, c.Request.Host)
+
+	// If request came to telemarketing portal, use its own domain
+	if strings.Contains(c.Request.Host, "telemarketing.halalcore.id") {
+		return currentOrigin
+	}
+	if strings.HasPrefix(c.Request.Host, "localhost") || strings.HasPrefix(c.Request.Host, "127.0.0.1") {
+		return currentOrigin
+	}
+
 	siteURL := os.Getenv("FRONTEND_URL")
 	if siteURL == "" {
 		siteURL = os.Getenv("APP_FRONTEND_URL")
 	}
 	if siteURL == "" {
-		scheme := "https"
-		if c.Request.TLS == nil && c.GetHeader("X-Forwarded-Proto") != "https" {
-			if strings.HasPrefix(c.Request.Host, "localhost") || strings.HasPrefix(c.Request.Host, "127.0.0.1") {
-				scheme = "http"
-			}
-		}
-		siteURL = fmt.Sprintf("%s://%s", scheme, c.Request.Host)
+		siteURL = currentOrigin
 	}
 	if strings.Contains(siteURL, ",") {
 		siteURL = strings.Split(siteURL, ",")[0]

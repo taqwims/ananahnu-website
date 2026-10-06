@@ -3,12 +3,13 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getPublicNewsDetail, type NewsArticle } from '../../services/newsService';
 import {
   Clock, Share2, ArrowRight,
-  ArrowLeft, ChevronRight, Check, MessageCircle,
+  ArrowLeft, ChevronRight, Check,
   Eye, Calendar, User, Sparkles
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Logo from '../../components/ui/Logo';
 import { resolveMediaUrl } from '../../utils/imageOptimizer';
+import ArticleContentRenderer from '../../components/common/ArticleContentRenderer';
 
 export default function NewsDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -61,22 +62,33 @@ export default function NewsDetailPage() {
         }
         linkCanonical.setAttribute('href', canonicalHref);
 
-        // Dynamic OpenGraph Tags
-        const updateOg = (prop: string, val: string) => {
-          let og = document.querySelector(`meta[property="${prop}"]`);
-          if (!og) {
-            og = document.createElement('meta');
-            og.setAttribute('property', prop);
-            document.head.appendChild(og);
+        // Dynamic OpenGraph & Twitter Tags
+        const updateMeta = (attr: 'property' | 'name', prop: string, val: string) => {
+          let meta = document.querySelector(`meta[${attr}="${prop}"]`);
+          if (!meta) {
+            meta = document.createElement('meta');
+            meta.setAttribute(attr, prop);
+            document.head.appendChild(meta);
           }
-          og.setAttribute('content', val);
+          meta.setAttribute('content', val);
         };
 
-        updateOg('og:title', art.meta_title || art.title);
-        updateOg('og:description', art.meta_description || art.excerpt || art.title);
-        updateOg('og:image', art.og_image_url || art.thumbnail_url);
-        updateOg('og:url', window.location.href);
-        updateOg('og:type', 'article');
+        const resolvedCoverUrl = resolveMediaUrl(art.og_image_url || art.thumbnail_url || '/icon.png');
+        const absoluteOgImage = resolvedCoverUrl.startsWith('http')
+          ? resolvedCoverUrl
+          : `${window.location.origin}${resolvedCoverUrl.startsWith('/') ? '' : '/'}${resolvedCoverUrl}`;
+
+        updateMeta('property', 'og:title', art.meta_title || art.title);
+        updateMeta('property', 'og:description', art.meta_description || art.excerpt || art.title);
+        updateMeta('property', 'og:image', absoluteOgImage);
+        updateMeta('property', 'og:image:secure_url', absoluteOgImage);
+        updateMeta('property', 'og:url', window.location.href);
+        updateMeta('property', 'og:type', 'article');
+
+        updateMeta('name', 'twitter:card', 'summary_large_image');
+        updateMeta('name', 'twitter:title', art.meta_title || art.title);
+        updateMeta('name', 'twitter:description', art.meta_description || art.excerpt || art.title);
+        updateMeta('name', 'twitter:image', absoluteOgImage);
 
         // Dynamic JSON-LD Structured Data for Google Rich Snippets
         const existingScript = document.getElementById('jsonld-article');
@@ -91,7 +103,7 @@ export default function NewsDetailPage() {
           '@type': 'NewsArticle',
           headline: art.title,
           description: art.excerpt || art.meta_description,
-          image: [art.thumbnail_url],
+          image: [absoluteOgImage],
           datePublished: art.published_at || art.created_at,
           dateModified: art.updated_at || art.published_at,
           author: [{
@@ -135,6 +147,37 @@ export default function NewsDetailPage() {
 
   const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
 
+// ─── Authentic Brand SVG Icons ───
+const WhatsAppIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.82 11.82 0 00-3.48-8.413z" />
+  </svg>
+);
+
+const FacebookIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+  </svg>
+);
+
+const XTwitterIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+);
+
+const LinkedInIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+  </svg>
+);
+
+const TelegramIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.458c.538-.196 1.006.128.832.943z" />
+  </svg>
+);
+
   const handleCopyLink = () => {
     navigator.clipboard.writeText(currentUrl);
     setCopied(true);
@@ -158,9 +201,19 @@ export default function NewsDetailPage() {
     window.open(`https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(currentUrl)}`, '_blank');
   };
 
+  const handleShareLinkedIn = () => {
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(currentUrl)}`, '_blank');
+  };
+
+  const handleShareTelegram = () => {
+    if (!article) return;
+    const text = encodeURIComponent(article.title);
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(currentUrl)}&text=${text}`, '_blank');
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-brand-50/30 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center space-y-3">
           <div className="w-10 h-10 border-3 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-xs text-dark-500 font-medium">Memuat artikel...</p>
@@ -171,7 +224,7 @@ export default function NewsDetailPage() {
 
   if (!article) {
     return (
-      <div className="min-h-screen bg-brand-50/30 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white p-8 rounded-3xl text-center border border-dark-100 shadow-xl space-y-4">
           <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
             <Sparkles className="w-7 h-7" />
@@ -194,9 +247,9 @@ export default function NewsDetailPage() {
   const tagsList = article.tags ? article.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
 
   return (
-    <div className="min-h-screen bg-brand-50/20 flex flex-col font-sans">
+    <div className="min-h-screen bg-white flex flex-col font-sans">
       {/* ─── Top Navbar ─── */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-brand-100/60 shadow-sm">
+      <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-dark-100 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center gap-2.5">
@@ -230,7 +283,7 @@ export default function NewsDetailPage() {
       </nav>
 
       {/* ─── Breadcrumb ─── */}
-      <div className="bg-white/60 border-b border-dark-100">
+      <div className="bg-white border-b border-dark-100">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3">
           <div className="flex items-center gap-2 text-[11px] font-semibold text-dark-400 overflow-x-auto whitespace-nowrap custom-scrollbar">
             <Link to="/" className="hover:text-brand-700 transition-colors">Beranda</Link>
@@ -245,10 +298,10 @@ export default function NewsDetailPage() {
       </div>
 
       {/* ─── Article Header ─── */}
-      <header className="bg-white border-b border-dark-100 py-10 sm:py-14">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-5">
+      <header className="bg-white border-b border-dark-100 py-8 sm:py-12">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-4">
           <div className="flex flex-wrap items-center gap-2.5">
-            <span className="px-3 py-1 rounded-lg text-xs font-bold bg-brand-50 text-brand-800 border border-brand-200/60">
+            <span className="px-3 py-1 rounded-lg text-xs font-bold bg-dark-100 text-brand-900 border border-dark-200">
               {article.category || 'Berita Halal'}
             </span>
             {article.is_featured && (
@@ -263,7 +316,7 @@ export default function NewsDetailPage() {
           </h1>
 
           {article.excerpt && (
-            <p className="text-sm sm:text-base text-dark-600 leading-relaxed font-medium">
+            <p className="text-base sm:text-lg text-dark-600 leading-relaxed font-normal">
               {article.excerpt}
             </p>
           )}
@@ -271,7 +324,7 @@ export default function NewsDetailPage() {
           {/* Author, Date & Stats Meta */}
           <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-dark-100 text-xs text-dark-500">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-brand-100 text-brand-800 flex items-center justify-center font-bold font-mono">
+              <div className="w-9 h-9 rounded-full bg-dark-100 text-brand-800 flex items-center justify-center font-bold font-mono">
                 <User className="w-4 h-4" />
               </div>
               <div>
@@ -301,10 +354,10 @@ export default function NewsDetailPage() {
       </header>
 
       {/* ─── Article Main Body ─── */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 w-full space-y-8 flex-1">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 w-full space-y-8 flex-1 bg-white">
         {/* Featured Cover Image */}
         {article.thumbnail_url && (
-          <div className="rounded-3xl overflow-hidden border border-dark-150 shadow-md bg-dark-100 max-h-[480px]">
+          <div className="rounded-2xl overflow-hidden border border-dark-150 shadow-xs bg-dark-100 max-h-[500px]">
             <img
               src={resolveMediaUrl(article.thumbnail_url)}
               alt={article.title}
@@ -316,136 +369,9 @@ export default function NewsDetailPage() {
           </div>
         )}
 
-        {/* Content Paragraphs & In-Content Images */}
-        <article className="bg-white rounded-3xl border border-dark-100 p-6 sm:p-10 shadow-xs space-y-5 text-dark-800 text-sm sm:text-base leading-relaxed font-sans">
-          {article.content.split('\n\n').map((block, i) => {
-            const trimmed = block.trim();
-            if (!trimmed) return null;
-
-            // 1. In-Content Image Parser (![Caption](url))
-            const imgMatch = trimmed.match(/^!\[(.*?)\]\((.*?)\)$/);
-            if (imgMatch) {
-              const caption = imgMatch[1];
-              const imgUrl = imgMatch[2];
-              return (
-                <figure key={i} className="my-8 rounded-2xl overflow-hidden border border-dark-200 bg-white shadow-xs">
-                  <img
-                    src={resolveMediaUrl(imgUrl)}
-                    alt={caption}
-                    loading="lazy"
-                    className="w-full max-h-[500px] object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&w=800&q=80';
-                    }}
-                  />
-                  {caption && (
-                    <figcaption className="p-3 text-center text-xs text-dark-500 font-medium italic bg-dark-50/70 border-t border-dark-100">
-                      📷 {caption}
-                    </figcaption>
-                  )}
-                </figure>
-              );
-            }
-
-            // 2. Table Parser (| Col 1 | Col 2 |)
-            if (trimmed.includes('|') && trimmed.includes('---')) {
-              const lines = trimmed.split('\n').map(l => l.trim()).filter(Boolean);
-              let headerRow: string[] = [];
-              const bodyRows: string[][] = [];
-              let foundHeader = false;
-
-              for (const line of lines) {
-                if (line.includes('---')) continue;
-                const cleanCells = line
-                  .replace(/^\|/, '')
-                  .replace(/\|$/, '')
-                  .split('|')
-                  .map(c => c.trim());
-
-                if (!foundHeader && cleanCells.length > 0) {
-                  headerRow = cleanCells;
-                  foundHeader = true;
-                } else if (cleanCells.length > 0) {
-                  bodyRows.push(cleanCells);
-                }
-              }
-
-              if (foundHeader) {
-                return (
-                  <div key={i} className="my-8 overflow-x-auto rounded-2xl border border-dark-200 bg-white shadow-xs">
-                    <table className="w-full text-left border-collapse text-xs sm:text-sm">
-                      <thead className="bg-brand-50/80 border-b border-dark-200 text-brand-950 font-extrabold uppercase text-[11px] tracking-wider">
-                        <tr>
-                          {headerRow.map((th, thIdx) => (
-                            <th key={thIdx} className="px-4 py-3.5 border-r border-dark-200/60 last:border-r-0 whitespace-nowrap sm:whitespace-normal">
-                              {th}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-dark-100 text-dark-700">
-                        {bodyRows.map((row, rowIdx) => (
-                          <tr key={rowIdx} className="hover:bg-brand-50/20 transition-colors">
-                            {row.map((td, tdIdx) => (
-                              <td key={tdIdx} className="px-4 py-3.5 border-r border-dark-100 last:border-r-0 leading-relaxed whitespace-nowrap sm:whitespace-normal">
-                                {td}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              }
-            }
-
-            // 3. Handle Markdown Subheadings (## or ###)
-            if (trimmed.startsWith('### ')) {
-              return (
-                <h3 key={i} className="text-lg sm:text-xl font-bold text-brand-900 pt-5 pb-1">
-                  {trimmed.replace('### ', '')}
-                </h3>
-              );
-            }
-            if (trimmed.startsWith('## ')) {
-              return (
-                <h2 key={i} className="text-xl sm:text-2xl font-extrabold text-brand-900 pt-7 pb-2 border-b border-dark-100">
-                  {trimmed.replace('## ', '')}
-                </h2>
-              );
-            }
-
-            // 4. Blockquote / Tip Box
-            if (trimmed.startsWith('> ')) {
-              return (
-                <blockquote key={i} className="p-4 sm:p-5 rounded-2xl bg-brand-50/70 border-l-4 border-brand-600 text-brand-950 font-medium italic my-5 shadow-xs">
-                  {trimmed.replace('> ', '')}
-                </blockquote>
-              );
-            }
-
-            // 4. Bullet List
-            if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-              const items = trimmed.split('\n').filter(Boolean);
-              return (
-                <ul key={i} className="space-y-2 my-4 pl-2 list-disc list-inside text-dark-700">
-                  {items.map((it, idx) => (
-                    <li key={idx} className="leading-relaxed">
-                      {it.replace(/^[-*]\s+/, '')}
-                    </li>
-                  ))}
-                </ul>
-              );
-            }
-
-            // 5. Standard Paragraph
-            return (
-              <p key={i} className="text-dark-700 leading-relaxed font-normal">
-                {trimmed}
-              </p>
-            );
-          })}
+        {/* Clean Article Content (Cardless, Seamless Editorial Flow) */}
+        <article className="space-y-6 text-dark-800 text-base sm:text-lg leading-relaxed font-sans">
+          <ArticleContentRenderer content={article.content} />
 
           {/* Tags */}
           {tagsList.length > 0 && (
@@ -459,41 +385,68 @@ export default function NewsDetailPage() {
             </div>
           )}
 
-          {/* Social Share Box */}
-          <div className="pt-6 border-t border-dark-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-brand-50/30 p-4 rounded-2xl">
+          {/* Social Share Strip with Authentic Brand Icons */}
+          <div className="pt-6 border-t border-dark-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-dark-50/80 border border-dark-150">
             <div className="flex items-center gap-2 text-xs font-bold text-dark-700">
-              <Share2 className="w-4 h-4 text-brand-600" />
+              <Share2 className="w-4 h-4 text-brand-700" />
               <span>Bagikan artikel ini:</span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* WhatsApp */}
               <button
                 onClick={handleShareWA}
-                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                className="px-3 py-2 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                title="Bagikan ke WhatsApp"
               >
-                <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+                <WhatsAppIcon className="w-4 h-4" />
+                <span>WhatsApp</span>
               </button>
 
+              {/* Facebook */}
               <button
                 onClick={handleShareFB}
-                className="px-3.5 py-2 rounded-xl bg-[#1877F2] hover:brightness-110 text-white text-xs font-bold transition-all shadow-xs"
+                className="p-2.5 rounded-xl bg-[#1877F2] hover:bg-[#166fe5] text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center"
+                title="Bagikan ke Facebook"
               >
-                Facebook
+                <FacebookIcon className="w-4 h-4" />
               </button>
 
+              {/* X / Twitter */}
               <button
                 onClick={handleShareTwitter}
-                className="px-3.5 py-2 rounded-xl bg-black hover:bg-dark-800 text-white text-xs font-bold transition-all shadow-xs"
+                className="p-2.5 rounded-xl bg-black hover:bg-dark-850 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center"
+                title="Bagikan ke X (Twitter)"
               >
-                X (Twitter)
+                <XTwitterIcon className="w-4 h-4" />
               </button>
 
+              {/* Telegram */}
+              <button
+                onClick={handleShareTelegram}
+                className="p-2.5 rounded-xl bg-[#229ED9] hover:bg-[#1e8cc0] text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center"
+                title="Bagikan ke Telegram"
+              >
+                <TelegramIcon className="w-4 h-4" />
+              </button>
+
+              {/* LinkedIn */}
+              <button
+                onClick={handleShareLinkedIn}
+                className="p-2.5 rounded-xl bg-[#0A66C2] hover:bg-[#095196] text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center"
+                title="Bagikan ke LinkedIn"
+              >
+                <LinkedInIcon className="w-4 h-4" />
+              </button>
+
+              {/* Copy Link */}
               <button
                 onClick={handleCopyLink}
-                className="px-3.5 py-2 rounded-xl bg-white border border-dark-200 hover:bg-dark-50 text-dark-700 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                className="px-3 py-2 rounded-xl bg-white border border-dark-200 hover:bg-dark-50 text-dark-700 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                title="Salin Tautan Artikel"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5" />}
-                {copied ? 'Tersalin' : 'Salin Link'}
+                <span>{copied ? 'Tersalin' : 'Salin Tautan'}</span>
               </button>
             </div>
           </div>
