@@ -542,8 +542,8 @@ export default function LandingPage() {
                 <li><Link to="/news" className="text-gold-400 font-bold hover:text-gold-300 transition-colors flex items-center gap-1.5"><Newspaper className="w-3.5 h-3.5" /> Artikel & Berita Halal</Link></li>
                 <li><a href={`${MAIN_APP_URL}/register`} target="_blank" rel="noopener noreferrer" className="hover:text-gold-300 transition-colors">Daftar Halal Advisor</a></li>
                 <li><Link to="/form" className="hover:text-gold-400 transition-colors">Formulir Konsultasi</Link></li>
-                <li><a href="#" className="hover:text-gold-400 transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-gold-400 transition-colors">Terms of Service</a></li>
+                <li><Link to="/privacy-policy" className="hover:text-gold-400 transition-colors">Privacy Policy</Link></li>
+                <li><Link to="/terms-of-service" className="hover:text-gold-400 transition-colors">Terms of Service</Link></li>
               </ul>
             </div>
 

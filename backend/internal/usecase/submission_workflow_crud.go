@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"ananahnu/internal/domain"
+	"ananahnu/internal/utils"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -260,12 +261,12 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 
 	userObj, _ := uc.UserRepo.FindByID(userID)
 
-	clientName := input.ClientData.ClientName
+	clientName := utils.SanitizeInput(input.ClientData.ClientName)
 	if clientName == "" && userObj != nil {
 		clientName = userObj.FullName
 	}
 
-	businessName := input.ClientData.BusinessName
+	businessName := utils.SanitizeInput(input.ClientData.BusinessName)
 	if businessName == "" {
 		if clientName != "" {
 			businessName = "Usaha " + clientName
@@ -274,21 +275,41 @@ func (uc *submissionWorkflowUsecase) CreateFull(input CreateFullInput, userID uu
 		}
 	}
 
-	phone := input.ClientData.Phone
+	phone := utils.CleanPhone(input.ClientData.Phone)
 	if phone == "" && userObj != nil {
 		phone = userObj.Phone
+	}
+	if phone != "" {
+		if err := utils.ValidatePhone(phone, false); err != nil {
+			return nil, err
+		}
+	}
+
+	nik := utils.CleanDigits(input.ClientData.NIK)
+	if nik != "" {
+		if err := utils.ValidateNIK(nik, false); err != nil {
+			return nil, err
+		}
+	}
+
+	nib := strings.TrimSpace(input.ClientData.NIB)
+	if nib != "" && !strings.HasPrefix(nib, "DRAFT-") {
+		nib = utils.CleanDigits(nib)
+		if err := utils.ValidateNIB(nib, false); err != nil {
+			return nil, err
+		}
 	}
 
 	client := &domain.Client{
 		ID:            uuid.New(),
-		NIB:           input.ClientData.NIB,
-		NIK:           input.ClientData.NIK,
+		NIB:           nib,
+		NIK:           nik,
 		BusinessName:  businessName,
 		ClientName:    clientName,
-		Address:       input.ClientData.Address,
-		ProductName:   input.ClientData.ProductName,
+		Address:       utils.SanitizeInput(input.ClientData.Address),
+		ProductName:   utils.SanitizeInput(input.ClientData.ProductName),
 		ServiceType:   input.ClientData.ServiceType,
-		ContactPerson: input.ClientData.ContactPerson,
+		ContactPerson: utils.SanitizeInput(input.ClientData.ContactPerson),
 		Phone:         phone,
 		FacilitatorID: facilitatorIDPtr,
 		CreatedBy:     userID,
@@ -479,31 +500,46 @@ func (uc *submissionWorkflowUsecase) UpdateClientInfoAndPricing(id uuid.UUID, in
 	}
 
 	if input.BusinessName != "" {
-		client.BusinessName = input.BusinessName
+		client.BusinessName = utils.SanitizeInput(input.BusinessName)
 	}
 	if input.ClientName != "" {
-		client.ClientName = input.ClientName
+		client.ClientName = utils.SanitizeInput(input.ClientName)
 	}
 	if input.NIB != "" {
-		client.NIB = input.NIB
+		nib := strings.TrimSpace(input.NIB)
+		if !strings.HasPrefix(nib, "DRAFT-") {
+			nib = utils.CleanDigits(nib)
+			if err := utils.ValidateNIB(nib, false); err != nil {
+				return err
+			}
+		}
+		client.NIB = nib
 	}
 	if input.NIBFileURL != "" {
 		client.NIBFileURL = input.NIBFileURL
 	}
 	if input.NIK != "" {
-		client.NIK = input.NIK
+		nik := utils.CleanDigits(input.NIK)
+		if err := utils.ValidateNIK(nik, false); err != nil {
+			return err
+		}
+		client.NIK = nik
 	}
 	if input.ProductName != "" {
-		client.ProductName = input.ProductName
+		client.ProductName = utils.SanitizeInput(input.ProductName)
 	}
 	if input.Address != "" {
-		client.Address = input.Address
+		client.Address = utils.SanitizeInput(input.Address)
 	}
 	if input.ContactPerson != "" {
-		client.ContactPerson = input.ContactPerson
+		client.ContactPerson = utils.SanitizeInput(input.ContactPerson)
 	}
 	if input.Phone != "" {
-		client.Phone = input.Phone
+		phone := utils.CleanPhone(input.Phone)
+		if err := utils.ValidatePhone(phone, false); err != nil {
+			return err
+		}
+		client.Phone = phone
 	}
 	client.UpdatedAt = time.Now()
 

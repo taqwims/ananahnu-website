@@ -6,11 +6,12 @@ import {
   User, Phone, Mail, Building2, Scale, Beef, MapPin,
   UtensilsCrossed, Droplets, ArrowLeft,
   Send, CheckCircle2, Headphones, GitBranch, MessageCircle,
-  Home, Sparkles, Check
+  Home, Sparkles, Check, ShieldCheck, Lock
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import Logo from '../../components/ui/Logo';
 import loginImg from '../../assets/login.png';
+import PrivacyConsentModal from '../../components/common/PrivacyConsentModal';
 
 const MAIN_APP_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:5173'
@@ -34,6 +35,7 @@ export default function PublicFormPage() {
 
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [result, setResult] = useState<{ form_id: string; route_type: string; status: string } | null>(null);
   const [provinces, setProvinces] = useState<Province[]>([]);
 
@@ -63,10 +65,19 @@ export default function PublicFormPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const isPhoneValid = (phone: string) => {
+    const clean = phone.replace(/[^0-9+]/g, '');
+    return clean.length >= 10 && clean.length <= 15 && /^(\+62|62|08)[0-9]{8,13}$/.test(clean);
+  };
+
+  const isEmailValid = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  };
+
   const isFormValid = () =>
     form.name.trim().length > 1 &&
-    form.phone.trim().length >= 8 &&
-    form.email.trim().length > 3 &&
+    isPhoneValid(form.phone) &&
+    isEmailValid(form.email) &&
     form.business_type.trim().length > 1 &&
     form.business_scale !== '' &&
     form.province_id > 0 &&
@@ -77,6 +88,18 @@ export default function PublicFormPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.name.trim()) {
+      toast.error('Harap masukkan nama lengkap Anda');
+      return;
+    }
+    if (!isPhoneValid(form.phone)) {
+      toast.error('Nomor WhatsApp tidak valid (minimal 10 digit, contoh: 08123456789 atau +628123456789)');
+      return;
+    }
+    if (!isEmailValid(form.email)) {
+      toast.error('Format email tidak valid');
+      return;
+    }
     if (!isFormValid()) {
       toast.error('Harap lengkapi semua kolom formulir');
       return;
@@ -85,7 +108,7 @@ export default function PublicFormPage() {
     try {
       const payload = {
         name: form.name.trim(),
-        phone: form.phone.trim(),
+        phone: form.phone.replace(/[^0-9+]/g, '').trim(),
         email: form.email.trim(),
         business_type: form.business_type.trim(),
         business_scale: form.business_scale,
@@ -94,7 +117,7 @@ export default function PublicFormPage() {
         is_catering: form.is_catering,
         is_amdk: form.is_amdk,
         is_food_beverage: form.is_food_beverage,
-        branch_count: form.branch_count,
+        branch_count: Math.max(1, form.branch_count),
         consultation_method: form.consultation_method,
         agreed_terms: true,
         shared_by_id: sharedBy,
@@ -423,6 +446,23 @@ export default function PublicFormPage() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
             >
+              {/* Privacy & Data Security Notice */}
+              <div className="bg-emerald-50/80 border border-emerald-200/80 p-3.5 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-emerald-600 text-white rounded-xl shadow-xs">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-[11px] font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-emerald-700" /> Kerahasiaan Data Klien Terlindungi
+                    </h4>
+                    <p className="text-[10px] text-emerald-800/90 mt-0.5 leading-snug font-medium">
+                      Data kontak dan usaha Anda dienkripsi aman serta hanya digunakan untuk proses verifikasi halal (UU PDP).
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* ─── Bagian 1: Data Kontak ─── */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 border-b border-dark-100 pb-2.5">
@@ -453,11 +493,13 @@ export default function PublicFormPage() {
                     </label>
                     <input
                       type="tel"
+                      inputMode="tel"
+                      maxLength={15}
                       required
-                      className="form-input animate-transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/5"
+                      className="form-input animate-transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/5 font-mono"
                       placeholder="Contoh: 08123456789"
                       value={form.phone}
-                      onChange={(e) => updateForm('phone', e.target.value)}
+                      onChange={(e) => updateForm('phone', e.target.value.replace(/[^0-9+]/g, '').slice(0, 15))}
                     />
                     <p className="text-[10px] text-dark-400 mt-1">Konsultan akan menghubungi via nomor ini</p>
                   </div>
@@ -469,6 +511,7 @@ export default function PublicFormPage() {
                     </label>
                     <input
                       type="email"
+                      inputMode="email"
                       required
                       className="form-input animate-transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/5"
                       placeholder="email@contoh.com"
@@ -690,20 +733,35 @@ export default function PublicFormPage() {
                 </div>
               </div>
 
-              {/* ─── Persetujuan Sederhana ─── */}
-              <div className="pt-2">
-                <label className="flex items-start gap-3 p-3.5 rounded-xl bg-brand-50/40 border border-brand-200/60 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    required
-                    className="form-checkbox mt-0.5"
-                    checked={form.agree_contact}
-                    onChange={(e) => updateForm('agree_contact', e.target.checked)}
-                  />
-                  <span className="text-xs font-medium text-dark-700 leading-relaxed">
-                    Saya menyatakan data yang saya isi adalah benar dan bersedia dihubungi oleh tim konsultan HalalCore untuk penjadwalan sesi konsultasi sertifikasi halal.
-                  </span>
-                </label>
+              {/* ─── Persetujuan & Kebijakan Privasi Data ─── */}
+              <div className="pt-2 space-y-2">
+                <div className="p-3.5 rounded-xl bg-brand-50/40 border border-brand-200/60 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-brand-900 text-xs font-bold">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                      <span>Persetujuan Pemrosesan Data</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPrivacyModal(true)}
+                      className="text-[11px] font-bold text-brand-600 hover:text-brand-800 underline cursor-pointer"
+                    >
+                      Baca Kebijakan Privasi
+                    </button>
+                  </div>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      required
+                      className="form-checkbox mt-0.5"
+                      checked={form.agree_contact}
+                      onChange={(e) => updateForm('agree_contact', e.target.checked)}
+                    />
+                    <span className="text-xs font-medium text-dark-700 leading-relaxed">
+                      Saya menyatakan data yang saya isi adalah benar dan menyetujui pemrosesan data kontak sesuai <span onClick={(e) => { e.preventDefault(); setShowPrivacyModal(true); }} className="text-brand-600 underline font-bold">Kebijakan Privasi (UU PDP)</span> untuk penjadwalan bimbingan sertifikasi halal. <span className="text-rose-500">*</span>
+                    </span>
+                  </label>
+                </div>
               </div>
 
               {/* ─── Tombol Aksi ─── */}
@@ -734,6 +792,13 @@ export default function PublicFormPage() {
           </form>
         </div>
       </div>
+
+      {/* Privacy & Data Usage Policy Modal */}
+      <PrivacyConsentModal
+        isOpen={showPrivacyModal}
+        onClose={() => setShowPrivacyModal(false)}
+        onAccept={() => updateForm('agree_contact', true)}
+      />
     </div>
   );
 }

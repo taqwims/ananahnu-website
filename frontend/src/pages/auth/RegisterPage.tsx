@@ -8,6 +8,7 @@ import { User, Mail, Lock, Phone, MapPin, Loader2, ArrowRight, ArrowLeft, CheckC
 import api from '../../services/api';
 import Logo from '../../components/ui/Logo';
 import loginBg from '../../assets/login.png';
+import PrivacyConsentModal from '../../components/common/PrivacyConsentModal';
 
 const registerSchema = z.object({
     full_name: z.string().min(3, "Nama lengkap harus diisi"),
@@ -28,6 +29,9 @@ const registerSchema = z.object({
         return cleaned;
     }),
     referral_code: z.string().optional(),
+    agreed_privacy: z.boolean().refine((val) => val === true, {
+        message: "Anda wajib menyetujui Kebijakan Privasi dan Penggunaan Data",
+    }),
 }).refine((data) => data.password === data.confirm_password, {
     message: "Password tidak cocok",
     path: ["confirm_password"],
@@ -49,6 +53,7 @@ export default function RegisterPage() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [showPrivacyModal, setShowPrivacyModal] = useState(false);
     const [provinces, setProvinces] = useState<any[]>([]);
     const [regencies, setRegencies] = useState<any[]>([]);
     const [currentStep, setCurrentStep] = useState(1);
@@ -57,7 +62,8 @@ export default function RegisterPage() {
         resolver: zodResolver(registerSchema),
         defaultValues: {
             role: 'HALAL_ADVISOR',
-            referral_code: ''
+            referral_code: '',
+            agreed_privacy: false,
         }
     });
 
@@ -94,8 +100,8 @@ export default function RegisterPage() {
         setIsLoading(true);
         setError('');
         try {
-            // Strip confirm_password — backend tidak mengharapkan field ini
-            const { confirm_password: _omit, ...payload } = data;
+            // Strip confirm_password & agreed_privacy — backend tidak mengharapkan field ini
+            const { confirm_password: _omit, agreed_privacy: _omitPrivacy, ...payload } = data;
             if (payload.role === 'CLIENT') {
                 delete payload.referral_code;
             }
@@ -476,16 +482,39 @@ export default function RegisterPage() {
                                         {errors.address && <p className="text-red-500 text-[10px] mt-2 font-bold ml-1">{errors.address.message}</p>}
                                     </div>
 
-                                    <div className="p-6 rounded-2xl bg-brand-50 border border-brand-100 shadow-sm shadow-brand-100">
-                                        <div className="flex items-center gap-2 mb-2 text-brand-700">
-                                            <CheckCircle2 className="w-4 h-4" />
-                                            <h4 className="text-xs font-black uppercase tracking-wider">Hampir Selesai!</h4>
+                                    {/* Explicit Data Consent & Privacy Policy Card */}
+                                    <div className="p-5 rounded-2xl bg-white border border-emerald-200/80 shadow-sm space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2 text-emerald-800">
+                                                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                                                <h4 className="text-xs font-black uppercase tracking-wider">Persetujuan & Perlindungan Data</h4>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPrivacyModal(true)}
+                                                className="text-[11px] font-bold text-brand-600 hover:text-brand-800 underline flex items-center gap-1 cursor-pointer"
+                                            >
+                                                Baca Kebijakan Privasi
+                                            </button>
                                         </div>
-                                        <p className="text-[11px] text-brand-700/80 leading-relaxed font-medium">
-                                            {selectedRole === 'HALAL_ADVISOR'
-                                                ? "Dengan menekan tombol daftar, Anda menyetujui syarat dan ketentuan sebagai Pendamping Halal."
-                                                : "Dengan menekan tombol daftar, Anda menyetujui syarat dan ketentuan layanan HalalCore sebagai Pelaku Usaha."}
+
+                                        <p className="text-[11px] text-gray-500 leading-relaxed font-medium">
+                                            Data identitas, kontak, dan usaha Anda dienkripsi serta diproses hanya untuk kebutuhan verifikasi dan sertifikasi halal resmi sesuai ketentuan UU Pelindungan Data Pribadi (UU No. 27 Tahun 2022).
                                         </p>
+
+                                        <label className="flex items-start gap-3 pt-2 border-t border-gray-100 cursor-pointer group">
+                                            <input
+                                                type="checkbox"
+                                                {...register('agreed_privacy')}
+                                                className="mt-0.5 w-4 h-4 rounded-md text-brand-600 focus:ring-brand-500 border-gray-300 transition-all cursor-pointer"
+                                            />
+                                            <span className="text-[11px] font-bold text-gray-700 leading-snug group-hover:text-gray-900 transition-colors">
+                                                Saya menyetujui <span onClick={(e) => { e.preventDefault(); setShowPrivacyModal(true); }} className="text-brand-600 underline">Kebijakan Privasi & Penggunaan Data</span> serta Syarat & Ketentuan Layanan HalalCore. <span className="text-red-500">*</span>
+                                            </span>
+                                        </label>
+                                        {errors.agreed_privacy && (
+                                            <p className="text-red-500 text-[10px] font-bold ml-1">{errors.agreed_privacy.message}</p>
+                                        )}
                                     </div>
                                 </motion.div>
                             )}
@@ -538,6 +567,13 @@ export default function RegisterPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Privacy & Data Usage Policy Modal */}
+            <PrivacyConsentModal
+                isOpen={showPrivacyModal}
+                onClose={() => setShowPrivacyModal(false)}
+                onAccept={() => setValue('agreed_privacy', true, { shouldValidate: true })}
+            />
         </div>
     );
 }

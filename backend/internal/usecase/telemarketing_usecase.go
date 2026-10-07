@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"ananahnu/internal/domain"
+	iutils "ananahnu/internal/utils"
 	"ananahnu/pkg/utils"
 	"ananahnu/pkg/whatsapp"
 	"crypto/hmac"
@@ -231,6 +232,26 @@ func (uc *telemarketingUsecase) SubmitPublicForm(input TeleFormInput) (*domain.T
 		return nil, errors.New("harus menyetujui syarat dan ketentuan")
 	}
 
+	// Validate Phone
+	cleanPhone := iutils.CleanPhone(input.Phone)
+	if err := iutils.ValidatePhone(cleanPhone, true); err != nil {
+		return nil, err
+	}
+
+	// Validate Email
+	cleanEmail := strings.TrimSpace(input.Email)
+	if err := iutils.ValidateEmail(cleanEmail, true); err != nil {
+		return nil, err
+	}
+
+	// Sanitize text inputs
+	cleanName := iutils.SanitizeInput(input.Name)
+	if cleanName == "" {
+		return nil, errors.New("nama lengkap wajib diisi")
+	}
+	cleanBusinessType := iutils.SanitizeInput(input.BusinessType)
+	cleanAddress := iutils.SanitizeInput(input.Address)
+
 	// Determine route type based on business criteria
 	routeType := uc.determineRouteType(input)
 
@@ -242,10 +263,10 @@ func (uc *telemarketingUsecase) SubmitPublicForm(input TeleFormInput) (*domain.T
 
 	form := &domain.TeleForm{
 		ID:                 uuid.New(),
-		Name:               input.Name,
-		Phone:              input.Phone,
-		Email:              input.Email,
-		BusinessType:       input.BusinessType,
+		Name:               cleanName,
+		Phone:              cleanPhone,
+		Email:              cleanEmail,
+		BusinessType:       cleanBusinessType,
 		BusinessScale:      input.BusinessScale,
 		UsesMeat:           input.UsesMeat,
 		ProvinceID:         input.ProvinceID,
@@ -255,7 +276,7 @@ func (uc *telemarketingUsecase) SubmitPublicForm(input TeleFormInput) (*domain.T
 		BranchCount:        branchCount,
 		ConsultationMethod: input.ConsultationMethod,
 		AgreedTerms:        input.AgreedTerms,
-		Address:            input.Address,
+		Address:            cleanAddress,
 		RouteType:          routeType,
 		IPAddress:          input.IPAddress,
 		CreatedAt:          time.Now(),

@@ -19,7 +19,10 @@ import {
     Package,
     Ticket,
     X,
-    Percent
+    Percent,
+    ShieldCheck,
+    Lock,
+    Hash
 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -28,6 +31,7 @@ import type { FormFieldConfig } from '../../types';
 import type { Voucher } from '../../types/voucher';
 import { voucherService } from '../../services/voucherService';
 import { resolveFileUrl, formatRupiah } from '../../utils/format';
+import PrivacyConsentModal from '../../components/common/PrivacyConsentModal';
 
 interface AdvisorInfo {
     id: string;
@@ -100,6 +104,10 @@ export default function ClientPengajuanPage() {
     const [formConfigs, setFormConfigs] = useState<FormFieldConfig[]>([]);
     const [dynamicValues, setDynamicValues] = useState<Record<string, string>>({});
     const [loadingConfigs, setLoadingConfigs] = useState(true);
+
+    // Consent & Privacy Policy states
+    const [agreedPrivacy, setAgreedPrivacy] = useState(false);
+    const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
     // Submit state
     const [submitting, setSubmitting] = useState(false);
@@ -246,9 +254,37 @@ export default function ClientPengajuanPage() {
             toast.error("Nomor WhatsApp/HP aktif wajib diisi.");
             return;
         }
+        const cleanPhone = phone.replace(/[^0-9+]/g, '');
+        if (cleanPhone.length < 10 || cleanPhone.length > 15 || !/^(\+62|62|08)[0-9]{8,13}$/.test(cleanPhone)) {
+            toast.error("Format nomor WhatsApp tidak valid (contoh: 08123456789 atau +628123456789).");
+            return;
+        }
         if (!businessName.trim()) {
             toast.error("Nama usaha / merek dagang wajib diisi.");
             return;
+        }
+
+        if (!agreedPrivacy) {
+            toast.error("Harap centang persetujuan Kebijakan Privasi & Penggunaan Data sebelum mengirim pengajuan.");
+            return;
+        }
+
+        // Strict NIK validation if filled
+        if (nik.trim()) {
+            const cleanNik = nik.replace(/\D/g, '');
+            if (cleanNik.length !== 16) {
+                toast.error("NIK harus terdiri dari tepat 16 digit angka.");
+                return;
+            }
+        }
+
+        // Strict NIB validation if filled
+        if (nib.trim()) {
+            const cleanNib = nib.replace(/\D/g, '');
+            if (cleanNib.length !== 13) {
+                toast.error("NIB harus terdiri dari tepat 13 digit angka.");
+                return;
+            }
         }
 
         // Check required fields from Admin config
@@ -263,9 +299,15 @@ export default function ClientPengajuanPage() {
                     toast.error(`${cfg.field_label} wajib diisi.`);
                     return;
                 }
-                if (cfg.field_key === 'nik' && !nik.trim()) {
-                    toast.error(`${cfg.field_label} wajib diisi.`);
-                    return;
+                if (cfg.field_key === 'nik') {
+                    if (!nik.trim()) {
+                        toast.error(`${cfg.field_label} wajib diisi.`);
+                        return;
+                    }
+                    if (nik.replace(/\D/g, '').length !== 16) {
+                        toast.error(`${cfg.field_label} harus tepat 16 digit angka.`);
+                        return;
+                    }
                 }
                 if (cfg.field_key === 'ktp' && !ktpUrl.trim()) {
                     toast.error(`${cfg.field_label} wajib diunggah.`);
@@ -275,9 +317,15 @@ export default function ClientPengajuanPage() {
                     toast.error(`${cfg.field_label} wajib diisi.`);
                     return;
                 }
-                if (cfg.field_key === 'nib' && !nib.trim()) {
-                    toast.error(`${cfg.field_label} wajib diisi.`);
-                    return;
+                if (cfg.field_key === 'nib') {
+                    if (!nib.trim()) {
+                        toast.error(`${cfg.field_label} wajib diisi.`);
+                        return;
+                    }
+                    if (nib.replace(/\D/g, '').length !== 13) {
+                        toast.error(`${cfg.field_label} harus tepat 13 digit angka.`);
+                        return;
+                    }
                 }
                 if (cfg.field_key === 'address' && !address.trim()) {
                     toast.error(`${cfg.field_label} wajib diisi.`);
@@ -407,6 +455,26 @@ export default function ClientPengajuanPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-8">
+                {/* Security and Privacy Notice Banner */}
+                <div className="bg-emerald-50/80 border border-emerald-200/80 p-4 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-xs">
+                            <ShieldCheck className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                                <Lock className="w-3.5 h-3.5 text-emerald-700" /> Keamanan & Kerahasiaan Data Klien Terjamin
+                            </h4>
+                            <p className="text-[11px] text-emerald-800/90 mt-0.5 leading-relaxed font-medium">
+                                NIK, berkas KTP, dan dokumen legalitas usaha Anda dienkripsi secara aman sesuai standar regulasi Pelindungan Data Pribadi (UU PDP).
+                            </p>
+                        </div>
+                    </div>
+                    <span className="hidden md:inline-flex items-center text-[10px] font-black uppercase tracking-wider bg-white text-emerald-750 px-2.5 py-1 rounded-lg border border-emerald-200">
+                        256-Bit SSL Encrypted
+                    </span>
+                </div>
+
                 {/* ========================================================= */}
                 {/* CARD 1: INFORMASI PELAKU USAHA (Kontak, KTP, NIK)         */}
                 {/* ========================================================= */}
@@ -449,26 +517,39 @@ export default function ClientPengajuanPage() {
                             </label>
                             <input
                                 type="tel"
-                                className="glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white"
+                                inputMode="tel"
+                                maxLength={15}
+                                className="glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white font-mono"
                                 placeholder="Contoh: 081234567890"
                                 value={phone}
-                                onChange={e => setPhone(e.target.value)}
+                                onChange={e => setPhone(e.target.value.replace(/[^0-9+]/g, '').slice(0, 15))}
                                 required
                             />
                         </div>
 
                         {/* NIK */}
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
-                                NIK Penanggung Jawab (16 Digit)
-                            </label>
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                    <Hash className="w-3.5 h-3.5 text-gray-400" /> NIK Penanggung Jawab (16 Digit)
+                                </label>
+                                <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                                    nik.length === 16 ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                                }`}>
+                                    {nik.length}/16 Digit
+                                </span>
+                            </div>
                             <input
                                 type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
                                 maxLength={16}
-                                className="glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white"
-                                placeholder="Masukkan 16 digit NIK"
+                                className={`glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white font-mono tracking-wider ${
+                                    nik && nik.length !== 16 ? 'border-amber-300 ring-1 ring-amber-100' : ''
+                                }`}
+                                placeholder="Masukkan 16 digit nomor NIK (KTP)"
                                 value={nik}
-                                onChange={e => setNik(e.target.value)}
+                                onChange={e => setNik(e.target.value.replace(/\D/g, '').slice(0, 16))}
                             />
                         </div>
 
@@ -543,15 +624,27 @@ export default function ClientPengajuanPage() {
 
                         {/* NIB (Nomor & File) */}
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
-                                Nomor Induk Berusaha (NIB)
-                            </label>
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                                    <Hash className="w-3.5 h-3.5 text-gray-400" /> Nomor Induk Berusaha (NIB)
+                                </label>
+                                <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                                    nib.length === 13 ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                                }`}>
+                                    {nib.length}/13 Digit
+                                </span>
+                            </div>
                             <input
                                 type="text"
-                                className="glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white"
-                                placeholder="Masukkan 13 digit nomor NIB jika ada"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                maxLength={13}
+                                className={`glass-input text-xs font-bold w-full bg-gray-50/50 focus:bg-white font-mono tracking-wider ${
+                                    nib && nib.length !== 13 ? 'border-amber-300 ring-1 ring-amber-100' : ''
+                                }`}
+                                placeholder="Masukkan 13 digit nomor NIB OSS jika ada"
                                 value={nib}
-                                onChange={e => setNib(e.target.value)}
+                                onChange={e => setNib(e.target.value.replace(/\D/g, '').slice(0, 13))}
                             />
                         </div>
 
@@ -1033,6 +1126,44 @@ export default function ClientPengajuanPage() {
                     </div>
                 </div>
 
+                {/* CONSENT & DATA PRIVACY AGREEMENT CARD */}
+                <div className="p-6 rounded-3xl bg-white border border-emerald-200/80 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5 text-emerald-800">
+                            <div className="p-2 bg-emerald-100 rounded-xl text-emerald-700">
+                                <ShieldCheck className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h4 className="text-xs font-black uppercase tracking-wider text-gray-900">Persetujuan & Perlindungan Data Pengajuan</h4>
+                                <p className="text-[11px] text-gray-500 font-medium">Standar kepatuhan UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi (UU PDP)</p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setShowPrivacyModal(true)}
+                            className="text-xs font-bold text-brand-600 hover:text-brand-800 underline cursor-pointer"
+                        >
+                            Baca Kebijakan Privasi
+                        </button>
+                    </div>
+
+                    <p className="text-xs text-gray-600 leading-relaxed font-medium">
+                        Dengan mengirimkan formulir ini, Anda memberikan persetujuan kepada HalalCore untuk memproses dokumen legalitas, data produk, dan informasi identitas penanggung jawab hanya untuk keperluan administrasi sertifikasi halal resmi (BPJPH & LPH).
+                    </p>
+
+                    <label className="flex items-start gap-3 pt-3 border-t border-gray-100 cursor-pointer group">
+                        <input
+                            type="checkbox"
+                            checked={agreedPrivacy}
+                            onChange={(e) => setAgreedPrivacy(e.target.checked)}
+                            className="mt-0.5 w-4 h-4 rounded text-brand-600 focus:ring-brand-500 border-gray-300 transition-all cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-gray-700 leading-relaxed group-hover:text-gray-900 transition-colors">
+                            Saya telah membaca, memahami, dan menyetujui <span onClick={(e) => { e.preventDefault(); setShowPrivacyModal(true); }} className="text-brand-600 underline font-bold">Kebijakan Privasi & Penggunaan Data Pribadi</span> serta kebenaran dokumen yang saya lampirkan. <span className="text-red-500">*</span>
+                        </span>
+                    </label>
+                </div>
+
                 {/* SUBMIT BUTTON BAR */}
                 <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <button
@@ -1045,8 +1176,8 @@ export default function ClientPengajuanPage() {
 
                     <button
                         type="submit"
-                        disabled={submitting}
-                        className="w-full sm:w-auto px-10 py-4 rounded-2xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white font-black text-sm shadow-xl shadow-brand-500/20 hover:shadow-brand-500/30 transition-all flex items-center justify-center gap-3 disabled:opacity-50 active:scale-95"
+                        disabled={submitting || !agreedPrivacy}
+                        className="w-full sm:w-auto px-10 py-4 rounded-2xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white font-black text-sm shadow-xl shadow-brand-500/20 hover:shadow-brand-500/30 transition-all flex items-center justify-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
                     >
                         {submitting ? (
                             <>
@@ -1062,6 +1193,13 @@ export default function ClientPengajuanPage() {
                     </button>
                 </div>
             </form>
+
+            {/* Privacy & Data Usage Policy Modal */}
+            <PrivacyConsentModal
+                isOpen={showPrivacyModal}
+                onClose={() => setShowPrivacyModal(false)}
+                onAccept={() => setAgreedPrivacy(true)}
+            />
         </div>
     );
 }

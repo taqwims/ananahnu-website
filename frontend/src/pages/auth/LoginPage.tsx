@@ -211,11 +211,11 @@ export default function LoginPage() {
                     </div>
                     
                     <div className="mt-16 flex justify-center gap-6 text-xs text-gray-400 font-medium">
-                        <a href="#" className="hover:text-gray-600 transition-colors">Privacy Policy</a>
+                        <Link to="/privacy-policy" className="hover:text-emerald-700 transition-colors">Privacy Policy</Link>
                         <span>&bull;</span>
-                        <a href="#" className="hover:text-gray-600 transition-colors">Terms of Service</a>
+                        <Link to="/terms-of-service" className="hover:text-emerald-700 transition-colors">Terms of Service</Link>
                         <span>&bull;</span>
-                        <a href="#" className="hover:text-gray-600 transition-colors">Help Center</a>
+                        <Link to="/" className="hover:text-emerald-700 transition-colors">Beranda</Link>
                     </div>
                 </div>
             </motion.div>

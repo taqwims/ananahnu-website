@@ -444,6 +444,8 @@ export default function NewsListPage() {
           <div className="flex items-center gap-4 font-medium">
             <Link to="/" className="hover:text-white transition-colors">Beranda</Link>
             <Link to="/news" className="hover:text-white transition-colors">Berita</Link>
+            <Link to="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <Link to="/terms-of-service" className="hover:text-white transition-colors">Terms of Service</Link>
             <Link to="/form" className="hover:text-gold-300 transition-colors">Formulir Konsultasi</Link>
             <Link to="/login" className="hover:text-white transition-colors">Portal Konsultan</Link>
           </div>

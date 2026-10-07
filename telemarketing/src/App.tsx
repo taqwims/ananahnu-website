@@ -12,6 +12,8 @@ import LandingPage from './pages/public/LandingPage';
 import PublicFormPage from './pages/public/FormPage';
 import NewsListPage from './pages/public/NewsListPage';
 import NewsDetailPage from './pages/public/NewsDetailPage';
+import PrivacyPolicyPage from './pages/public/PrivacyPolicyPage';
+import TermsOfServicePage from './pages/public/TermsOfServicePage';
 import { VerifyAgreement } from './pages/public/VerifyAgreement';
 import DashboardHome from './pages/dashboard/DashboardHome';
 import ClientManagement from './pages/dashboard/ClientManagement';
@@ -83,6 +85,10 @@ function App() {
         <Route path="/news/:slug" element={<NewsDetailPage />} />
         <Route path="/berita" element={<NewsListPage />} />
         <Route path="/berita/:slug" element={<NewsDetailPage />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+        <Route path="/kebijakan-privasi" element={<PrivacyPolicyPage />} />
+        <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+        <Route path="/syarat-ketentuan" element={<TermsOfServicePage />} />
         <Route path="/verify/:id/:token" element={<VerifyAgreement />} />
         <Route path="/login" element={<LoginPage />} />
 

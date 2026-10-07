@@ -683,8 +683,8 @@ export default function LandingPage() {
                                 Berita & Regulasi Halal
                             </h2>
                         </div>
-                        <a 
-                            href={`${TELEMARKETING_URL}/news`} 
+                        <a
+                            href={`${TELEMARKETING_URL}/news`}
                             className="hidden md:inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 hover:text-emerald-900 hover:underline"
                         >
                             Lihat Semua Artikel <ArrowUpRight className="w-4 h-4" />

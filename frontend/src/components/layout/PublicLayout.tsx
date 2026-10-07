@@ -403,9 +403,9 @@ export default function PublicLayout() {
                     <div className="pt-8 flex flex-col sm:flex-row justify-between items-center text-xs text-emerald-200/50 gap-4">
                         <p>© {new Date().getFullYear()} HalalCore. All rights reserved. Powered by Ana Nahnu Indonesia.</p>
                         <div className="flex items-center space-x-6">
-                            <a href="#" className="hover:text-emerald-200 transition-colors">Kebijakan Privasi</a>
+                            <Link to="/privacy-policy" className="hover:text-emerald-200 transition-colors">Kebijakan Privasi</Link>
                             <span>|</span>
-                            <a href="#" className="hover:text-emerald-200 transition-colors">Syarat & Ketentuan</a>
+                            <Link to="/terms-of-service" className="hover:text-emerald-200 transition-colors">Syarat & Ketentuan</Link>
                         </div>
                     </div>
                 </div>

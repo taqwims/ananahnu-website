@@ -2,8 +2,10 @@ package usecase
 
 import (
 	"ananahnu/internal/domain"
+	"ananahnu/internal/utils"
 	"errors"
 	"log"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -86,10 +88,34 @@ func (uc *clientUsecase) CreateClient(client *domain.Client) error {
 		return err
 	}
 
-	// Handle empty NIB by generating a unique placeholder
-	if client.NIB == "" {
+	// Sanitize and Validate NIK (16 digits required)
+	client.NIK = utils.CleanDigits(client.NIK)
+	if err := utils.ValidateNIK(client.NIK, true); err != nil {
+		return err
+	}
+
+	// Validate Phone
+	client.Phone = utils.CleanPhone(client.Phone)
+	if err := utils.ValidatePhone(client.Phone, true); err != nil {
+		return err
+	}
+
+	// Sanitize text fields to prevent injection/XSS
+	client.BusinessName = utils.SanitizeInput(client.BusinessName)
+	client.ClientName = utils.SanitizeInput(client.ClientName)
+	client.Address = utils.SanitizeInput(client.Address)
+	client.ProductName = utils.SanitizeInput(client.ProductName)
+	client.ContactPerson = utils.SanitizeInput(client.ContactPerson)
+
+	// Handle and validate NIB
+	trimmedNIB := strings.TrimSpace(client.NIB)
+	if trimmedNIB == "" {
 		client.NIB = "DRAFT-" + uuid.New().String()[:8]
 	} else {
+		client.NIB = utils.CleanDigits(trimmedNIB)
+		if err := utils.ValidateNIB(client.NIB, true); err != nil {
+			return err
+		}
 		// Check if real NIB already exists
 		existing, _ := uc.ClientRepo.FindByNIB(client.NIB)
 		if existing != nil {
@@ -102,5 +128,37 @@ func (uc *clientUsecase) CreateClient(client *domain.Client) error {
 }
 
 func (uc *clientUsecase) UpdateClient(client *domain.Client) error {
+	// Sanitize and Validate NIK
+	if client.NIK != "" {
+		client.NIK = utils.CleanDigits(client.NIK)
+		if err := utils.ValidateNIK(client.NIK, true); err != nil {
+			return err
+		}
+	}
+
+	// Validate Phone
+	if client.Phone != "" {
+		client.Phone = utils.CleanPhone(client.Phone)
+		if err := utils.ValidatePhone(client.Phone, true); err != nil {
+			return err
+		}
+	}
+
+	// Validate NIB if provided
+	if client.NIB != "" && !strings.HasPrefix(client.NIB, "DRAFT-") {
+		client.NIB = utils.CleanDigits(client.NIB)
+		if err := utils.ValidateNIB(client.NIB, true); err != nil {
+			return err
+		}
+	}
+
+	// Sanitize text fields
+	client.BusinessName = utils.SanitizeInput(client.BusinessName)
+	client.ClientName = utils.SanitizeInput(client.ClientName)
+	client.Address = utils.SanitizeInput(client.Address)
+	client.ProductName = utils.SanitizeInput(client.ProductName)
+	client.ContactPerson = utils.SanitizeInput(client.ContactPerson)
+
 	return uc.ClientRepo.Update(client)
 }
+

@@ -11,6 +11,8 @@ import LandingPage from './pages/landing/LandingPage';
 import TrackSubmission from './pages/tracking/TrackSubmission';
 import VerifyInvoice from './pages/tracking/VerifyInvoice';
 import VerifyAgreement from './pages/tracking/VerifyAgreement';
+import PrivacyPolicyPage from './pages/public/PrivacyPolicyPage';
+import TermsOfServicePage from './pages/public/TermsOfServicePage';
 
 const TELEMARKETING_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:5174'
@@ -331,6 +333,10 @@ function App() {
         {/* Public Routes */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/kebijakan-privasi" element={<PrivacyPolicyPage />} />
+          <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+          <Route path="/syarat-ketentuan" element={<TermsOfServicePage />} />
           <Route path="/news" element={<RedirectToTelemarketingNews />} />
           <Route path="/news/:slug" element={<RedirectToTelemarketingNews />} />
           <Route path="/berita" element={<RedirectToTelemarketingNews />} />
