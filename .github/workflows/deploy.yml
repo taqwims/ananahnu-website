@@ -126,18 +126,38 @@ jobs:
         run: |
           mkdir -p release-bundle/nginx release-bundle/backend release-bundle/frontend release-bundle/telemarketing
           
-          # Backend binary & templates
-          cp dist-backend/backend/server release-bundle/backend/server
+          # 1. Backend binary & templates
+          if [ -f "dist-backend/server" ]; then
+            cp dist-backend/server release-bundle/backend/server
+          elif [ -f "dist-backend/backend/server" ]; then
+            cp dist-backend/backend/server release-bundle/backend/server
+          else
+            find dist-backend -type f -name "server" -exec cp {} release-bundle/backend/server \;
+          fi
           chmod +x release-bundle/backend/server
-          if [ -d "dist-backend/backend/templates" ]; then
+          
+          if [ -d "dist-backend/templates" ]; then
+            cp -r dist-backend/templates release-bundle/backend/
+          elif [ -d "dist-backend/backend/templates" ]; then
             cp -r dist-backend/backend/templates release-bundle/backend/
+          elif [ -d "backend/templates" ]; then
+            cp -r backend/templates release-bundle/backend/
           fi
           
-          # Frontends
-          cp -r dist-frontend/* release-bundle/frontend/
-          cp -r dist-telemarketing/* release-bundle/telemarketing/
+          # 2. Frontends
+          if [ -d "dist-frontend/dist" ]; then
+            cp -r dist-frontend/dist/* release-bundle/frontend/
+          else
+            cp -r dist-frontend/* release-bundle/frontend/
+          fi
           
-          # Nginx & Systemd configs
+          if [ -d "dist-telemarketing/dist" ]; then
+            cp -r dist-telemarketing/dist/* release-bundle/telemarketing/
+          else
+            cp -r dist-telemarketing/* release-bundle/telemarketing/
+          fi
+          
+          # 3. Nginx & Systemd configs
           cp deploy/nginx/*.conf release-bundle/nginx/
           cp deploy/halalcore-backend.service release-bundle/
           
