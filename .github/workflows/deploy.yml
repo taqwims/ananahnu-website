@@ -26,15 +26,13 @@ jobs:
         working-directory: backend
         run: |
           go mod download
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o server ./cmd/api
+          GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o main-linux ./cmd/api
 
       - name: Upload Backend Binary Artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend-dist
-          path: |
-            backend/server
-            backend/templates/
+          path: backend/main-linux
           retention-days: 1
 
   # ─── 2. Build Frontend (React Vite) ───
@@ -58,12 +56,13 @@ jobs:
           if [ -f ".env.production" ]; then cp .env.production .env; fi
           npm ci --production=false
           npm run build
+          tar -czf frontend-dist.tar.gz dist/
 
       - name: Upload Frontend Artifact
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
-          path: frontend/dist/
+          path: frontend/frontend-dist.tar.gz
           retention-days: 1
 
   # ─── 3. Build Telemarketing (React Vite) ───
@@ -87,83 +86,44 @@ jobs:
           if [ -f ".env.production" ]; then cp .env.production .env; fi
           npm ci --production=false
           npm run build
+          tar -czf telemarketing-dist.tar.gz dist/
 
       - name: Upload Telemarketing Artifact
         uses: actions/upload-artifact@v4
         with:
           name: telemarketing-dist
-          path: telemarketing/dist/
+          path: telemarketing/telemarketing-dist.tar.gz
           retention-days: 1
 
   # ─── 4. Deploy Artifacts to VPS ───
   deploy:
-    name: Deploy to VPS (Artifacts Only)
+    name: Deploy to VPS
     needs: [build-backend, build-frontend, build-telemarketing]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code (for Nginx configs & Service files)
+      - name: Checkout Code (for Nginx configs)
         uses: actions/checkout@v4
 
-      - name: Download Backend Artifact
+      - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: backend-dist
-          path: dist-backend
+          path: artifacts
 
-      - name: Download Frontend Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: dist-frontend
-
-      - name: Download Telemarketing Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: telemarketing-dist
-          path: dist-telemarketing
-
-      - name: Package Release Bundle
+      - name: Prepare Upload Package
         run: |
-          mkdir -p release-bundle/nginx release-bundle/backend release-bundle/frontend release-bundle/telemarketing
+          mkdir -p bundle
           
-          # 1. Backend binary & templates
-          if [ -f "dist-backend/server" ]; then
-            cp dist-backend/server release-bundle/backend/server
-          elif [ -f "dist-backend/backend/server" ]; then
-            cp dist-backend/backend/server release-bundle/backend/server
-          else
-            find dist-backend -type f -name "server" -exec cp {} release-bundle/backend/server \;
-          fi
-          chmod +x release-bundle/backend/server
+          # Find and move backend binary
+          find artifacts/backend-dist -type f -name "main-linux" -exec cp {} bundle/main-linux \;
           
-          if [ -d "dist-backend/templates" ]; then
-            cp -r dist-backend/templates release-bundle/backend/
-          elif [ -d "dist-backend/backend/templates" ]; then
-            cp -r dist-backend/backend/templates release-bundle/backend/
-          elif [ -d "backend/templates" ]; then
-            cp -r backend/templates release-bundle/backend/
-          fi
+          # Find and move frontends tar.gz
+          find artifacts/frontend-dist -type f -name "frontend-dist.tar.gz" -exec cp {} bundle/frontend-dist.tar.gz \;
+          find artifacts/telemarketing-dist -type f -name "telemarketing-dist.tar.gz" -exec cp {} bundle/telemarketing-dist.tar.gz \;
           
-          # 2. Frontends
-          if [ -d "dist-frontend/dist" ]; then
-            cp -r dist-frontend/dist/* release-bundle/frontend/
-          else
-            cp -r dist-frontend/* release-bundle/frontend/
-          fi
-          
-          if [ -d "dist-telemarketing/dist" ]; then
-            cp -r dist-telemarketing/dist/* release-bundle/telemarketing/
-          else
-            cp -r dist-telemarketing/* release-bundle/telemarketing/
-          fi
-          
-          # 3. Nginx & Systemd configs
-          cp deploy/nginx/*.conf release-bundle/nginx/
-          cp deploy/halalcore-backend.service release-bundle/
-          
-          tar -czf release.tar.gz -C release-bundle .
+          # Copy Nginx configs
+          cp deploy/nginx/*.conf bundle/
 
-      - name: Copy Release to VPS via SCP
+      - name: Copy Files to VPS via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -171,10 +131,11 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           passphrase: ${{ secrets.VPS_PASSPHRASE }}
           port: ${{ secrets.VPS_PORT || 22 }}
-          source: "release.tar.gz"
+          source: "bundle/*"
           target: "/tmp"
+          strip_components: 1
 
-      - name: Execute Remote Deployment on VPS
+      - name: Execute Deployment on VPS
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -185,54 +146,64 @@ jobs:
           script_stop: true
           script: |
             set -e
-            echo "🚀 Deploying pre-built artifacts to VPS..."
+            echo "🚀 Deploying updates to VPS..."
 
-            # 1. Extract bundle to temporary directory
-            DEPLOY_TMP=$(mktemp -d)
-            tar -xzf /tmp/release.tar.gz -C "$DEPLOY_TMP"
-            rm -f /tmp/release.tar.gz
-
-            # 2. Deploy Backend Binary & Templates
-            mkdir -p /opt/halalcore/backend/uploads /opt/halalcore/backend/paymentproof /opt/halalcore/backend/consultant /opt/halalcore/backend/temp_docx /opt/halalcore/backend/templates
+            # 1. Update Backend Binary
+            mkdir -p /root/ananahnu-website/backend /opt/halalcore/backend
             
-            # Stop backend briefly to replace binary
-            systemctl stop halalcore-backend || true
-            cp "$DEPLOY_TMP/backend/server" /opt/halalcore/backend/server
-            chmod +x /opt/halalcore/backend/server
-            
-            if [ -d "$DEPLOY_TMP/backend/templates" ]; then
-              cp -r "$DEPLOY_TMP/backend/templates/"* /opt/halalcore/backend/templates/ 2>/dev/null || true
+            if [ -f "/tmp/main-linux" ]; then
+              cp /tmp/main-linux /root/ananahnu-website/backend/main
+              chmod +x /root/ananahnu-website/backend/main
+              
+              # Update /opt/halalcore/backend/server jika service mengarah ke sana
+              cp /tmp/main-linux /opt/halalcore/backend/server 2>/dev/null || true
+              chmod +x /opt/halalcore/backend/server 2>/dev/null || true
+              chown -R halalcore:halalcore /opt/halalcore/backend 2>/dev/null || true
+              
+              rm -f /tmp/main-linux
             fi
-            
-            chown -R halalcore:halalcore /opt/halalcore/backend
 
-            # 3. Deploy Frontend (halalcore.id)
-            mkdir -p /var/www/halalcore.id
-            rm -rf /var/www/halalcore.id/*
-            cp -r "$DEPLOY_TMP/frontend/"* /var/www/halalcore.id/
-            chown -R www-data:www-data /var/www/halalcore.id
+            # Restart service backend
+            systemctl restart halalcore-backend || true
+            echo "✓ Backend binary updated & service restarted"
 
-            # 4. Deploy Telemarketing (telemarketing.halalcore.id)
-            mkdir -p /var/www/telemarketing.halalcore.id
-            rm -rf /var/www/telemarketing.halalcore.id/*
-            cp -r "$DEPLOY_TMP/telemarketing/"* /var/www/telemarketing.halalcore.id/
-            chown -R www-data:www-data /var/www/telemarketing.halalcore.id
+            # 2. Update Frontend (halalcore.id)
+            if [ -f "/tmp/frontend-dist.tar.gz" ]; then
+              cd /root/ananahnu-website/frontend/ 2>/dev/null || cd /tmp
+              tar -xzf /tmp/frontend-dist.tar.gz
+              mkdir -p /var/www/halalcore.id
+              rm -rf /var/www/halalcore.id/*
+              cp -r dist/* /var/www/halalcore.id/
+              rm -rf dist /tmp/frontend-dist.tar.gz
+              echo "✓ Frontend (halalcore.id) updated"
+            fi
 
-            # 5. Update Nginx Configs
-            cp "$DEPLOY_TMP/nginx/"*.conf /etc/nginx/sites-available/
-            ln -sf /etc/nginx/sites-available/halalcore.id.conf /etc/nginx/sites-enabled/
-            ln -sf /etc/nginx/sites-available/telemarketing.halalcore.id.conf /etc/nginx/sites-enabled/
-            ln -sf /etc/nginx/sites-available/api.halalcore.id.conf /etc/nginx/sites-enabled/
+            # 3. Update Telemarketing (telemarketing.halalcore.id)
+            if [ -f "/tmp/telemarketing-dist.tar.gz" ]; then
+              cd /root/ananahnu-website/telemarketing/ 2>/dev/null || cd /tmp
+              tar -xzf /tmp/telemarketing-dist.tar.gz
+              mkdir -p /var/www/telemarketing.halalcore.id
+              rm -rf /var/www/telemarketing.halalcore.id/*
+              cp -r dist/* /var/www/telemarketing.halalcore.id/
+              rm -rf dist /tmp/telemarketing-dist.tar.gz
+              echo "✓ Telemarketing (telemarketing.halalcore.id) updated"
+            fi
 
-            # 6. Update Systemd Service file
-            cp "$DEPLOY_TMP/halalcore-backend.service" /etc/systemd/system/halalcore-backend.service
-            systemctl daemon-reload
+            # 4. Update Nginx Configs
+            if [ -f "/tmp/halalcore.id.conf" ]; then
+              cp /tmp/*.conf /etc/nginx/sites-available/ 2>/dev/null || true
+              ln -sf /etc/nginx/sites-available/halalcore.id.conf /etc/nginx/sites-enabled/
+              ln -sf /etc/nginx/sites-available/telemarketing.halalcore.id.conf /etc/nginx/sites-enabled/
+              ln -sf /etc/nginx/sites-available/api.halalcore.id.conf /etc/nginx/sites-enabled/
+              rm -f /tmp/*.conf
+            fi
 
-            # 7. Reload Nginx & Start Backend
+            # 5. Set Permissions & Reload Nginx
+            chown -R www-data:www-data /var/www/halalcore.id /var/www/telemarketing.halalcore.id
+            chmod -R 755 /var/www/halalcore.id /var/www/telemarketing.halalcore.id
+
             nginx -t
             systemctl reload nginx
-            systemctl restart halalcore-backend
+            echo "✓ Nginx reloaded"
 
-            # Clean temporary files
-            rm -rf "$DEPLOY_TMP"
-            echo "✅ Deployment finished! All services are active and running."
+            echo "🎉 Deployment finished successfully!"
