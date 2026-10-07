@@ -11,6 +11,9 @@ import type { AuditLog } from '../../types';
 import OperationalManagerDashboard from './OperationalManagerDashboard';
 import MarketingManagerDashboard from './MarketingManagerDashboard';
 import HalalAdvisorDashboard from './HalalAdvisorDashboard';
+import FinanceDashboard from './FinanceDashboard';
+import DrafterDashboard from './DrafterDashboard';
+import DraftManagerDashboard from './DraftManagerDashboard';
 import { AuditAgendaPreview } from '../../components/dashboard/audit/AuditAgendaPreview';
 
 interface DashboardStats {
@@ -96,6 +99,18 @@ export default function DashboardHome() {
 
     if (user?.role === 'HALAL_ADVISOR' || user?.role === 'HALAL_MANAGER' || user?.role === 'HALAL_DIRECTOR') {
         return <HalalAdvisorDashboard />;
+    }
+
+    if (user?.role === 'FINANCE' || user?.role === 'ADMIN_KEUANGAN') {
+        return <FinanceDashboard />;
+    }
+
+    if (user?.role === 'DRAFTER') {
+        return <DrafterDashboard />;
+    }
+
+    if (user?.role === 'DRAFT_MANAGER') {
+        return <DraftManagerDashboard />;
     }
 
     if (user?.role === 'CLIENT') {

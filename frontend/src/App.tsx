@@ -52,6 +52,7 @@ const BillingConfigAdmin = lazy(() => import('./pages/dashboard/BillingConfigAdm
 const ConsultantProfilePage = lazy(() => import('./pages/dashboard/ConsultantProfile'));
 const TrainingAdmin = lazy(() => import('./pages/dashboard/TrainingAdmin'));
 const BillingManagement = lazy(() => import('./pages/dashboard/BillingManagement'));
+const VoucherManagement = lazy(() => import('./pages/dashboard/VoucherManagement'));
 const GeographyAdmin = lazy(() => import('./pages/dashboard/GeographyAdmin'));
 const AdvisorsGeo = lazy(() => import('./pages/dashboard/AdvisorsGeo'));
 const CoordinatorDashboard = lazy(() => import('./pages/dashboard/CoordinatorDashboard'));
@@ -256,6 +257,9 @@ function App() {
           {/* Pengaturan Sistem */}
           <Route path="billing" element={
             <RoleRoute path="billing"><BillingManagement /></RoleRoute>
+          } />
+          <Route path="vouchers" element={
+            <RoleRoute path="vouchers"><VoucherManagement /></RoleRoute>
           } />
           <Route path="form-config" element={
             <RoleRoute path="form-config"><FormConfigAdmin /></RoleRoute>

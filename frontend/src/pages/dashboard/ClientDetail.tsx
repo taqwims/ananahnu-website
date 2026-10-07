@@ -52,7 +52,7 @@ export default function ClientDetail() {
                         <p className="text-gray-500 mt-1 font-medium italic">Informasi profil dan histori pengajuan klien</p>
                     </div>
                 </div>
-                {user?.role !== 'VIEWER' && (
+                {user?.role !== 'VIEWER' && user?.role !== 'MARKETING' && user?.role !== 'BUSINESS_DEVELOPMENT' && (
                     <button 
                         onClick={() => navigate(`/dashboard/submissions/create?client_id=${client.id}`)}
                         className="px-5 py-2.5 bg-gradient-to-r from-brand-600 to-brand-500 text-white font-bold rounded-xl shadow-lg shadow-brand-200 hover:shadow-xl transition-all flex items-center gap-2"

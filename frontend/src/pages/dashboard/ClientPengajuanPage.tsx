@@ -16,13 +16,18 @@ import {
     MapPin,
     Tag,
     Calculator,
-    Package
+    Package,
+    Ticket,
+    X,
+    Percent
 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import FileUpload from '../../components/dashboard/FileUpload';
 import type { FormFieldConfig } from '../../types';
-import { resolveFileUrl } from '../../utils/format';
+import type { Voucher } from '../../types/voucher';
+import { voucherService } from '../../services/voucherService';
+import { resolveFileUrl, formatRupiah } from '../../utils/format';
 
 interface AdvisorInfo {
     id: string;
@@ -82,6 +87,14 @@ export default function ClientPengajuanPage() {
     const [advisorInfo, setAdvisorInfo] = useState<AdvisorInfo | null>(null);
     const [checkingAdvisor, setCheckingAdvisor] = useState(false);
     const [advisorCheckError, setAdvisorCheckError] = useState<string | null>(null);
+
+    // ==========================================
+    // 4. KLAIM VOUCHER / KODE PROMO
+    // ==========================================
+    const [voucherCode, setVoucherCode] = useState('');
+    const [appliedVoucher, setAppliedVoucher] = useState<Voucher | null>(null);
+    const [checkingVoucher, setCheckingVoucher] = useState(false);
+    const [voucherError, setVoucherError] = useState<string | null>(null);
 
     // Dynamic Form Fields Configured by Admin
     const [formConfigs, setFormConfigs] = useState<FormFieldConfig[]>([]);
@@ -163,6 +176,46 @@ export default function ClientPengajuanPage() {
         }, 600);
         return () => clearTimeout(timer);
     }, [advisorCode]);
+
+    // Check Voucher Code
+    const handleCheckVoucher = async () => {
+        const code = voucherCode.trim().toUpperCase();
+        if (!code) {
+            setVoucherError('Masukkan kode voucher terlebih dahulu');
+            return;
+        }
+        setCheckingVoucher(true);
+        setVoucherError(null);
+        try {
+            const res = await voucherService.validate({
+                code,
+                amount: 1000000,
+                service_type: 'PENDING_CONSULTATION'
+            });
+            if (res.valid && res.voucher) {
+                setAppliedVoucher(res.voucher);
+                toast.success(`Voucher "${res.voucher.code}" berhasil diterapkan!`);
+            } else {
+                setAppliedVoucher(null);
+                setVoucherError(res.message || 'Kode voucher tidak valid atau sudah kedaluwarsa');
+                toast.error(res.message || 'Kode voucher tidak valid');
+            }
+        } catch (err: any) {
+            setAppliedVoucher(null);
+            const msg = err.response?.data?.error || err.response?.data?.message || 'Kode voucher tidak valid atau kedaluwarsa';
+            setVoucherError(msg);
+            toast.error(msg);
+        } finally {
+            setCheckingVoucher(false);
+        }
+    };
+
+    const handleRemoveVoucher = () => {
+        setAppliedVoucher(null);
+        setVoucherCode('');
+        setVoucherError(null);
+        toast.success('Voucher berhasil dibatalkan');
+    };
 
     const handleDynamicFieldChange = (fieldKey: string, value: string) => {
         setDynamicValues(prev => ({ ...prev, [fieldKey]: value }));
@@ -294,11 +347,29 @@ export default function ClientPengajuanPage() {
                     branch_count: Number(branchCount) || 1,
                     province_id: provinceId ? Number(provinceId) : undefined,
                     regency_id: regencyId ? Number(regencyId) : undefined,
+                    voucher_code: appliedVoucher ? appliedVoucher.code : undefined,
                 },
                 field_values: fieldValuesPayload
             };
 
             const res = await api.post('/submissions/create-full', payload);
+
+            if (appliedVoucher) {
+                try {
+                    await voucherService.apply({
+                        code: appliedVoucher.code,
+                        amount: 0,
+                        reference_type: 'SUBMISSION',
+                        reference_no: res.data.tracking_number || res.data.id,
+                        submission_id: res.data.id,
+                        user_name: clientName,
+                        user_phone: phone
+                    });
+                } catch (vErr) {
+                    console.error('Gagal mencatat pemakaian voucher:', vErr);
+                }
+            }
+
             toast.success('Pengajuan berhasil dibuat! Data usaha Anda telah tersimpan.');
             navigate(`/dashboard/submissions/${res.data.id}`);
         } catch (err: any) {
@@ -853,6 +924,110 @@ export default function ClientPengajuanPage() {
                         {!advisorCode.trim() && (
                             <p className="text-[11px] text-gray-400 font-medium italic">
                                 * Kolom nomor registrasi advisor dikosongkan. Pengajuan akan diteruskan ke Manager Marketing untuk penunjukan advisor.
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                {/* ========================================================= */}
+                {/* CARD 4: KLAIM KODE VOUCHER / DISKON (Opsional)            */}
+                {/* ========================================================= */}
+                <div className="bg-white rounded-3xl border border-emerald-100/80 p-6 sm:p-8 shadow-sm space-y-6 hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-5">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-sm">
+                                <Ticket className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-black text-gray-900 tracking-tight">4. Kode Promo & Voucher Diskon</h2>
+                                <p className="text-xs text-gray-500 font-medium">Opsional: Masukkan voucher promo untuk mendapatkan potongan biaya sertifikasi</p>
+                            </div>
+                        </div>
+                        <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200">
+                            Hemat Biaya
+                        </span>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-700">
+                                Masukkan Kode Voucher
+                            </label>
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <input
+                                        type="text"
+                                        className="glass-input text-xs font-black uppercase tracking-wider w-full pl-10 bg-gray-50/50 focus:bg-white"
+                                        placeholder="Contoh: ANA-2026 atau REGULER50"
+                                        value={voucherCode}
+                                        onChange={e => {
+                                            setVoucherCode(e.target.value.toUpperCase());
+                                            setVoucherError(null);
+                                        }}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                handleCheckVoucher();
+                                            }
+                                        }}
+                                    />
+                                    <Tag className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleCheckVoucher}
+                                    disabled={checkingVoucher || !voucherCode.trim()}
+                                    className="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                                >
+                                    {checkingVoucher ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ticket className="w-4 h-4" />}
+                                    Terapkan
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Applied Voucher Status Card */}
+                        {appliedVoucher && (
+                            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200 flex items-center justify-between animate-fadeIn">
+                                <div className="flex items-center gap-3.5">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-sm shadow-sm">
+                                        <Percent className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-xs font-mono font-black text-emerald-950">{appliedVoucher.code}</p>
+                                            <span className="text-[10px] font-black uppercase bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-md">
+                                                {appliedVoucher.discount_type === 'PERCENTAGE' 
+                                                    ? `${appliedVoucher.discount_value}% DISKON`
+                                                    : `POTONGAN ${formatRupiah(appliedVoucher.discount_value)}`}
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-emerald-700 font-medium mt-0.5">
+                                            {appliedVoucher.name || 'Voucher Promo Terpasang'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleRemoveVoucher}
+                                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                    title="Hapus Voucher"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Voucher Check Error */}
+                        {voucherError && (
+                            <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 flex items-center gap-2.5 text-xs text-red-700 font-medium animate-fadeIn">
+                                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                                <span>{voucherError}</span>
+                            </div>
+                        )}
+
+                        {!appliedVoucher && !voucherCode.trim() && (
+                            <p className="text-[11px] text-gray-400 font-medium italic">
+                                * Punya kode voucher diskon dari event, promosi, atau mitra? Masukkan di atas untuk mendapatkan potongan harga.
                             </p>
                         )}
                     </div>

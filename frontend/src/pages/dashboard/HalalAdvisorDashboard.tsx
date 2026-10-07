@@ -16,13 +16,19 @@ import {
     ShieldCheck, 
     AlertCircle, 
     TrendingUp, 
-    Loader2
+    Loader2,
+    Ticket,
+    Tag,
+    X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import { submissionService } from '../../services/submissionService';
+import { voucherService } from '../../services/voucherService';
 import { useAuthStore } from '../../store/authStore';
 import type { Submission } from '../../types';
+import type { Voucher } from '../../types/voucher';
+import { formatRupiah } from '../../utils/format';
 
 export default function HalalAdvisorDashboard() {
     const navigate = useNavigate();
@@ -51,6 +57,12 @@ export default function HalalAdvisorDashboard() {
     const [customDPPercentage, setCustomDPPercentage] = useState<string>('');
     const [consultNotes, setConsultNotes] = useState('');
     const [savingService, setSavingService] = useState(false);
+
+    // Advisor Voucher Claim State inside Modal
+    const [advisorVoucherCode, setAdvisorVoucherCode] = useState('');
+    const [advisorAppliedVoucher, setAdvisorAppliedVoucher] = useState<Voucher | null>(null);
+    const [advisorCheckingVoucher, setAdvisorCheckingVoucher] = useState(false);
+    const [advisorVoucherError, setAdvisorVoucherError] = useState<string | null>(null);
 
     useEffect(() => {
         loadSubmissions();
@@ -137,6 +149,46 @@ export default function HalalAdvisorDashboard() {
         window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
     };
 
+    // Check Advisor Voucher
+    const handleCheckAdvisorVoucher = async () => {
+        const code = advisorVoucherCode.trim().toUpperCase();
+        if (!code) {
+            setAdvisorVoucherError('Masukkan kode voucher');
+            return;
+        }
+        setAdvisorCheckingVoucher(true);
+        setAdvisorVoucherError(null);
+        try {
+            const res = await voucherService.validate({
+                code,
+                amount: 1500000,
+                service_type: selectedServiceType
+            });
+            if (res.valid && res.voucher) {
+                setAdvisorAppliedVoucher(res.voucher);
+                toast.success(`Voucher "${res.voucher.code}" berhasil divalidasi!`);
+            } else {
+                setAdvisorAppliedVoucher(null);
+                setAdvisorVoucherError(res.message || 'Kode voucher tidak valid');
+                toast.error(res.message || 'Kode voucher tidak valid');
+            }
+        } catch (err: any) {
+            setAdvisorAppliedVoucher(null);
+            const msg = err.response?.data?.error || err.response?.data?.message || 'Kode voucher tidak valid atau kedaluwarsa';
+            setAdvisorVoucherError(msg);
+            toast.error(msg);
+        } finally {
+            setAdvisorCheckingVoucher(false);
+        }
+    };
+
+    const handleRemoveAdvisorVoucher = () => {
+        setAdvisorAppliedVoucher(null);
+        setAdvisorVoucherCode('');
+        setAdvisorVoucherError(null);
+        toast.success('Voucher dibatalkan');
+    };
+
     // Open Consultation Modal
     const handleOpenConsult = (sub: Submission) => {
         setConsultModal({ isOpen: true, submission: sub });
@@ -151,6 +203,9 @@ export default function HalalAdvisorDashboard() {
         setSelectedDPPercentage(dp);
         setCustomDPPercentage(dp !== 50 && dp !== 60 && dp !== 70 && dp !== 80 ? String(dp) : '');
         setConsultNotes('');
+        setAdvisorVoucherCode('');
+        setAdvisorAppliedVoucher(null);
+        setAdvisorVoucherError(null);
     };
 
     // Save Consultation & Service Type
@@ -195,6 +250,22 @@ export default function HalalAdvisorDashboard() {
                 actualPaymentScheme,
                 actualDPPercentage
             );
+
+            if (advisorAppliedVoucher) {
+                try {
+                    await voucherService.apply({
+                        code: advisorAppliedVoucher.code,
+                        amount: 0,
+                        reference_type: 'SUBMISSION',
+                        reference_no: consultModal.submission.tracking_number || consultModal.submission.id,
+                        submission_id: consultModal.submission.id,
+                        user_name: consultModal.submission.client?.client_name,
+                        user_phone: consultModal.submission.client?.phone
+                    });
+                } catch (vErr) {
+                    console.error('Gagal mencatat pemakaian voucher:', vErr);
+                }
+            }
 
             toast.success("Hasil konsultasi & penetapan jenis layanan berhasil disimpan!");
             setConsultModal({ isOpen: false, submission: null });
@@ -840,6 +911,88 @@ export default function HalalAdvisorDashboard() {
                                     </p>
                                 </div>
                             </label>
+
+                            {/* Voucher Promo / Diskon Section */}
+                            {selectedServiceType !== 'SELF_DECLARE' && (
+                                <div className="p-3.5 bg-emerald-50/50 rounded-2xl border border-emerald-150 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                                            <Ticket className="w-3.5 h-3.5 text-emerald-600" />
+                                            <span>Voucher Promo Klien (Opsional)</span>
+                                        </label>
+                                        {advisorAppliedVoucher && (
+                                            <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                                                Aktif
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {!advisorAppliedVoucher ? (
+                                        <div className="space-y-1.5">
+                                            <div className="flex gap-2">
+                                                <div className="relative flex-1">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Masukkan kode voucher klien (e.g. ANA-2026)"
+                                                        className="glass-input text-xs font-bold uppercase tracking-wider w-full pl-8 bg-white"
+                                                        value={advisorVoucherCode}
+                                                        onChange={e => {
+                                                            setAdvisorVoucherCode(e.target.value.toUpperCase());
+                                                            setAdvisorVoucherError(null);
+                                                        }}
+                                                        onKeyDown={e => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                handleCheckAdvisorVoucher();
+                                                            }
+                                                        }}
+                                                    />
+                                                    <Tag className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleCheckAdvisorVoucher}
+                                                    disabled={advisorCheckingVoucher || !advisorVoucherCode.trim()}
+                                                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all disabled:opacity-50 flex items-center gap-1.5"
+                                                >
+                                                    {advisorCheckingVoucher ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ticket className="w-3.5 h-3.5" />}
+                                                    <span>Terapkan</span>
+                                                </button>
+                                            </div>
+                                            {advisorVoucherError && (
+                                                <p className="text-[11px] text-red-600 font-medium">{advisorVoucherError}</p>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="p-2.5 rounded-xl bg-white border border-emerald-200 flex items-center justify-between text-xs">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                                                    <CheckCircle2 className="w-4 h-4" />
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="font-mono font-black text-emerald-950">{advisorAppliedVoucher.code}</span>
+                                                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
+                                                            {advisorAppliedVoucher.discount_type === 'PERCENTAGE' 
+                                                                ? `${advisorAppliedVoucher.discount_value}% OFF` 
+                                                                : `Potongan ${formatRupiah(advisorAppliedVoucher.discount_value)}`}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[10px] text-gray-500 font-medium truncate max-w-[220px]">{advisorAppliedVoucher.name}</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={handleRemoveAdvisorVoucher}
+                                                className="p-1 text-gray-400 hover:text-red-500 rounded-lg transition-all"
+                                                title="Batalkan Voucher"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Consultation Notes */}
                             <div className="space-y-1.5">

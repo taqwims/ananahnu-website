@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Loader2, Download, Plus, Trash, BookOpen } from 'lucide-react';
+import { Loader2, Download, Plus, Trash, BookOpen, Ticket, Tag, CheckCircle2, X } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'react-hot-toast';
 import type { BillingComponent } from '../../types';
+import type { Voucher } from '../../types/voucher';
+import { voucherService } from '../../services/voucherService';
 import { calculateComponentCost } from '../../utils/billingCalculator';
 import { useAuthStore } from '../../store/authStore';
 import { generatePenawaranHTML } from './PenawaranLetter';
@@ -66,6 +68,12 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
     const [newOptAmount, setNewOptAmount] = useState('');
     const [newOptQty, setNewOptQty] = useState('1');
     const [selectedOptionalComponentIds, setSelectedOptionalComponentIds] = useState<number[]>([]);
+
+    // Voucher Claim State
+    const [voucherCode, setVoucherCode] = useState('');
+    const [appliedVoucher, setAppliedVoucher] = useState<Voucher | null>(null);
+    const [validatingVoucher, setValidatingVoucher] = useState(false);
+    const [voucherError, setVoucherError] = useState<string | null>(null);
 
     const formatCurrency = (val: number) => {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val);
@@ -175,10 +183,12 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
     };
 
     // Reactive calculation
-    const { total, breakdown, activeMandayComponents } = useMemo(() => {
+    const { total, subtotalBeforeVoucher, voucherDiscount, breakdown, activeMandayComponents } = useMemo(() => {
         if (serviceType === 'SELF_DECLARE') {
             return {
                 total: 0,
+                subtotalBeforeVoucher: 0,
+                voucherDiscount: 0,
                 breakdown: [
                     {
                         name: 'Program Self Declare (Fasilitasi / Gratis)',
@@ -426,8 +436,80 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
             currentTotal += subtotal;
         });
 
-        return { total: currentTotal, breakdown: currentBreakdown, activeMandayComponents: mandayList };
-    }, [masterComponents, optionalCosts, branchCount, optionalQuantities, productCount, selectedOptionalComponentIds, serviceType, systemSettings, provinceId, regencyId, districtId, businessTypeId, productId, businessScaleId]);
+        // 6. Apply Voucher Discount if claimed
+        let calculatedVoucherDiscount = 0;
+        if (appliedVoucher && currentTotal > 0) {
+            if (appliedVoucher.discount_type === 'PERCENTAGE') {
+                calculatedVoucherDiscount = (appliedVoucher.discount_value / 100) * currentTotal;
+                if (appliedVoucher.max_discount && appliedVoucher.max_discount > 0) {
+                    calculatedVoucherDiscount = Math.min(calculatedVoucherDiscount, appliedVoucher.max_discount);
+                }
+            } else {
+                calculatedVoucherDiscount = appliedVoucher.discount_value;
+            }
+            calculatedVoucherDiscount = Math.min(currentTotal, Math.round(calculatedVoucherDiscount));
+
+            if (calculatedVoucherDiscount > 0) {
+                currentBreakdown.push({
+                    name: `Voucher Promo (${appliedVoucher.code}) - ${appliedVoucher.name || 'Diskon'}`,
+                    category: 'DISKON',
+                    unit_cost: -calculatedVoucherDiscount,
+                    multiplier: null,
+                    total: -calculatedVoucherDiscount,
+                    is_optional: true
+                });
+            }
+        }
+
+        const finalGrandTotal = Math.max(0, currentTotal - calculatedVoucherDiscount);
+
+        return { 
+            total: finalGrandTotal, 
+            subtotalBeforeVoucher: currentTotal,
+            voucherDiscount: calculatedVoucherDiscount,
+            breakdown: currentBreakdown, 
+            activeMandayComponents: mandayList 
+        };
+    }, [masterComponents, optionalCosts, branchCount, optionalQuantities, productCount, selectedOptionalComponentIds, serviceType, systemSettings, provinceId, regencyId, districtId, businessTypeId, productId, businessScaleId, appliedVoucher]);
+
+    const handleApplyVoucher = async () => {
+        const code = voucherCode.trim().toUpperCase();
+        if (!code) {
+            toast.error('Masukkan kode voucher terlebih dahulu');
+            return;
+        }
+        setValidatingVoucher(true);
+        setVoucherError(null);
+        try {
+            const res = await voucherService.validate({
+                code,
+                amount: subtotalBeforeVoucher,
+                service_type: serviceType
+            });
+            if (res.valid && res.voucher) {
+                setAppliedVoucher(res.voucher);
+                toast.success(`Voucher "${res.voucher.code}" berhasil diterapkan!`);
+            } else {
+                setAppliedVoucher(null);
+                setVoucherError(res.message || 'Kode voucher tidak valid atau tidak memenuhi kriteria');
+                toast.error(res.message || 'Kode voucher tidak valid');
+            }
+        } catch (err: any) {
+            setAppliedVoucher(null);
+            const msg = err.response?.data?.error || err.response?.data?.message || 'Kode voucher tidak valid atau kedaluwarsa';
+            setVoucherError(msg);
+            toast.error(msg);
+        } finally {
+            setValidatingVoucher(false);
+        }
+    };
+
+    const handleRemoveVoucher = () => {
+        setAppliedVoucher(null);
+        setVoucherCode('');
+        setVoucherError(null);
+        toast.success('Voucher berhasil dibatalkan');
+    };
 
     const getCategoryBadgeClass = (cat: string) => {
         switch (cat) {
@@ -509,6 +591,8 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                 product_count: productCount,
                 branch_count: branchCount,
                 total_amount: total,
+                voucher_code: appliedVoucher ? appliedVoucher.code : null,
+                voucher_discount: voucherDiscount,
                 breakdown
             };
             if (onSaveClick) {
@@ -902,8 +986,98 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                     )}
                 </div>
 
+                {/* Voucher Claim Section */}
+                <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                            <Ticket className="w-3.5 h-3.5 text-brand-600" />
+                            <span>Klaim Kode Voucher Promo</span>
+                        </label>
+                        {appliedVoucher && (
+                            <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                                Terpasang
+                            </span>
+                        )}
+                    </div>
+
+                    {!appliedVoucher ? (
+                        <div className="space-y-1.5">
+                            <div className="flex gap-1.5">
+                                <div className="relative flex-1">
+                                    <input
+                                        type="text"
+                                        placeholder="Masukkan kode voucher (e.g. ANA-2026)"
+                                        className="w-full bg-white border border-gray-200 rounded-lg pl-7 pr-2.5 py-1.5 text-xs font-bold uppercase tracking-wider outline-none focus:ring-2 focus:ring-brand-500/20"
+                                        value={voucherCode}
+                                        onChange={e => {
+                                            setVoucherCode(e.target.value.toUpperCase());
+                                            setVoucherError(null);
+                                        }}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                handleApplyVoucher();
+                                            }
+                                        }}
+                                    />
+                                    <Tag className="w-3.5 h-3.5 text-gray-400 absolute left-2 top-1/2 -translate-y-1/2" />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleApplyVoucher}
+                                    disabled={validatingVoucher || !voucherCode.trim() || subtotalBeforeVoucher <= 0}
+                                    className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-1 shrink-0"
+                                >
+                                    {validatingVoucher ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ticket className="w-3.5 h-3.5" />}
+                                    <span>Klaim</span>
+                                </button>
+                            </div>
+                            {voucherError && (
+                                <p className="text-[10px] text-red-600 font-medium">{voucherError}</p>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                                    <CheckCircle2 className="w-4 h-4" />
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="font-mono font-black text-xs text-emerald-900">{appliedVoucher.code}</span>
+                                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-200/60 px-1.5 py-0.5 rounded">
+                                            {appliedVoucher.discount_type === 'PERCENTAGE' ? `${appliedVoucher.discount_value}% OFF` : `Potongan ${formatCurrency(appliedVoucher.discount_value)}`}
+                                        </span>
+                                    </div>
+                                    <p className="text-[10px] text-emerald-700 font-medium truncate max-w-[200px]">{appliedVoucher.name}</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleRemoveVoucher}
+                                className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                title="Batalkan Voucher"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    )}
+                </div>
+
                 {/* Grand Total */}
-                <div className="mt-6 pt-4 border-t border-gray-200 space-y-3.5">
+                <div className="mt-4 pt-4 border-t border-gray-200 space-y-3.5">
+                    {appliedVoucher && voucherDiscount > 0 && (
+                        <div className="flex justify-between items-center text-xs">
+                            <span className="text-gray-500 font-medium">Subtotal Biaya</span>
+                            <span className="text-gray-700 font-bold">{formatCurrency(subtotalBeforeVoucher)}</span>
+                        </div>
+                    )}
+                    {appliedVoucher && voucherDiscount > 0 && (
+                        <div className="flex justify-between items-center text-xs text-rose-600">
+                            <span className="font-medium">Potongan Voucher</span>
+                            <span className="font-bold">- {formatCurrency(voucherDiscount)}</span>
+                        </div>
+                    )}
                     <div className="flex justify-between items-center">
                         <span className="font-bold text-gray-600 text-sm">Grand Total</span>
                         <span className="bg-brand-50 text-brand-700 border border-brand-100 px-4 py-2 rounded-xl text-base font-black">

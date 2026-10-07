@@ -131,8 +131,213 @@ func PerformResetAndSeed(db *gorm.DB) error {
 	// 11. Seed System Settings (Payment Gateway, Company info)
 	seedSystemSettings(db)
 
+	// 12. Seed Vouchers
+	SeedVoucherData(db)
+
 	log.Println("=== Wiping & Seeding COMPLETED successfully! ===")
 	return nil
+}
+
+// SeedVoucherData seeds initial promotional vouchers and realistic usage history.
+func SeedVoucherData(db *gorm.DB) {
+	var count int64
+	db.Model(&domain.Voucher{}).Count(&count)
+	if count > 0 {
+		return
+	}
+
+	log.Println("Seeding sample vouchers and usage analytics data...")
+	now := time.Now()
+	startDate := now.AddDate(0, -1, 0)
+	endDate := now.AddDate(0, 3, 0)
+
+	vouchers := []domain.Voucher{
+		{
+			Code:          "HALALBERKAH",
+			Name:          "Promo Berkah Halal Indonesia",
+			Description:   "Potongan langsung Rp 500.000 untuk pengajuan sertifikasi Halal Reguler",
+			DiscountType:  domain.DiscountTypeFixedAmount,
+			DiscountValue: 500000,
+			MinSpend:      2500000,
+			UsageLimit:    100,
+			UsagePerUser:  1,
+			UsedCount:     18,
+			TotalDiscount: 9000000,
+			ValidFrom:     startDate,
+			ValidUntil:    endDate,
+			IsActive:      true,
+			Scope:         domain.VoucherScopeReguler,
+			CreatedAt:     startDate,
+			UpdatedAt:     now,
+		},
+		{
+			Code:          "DISKON10",
+			Name:          "Diskon 10% Semua Layanan",
+			Description:   "Potongan 10% maksimal Rp 350.000 untuk semua layanan HalalCore",
+			DiscountType:  domain.DiscountTypePercentage,
+			DiscountValue: 10,
+			MaxDiscount:   350000,
+			MinSpend:      1000000,
+			UsageLimit:    250,
+			UsagePerUser:  2,
+			UsedCount:     34,
+			TotalDiscount: 10200000,
+			ValidFrom:     startDate,
+			ValidUntil:    endDate,
+			IsActive:      true,
+			Scope:         domain.VoucherScopeAll,
+			CreatedAt:     startDate,
+			UpdatedAt:     now,
+		},
+		{
+			Code:          "UMKMBANGKIT",
+			Name:          "Subsidi UMKM Mandiri",
+			Description:   "Potongan biaya verifikasi Rp 250.000 untuk pengajuan Self Declare Mandiri",
+			DiscountType:  domain.DiscountTypeFixedAmount,
+			DiscountValue: 250000,
+			MinSpend:      500000,
+			UsageLimit:    50,
+			UsagePerUser:  1,
+			UsedCount:     12,
+			TotalDiscount: 3000000,
+			ValidFrom:     startDate,
+			ValidUntil:    endDate,
+			IsActive:      true,
+			Scope:         domain.VoucherScopeSelfDeclare,
+			CreatedAt:     startDate,
+			UpdatedAt:     now,
+		},
+		{
+			Code:          "TRAINING20",
+			Name:          "Diskon Pelatihan Penyelia Halal 20%",
+			Description:   "Potongan 20% pendaftaran pelatihan kompetensi penyelia dan auditor halal",
+			DiscountType:  domain.DiscountTypePercentage,
+			DiscountValue: 20,
+			MaxDiscount:   400000,
+			MinSpend:      750000,
+			UsageLimit:    30,
+			UsagePerUser:  1,
+			UsedCount:     8,
+			TotalDiscount: 2400000,
+			ValidFrom:     startDate,
+			ValidUntil:    endDate,
+			IsActive:      true,
+			Scope:         domain.VoucherScopeTraining,
+			CreatedAt:     startDate,
+			UpdatedAt:     now,
+		},
+		{
+			Code:          "TELEVIP2026",
+			Name:          "Voucher Eksklusif Telemarketing",
+			Description:   "Diskon spesial Rp 750.000 untuk kesepakatan via Telemarketing",
+			DiscountType:  domain.DiscountTypeFixedAmount,
+			DiscountValue: 750000,
+			MinSpend:      3500000,
+			UsageLimit:    20,
+			UsagePerUser:  1,
+			UsedCount:     5,
+			TotalDiscount: 3750000,
+			ValidFrom:     startDate,
+			ValidUntil:    endDate,
+			IsActive:      true,
+			Scope:         domain.VoucherScopeTele,
+			CreatedAt:     startDate,
+			UpdatedAt:     now,
+		},
+		{
+			Code:          "FLASH50K",
+			Name:          "Flash Deal 50 Ribu",
+			Description:   "Potongan langsung Rp 50.000 tanpa minimum transaksi",
+			DiscountType:  domain.DiscountTypeFixedAmount,
+			DiscountValue: 50000,
+			MinSpend:      0,
+			UsageLimit:    500,
+			UsagePerUser:  1,
+			UsedCount:     42,
+			TotalDiscount: 2100000,
+			ValidFrom:     startDate,
+			ValidUntil:    now.AddDate(0, 0, -2), // Expired
+			IsActive:      true,
+			Scope:         domain.VoucherScopeAll,
+			CreatedAt:     startDate,
+			UpdatedAt:     now,
+		},
+	}
+
+	for i := range vouchers {
+		db.Create(&vouchers[i])
+	}
+
+	// Seed Sample Usages
+	sampleUsers := []struct {
+		Name  string
+		Email string
+		Phone string
+	}{
+		{"Hj. Siti Mariam", "siti.mariam@gmail.com", "081234567891"},
+		{"Budi Hartono", "budi.hartono@panganmakmur.com", "081234567892"},
+		{"Dedi Kurniawan", "dedi.kenangan@gmail.com", "081234567893"},
+		{"Ahmad Rifai", "ahmad.rifai@alamsegar.co.id", "081234567894"},
+		{"Ratna Sari", "ratnasari@madubarokah.com", "081234567896"},
+		{"Dr. Hendra Wijaya", "dr.hendra@bogahalal.com", "081234567897"},
+		{"H. Slamet Riyadi", "slamet.bakso@gmail.com", "081234567898"},
+		{"Fajar Nugroho", "fajar.nugroho@kulinernusantara.id", "081399887766"},
+		{"Dewi Anggraini", "dewi.anggraini@sambalhalal.com", "081544332211"},
+		{"Muhammad Yusuf", "yusuf.kopi@warkophalal.com", "081677889900"},
+	}
+
+	v1 := vouchers[0] // HALALBERKAH
+	v2 := vouchers[1] // DISKON10
+	v3 := vouchers[2] // UMKMBANGKIT
+
+	for idx, u := range sampleUsers {
+		daysAgo := (idx * 3) % 12
+		usedDate := now.AddDate(0, 0, -daysAgo).Add(time.Duration(idx*45) * time.Minute)
+
+		var chosenV domain.Voucher
+		var orig float64
+		var disc float64
+		var refType string
+
+		if idx%3 == 0 {
+			chosenV = v1
+			orig = 3500000
+			disc = 500000
+			refType = "INVOICE"
+		} else if idx%3 == 1 {
+			chosenV = v2
+			orig = 2500000
+			disc = 250000
+			refType = "SUBMISSION"
+		} else {
+			chosenV = v3
+			orig = 1000000
+			disc = 250000
+			refType = "INVOICE"
+		}
+
+		final := orig - disc
+		refNo := fmt.Sprintf("INV-2026-0%d", 1000+idx)
+
+		usage := domain.VoucherUsage{
+			VoucherID:      chosenV.ID,
+			VoucherCode:    chosenV.Code,
+			UserName:       u.Name,
+			UserEmail:      u.Email,
+			UserPhone:      u.Phone,
+			OriginalAmount: orig,
+			DiscountAmount: disc,
+			FinalAmount:    final,
+			ReferenceType:  refType,
+			ReferenceNo:    refNo,
+			Status:         "APPLIED",
+			UsedAt:         usedDate,
+			CreatedAt:      usedDate,
+		}
+		db.Create(&usage)
+	}
+
+	log.Println("✓ Sample vouchers and usage analytics data seeded successfully.")
 }
 
 // SeedFormConfigs seeds default form field configurations.

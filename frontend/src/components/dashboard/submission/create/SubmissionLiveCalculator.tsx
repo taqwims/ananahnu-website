@@ -1,8 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Calculator, Sparkles, CheckCircle2, PlusCircle } from 'lucide-react';
+import { Calculator, Sparkles, CheckCircle2, PlusCircle, Ticket, Tag, X, Loader2 } from 'lucide-react';
 import api from '../../../../services/api';
 import type { BillingComponent } from '../../../../types';
+import type { Voucher } from '../../../../types/voucher';
+import { voucherService } from '../../../../services/voucherService';
 import { calculateComponentCost } from '../../../../utils/billingCalculator';
+import toast from 'react-hot-toast';
 
 interface SubmissionLiveCalculatorProps {
     clientData: any;
@@ -13,6 +16,12 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
     const [masterComponents, setMasterComponents] = useState<BillingComponent[]>([]);
     const [systemSettings, setSystemSettings] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(false);
+
+    // Voucher State
+    const [voucherInput, setVoucherInput] = useState(clientData.voucher_code || '');
+    const [appliedVoucher, setAppliedVoucher] = useState<Voucher | null>(null);
+    const [validatingVoucher, setValidatingVoucher] = useState(false);
+    const [voucherError, setVoucherError] = useState<string | null>(null);
 
     const serviceType = clientData.service_type || 'SELF_DECLARE';
     const selectedOptionalIds: number[] = clientData.selected_optional_ids || [];
@@ -90,10 +99,12 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
     };
 
     // Compute cost breakdown reactively
-    const { total, breakdown, activeMandayComponents } = useMemo(() => {
+    const { total, subtotalBeforeVoucher, voucherDiscount, breakdown, activeMandayComponents } = useMemo(() => {
         if (serviceType === 'SELF_DECLARE') {
             return {
                 total: 0,
+                subtotalBeforeVoucher: 0,
+                voucherDiscount: 0,
                 breakdown: [
                     {
                         name: 'Program Self Declare (Fasilitasi / Gratis)',
@@ -300,8 +311,88 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
             }
         });
 
-        return { total: currentTotal, breakdown: currentBreakdown, activeMandayComponents: mandayList };
-    }, [masterComponents, systemSettings, serviceType, clientData, selectedOptionalIds, optionalQuantities, optionalComponents]);
+        // 6. Apply Voucher Discount if claimed
+        let calculatedVoucherDiscount = 0;
+        if (appliedVoucher && currentTotal > 0) {
+            if (appliedVoucher.discount_type === 'PERCENTAGE') {
+                calculatedVoucherDiscount = (appliedVoucher.discount_value / 100) * currentTotal;
+                if (appliedVoucher.max_discount && appliedVoucher.max_discount > 0) {
+                    calculatedVoucherDiscount = Math.min(calculatedVoucherDiscount, appliedVoucher.max_discount);
+                }
+            } else {
+                calculatedVoucherDiscount = appliedVoucher.discount_value;
+            }
+            calculatedVoucherDiscount = Math.min(currentTotal, Math.round(calculatedVoucherDiscount));
+
+            if (calculatedVoucherDiscount > 0) {
+                currentBreakdown.push({
+                    name: `Voucher Promo (${appliedVoucher.code}) - ${appliedVoucher.name || 'Diskon'}`,
+                    category: 'DISKON',
+                    unit_cost: -calculatedVoucherDiscount,
+                    total: -calculatedVoucherDiscount,
+                });
+            }
+        }
+
+        const finalGrandTotal = Math.max(0, currentTotal - calculatedVoucherDiscount);
+
+        return { 
+            total: finalGrandTotal, 
+            subtotalBeforeVoucher: currentTotal,
+            voucherDiscount: calculatedVoucherDiscount,
+            breakdown: currentBreakdown, 
+            activeMandayComponents: mandayList 
+        };
+    }, [masterComponents, systemSettings, serviceType, clientData, selectedOptionalIds, optionalQuantities, optionalComponents, appliedVoucher]);
+
+    const handleApplyVoucher = async () => {
+        const code = voucherInput.trim().toUpperCase();
+        if (!code) {
+            toast.error('Masukkan kode voucher terlebih dahulu');
+            return;
+        }
+        setValidatingVoucher(true);
+        setVoucherError(null);
+        try {
+            const res = await voucherService.validate({
+                code,
+                amount: subtotalBeforeVoucher,
+                service_type: serviceType
+            });
+            if (res.valid && res.voucher) {
+                setAppliedVoucher(res.voucher);
+                setClientData({
+                    ...clientData,
+                    voucher_code: res.voucher.code,
+                    discount_amount: res.discount_amount
+                });
+                toast.success(`Voucher "${res.voucher.code}" berhasil diterapkan!`);
+            } else {
+                setAppliedVoucher(null);
+                setVoucherError(res.message || 'Kode voucher tidak valid');
+                toast.error(res.message || 'Kode voucher tidak valid');
+            }
+        } catch (err: any) {
+            setAppliedVoucher(null);
+            const msg = err.response?.data?.error || err.response?.data?.message || 'Kode voucher tidak valid atau kedaluwarsa';
+            setVoucherError(msg);
+            toast.error(msg);
+        } finally {
+            setValidatingVoucher(false);
+        }
+    };
+
+    const handleRemoveVoucher = () => {
+        setAppliedVoucher(null);
+        setVoucherInput('');
+        setVoucherError(null);
+        setClientData({
+            ...clientData,
+            voucher_code: undefined,
+            discount_amount: 0
+        });
+        toast.success('Voucher berhasil dibatalkan');
+    };
 
     const formatCurrency = (val: number) => {
         return new Intl.NumberFormat('id-ID', {
@@ -341,6 +432,11 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
                     <h4 className="text-xl font-black text-amber-400 mt-0.5">
                         {serviceType === 'SELF_DECLARE' ? 'Rp 0 (Fasilitasi / Gratis)' : formatCurrency(total)}
                     </h4>
+                    {appliedVoucher && voucherDiscount > 0 && (
+                        <p className="text-[10px] text-emerald-400 font-bold mt-0.5">
+                            Hemat {formatCurrency(voucherDiscount)} dengan voucher {appliedVoucher.code}
+                        </p>
+                    )}
                 </div>
                 <Sparkles className="w-6 h-6 text-amber-400 animate-pulse" />
             </div>
@@ -386,6 +482,79 @@ export const SubmissionLiveCalculator = ({ clientData, setClientData }: Submissi
                     ))
                 )}
             </div>
+
+            {/* Voucher Claim Section for Halal Advisor / Submission Creator */}
+            {serviceType !== 'SELF_DECLARE' && (
+                <div className="p-3 bg-brand-50/40 rounded-xl border border-brand-100 space-y-2">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-gray-700 flex items-center gap-1.5">
+                            <Ticket className="w-3.5 h-3.5 text-brand-600" />
+                            Klaim Voucher Promo:
+                        </span>
+                        {appliedVoucher && (
+                            <span className="text-[9px] font-black uppercase text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200">
+                                Aktif
+                            </span>
+                        )}
+                    </div>
+
+                    {!appliedVoucher ? (
+                        <div className="space-y-1">
+                            <div className="flex gap-1.5">
+                                <div className="relative flex-1">
+                                    <input
+                                        type="text"
+                                        placeholder="Kode voucher (e.g. ANA-2026)"
+                                        className="w-full bg-white border border-gray-200 rounded-lg pl-7 pr-2 py-1 text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-brand-500/20"
+                                        value={voucherInput}
+                                        onChange={e => {
+                                            setVoucherInput(e.target.value.toUpperCase());
+                                            setVoucherError(null);
+                                        }}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                handleApplyVoucher();
+                                            }
+                                        }}
+                                    />
+                                    <Tag className="w-3 h-3 text-gray-400 absolute left-2 top-1/2 -translate-y-1/2" />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleApplyVoucher}
+                                    disabled={validatingVoucher || !voucherInput.trim() || subtotalBeforeVoucher <= 0}
+                                    className="px-2.5 py-1 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs disabled:opacity-50 flex items-center gap-1 transition-all shrink-0"
+                                >
+                                    {validatingVoucher ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Klaim'}
+                                </button>
+                            </div>
+                            {voucherError && (
+                                <p className="text-[10px] text-red-600 font-medium">{voucherError}</p>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="p-2 rounded-lg bg-emerald-100/70 border border-emerald-200 flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <div>
+                                    <span className="font-mono font-black text-emerald-900">{appliedVoucher.code}</span>
+                                    <span className="ml-1 text-[10px] font-bold text-emerald-700">
+                                        (-{appliedVoucher.discount_type === 'PERCENTAGE' ? `${appliedVoucher.discount_value}%` : formatCurrency(appliedVoucher.discount_value)})
+                                    </span>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleRemoveVoucher}
+                                className="text-gray-400 hover:text-red-500 p-0.5 rounded"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Quantity Inputs for PER_MANDAY components */}
             {activeMandayComponents && activeMandayComponents.length > 0 && serviceType !== 'SELF_DECLARE' && (

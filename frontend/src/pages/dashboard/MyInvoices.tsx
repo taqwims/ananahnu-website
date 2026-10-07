@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Loader2, CreditCard, Clock, CheckSquare, Square, CheckCircle, Receipt, History } from 'lucide-react';
+import { Loader2, CreditCard, Clock, CheckSquare, Square, CheckCircle, Receipt, History, Ticket, Tag, X, CheckCircle2 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { formatRupiah, formatServiceType } from '../../utils/format';
 import { loadSnapJs, isSnapReady } from '../../utils/midtrans';
+import type { Voucher } from '../../types/voucher';
+import { voucherService } from '../../services/voucherService';
 import toast from 'react-hot-toast';
 
 interface Invoice {
@@ -39,6 +41,12 @@ export default function MyInvoices() {
     const [paying, setPaying] = useState(false);
     const [reminding, setReminding] = useState<number | null>(null);
     const [activeTab, setActiveTab] = useState<TabType>('UNPAID');
+
+    // Voucher State for Invoices
+    const [invoiceVoucherCode, setInvoiceVoucherCode] = useState('');
+    const [invoiceAppliedVoucher, setInvoiceAppliedVoucher] = useState<Voucher | null>(null);
+    const [invoiceValidatingVoucher, setInvoiceValidatingVoucher] = useState(false);
+    const [invoiceVoucherError, setInvoiceVoucherError] = useState<string | null>(null);
 
     const currentUser = useAuthStore(state => state.user);
     const isCoordinator = currentUser?.role === 'HALAL_MANAGER' || 
@@ -116,19 +124,101 @@ export default function MyInvoices() {
         .filter(i => selectedIds.includes(i.id))
         .reduce((sum, i) => sum + i.amount, 0);
 
+    // Calculate Voucher Discount
+    let invoiceVoucherDiscount = 0;
+    if (invoiceAppliedVoucher && totalSelected > 0) {
+        if (invoiceAppliedVoucher.discount_type === 'PERCENTAGE') {
+            invoiceVoucherDiscount = (invoiceAppliedVoucher.discount_value / 100) * totalSelected;
+            if (invoiceAppliedVoucher.max_discount && invoiceAppliedVoucher.max_discount > 0) {
+                invoiceVoucherDiscount = Math.min(invoiceVoucherDiscount, invoiceAppliedVoucher.max_discount);
+            }
+        } else {
+            invoiceVoucherDiscount = invoiceAppliedVoucher.discount_value;
+        }
+        invoiceVoucherDiscount = Math.min(totalSelected, Math.round(invoiceVoucherDiscount));
+    }
+    const finalPayAmount = Math.max(0, totalSelected - invoiceVoucherDiscount);
+
+    const handleCheckInvoiceVoucher = async () => {
+        const code = invoiceVoucherCode.trim().toUpperCase();
+        if (!code) {
+            setInvoiceVoucherError('Masukkan kode voucher');
+            return;
+        }
+        setInvoiceValidatingVoucher(true);
+        setInvoiceVoucherError(null);
+        try {
+            const res = await voucherService.validate({
+                code,
+                amount: totalSelected,
+                service_type: 'ALL'
+            });
+            if (res.valid && res.voucher) {
+                setInvoiceAppliedVoucher(res.voucher);
+                toast.success(`Voucher "${res.voucher.code}" berhasil diterapkan!`);
+            } else {
+                setInvoiceAppliedVoucher(null);
+                setInvoiceVoucherError(res.message || 'Kode voucher tidak valid atau tidak memenuhi syarat');
+                toast.error(res.message || 'Kode voucher tidak valid');
+            }
+        } catch (err: any) {
+            setInvoiceAppliedVoucher(null);
+            const msg = err.response?.data?.error || err.response?.data?.message || 'Kode voucher tidak valid atau kedaluwarsa';
+            setInvoiceVoucherError(msg);
+            toast.error(msg);
+        } finally {
+            setInvoiceValidatingVoucher(false);
+        }
+    };
+
+    const handleRemoveInvoiceVoucher = () => {
+        setInvoiceAppliedVoucher(null);
+        setInvoiceVoucherCode('');
+        setInvoiceVoucherError(null);
+        toast.success('Voucher dibatalkan');
+    };
+
     const handlePay = async () => {
         if (selectedIds.length === 0) return;
 
         setPaying(true);
         try {
             const res = await api.post('/billing/pay-bulk', {
-                invoice_ids: selectedIds
+                invoice_ids: selectedIds,
+                voucher_code: invoiceAppliedVoucher ? invoiceAppliedVoucher.code : undefined
             });
 
             const method = res.data.method;
             const snapToken = res.data.snap_token;
             const snapUrl = res.data.snap_url;
             const paymentId = res.data.id;
+
+            const onPaymentSuccess = async () => {
+                toast.success("Pembayaran berhasil!");
+                if (invoiceAppliedVoucher) {
+                    try {
+                        await voucherService.apply({
+                            code: invoiceAppliedVoucher.code,
+                            amount: invoiceVoucherDiscount,
+                            reference_type: 'INVOICE',
+                            reference_no: `INV-PAY-${paymentId}`,
+                            user_name: currentUser?.full_name,
+                            user_phone: currentUser?.phone
+                        });
+                    } catch (vErr) {
+                        console.error('Failed to log voucher usage on invoice pay:', vErr);
+                    }
+                }
+                try {
+                    await api.post(`/payments/${paymentId}/sync`);
+                } catch (e) {
+                    console.error("Failed to sync payment status", e);
+                }
+                fetchInvoices(activeTab);
+                setSelectedIds([]);
+                setInvoiceAppliedVoucher(null);
+                setInvoiceVoucherCode('');
+            };
 
             if (method === 'MAYAR') {
                 if (snapUrl) {
@@ -145,16 +235,7 @@ export default function MyInvoices() {
 
                 if ((window as any).snap && snapToken) {
                     (window as any).snap.pay(snapToken, {
-                        onSuccess: async () => {
-                            toast.success("Pembayaran berhasil!");
-                            try {
-                                await api.post(`/payments/${paymentId}/sync`);
-                            } catch (e) {
-                                console.error("Failed to sync payment status", e);
-                            }
-                            fetchInvoices(activeTab);
-                            setSelectedIds([]);
-                        },
+                        onSuccess: onPaymentSuccess,
                         onPending: async () => {
                             toast("Menunggu pembayaran...", { icon: '⏳' });
                             try {
@@ -215,28 +296,121 @@ export default function MyInvoices() {
                             <button
                                 onClick={() => {
                                     setSelectedIds(unpaidInvoices.map(i => i.id));
-                                    setTimeout(() => handlePay(), 100);
                                 }}
                                 disabled={paying || unpaidInvoices.length === 0}
                                 className="glass-button bg-emerald-600 text-white flex items-center gap-2 px-5 py-2.5 shadow-lg shadow-emerald-200 hover:scale-105 active:scale-95 transition-all text-sm font-bold disabled:opacity-50"
                             >
-                                {paying ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-                                Bayar Semua ({unpaidInvoices.length}) - {formatRupiah(unpaidInvoices.reduce((s, i) => s + i.amount, 0))}
-                            </button>
-                        )}
-                        {selectedIds.length > 0 && (
-                            <button
-                                onClick={handlePay}
-                                disabled={paying}
-                                className="glass-button bg-brand-600 text-white flex items-center gap-2 px-6 py-3 shadow-lg shadow-brand-200 hover:scale-105 active:scale-95 transition-all text-sm font-bold"
-                            >
-                                {paying ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
-                                Bayar Kolektif ({selectedIds.length} SH) - {formatRupiah(totalSelected)}
+                                <CheckSquare className="w-4 h-4" />
+                                Pilih Semua ({unpaidInvoices.length})
                             </button>
                         )}
                     </div>
                 )}
             </div>
+
+            {/* Voucher & Collective Payment Summary Box */}
+            {activeTab === 'UNPAID' && selectedIds.length > 0 && (
+                <div className="bg-gradient-to-r from-teal-50 via-emerald-50 to-teal-50 border border-teal-200 rounded-2xl p-5 shadow-sm space-y-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-600 text-white">
+                                    {selectedIds.length} Tagihan Terpilih
+                                </span>
+                                <span className="text-xs text-gray-500">Subtotal: <strong className="text-gray-800">{formatRupiah(totalSelected)}</strong></span>
+                            </div>
+                            <p className="text-sm font-bold text-gray-800 mt-1">
+                                Pembayaran Kolektif Tagihan Self Declare
+                            </p>
+                        </div>
+
+                        {/* Total & Action */}
+                        <div className="flex items-center gap-4">
+                            <div className="text-right">
+                                <span className="text-xs text-gray-500 block">Total Tagihan Dibayar:</span>
+                                {invoiceVoucherDiscount > 0 && (
+                                    <span className="text-xs line-through text-gray-400 mr-2">
+                                        {formatRupiah(totalSelected)}
+                                    </span>
+                                )}
+                                <span className="text-xl font-black text-teal-700">
+                                    {formatRupiah(finalPayAmount)}
+                                </span>
+                            </div>
+                            <button
+                                onClick={handlePay}
+                                disabled={paying}
+                                className="glass-button bg-teal-600 hover:bg-teal-700 text-white flex items-center gap-2 px-6 py-3 shadow-lg shadow-teal-200 hover:scale-105 active:scale-95 transition-all text-sm font-bold rounded-xl"
+                            >
+                                {paying ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
+                                Bayar Sekarang
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Voucher Claim Section */}
+                    <div className="pt-3 border-t border-teal-200/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                            <Tag className="w-4 h-4 text-teal-600" />
+                            <span className="text-xs font-semibold text-teal-900">Punya Kode Voucher / Diskon?</span>
+                        </div>
+
+                        {invoiceAppliedVoucher ? (
+                            <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-xl border border-teal-300 shadow-sm">
+                                <CheckCircle2 className="w-4 h-4 text-teal-600" />
+                                <div className="text-xs">
+                                    <span className="font-bold text-teal-900 font-mono tracking-wider">{invoiceAppliedVoucher.code}</span>
+                                    <span className="text-teal-700 ml-2 font-semibold">(-{formatRupiah(invoiceVoucherDiscount)})</span>
+                                </div>
+                                <button
+                                    onClick={handleRemoveInvoiceVoucher}
+                                    className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                                    title="Hapus voucher"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <div className="relative flex-1 sm:w-64">
+                                    <Ticket className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="KODE VOUCHER"
+                                        value={invoiceVoucherCode}
+                                        onChange={(e) => {
+                                            setInvoiceVoucherCode(e.target.value.toUpperCase());
+                                            setInvoiceVoucherError(null);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                handleCheckInvoiceVoucher();
+                                            }
+                                        }}
+                                        className="w-full pl-9 pr-3 py-1.5 text-xs font-mono font-bold tracking-wider rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white uppercase placeholder:text-gray-400 placeholder:font-sans placeholder:tracking-normal"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleCheckInvoiceVoucher}
+                                    disabled={invoiceValidatingVoucher || !invoiceVoucherCode.trim()}
+                                    className="px-4 py-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 shadow-sm"
+                                >
+                                    {invoiceValidatingVoucher ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                        'Klaim'
+                                    )}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    {invoiceVoucherError && (
+                        <p className="text-xs text-red-500 font-medium text-right">{invoiceVoucherError}</p>
+                    )}
+                </div>
+            )}
 
             {/* Navigation Tabs */}
             <div className="flex items-center gap-2 border-b border-gray-200 pb-3">

@@ -43,7 +43,7 @@ export default function SubmissionList() {
                         </button>
                     )}
 
-                    {(user?.role === 'CLIENT' || user?.role === 'DIRECTOR' || user?.role === 'MARKETING' || user?.role === 'BUSINESS_DEVELOPMENT') && (
+                    {(user?.role === 'CLIENT' || user?.role === 'DIRECTOR') && (
                         <div className="relative group">
                             <button
                                 onClick={() => navigate('/dashboard/pengajuan')}

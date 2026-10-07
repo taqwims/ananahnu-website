@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
     Users, 
     CreditCard, 
     ArrowRight, 
-    Plus, 
     UserCheck, 
     CheckCircle2, 
     AlertCircle, 
@@ -18,19 +17,26 @@ import {
     MessageSquare, 
     Calendar, 
     DollarSign, 
-    Award,
-    Loader2,
-    MapPin,
-    RotateCcw,
-    Check,
-    Building2,
-    Phone
+    Award, 
+    MapPin, 
+    RotateCcw, 
+    Building2, 
+    Phone, 
+    Ticket,
+    TrendingUp,
+    Percent,
+    PieChart as PieChartIcon
 } from 'lucide-react';
+import {
+    AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
+    PieChart, Pie, Cell, Legend
+} from 'recharts';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import { financeService } from '../../services/financeService';
-import { submissionService } from '../../services/submissionService';
+import { voucherService } from '../../services/voucherService';
 import type { Submission } from '../../types';
+import type { VoucherAnalyticsResponse } from '../../types/voucher';
 
 interface AdvisorUser {
     id: string;
@@ -51,8 +57,22 @@ const MONTH_NAMES = [
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
 
+const MONTH_SHORT = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+    'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+];
+
 const formatIDR = (val: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
+
+const formatCompactIDR = (val: number) => {
+    if (val >= 1_000_000_000) return `${(val / 1_000_000_000).toFixed(1)} M`;
+    if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)} Jt`;
+    if (val >= 1_000) return `${(val / 1_000).toFixed(0)} Rb`;
+    return String(val);
+};
+
+const PIE_COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ec4899'];
 
 export default function MarketingManagerDashboard() {
     const navigate = useNavigate();
@@ -67,10 +87,15 @@ export default function MarketingManagerDashboard() {
     const [allSubmissions, setAllSubmissions] = useState<Submission[]>([]);
     const [advisors, setAdvisors] = useState<AdvisorUser[]>([]);
     const [provinces, setProvinces] = useState<any[]>([]);
+    const [voucherAnalytics, setVoucherAnalytics] = useState<VoucherAnalyticsResponse | null>(null);
 
     // Action Queue Tab: 'UNASSIGNED' | 'UNPAID' | 'DATA_COMPLETED' | 'READY_FORWARD' | 'ALL'
     const [activeTab, setActiveTab] = useState<'UNASSIGNED' | 'UNPAID' | 'DATA_COMPLETED' | 'READY_FORWARD' | 'ALL'>('UNASSIGNED');
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Leaderboard search & filter
+    const [leaderSearch, setLeaderSearch] = useState('');
+    const [leaderRoleFilter, setLeaderRoleFilter] = useState('ALL');
 
     // Assign Advisor Modal State & Location Filters
     const [assignModal, setAssignModal] = useState<{ isOpen: boolean; submission: Submission | null }>({
@@ -117,11 +142,12 @@ export default function MarketingManagerDashboard() {
         setLoading(true);
         try {
             const m = selectedMonth === 'all' ? undefined : selectedMonth;
-            const [bdRes, subRes, advRes, provRes] = await Promise.all([
+            const [bdRes, subRes, advRes, provRes, vAnalytic] = await Promise.all([
                 financeService.getBizDevDashboard(m, selectedYear).catch(() => null),
                 api.get('/submissions').catch(() => ({ data: [] })),
                 api.get('/auth/facilitators').catch(() => ({ data: [] })),
                 api.get('/geography/provinces').catch(() => ({ data: [] })),
+                voucherService.getAnalytics(30).catch(() => null),
             ]);
 
             setBizDevData(bdRes);
@@ -129,6 +155,7 @@ export default function MarketingManagerDashboard() {
             const rawAdvisors = Array.isArray(advRes.data) ? advRes.data : (advRes.data?.data || []);
             setAdvisors(rawAdvisors);
             setProvinces(provRes.data || []);
+            setVoucherAnalytics(vAnalytic);
         } catch (err) {
             console.error("Gagal memuat data dashboard marketing", err);
             toast.error("Gagal memuat sebagian data dashboard");
@@ -207,7 +234,6 @@ export default function MarketingManagerDashboard() {
 
     // Filtered Advisors based on search and location
     const filteredAdvisors = advisors.filter(adv => {
-        // 1. Text Search
         if (advisorSearchQuery.trim()) {
             const q = advisorSearchQuery.toLowerCase();
             const matchName = adv.full_name?.toLowerCase().includes(q);
@@ -220,21 +246,18 @@ export default function MarketingManagerDashboard() {
             }
         }
 
-        // 2. Province Filter
         if (filterProvinceId) {
             if (String(adv.province_id) !== String(filterProvinceId)) {
                 return false;
             }
         }
 
-        // 3. Regency Filter
         if (filterRegencyId) {
             if (String(adv.regency_id) !== String(filterRegencyId)) {
                 return false;
             }
         }
 
-        // 4. Role Filter
         if (advisorRoleFilter !== 'ALL') {
             const rName = getAdvisorRoleName(adv);
             if (rName !== advisorRoleFilter) {
@@ -257,19 +280,20 @@ export default function MarketingManagerDashboard() {
 
     const handleConfirmAssign = async () => {
         if (!assignModal.submission || !selectedAdvisorId) {
-            toast.error("Silakan pilih Halal Advisor");
+            toast.error('Silakan pilih Halal Advisor terlebih dahulu');
             return;
         }
+
         setAssigning(true);
         try {
-            await api.post(`/submissions/${assignModal.submission.id}/assign-consultant`, {
+            await api.put(`/submissions/${assignModal.submission.id}/assign-consultant`, {
                 consultant_id: selectedAdvisorId
             });
-            toast.success("Halal Advisor berhasil ditugaskan!");
+            toast.success('Halal Advisor berhasil ditunjuk!');
             setAssignModal({ isOpen: false, submission: null });
             loadData();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || "Gagal menugaskan advisor");
+            toast.error(err.response?.data?.error || 'Gagal menunjuk Halal Advisor');
         } finally {
             setAssigning(false);
         }
@@ -279,13 +303,17 @@ export default function MarketingManagerDashboard() {
         if (!confirm(`Teruskan pengajuan ${sub.client?.business_name || 'klien'} ke Manager Operasional?`)) {
             return;
         }
+
         setForwardingId(sub.id);
         try {
-            await submissionService.forwardToOperational(sub.id);
-            toast.success("Pengajuan berhasil diteruskan ke Manager Operasional!");
+            await api.patch(`/submissions/${sub.id}/status`, {
+                status: 'QC_OFFICER',
+                notes: 'Pengajuan telah lengkap dan diteruskan oleh Manager Marketing ke tim Operasional/QC.'
+            });
+            toast.success(`Pengajuan ${sub.client?.business_name || ''} berhasil diteruskan ke Operasional!`);
             loadData();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || "Gagal meneruskan ke operasional");
+            toast.error(err.response?.data?.error || 'Gagal meneruskan pengajuan ke operasional');
         } finally {
             setForwardingId(null);
         }
@@ -296,68 +324,104 @@ export default function MarketingManagerDashboard() {
         setSavingTarget(true);
         try {
             const period = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
-            const payload: any = { period };
-            if (tRevenue) payload.target_revenue = Number(tRevenue);
-            if (tSH) payload.target_sh = Number(tSH);
-
-            await financeService.setTarget(payload);
-            toast.success("Target omset & SH berhasil diperbarui!");
+            await financeService.setTarget({
+                period,
+                target_revenue: tRevenue ? Number(tRevenue) : undefined,
+                target_sh: tSH ? Number(tSH) : undefined,
+            });
+            toast.success('Target omset berhasil disimpan!');
             setShowTargetModal(false);
-            setTRevenue('');
-            setTSH('');
             loadData();
-        } catch (err) {
-            toast.error("Gagal menyimpan target");
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Gagal menyimpan target');
         } finally {
             setSavingTarget(false);
         }
     };
 
-    // Calculate Top Stats
-    const totalRevenue = (bizDevData?.monthly_stats || []).reduce((acc: number, item: any) => acc + (item.revenue || 0), 0);
+    // Calculate aggregated stats
+    const stats = bizDevData?.monthly_stats || [];
+    const totalRevenue = stats.reduce((sum: number, s: any) => sum + (s.revenue || 0), 0);
+    const totalSH = stats.reduce((sum: number, s: any) => sum + (s.sh_terbit || 0), 0);
+    const totalReguler = stats.reduce((sum: number, s: any) => sum + (s.reguler || 0), 0);
+    const totalSelfDeclare = stats.reduce((sum: number, s: any) => sum + (s.self_declare || 0), 0);
+    const totalSubmissions = stats.reduce((sum: number, s: any) => sum + (s.total_submissions || 0), 0);
+
     const targetRevenue = bizDevData?.target?.target_revenue || 0;
-    const revenueProgress = targetRevenue > 0 ? Math.min(100, Math.round((totalRevenue / targetRevenue) * 100)) : 0;
-
-    const totalSH = bizDevData?.total_sh_terbit || 0;
     const targetSH = bizDevData?.target?.target_sh || 0;
-    const shProgress = targetSH > 0 ? Math.min(100, Math.round((totalSH / targetSH) * 100)) : 0;
 
-    if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-                <Loader2 className="w-10 h-10 animate-spin text-brand-600" />
-                <p className="text-xs font-bold text-gray-500">Memuat dashboard pemasaran & bisnis...</p>
-            </div>
-        );
-    }
+    const revenueProgress = targetRevenue > 0 ? Math.min(Math.round((totalRevenue / targetRevenue) * 100), 100) : 0;
+    const shProgress = targetSH > 0 ? Math.min(Math.round((totalSH / targetSH) * 100), 100) : 0;
+
+    // Prepare chart data
+    const monthlyChartData = useMemo(() => {
+        if (!stats.length) return [];
+        return stats.map((s: any, idx: number) => {
+            let label = s.month || `Bulan ${idx + 1}`;
+            if (s.month && s.month.includes('-')) {
+                const parts = s.month.split('-');
+                const mIdx = parseInt(parts[1], 10) - 1;
+                label = MONTH_SHORT[mIdx] || s.month;
+            }
+            return {
+                name: label,
+                revenue: s.revenue || 0,
+                sh: s.sh_terbit || 0,
+                submissions: s.total_submissions || 0,
+                reguler: s.reguler || 0,
+                self_declare: s.self_declare || 0,
+            };
+        });
+    }, [stats]);
+
+    const servicePieData = useMemo(() => [
+        { name: 'Self Declare', value: totalSelfDeclare || (bizDevData?.layanan_self_declare || 0) },
+        { name: 'Reguler', value: totalReguler || (bizDevData?.layanan_reguler || 0) },
+    ].filter(d => d.value > 0), [totalSelfDeclare, totalReguler, bizDevData]);
+
+    // Leaderboard list
+    const filteredLeaders = useMemo(() => {
+        const leaders = bizDevData?.leader_performance || [];
+        return leaders.filter((leader: any) => {
+            const matchesSearch = !leaderSearch || leader.full_name?.toLowerCase().includes(leaderSearch.toLowerCase());
+            const matchesRole = leaderRoleFilter === 'ALL' || leader.role_name === leaderRoleFilter;
+            return matchesSearch && matchesRole;
+        });
+    }, [bizDevData, leaderSearch, leaderRoleFilter]);
 
     return (
         <div className="max-w-[1440px] mx-auto space-y-8 px-4 sm:px-6 py-6 pb-24">
             {/* Top Hero Banner */}
-            <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-brand-950 rounded-3xl p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden border border-white/10">
-                <div className="absolute right-0 top-0 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-emerald-950 rounded-3xl p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden border border-white/10">
+                <div className="absolute right-0 top-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
                 <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                     <div className="space-y-3 max-w-2xl">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/20 backdrop-blur-md text-brand-300 text-xs font-black uppercase tracking-widest border border-brand-400/30">
-                            <Sparkles className="w-3.5 h-3.5 text-brand-300" />
-                            Manager Marketing Hub
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 backdrop-blur-md text-emerald-300 text-xs font-black uppercase tracking-widest border border-emerald-400/30">
+                                <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
+                                Marketing Command Center
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-gray-300 text-xs font-medium border border-white/10">
+                                <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                                {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                            </span>
                         </div>
                         <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2">
                             Dashboard Manager Marketing
                         </h1>
                         <p className="text-gray-300 text-xs sm:text-sm font-medium leading-relaxed">
-                            Pantau perolehan omset, pipeline penagihan klien, penunjukan Halal Advisor, kelengkapan berkas, serta penerusan pengajuan ke tim operasional.
+                            Akselerasi pertumbuhan sertifikasi halal: pantau omset, alokasi Halal Advisor, aktivasi voucher diskon, dan kelancaran pipeline pengajuan.
                         </p>
                     </div>
 
                     {/* Quick CTA Actions */}
                     <div className="flex flex-wrap items-center gap-3">
                         <button
-                            onClick={() => navigate('/dashboard/pengajuan')}
-                            className="px-5 py-3 rounded-2xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs shadow-lg shadow-brand-500/25 transition-all flex items-center gap-2 active:scale-95"
+                            onClick={() => navigate('/dashboard/vouchers')}
+                            className="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 transition-all flex items-center gap-2 active:scale-95"
                         >
-                            <Plus className="w-4 h-4" />
-                            <span>Input Klien Baru</span>
+                            <Ticket className="w-4 h-4" />
+                            <span>Voucher & Promo</span>
                         </button>
                         <button
                             onClick={() => navigate('/dashboard/sph')}
@@ -386,15 +450,15 @@ export default function MarketingManagerDashboard() {
                 {/* Period Selector Bar */}
                 <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span className="text-xs font-bold text-gray-300">Periode Laporan:</span>
+                        <Calendar className="w-4 h-4 text-emerald-400" />
+                        <span className="text-xs font-bold text-gray-200">Filter Periode Realisasi:</span>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
                         <select
                             value={selectedMonth}
                             onChange={e => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                            className="bg-white/10 border border-white/20 text-white rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand-400"
+                            className="bg-white/10 border border-white/20 text-white rounded-xl px-3.5 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-400"
                         >
                             <option value="all" className="text-gray-900 font-bold">Semua Bulan (Tahunan)</option>
                             {MONTH_NAMES.map((m, idx) => (
@@ -405,18 +469,27 @@ export default function MarketingManagerDashboard() {
                         <select
                             value={selectedYear}
                             onChange={e => setSelectedYear(Number(e.target.value))}
-                            className="bg-white/10 border border-white/20 text-white rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand-400"
+                            className="bg-white/10 border border-white/20 text-white rounded-xl px-3.5 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-400"
                         >
                             {[2024, 2025, 2026, 2027].map(y => (
                                 <option key={y} value={y} className="text-gray-900 font-bold">{y}</option>
                             ))}
                         </select>
+
+                        <button
+                            onClick={loadData}
+                            className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold border border-white/20 transition-all flex items-center gap-1.5"
+                            title="Refresh Data"
+                        >
+                            <RotateCcw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-emerald-400' : ''}`} />
+                            <span>Refresh</span>
+                        </button>
                     </div>
                 </div>
             </div>
 
-            {/* 5 Marketing Pipeline KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* 6 Marketing Pipeline KPI Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                 {/* KPI 1: Realisasi Omset */}
                 <div className="p-5 rounded-3xl bg-white border border-emerald-100 shadow-sm hover:shadow-md transition-all space-y-3">
                     <div className="flex items-center justify-between">
@@ -426,11 +499,11 @@ export default function MarketingManagerDashboard() {
                         </div>
                     </div>
                     <div>
-                        <p className="text-xl font-black text-gray-900">{formatIDR(totalRevenue)}</p>
+                        <p className="text-xl font-black text-gray-900">{formatCompactIDR(totalRevenue)}</p>
                         {targetRevenue > 0 ? (
                             <div className="space-y-1.5 mt-2">
                                 <div className="flex items-center justify-between text-[10px] font-bold">
-                                    <span className="text-gray-400">Target: {formatIDR(targetRevenue)}</span>
+                                    <span className="text-gray-400">Target: {formatCompactIDR(targetRevenue)}</span>
                                     <span className="text-emerald-600 font-black">{revenueProgress}%</span>
                                 </div>
                                 <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
@@ -443,12 +516,38 @@ export default function MarketingManagerDashboard() {
                     </div>
                 </div>
 
-                {/* KPI 2: Butuh Tunjuk Advisor */}
+                {/* KPI 2: Total SH Terbit (Closing) */}
+                <div className="p-5 rounded-3xl bg-white border border-purple-100 shadow-sm hover:shadow-md transition-all space-y-3">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">SH Terbit (Closing)</span>
+                        <div className="w-9 h-9 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100">
+                            <Award className="w-5 h-5" />
+                        </div>
+                    </div>
+                    <div>
+                        <p className="text-2xl font-black text-gray-900">{totalSH}</p>
+                        {targetSH > 0 ? (
+                            <div className="space-y-1.5 mt-2">
+                                <div className="flex items-center justify-between text-[10px] font-bold">
+                                    <span className="text-gray-400">Target: {targetSH} SH</span>
+                                    <span className="text-purple-600 font-black">{shProgress}%</span>
+                                </div>
+                                <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                                    <div className="bg-purple-500 h-full rounded-full transition-all duration-500" style={{ width: `${shProgress}%` }} />
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-[10px] text-gray-400 mt-1">Sertifikat berhasil terbit</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* KPI 3: Butuh Tunjuk Advisor */}
                 <div 
                     onClick={() => setActiveTab('UNASSIGNED')}
                     className={`p-5 rounded-3xl border transition-all space-y-3 cursor-pointer ${
                         unassignedSubmissions.length > 0
-                            ? 'bg-amber-50/50 border-amber-200 hover:border-amber-400 shadow-sm'
+                            ? 'bg-amber-50/50 border-amber-300 hover:border-amber-400 shadow-sm'
                             : 'bg-white border-gray-150 hover:shadow-md'
                     }`}
                 >
@@ -468,7 +567,7 @@ export default function MarketingManagerDashboard() {
                     </div>
                 </div>
 
-                {/* KPI 3: Menunggu Pembayaran Klien */}
+                {/* KPI 4: Menunggu Pembayaran Klien */}
                 <div 
                     onClick={() => setActiveTab('UNPAID')}
                     className="p-5 rounded-3xl bg-white border border-blue-100 shadow-sm hover:shadow-md transition-all space-y-3 cursor-pointer"
@@ -485,7 +584,7 @@ export default function MarketingManagerDashboard() {
                     </div>
                 </div>
 
-                {/* KPI 4: Siap Diteruskan ke Operasional */}
+                {/* KPI 5: Siap Diteruskan ke Operasional */}
                 <div 
                     onClick={() => setActiveTab('READY_FORWARD')}
                     className={`p-5 rounded-3xl border transition-all space-y-3 cursor-pointer ${
@@ -503,28 +602,143 @@ export default function MarketingManagerDashboard() {
                     <div>
                         <p className="text-2xl font-black text-gray-900">{readyForwardSubmissions.length}</p>
                         <p className="text-[10px] font-bold text-emerald-700 mt-1 flex items-center gap-1">
-                            {readyForwardSubmissions.length > 0 ? '✨ Lunas, Siap Diproses' : 'Semua sudah diteruskan'}
+                            {readyForwardSubmissions.length > 0 ? '✨ Lunas & Siap Proses' : 'Semua diteruskan'}
                         </p>
                     </div>
                 </div>
 
-                {/* KPI 5: Total SH Terbit */}
-                <div className="p-5 rounded-3xl bg-white border border-purple-100 shadow-sm hover:shadow-md transition-all space-y-3">
+                {/* KPI 6: Voucher & Kampanye Promo */}
+                <div 
+                    onClick={() => navigate('/dashboard/vouchers')}
+                    className="p-5 rounded-3xl bg-white border border-teal-100 shadow-sm hover:shadow-md transition-all space-y-3 cursor-pointer"
+                >
                     <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">SH Terbit (Closing)</span>
-                        <div className="w-9 h-9 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100">
-                            <Award className="w-5 h-5" />
+                        <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Voucher Digunakan</span>
+                        <div className="w-9 h-9 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center border border-teal-100">
+                            <Ticket className="w-5 h-5" />
                         </div>
                     </div>
                     <div>
-                        <p className="text-2xl font-black text-gray-900">{totalSH}</p>
-                        {targetSH > 0 ? (
-                            <p className="text-[10px] font-bold text-purple-600 mt-1">
-                                Target: {targetSH} SH ({shProgress}%)
-                            </p>
+                        <p className="text-2xl font-black text-gray-900">{voucherAnalytics?.summary?.total_claims || 0}</p>
+                        <p className="text-[10px] font-bold text-teal-700 mt-1 truncate">
+                            Hemat: {formatCompactIDR(voucherAnalytics?.summary?.total_discount_amount || 0)}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Visual Analytics & Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Chart 1: Tren Omset Bulanan (Area Chart) */}
+                <div className="lg:col-span-2 bg-white rounded-3xl border border-gray-150 p-6 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                        <div>
+                            <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
+                                <TrendingUp className="w-4 h-4 text-emerald-600" />
+                                Tren Perolehan Omset & Pengajuan {selectedYear}
+                            </h3>
+                            <p className="text-xs text-gray-500 font-medium">Grafik pertumbuhan transaksi dan penerbitan sertifikat halal per bulan</p>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs font-bold">
+                            <div className="flex items-center gap-1.5">
+                                <span className="w-3 h-3 rounded-full bg-emerald-500" />
+                                <span className="text-gray-600">Omset</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <span className="w-3 h-3 rounded-full bg-indigo-500" />
+                                <span className="text-gray-600">Ajuan Masuk</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="h-64 sm:h-72 w-full pt-2">
+                        {monthlyChartData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={monthlyChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                        </linearGradient>
+                                        <linearGradient id="colorSub" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25}/>
+                                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                        </linearGradient>
+                                    </defs>
+                                    <XAxis dataKey="name" stroke="#9ca3af" fontSize={11} tickLine={false} />
+                                    <YAxis yAxisId="left" stroke="#9ca3af" fontSize={11} tickLine={false} tickFormatter={formatCompactIDR} />
+                                    <YAxis yAxisId="right" orientation="right" stroke="#9ca3af" fontSize={11} tickLine={false} />
+                                    <Tooltip 
+                                        contentStyle={{ backgroundColor: '#1e293b', borderRadius: '16px', color: '#fff', border: 'none', fontSize: '12px' }}
+                                        formatter={(val: any, name: any) => {
+                                            if (name === 'revenue') return [formatIDR(Number(val)), 'Omset'];
+                                            if (name === 'submissions') return [`${val} Pengajuan`, 'Total Ajuan'];
+                                            if (name === 'sh') return [`${val} SH`, 'SH Terbit'];
+                                            return [val, String(name || '')];
+                                        }}
+                                    />
+                                    <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRevenue)" />
+                                    <Area yAxisId="right" type="monotone" dataKey="submissions" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#colorSub)" />
+                                </AreaChart>
+                            </ResponsiveContainer>
                         ) : (
-                            <p className="text-[10px] text-gray-400 mt-1">Sertifikat berhasil terbit</p>
+                            <div className="h-full flex items-center justify-center text-gray-400 text-xs">
+                                Belum ada data transaksi pada periode ini
+                            </div>
                         )}
+                    </div>
+                </div>
+
+                {/* Chart 2: Distribusi Layanan & Skala Usaha */}
+                <div className="bg-white rounded-3xl border border-gray-150 p-6 shadow-sm space-y-4 flex flex-col justify-between">
+                    <div>
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                            <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
+                                <PieChartIcon className="w-4 h-4 text-indigo-600" />
+                                Komposisi Layanan
+                            </h3>
+                            <span className="text-xs font-bold text-gray-400">{totalSubmissions} Total</span>
+                        </div>
+
+                        <div className="h-48 w-full relative my-2">
+                            {servicePieData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={servicePieData}
+                                            innerRadius={50}
+                                            outerRadius={75}
+                                            paddingAngle={4}
+                                            dataKey="value"
+                                        >
+                                            {servicePieData.map((_, index) => (
+                                                <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip 
+                                            contentStyle={{ backgroundColor: '#1e293b', borderRadius: '12px', color: '#fff', border: 'none', fontSize: '11px' }}
+                                        />
+                                        <Legend />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="h-full flex items-center justify-center text-gray-400 text-xs">
+                                    Belum ada data distribusi
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Summary Badges */}
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+                        <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-100 text-center">
+                            <p className="text-[10px] font-bold text-emerald-800">Self Declare</p>
+                            <p className="text-base font-black text-emerald-700">{totalSelfDeclare}</p>
+                        </div>
+                        <div className="p-2.5 rounded-2xl bg-indigo-50 border border-indigo-100 text-center">
+                            <p className="text-[10px] font-bold text-indigo-800">Reguler</p>
+                            <p className="text-base font-black text-indigo-700">{totalReguler}</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -537,22 +751,13 @@ export default function MarketingManagerDashboard() {
                             <span>Meja Kerja & Tindakan Cepat Manager Marketing</span>
                         </h2>
                         <p className="text-xs text-gray-500 font-medium">
-                            Kelola pengajuan yang membutuhkan tindakan segera dari tim Manager Marketing
+                            Kelola penugasan advisor, kelengkapan berkas, dan follow-up pengajuan secara cepat
                         </p>
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <button
-                            onClick={loadData}
-                            className="px-3 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold rounded-xl border border-gray-200 transition-all flex items-center gap-1.5"
-                            title="Segarkan Data"
-                        >
-                            <RotateCcw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-brand-600' : ''}`} />
-                            <span className="hidden sm:inline">Segarkan</span>
-                        </button>
-
                         {/* Search Bar */}
-                        <div className="relative w-full sm:w-64">
+                        <div className="relative w-full sm:w-72">
                             <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                             <input
                                 type="text"
@@ -565,9 +770,8 @@ export default function MarketingManagerDashboard() {
                     </div>
                 </div>
 
-                {/* Queue Tabs (5 Tabs sesuai urutan instruksi) */}
+                {/* Queue Tabs */}
                 <div className="flex flex-wrap gap-2 border-b border-gray-100 pb-3">
-                    {/* Tab 1: Penunjukan Advisor (Butuh Tunjuk Advisor) */}
                     <button
                         onClick={() => setActiveTab('UNASSIGNED')}
                         className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 ${
@@ -578,13 +782,12 @@ export default function MarketingManagerDashboard() {
                     >
                         <span>Butuh Tunjuk Advisor</span>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                            activeTab === 'UNASSIGNED' ? 'bg-white text-amber-700' : 'bg-amber-100 text-amber-800'
+                            activeTab === 'UNASSIGNED' ? 'bg-white text-amber-600' : 'bg-gray-200 text-gray-700'
                         }`}>
                             {unassignedSubmissions.length}
                         </span>
                     </button>
 
-                    {/* Tab 2: Menunggu Pembayaran */}
                     <button
                         onClick={() => setActiveTab('UNPAID')}
                         className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 ${
@@ -595,30 +798,28 @@ export default function MarketingManagerDashboard() {
                     >
                         <span>Menunggu Pembayaran</span>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                            activeTab === 'UNPAID' ? 'bg-white text-blue-800' : 'bg-blue-100 text-blue-800'
+                            activeTab === 'UNPAID' ? 'bg-white text-blue-600' : 'bg-gray-200 text-gray-700'
                         }`}>
                             {unpaidSubmissions.length}
                         </span>
                     </button>
 
-                    {/* Tab 3: Data Selesai */}
                     <button
                         onClick={() => setActiveTab('DATA_COMPLETED')}
                         className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 ${
                             activeTab === 'DATA_COMPLETED'
-                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                                ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
                                 : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                         }`}
                     >
-                        <span>Data Selesai</span>
+                        <span>Kelengkapan Berkas</span>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                            activeTab === 'DATA_COMPLETED' ? 'bg-white text-indigo-800' : 'bg-indigo-100 text-indigo-800'
+                            activeTab === 'DATA_COMPLETED' ? 'bg-white text-purple-600' : 'bg-gray-200 text-gray-700'
                         }`}>
                             {dataCompletedSubmissions.length}
                         </span>
                     </button>
 
-                    {/* Tab 4: Siap Diteruskan ke Operasional */}
                     <button
                         onClick={() => setActiveTab('READY_FORWARD')}
                         className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 ${
@@ -627,26 +828,25 @@ export default function MarketingManagerDashboard() {
                                 : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                         }`}
                     >
-                        <span>Siap Diteruskan ke Operasional (Lunas)</span>
+                        <span>Siap Diteruskan ke Operasional</span>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                            activeTab === 'READY_FORWARD' ? 'bg-white text-emerald-800' : 'bg-emerald-100 text-emerald-800'
+                            activeTab === 'READY_FORWARD' ? 'bg-white text-emerald-600' : 'bg-gray-200 text-gray-700'
                         }`}>
                             {readyForwardSubmissions.length}
                         </span>
                     </button>
 
-                    {/* Tab 5: Semua Ajuan */}
                     <button
                         onClick={() => setActiveTab('ALL')}
                         className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 ${
                             activeTab === 'ALL'
-                                ? 'bg-gray-900 text-white shadow-md shadow-gray-900/20'
+                                ? 'bg-gray-800 text-white shadow-md'
                                 : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                         }`}
                     >
                         <span>Semua Ajuan</span>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                            activeTab === 'ALL' ? 'bg-white text-gray-900' : 'bg-gray-200 text-gray-700'
+                            activeTab === 'ALL' ? 'bg-white text-gray-800' : 'bg-gray-200 text-gray-700'
                         }`}>
                             {allSubmissions.length}
                         </span>
@@ -735,7 +935,6 @@ export default function MarketingManagerDashboard() {
                                             {/* Aksi */}
                                             <td className="py-4 px-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    {/* Quick Assign Advisor Button */}
                                                     {!sub.consultant_id && (
                                                         <button
                                                             onClick={() => handleOpenAssign(sub)}
@@ -746,8 +945,7 @@ export default function MarketingManagerDashboard() {
                                                         </button>
                                                     )}
 
-                                                    {/* Forward to Operational Button */}
-                                                    {sub.consultant_id && isPaid && (sub.status === 'WAITING_PAYMENT' || sub.status === 'DRAFT' || sub.status === 'WAITING_ASSIGNMENT') && (
+                                                    {sub.consultant_id && isPaid && (sub.status === 'WAITING_PAYMENT' || sub.status === 'DRAFT' || sub.status === 'WAITING_ASSIGNMENT' || sub.status === 'VERVAL_PENDAMPING') && (
                                                         <button
                                                             onClick={() => handleForwardToOperational(sub)}
                                                             disabled={forwardingId === sub.id}
@@ -758,7 +956,6 @@ export default function MarketingManagerDashboard() {
                                                         </button>
                                                     )}
 
-                                                    {/* WA Follow up if unpaid */}
                                                     {!isPaid && sub.client?.phone && (
                                                         <a
                                                             href={`https://wa.me/${sub.client.phone.replace(/^0/, '62')}?text=Halo%20${encodeURIComponent(sub.client.client_name || 'Bapak/Ibu')},%20kami%20dari%20HalalCore%20ingin%20mengonfirmasi%20kelanjutan%20pengajuan%20sertifikasi%20halal%20usaha%20${encodeURIComponent(sub.client.business_name || '')}.`}
@@ -771,7 +968,6 @@ export default function MarketingManagerDashboard() {
                                                         </a>
                                                     )}
 
-                                                    {/* View Detail Link */}
                                                     <button
                                                         onClick={() => navigate(`/dashboard/submissions/${sub.id}`)}
                                                         className="px-2.5 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-[11px] transition-all flex items-center gap-1"
@@ -793,58 +989,89 @@ export default function MarketingManagerDashboard() {
             {/* LEADERBOARD & PERFORMA TIM ADVISOR */}
             {bizDevData?.leader_performance && bizDevData.leader_performance.length > 0 && (
                 <div className="bg-white rounded-3xl border border-gray-150 p-6 sm:p-8 shadow-sm space-y-5">
-                    <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100">
                                 <Users className="w-5 h-5" />
                             </div>
                             <div>
-                                <h3 className="text-base font-black text-gray-900">Performa Jaringan Halal Advisor</h3>
-                                <p className="text-xs text-gray-400 font-medium">Realisasi ajuan & sertifikat halal yang dicapai oleh tim kemitraan</p>
+                                <h3 className="text-base font-black text-gray-900">Leaderboard & Performa Jaringan Halal Advisor</h3>
+                                <p className="text-xs text-gray-400 font-medium">Peringkat perolehan pengajuan dan sertifikat halal terbit mitra pendamping</p>
                             </div>
                         </div>
-                        <button 
-                            onClick={() => navigate('/dashboard/referrals')}
-                            className="text-xs font-bold text-brand-600 hover:underline flex items-center gap-1"
-                        >
-                            <span>Lihat Analitik Referral</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
+
+                        {/* Search & Filter */}
+                        <div className="flex items-center gap-2">
+                            <div className="relative">
+                                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                <input
+                                    type="text"
+                                    placeholder="Cari nama advisor..."
+                                    value={leaderSearch}
+                                    onChange={e => setLeaderSearch(e.target.value)}
+                                    className="pl-8 pr-3 py-1.5 text-xs font-bold bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none"
+                                />
+                            </div>
+                            <select
+                                value={leaderRoleFilter}
+                                onChange={e => setLeaderRoleFilter(e.target.value)}
+                                className="px-2.5 py-1.5 text-xs font-bold bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:outline-none"
+                            >
+                                <option value="ALL">Semua Role</option>
+                                <option value="HALAL_ADVISOR">Halal Advisor</option>
+                                <option value="HALAL_MANAGER">Halal Manager</option>
+                                <option value="HALAL_DIRECTOR">Halal Director</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-xs">
                             <thead>
                                 <tr className="border-b border-gray-100 text-gray-400 font-black uppercase text-[10px] tracking-wider">
+                                    <th className="py-3 px-4 text-center w-12">Rank</th>
                                     <th className="py-3 px-4">Nama Advisor / Leader</th>
-                                    <th className="py-3 px-4">Role</th>
+                                    <th className="py-3 px-4">Role & Level</th>
                                     <th className="py-3 px-4 text-center">Total Ajuan</th>
                                     <th className="py-3 px-4 text-center">Dalam Proses</th>
                                     <th className="py-3 px-4 text-center">SH Terbit (Closing)</th>
+                                    <th className="py-3 px-4 text-center">Closing Rate</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50 font-medium text-gray-700">
-                                {bizDevData.leader_performance.map((leader: any) => (
-                                    <tr key={leader.user_id} className="hover:bg-gray-50/80 transition-all">
-                                        <td className="py-3.5 px-4 font-bold text-gray-900">
-                                            {leader.full_name}
-                                        </td>
-                                        <td className="py-3.5 px-4">
-                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-gray-100 text-gray-700">
-                                                {leader.role_name}
-                                            </span>
-                                        </td>
-                                        <td className="py-3.5 px-4 text-center font-bold text-gray-900">
-                                            {leader.total_submissions}
-                                        </td>
-                                        <td className="py-3.5 px-4 text-center font-bold text-amber-600">
-                                            {leader.in_progress}
-                                        </td>
-                                        <td className="py-3.5 px-4 text-center font-black text-emerald-600">
-                                            {leader.sh_terbit}
-                                        </td>
-                                    </tr>
-                                ))}
+                                {filteredLeaders.map((leader: any, idx: number) => {
+                                    const rate = leader.total_submissions > 0 ? Math.round((leader.sh_terbit / leader.total_submissions) * 100) : 0;
+                                    return (
+                                        <tr key={leader.user_id} className="hover:bg-gray-50/80 transition-all">
+                                            <td className="py-3.5 px-4 text-center font-black">
+                                                {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                                            </td>
+                                            <td className="py-3.5 px-4 font-bold text-gray-900">
+                                                {leader.full_name}
+                                            </td>
+                                            <td className="py-3.5 px-4">
+                                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-gray-100 text-gray-700">
+                                                    {leader.role_name}
+                                                </span>
+                                            </td>
+                                            <td className="py-3.5 px-4 text-center font-bold text-gray-900">
+                                                {leader.total_submissions}
+                                            </td>
+                                            <td className="py-3.5 px-4 text-center font-bold text-amber-600">
+                                                {leader.in_progress}
+                                            </td>
+                                            <td className="py-3.5 px-4 text-center font-black text-emerald-600">
+                                                {leader.sh_terbit}
+                                            </td>
+                                            <td className="py-3.5 px-4 text-center">
+                                                <span className="inline-flex items-center gap-1 font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full text-[10px]">
+                                                    <Percent className="w-2.5 h-2.5" />
+                                                    {rate}%
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -929,7 +1156,6 @@ export default function MarketingManagerDashboard() {
 
                             {/* Location & Role Filter Controls */}
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                                {/* Provinsi */}
                                 <div className="relative">
                                     <select
                                         value={filterProvinceId}
@@ -943,230 +1169,138 @@ export default function MarketingManagerDashboard() {
                                     </select>
                                 </div>
 
-                                {/* Kabupaten/Kota */}
                                 <div className="relative">
                                     <select
                                         value={filterRegencyId}
                                         onChange={e => setFilterRegencyId(e.target.value)}
-                                        disabled={!filterProvinceId}
+                                        disabled={!filterProvinceId || regencies.length === 0}
                                         className="glass-input text-xs font-bold w-full bg-gray-50 focus:bg-white disabled:opacity-50"
                                     >
-                                        <option value="">Semua Kota/Kab</option>
+                                        <option value="">Semua Kota/Kabupaten</option>
                                         {regencies.map(reg => (
                                             <option key={reg.id} value={reg.id}>{reg.name}</option>
                                         ))}
                                     </select>
                                 </div>
 
-                                {/* Role Filter */}
-                                <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
-                                    <button
-                                        type="button"
-                                        onClick={() => setAdvisorRoleFilter('ALL')}
-                                        className={`flex-1 py-1 text-[10px] font-black rounded-lg transition-all ${
-                                            advisorRoleFilter === 'ALL' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
-                                        }`}
+                                <div className="relative">
+                                    <select
+                                        value={advisorRoleFilter}
+                                        onChange={e => setAdvisorRoleFilter(e.target.value as any)}
+                                        className="glass-input text-xs font-bold w-full bg-gray-50 focus:bg-white"
                                     >
-                                        Semua
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setAdvisorRoleFilter('HALAL_ADVISOR')}
-                                        className={`flex-1 py-1 text-[10px] font-black rounded-lg transition-all ${
-                                            advisorRoleFilter === 'HALAL_ADVISOR' ? 'bg-white text-brand-700 shadow-sm' : 'text-gray-500 hover:text-gray-900'
-                                        }`}
-                                    >
-                                        Advisor
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setAdvisorRoleFilter('HALAL_MANAGER')}
-                                        className={`flex-1 py-1 text-[10px] font-black rounded-lg transition-all ${
-                                            advisorRoleFilter === 'HALAL_MANAGER' ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-900'
-                                        }`}
-                                    >
-                                        Manager
-                                    </button>
+                                        <option value="ALL">Semua Peran Advisor</option>
+                                        <option value="HALAL_ADVISOR">Halal Advisor</option>
+                                        <option value="HALAL_MANAGER">Halal Manager</option>
+                                    </select>
                                 </div>
                             </div>
-
-                            {/* Active Filter Indicators & Reset */}
-                            {(advisorSearchQuery || filterProvinceId || filterRegencyId || advisorRoleFilter !== 'ALL') && (
-                                <div className="flex items-center justify-between pt-1">
-                                    <span className="text-[11px] font-medium text-gray-500">
-                                        Ditemukan <strong className="text-gray-900">{filteredAdvisors.length}</strong> advisor sesuai filter
-                                    </span>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setAdvisorSearchQuery('');
-                                            setFilterProvinceId('');
-                                            setFilterRegencyId('');
-                                            setAdvisorRoleFilter('ALL');
-                                        }}
-                                        className="text-[11px] font-bold text-amber-700 hover:underline flex items-center gap-1"
-                                    >
-                                        <RotateCcw className="w-3 h-3" /> Reset Filter
-                                    </button>
-                                </div>
-                            )}
                         </div>
 
-                        {/* Advisor Scrollable Card List */}
-                        <div className="flex-1 overflow-y-auto space-y-2.5 max-h-72 pr-1">
+                        {/* List of Advisors */}
+                        <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar min-h-[220px]">
                             {filteredAdvisors.length === 0 ? (
-                                <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200 space-y-2">
-                                    <AlertCircle className="w-8 h-8 text-gray-400 mx-auto" />
-                                    <p className="text-xs font-bold text-gray-700">Tidak ada Halal Advisor yang sesuai dengan filter</p>
-                                    <p className="text-[11px] text-gray-400 font-medium">Coba ganti kata kunci pencarian atau ubah filter lokasi provinsi/kota.</p>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setAdvisorSearchQuery('');
-                                            setFilterProvinceId('');
-                                            setFilterRegencyId('');
-                                            setAdvisorRoleFilter('ALL');
-                                        }}
-                                        className="mt-2 px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1"
-                                    >
-                                        <RotateCcw className="w-3 h-3" /> Tampilkan Semua Advisor ({advisors.length})
-                                    </button>
+                                <div className="py-10 text-center text-gray-400 text-xs font-medium">
+                                    Tidak ada Halal Advisor yang sesuai dengan kriteria filter lokasi/pencarian ini.
                                 </div>
                             ) : (
                                 filteredAdvisors.map(adv => {
                                     const isSelected = selectedAdvisorId === adv.id;
-                                    const roleStr = getAdvisorRoleName(adv);
-                                    const locationStr = [adv.regency?.name, adv.province?.name].filter(Boolean).join(', ') || adv.address || 'Lokasi belum diset';
-
+                                    const rName = getAdvisorRoleName(adv);
                                     return (
                                         <div
                                             key={adv.id}
                                             onClick={() => setSelectedAdvisorId(adv.id)}
-                                            className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 select-none ${
+                                            className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 text-xs ${
                                                 isSelected
-                                                    ? 'bg-amber-50/70 border-amber-500 ring-2 ring-amber-500/20 shadow-sm'
-                                                    : 'bg-white border-gray-200 hover:border-brand-300 hover:bg-gray-50/60'
+                                                    ? 'bg-amber-50/70 border-amber-400 ring-2 ring-amber-400/20 shadow-sm'
+                                                    : 'bg-white hover:bg-gray-50 border-gray-150'
                                             }`}
                                         >
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                {/* Selection Indicator Circle */}
-                                                <div className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all shrink-0 ${
-                                                    isSelected
-                                                        ? 'bg-amber-500 border-amber-500 text-white'
-                                                        : 'border-gray-300 bg-white'
-                                                }`}>
-                                                    {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                                            <div className="space-y-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <p className="font-black text-gray-900 truncate">{adv.full_name}</p>
+                                                    <span className="px-2 py-0.5 rounded-md text-[9px] font-bold bg-gray-100 text-gray-600">
+                                                        {rName}
+                                                    </span>
                                                 </div>
-
-                                                {/* Avatar */}
-                                                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-700 font-black text-xs flex items-center justify-center border border-indigo-100 shrink-0">
-                                                    {adv.full_name.charAt(0).toUpperCase()}
-                                                </div>
-
-                                                {/* Details */}
-                                                <div className="min-w-0">
-                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                        <p className="text-xs font-black text-gray-900 truncate">
-                                                            {adv.full_name}
-                                                        </p>
-                                                        {adv.referral_code && (
-                                                            <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-black font-mono">
-                                                                {adv.referral_code}
-                                                            </span>
-                                                        )}
-                                                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black ${
-                                                            roleStr === 'HALAL_MANAGER'
-                                                                ? 'bg-purple-100 text-purple-800'
-                                                                : 'bg-brand-50 text-brand-700'
-                                                        }`}>
-                                                            {roleStr.replace(/_/g, ' ')}
+                                                <p className="text-[11px] text-gray-500 truncate">
+                                                    {adv.email} {adv.phone ? `• ${adv.phone}` : ''}
+                                                </p>
+                                                {(adv.regency?.name || adv.province?.name) && (
+                                                    <p className="text-[10px] text-gray-400 flex items-center gap-1">
+                                                        <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
+                                                        <span>
+                                                            {[adv.regency?.name, adv.province?.name].filter(Boolean).join(', ')}
                                                         </span>
-                                                    </div>
-
-                                                    <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-1 flex-wrap">
-                                                        <span className="flex items-center gap-1 font-medium text-gray-600">
-                                                            <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
-                                                            <span className="truncate">{locationStr}</span>
-                                                        </span>
-                                                        {adv.phone && (
-                                                            <span className="text-gray-400 font-medium">
-                                                                • {adv.phone}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
+                                                    </p>
+                                                )}
                                             </div>
 
-                                            {isSelected && (
-                                                <span className="text-[10px] font-black text-amber-700 bg-amber-100/80 px-2.5 py-1 rounded-lg shrink-0">
-                                                    Dipilih
-                                                </span>
-                                            )}
+                                            <div className="shrink-0">
+                                                <input
+                                                    type="radio"
+                                                    checked={isSelected}
+                                                    onChange={() => setSelectedAdvisorId(adv.id)}
+                                                    className="w-4 h-4 text-amber-600 border-gray-300 focus:ring-amber-500"
+                                                />
+                                            </div>
                                         </div>
                                     );
                                 })
                             )}
                         </div>
 
-                        {/* Footer */}
-                        <div className="flex items-center justify-between border-t border-gray-100 pt-4 shrink-0">
-                            <p className="text-[11px] text-gray-400 font-medium">
-                                Total <strong className="text-gray-700">{advisors.length}</strong> advisor terdaftar dalam sistem
-                            </p>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setAssignModal({ isOpen: false, submission: null })}
-                                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 transition-all"
-                                >
-                                    Batal
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleConfirmAssign}
-                                    disabled={assigning || !selectedAdvisorId}
-                                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white text-xs font-black shadow-md shadow-brand-600/20 disabled:opacity-50 transition-all flex items-center gap-1.5 active:scale-95"
-                                >
-                                    {assigning ? (
-                                        <>
-                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                            <span>Menugaskan...</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CheckCircle2 className="w-3.5 h-3.5" />
-                                            <span>Konfirmasi Penugasan</span>
-                                        </>
-                                    )}
-                                </button>
-                            </div>
+                        {/* Modal Footer Actions */}
+                        <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100 shrink-0">
+                            <button
+                                onClick={() => setAssignModal({ isOpen: false, submission: null })}
+                                className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                onClick={handleConfirmAssign}
+                                disabled={assigning || !selectedAdvisorId}
+                                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                            >
+                                {assigning ? 'Menyimpan...' : 'Tunjuk Advisor Ini'}
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* MODAL: SET TARGET OMSET & SH */}
+            {/* MODAL: KELOLA TARGET OMSET */}
             {showTargetModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-fadeIn">
-                    <form onSubmit={handleSaveTarget} className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-gray-100 space-y-6">
-                        <div className="flex items-center gap-4 border-b border-gray-100 pb-4">
-                            <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100">
-                                <Target className="w-6 h-6" />
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-gray-100 space-y-5">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100">
+                                    <Target className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-black text-gray-900">Set Target Marketing</h3>
+                                    <p className="text-xs text-gray-400 font-medium">Tentukan target omset & SH bulan ini</p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="text-base font-black text-gray-900">Kelola Target Marketing</h3>
-                                <p className="text-xs text-gray-500 font-medium">Tentukan target omset & closing bulanan</p>
-                            </div>
+                            <button
+                                onClick={() => setShowTargetModal(false)}
+                                className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all text-xs font-bold"
+                            >
+                                ✕
+                            </button>
                         </div>
 
-                        <div className="space-y-4">
+                        <form onSubmit={handleSaveTarget} className="space-y-4 text-xs">
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="text-xs font-bold text-gray-700">Bulan</label>
+                                    <label className="font-bold text-gray-700 block mb-1">Bulan</label>
                                     <select
                                         value={targetMonth}
                                         onChange={e => setTargetMonth(Number(e.target.value))}
-                                        className="glass-input text-xs font-bold w-full mt-1"
+                                        className="glass-input font-bold w-full bg-gray-50"
                                     >
                                         {MONTH_NAMES.map((m, idx) => (
                                             <option key={idx} value={idx + 1}>{m}</option>
@@ -1174,56 +1308,59 @@ export default function MarketingManagerDashboard() {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-xs font-bold text-gray-700">Tahun</label>
-                                    <input
-                                        type="number"
+                                    <label className="font-bold text-gray-700 block mb-1">Tahun</label>
+                                    <select
                                         value={targetYear}
                                         onChange={e => setTargetYear(Number(e.target.value))}
-                                        className="glass-input text-xs font-bold w-full mt-1"
-                                    />
+                                        className="glass-input font-bold w-full bg-gray-50"
+                                    >
+                                        {[2024, 2025, 2026, 2027].map(y => (
+                                            <option key={y} value={y}>{y}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="text-xs font-bold text-gray-700">Target Revenue / Omset (Rp)</label>
+                                <label className="font-bold text-gray-700 block mb-1">Target Omset (IDR)</label>
                                 <input
                                     type="number"
                                     placeholder="Contoh: 50000000"
                                     value={tRevenue}
                                     onChange={e => setTRevenue(e.target.value)}
-                                    className="glass-input text-xs font-bold w-full mt-1"
+                                    className="glass-input font-bold w-full"
                                 />
                             </div>
 
                             <div>
-                                <label className="text-xs font-bold text-gray-700">Target Sertifikat Halal Terbit (Unit)</label>
+                                <label className="font-bold text-gray-700 block mb-1">Target SH Terbit (Closing)</label>
                                 <input
                                     type="number"
-                                    placeholder="Contoh: 20"
+                                    placeholder="Contoh: 100"
                                     value={tSH}
                                     onChange={e => setTSH(e.target.value)}
-                                    className="glass-input text-xs font-bold w-full mt-1"
+                                    className="glass-input font-bold w-full"
                                 />
                             </div>
-                        </div>
 
-                        <div className="flex items-center justify-end gap-3 pt-2">
-                            <button
-                                type="button"
-                                onClick={() => setShowTargetModal(false)}
-                                className="px-4 py-2.5 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100"
-                            >
-                                Batal
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={savingTarget}
-                                className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black shadow-md shadow-purple-600/20 disabled:opacity-50"
-                            >
-                                {savingTarget ? 'Menyimpan...' : 'Simpan Target'}
-                            </button>
-                        </div>
-                    </form>
+                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowTargetModal(false)}
+                                    className="px-4 py-2 font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-all"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={savingTarget}
+                                    className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-md transition-all"
+                                >
+                                    {savingTarget ? 'Menyimpan...' : 'Simpan Target'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             )}
         </div>

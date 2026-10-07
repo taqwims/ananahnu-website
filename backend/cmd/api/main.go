@@ -105,6 +105,9 @@ func main() {
 		&domain.SPH{},
 		&domain.CompanyTarget{},
 		&domain.Expense{},
+		// Voucher
+		&domain.Voucher{},
+		&domain.VoucherUsage{},
 		// Telemarketing
 		&domain.TeleForm{},
 		&domain.TeleMeeting{},
@@ -191,6 +194,9 @@ func main() {
 	// 4.7 Seed Sample News Articles for SEO (Idempotent)
 	_ = seeder.SeedNewsData(db)
 
+	// 4.7.1 Seed Sample Vouchers & Analytics (Idempotent)
+	seeder.SeedVoucherData(db)
+
 	// 4.8 Ensure PENDAMPINGAN billing components default to PER_CABANG
 	_ = db.Model(&domain.BillingComponent{}).
 		Where("category = ? AND (type = 'FIXED' OR type = '' OR type IS NULL)", "PENDAMPINGAN").
@@ -227,6 +233,7 @@ func main() {
 	teleAgreementRepo := repository.NewTeleAgreementRepository(db)
 	promotionRepo := repository.NewPromotionRepository(db)
 	operationalRepo := repository.NewOperationalRepository(db)
+	voucherRepo := repository.NewVoucherRepository(db)
 
 	// Services
 	emailSender := email.NewGmailSender()
@@ -425,6 +432,8 @@ func main() {
 		SettingRepo: settingRepo,
 	})
 
+	voucherUC := usecase.NewVoucherUsecase(voucherRepo, userRepo)
+
 	// 7. Setup Router & Handlers
 	r := gin.Default()
 
@@ -484,6 +493,7 @@ func main() {
 	httpDelivery.NewBizDevHandler(r, bizDevUC)
 	httpDelivery.NewTelemarketingHandler(r, teleUC)
 	httpDelivery.NewOperationalHandler(r, operationalUC)
+	httpDelivery.NewVoucherHandler(r, voucherUC)
 
 	// Static files
 	r.Static("/uploads", "./uploads")

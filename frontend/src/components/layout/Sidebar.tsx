@@ -24,6 +24,7 @@ import {
     BarChart3,
     Wallet,
     Sliders,
+    Ticket,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -56,7 +57,6 @@ const GROUPS: SidebarGroup[] = [
             { name: 'Daftar Pengajuan', pathKey: 'submissions', to: '/dashboard/submissions',        icon: FileText },
             { name: 'Tagihan Self Declare', pathKey: 'my-invoices', to: '/dashboard/my-invoices',        icon: CreditCard },
             { name: 'Estimasi Reguler', pathKey: 'estimasi',   to: '/dashboard/estimasi',           icon: DollarSign },
-            { name: 'Pusat Bantuan', pathKey: 'bantuan',     to: '/dashboard/bantuan',            icon: BookOpen },
         ],
     },
     {
@@ -77,7 +77,7 @@ const GROUPS: SidebarGroup[] = [
         name: 'Jaringan & Referral',
         links: [
             { name: 'Tim Saya',          pathKey: 'team',              to: '/dashboard/team',              icon: UsersRound },
-            { name: 'Referral Saya',     pathKey: 'referrals',         to: '/dashboard/referrals',         icon: TrendingUp },
+            { name: 'Insentif Saya',     pathKey: 'referrals',         to: '/dashboard/referrals',         icon: TrendingUp },
             { name: 'Analitik Referral', pathKey: 'admin-referrals',   to: '/dashboard/admin-referrals',   icon: TrendingUp },
             { name: 'Fee Referral',      pathKey: 'referral-fees',     to: '/dashboard/referral-fees',     icon: DollarSign },
         ],
@@ -96,6 +96,7 @@ const GROUPS: SidebarGroup[] = [
         links: [
             { name: 'Pengaturan Operasional & Kontak', pathKey: 'pengaturan-operasional', to: '/dashboard/pengaturan-operasional', icon: Settings },
             { name: 'Manajemen Billing', pathKey: 'billing',               to: '/dashboard/billing',               icon: Receipt },
+            { name: 'Voucher & Promo',   pathKey: 'vouchers',              to: '/dashboard/vouchers',              icon: Ticket },
             { name: 'Pengaturan Form',   pathKey: 'form-config',           to: '/dashboard/form-config',           icon: Sliders },
             { name: 'Master Biaya',      pathKey: 'billing-config',        to: '/dashboard/billing-config',        icon: Receipt },
             { name: 'Manajemen User',    pathKey: 'users',                 to: '/dashboard/users',                 icon: Users },
@@ -106,7 +107,8 @@ const GROUPS: SidebarGroup[] = [
     {
         name: 'Keuangan',
         links: [
-            { name: 'Dashboard Keuangan',  pathKey: 'finance',               to: '/dashboard/finance',               icon: Wallet },
+            { name: 'Laporan Keuangan',  pathKey: 'finance',               to: '/dashboard/finance',               icon: Wallet },
+            { name: 'Penerbitan SH (Finance)', pathKey: 'sh-workspace',   to: '/dashboard/sh-workspace',          icon: Award },
             { name: 'Pengaturan Komisi dan Insentif', pathKey: 'fee-config',  to: '/dashboard/fee-config',           icon: DollarSign },
         ],
     },
@@ -114,6 +116,7 @@ const GROUPS: SidebarGroup[] = [
         name: 'Manager Marketing',
         links: [
             { name: 'Dashboard Marketing', pathKey: 'bizdev',                to: '/dashboard/bizdev',                icon: BarChart3 },
+            { name: 'Voucher Diskon & Promo', pathKey: 'vouchers',           to: '/dashboard/vouchers',              icon: Ticket },
         ],
     },
     {
@@ -127,7 +130,6 @@ const GROUPS: SidebarGroup[] = [
             { name: 'Laporan Operasional',     pathKey: 'laporan-operasional',   to: '/dashboard/laporan-operasional',   icon: BarChart3 },
             { name: 'Notifikasi Operasional',  pathKey: 'notifikasi-operasional',to: '/dashboard/notifikasi-operasional',icon: MessageSquare },
             { name: 'Pengaturan Operasional',  pathKey: 'pengaturan-operasional',to: '/dashboard/pengaturan-operasional',icon: Settings },
-            { name: 'Pusat Bantuan',           pathKey: 'bantuan',               to: '/dashboard/bantuan',               icon: BookOpen },
         ],
     },
 ];
@@ -150,7 +152,6 @@ const OPERATIONAL_MANAGER_GROUPS: SidebarGroup[] = [
         links: [
             { name: 'Notifikasi',              pathKey: 'notifikasi-operasional',to: '/dashboard/notifikasi-operasional',icon: MessageSquare },
             { name: 'Pengaturan',              pathKey: 'pengaturan-operasional',to: '/dashboard/pengaturan-operasional',icon: Settings },
-            { name: 'Bantuan',                 pathKey: 'bantuan',               to: '/dashboard/bantuan',               icon: BookOpen },
         ],
     },
 ];
@@ -184,7 +185,6 @@ const Sidebar = ({ isOpen, toggle }: SidebarProps) => {
             if (link.pathKey === 'pengajuan') return 'Pengajuan';
             if (link.pathKey === 'submissions') return 'Daftar Pengajuan';
             if (link.pathKey === 'estimasi') return 'Estimasi Reguler';
-            if (link.pathKey === 'bantuan') return 'Pusat Bantuan';
         }
         const isHalalAgency = role === 'HALAL_ADVISOR' || role === 'HALAL_MANAGER' || role === 'HALAL_DIRECTOR';
         if (isHalalAgency) {
@@ -194,6 +194,10 @@ const Sidebar = ({ isOpen, toggle }: SidebarProps) => {
         }
         if (role === 'BUSINESS_DEVELOPMENT' || role === 'MARKETING') {
             if (link.pathKey === 'bizdev') return 'Dashboard Marketing';
+            if (link.pathKey === 'vouchers') return 'Voucher Diskon & Promo';
+        }
+        if (role === 'FINANCE' || role === 'ADMIN_KEUANGAN') {
+            if (link.pathKey === 'finance') return 'Laporan Keuangan';
         }
         return link.name;
     };
