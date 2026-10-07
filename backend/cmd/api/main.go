@@ -188,14 +188,12 @@ func main() {
 		}
 	}
 
-	// 4.6 Seed Operational Manager & Staff Users (Idempotent)
-	seedOperationalData(db)
-
-	// 4.7 Seed Sample News Articles for SEO (Idempotent)
-	_ = seeder.SeedNewsData(db)
-
-	// 4.7.1 Seed Sample Vouchers & Analytics (Idempotent)
-	seeder.SeedVoucherData(db)
+	// 4.6 Seed Operational Manager & Staff Users (Only in non-production or first-time setup)
+	if os.Getenv("APP_ENV") != "production" {
+		seedOperationalData(db)
+		_ = seeder.SeedNewsData(db)
+		seeder.SeedVoucherData(db)
+	}
 
 	// 4.8 Ensure PENDAMPINGAN billing components default to PER_CABANG
 	_ = db.Model(&domain.BillingComponent{}).
@@ -447,17 +445,53 @@ func main() {
 	} else if envOrigins := os.Getenv("APP_FRONTEND_URL"); envOrigins != "" {
 		allowedOrigins = strings.Split(envOrigins, ",")
 	}
+
+	// Default fallback origins if none configured in .env
+	defaultOrigins := []string{
+		"https://halalcore.id",
+		"https://www.halalcore.id",
+		"https://telemarketing.halalcore.id",
+		"https://api.halalcore.id",
+		"http://localhost:5173",
+		"http://localhost:5174",
+		"http://localhost:3000",
+		"http://localhost:8080",
+	}
+
 	r.Use(func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
-		for _, ao := range allowedOrigins {
-			if strings.TrimSpace(ao) == origin {
+		isAllowed := false
+
+		if origin != "" {
+			// Check configured origins
+			for _, ao := range allowedOrigins {
+				if strings.TrimSpace(ao) == origin {
+					isAllowed = true
+					break
+				}
+			}
+			// Check default fallback origins
+			if !isAllowed {
+				for _, do := range defaultOrigins {
+					if do == origin {
+						isAllowed = true
+						break
+					}
+				}
+			}
+			// Allow any subdomain of halalcore.id
+			if !isAllowed && (strings.HasSuffix(origin, ".halalcore.id") || origin == "https://halalcore.id") {
+				isAllowed = true
+			}
+
+			if isAllowed {
 				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-				break
 			}
 		}
+
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return

@@ -52,8 +52,12 @@ jobs:
 
       - name: Install & Build
         working-directory: frontend
+        env:
+          VITE_API_URL: https://api.halalcore.id
+          VITE_MIDTRANS_CLIENT_KEY: Mid-client-rYI-aCb0J8muI7-C
+          VITE_MIDTRANS_IS_PRODUCTION: "true"
+          VITE_MAYAR_IS_PRODUCTION: "false"
         run: |
-          if [ -f ".env.production" ]; then cp .env.production .env; fi
           npm ci --production=false
           npm run build
           tar -czf frontend-dist.tar.gz dist/
@@ -82,8 +86,9 @@ jobs:
 
       - name: Install & Build
         working-directory: telemarketing
+        env:
+          VITE_API_URL: https://api.halalcore.id
         run: |
-          if [ -f ".env.production" ]; then cp .env.production .env; fi
           npm ci --production=false
           npm run build
           tar -czf telemarketing-dist.tar.gz dist/
