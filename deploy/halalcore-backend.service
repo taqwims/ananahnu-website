@@ -14,7 +14,7 @@ Restart=always
 RestartSec=5
 
 # Environment
-EnvironmentFile=/opt/halalcore/backend/.env
+EnvironmentFile=-/opt/halalcore/backend/.env
 
 # Logging
 StandardOutput=journal

@@ -148,22 +148,33 @@ jobs:
             set -e
             echo "🚀 Deploying updates to VPS..."
 
-            # 1. Update Backend Binary
-            mkdir -p /root/ananahnu-website/backend /opt/halalcore/backend
+            # 1. Prepare User and Backend Directories
+            id halalcore &>/dev/null || useradd --system --no-create-home --shell /bin/false halalcore
+            mkdir -p /root/ananahnu-website/backend \
+                     /opt/halalcore/backend/uploads \
+                     /opt/halalcore/backend/paymentproof \
+                     /opt/halalcore/backend/consultant \
+                     /opt/halalcore/backend/temp_docx \
+                     /opt/halalcore/backend/templates
             
+            # Sync .env if exists in root repo
+            if [ -f "/root/ananahnu-website/backend/.env" ] && [ ! -f "/opt/halalcore/backend/.env" ]; then
+              cp /root/ananahnu-website/backend/.env /opt/halalcore/backend/.env
+            fi
+
             if [ -f "/tmp/main-linux" ]; then
               cp /tmp/main-linux /root/ananahnu-website/backend/main
-              chmod +x /root/ananahnu-website/backend/main
+              chmod 755 /root/ananahnu-website/backend/main
               
-              # Update /opt/halalcore/backend/server jika service mengarah ke sana
-              cp /tmp/main-linux /opt/halalcore/backend/server 2>/dev/null || true
-              chmod +x /opt/halalcore/backend/server 2>/dev/null || true
-              chown -R halalcore:halalcore /opt/halalcore/backend 2>/dev/null || true
+              cp /tmp/main-linux /opt/halalcore/backend/server
+              chmod 755 /opt/halalcore/backend/server
+              chown -R halalcore:halalcore /opt/halalcore/backend
               
               rm -f /tmp/main-linux
             fi
 
             # Restart service backend
+            systemctl daemon-reload
             systemctl restart halalcore-backend || true
             echo "✓ Backend binary updated & service restarted"
 
