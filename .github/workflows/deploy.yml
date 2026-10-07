@@ -162,12 +162,13 @@ jobs:
               cp /root/ananahnu-website/backend/.env /opt/halalcore/backend/.env
             fi
 
+            # Stop service temporarily during binary replacement
+            systemctl stop halalcore-backend 2>/dev/null || true
+
             if [ -f "/tmp/main-linux" ]; then
-              cp /tmp/main-linux /root/ananahnu-website/backend/main
-              chmod 755 /root/ananahnu-website/backend/main
-              
-              cp /tmp/main-linux /opt/halalcore/backend/server
-              chmod 755 /opt/halalcore/backend/server
+              # Use install/mv for atomic replacement (prevents 'Text file busy' error in Linux)
+              install -m 755 /tmp/main-linux /root/ananahnu-website/backend/main 2>/dev/null || cp -f /tmp/main-linux /root/ananahnu-website/backend/main
+              install -m 755 /tmp/main-linux /opt/halalcore/backend/server
               chown -R halalcore:halalcore /opt/halalcore/backend
               
               rm -f /tmp/main-linux
@@ -175,7 +176,7 @@ jobs:
 
             # Restart service backend
             systemctl daemon-reload
-            systemctl restart halalcore-backend || true
+            systemctl restart halalcore-backend
             echo "✓ Backend binary updated & service restarted"
 
             # 2. Update Frontend (halalcore.id)
