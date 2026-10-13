@@ -202,6 +202,7 @@ func (h *SubmissionHandler) AssignConsultant(c *gin.Context) {
 
 	var input struct {
 		ConsultantID string `json:"consultant_id" binding:"required"`
+		Reason       string `json:"reason"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "consultant_id is required"})
@@ -217,7 +218,7 @@ func (h *SubmissionHandler) AssignConsultant(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	role := middleware.GetUserRole(c)
 
-	if err := h.workflowUC.AssignConsultant(id, userID, role, consultantUUID); err != nil {
+	if err := h.workflowUC.AssignConsultant(id, userID, role, consultantUUID, input.Reason); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

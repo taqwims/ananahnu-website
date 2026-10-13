@@ -48,6 +48,7 @@ type UserManagementUsecase interface {
 	GetUser(id uuid.UUID) (*domain.User, error)
 	CreateUser(input CreateUserInput) (*domain.User, string, error) // Returns user + plaintext password
 	UpdateUser(id uuid.UUID, input UpdateUserInput) error
+	UpdateAgentCoverage(id uuid.UUID, provinceID *int64, regencyID *int64) error
 	UpdateProfile(id uuid.UUID, input UpdateProfileInput) error
 	DeleteUser(id uuid.UUID, actorID *uuid.UUID) error
 	ResetUserPassword(id uuid.UUID) (string, error) // Returns new plaintext password
@@ -173,6 +174,16 @@ func (uc *userManagementUsecase) UpdateUser(id uuid.UUID, input UpdateUserInput)
 	}
 	user.LeaderID = input.LeaderID
 
+	return uc.UserRepo.Update(user)
+}
+
+func (uc *userManagementUsecase) UpdateAgentCoverage(id uuid.UUID, provinceID *int64, regencyID *int64) error {
+	user, err := uc.UserRepo.FindByID(id)
+	if err != nil {
+		return errors.New("user not found")
+	}
+	user.ProvinceID = provinceID
+	user.RegencyID = regencyID
 	return uc.UserRepo.Update(user)
 }
 

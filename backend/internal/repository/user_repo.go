@@ -284,7 +284,7 @@ func (r *commissionRepository) FindAll(filter map[string]interface{}, page, limi
 	var commissions []domain.Commission
 	var total int64
 
-	db := r.db.Model(&domain.Commission{}).Preload("Referrer").Preload("Referred").Preload("Submission").Preload("Submission.Client").Preload("User")
+	db := r.db.Model(&domain.Commission{}).Preload("Referrer").Preload("Referred").Preload("Submission").Preload("Submission.Client").Preload("Submission.Consultant").Preload("User")
 
 	if t, ok := filter["type"]; ok {
 		db = db.Where("type = ?", t)

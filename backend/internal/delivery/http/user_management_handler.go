@@ -24,6 +24,7 @@ func NewUserManagementHandler(r *gin.Engine, uc usecase.UserManagementUsecase) {
 		g.GET("/coordinators", handler.ListCoordinators)
 		g.GET("/drafters", handler.ListDrafters)
 		g.GET("/consultants", handler.ListConsultants)
+		g.PUT("/:id/coverage", handler.UpdateAgentCoverage)
 
 		// Semua operasi user management hanya DIRECTOR
 		directorOnly := g.Group("")
@@ -325,7 +326,7 @@ func (h *UserManagementHandler) ListDrafters(c *gin.Context) {
 }
 
 func (h *UserManagementHandler) ListConsultants(c *gin.Context) {
-	filter := map[string]interface{}{"roles": []string{"HALAL_ADVISOR", "HALAL_MANAGER", "MARKETING"}}
+	filter := map[string]interface{}{"roles": []string{"HALAL_ADVISOR", "HALAL_MANAGER", "HALAL_DIRECTOR", "MARKETING"}}
 	if prov := c.Query("province_id"); prov != "" {
 		filter["province_id"] = prov
 	}
@@ -357,4 +358,35 @@ func (h *UserManagementHandler) RegenerateReferralCode(c *gin.Context) {
 		"referral_code": newCode,
 		"message":       "referral code regenerated successfully",
 	})
+}
+
+func (h *UserManagementHandler) UpdateAgentCoverage(c *gin.Context) {
+	role := middleware.GetUserRole(c)
+	if role != "DIRECTOR" && role != "BUSINESS_DEVELOPMENT" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "unauthorized to update agent coverage"})
+		return
+	}
+
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	var input struct {
+		ProvinceID *int64 `json:"province_id"`
+		RegencyID  *int64 `json:"regency_id"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.userMgmtUC.UpdateAgentCoverage(id, input.ProvinceID, input.RegencyID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "cakupan agent berhasil diperbarui"})
 }

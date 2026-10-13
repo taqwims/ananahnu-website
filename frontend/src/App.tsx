@@ -88,6 +88,10 @@ const OperationalReports = lazy(() => import('./pages/dashboard/OperationalRepor
 const OperationalNotifications = lazy(() => import('./pages/dashboard/OperationalNotifications'));
 const OperationalSettings = lazy(() => import('./pages/dashboard/OperationalSettings'));
 const OperationalHelp = lazy(() => import('./pages/dashboard/OperationalHelp'));
+const AgentSubmissionsPage = lazy(() => import('./pages/dashboard/AgentSubmissionsPage').then(m => ({ default: m.AgentSubmissionsPage })));
+const AgentMonitoringPage = lazy(() => import('./pages/dashboard/AgentMonitoringPage').then(m => ({ default: m.AgentMonitoringPage })));
+const AgentDistributionPage = lazy(() => import('./pages/dashboard/AgentDistributionPage').then(m => ({ default: m.AgentDistributionPage })));
+const AgentReportsPage = lazy(() => import('./pages/dashboard/AgentReportsPage').then(m => ({ default: m.AgentReportsPage })));
 
 // Decode JWT payload tanpa library eksternal
 function getTokenExpiry(token: string): number | null {
@@ -327,6 +331,20 @@ function App() {
           } />
           <Route path="bantuan" element={
             <RoleRoute path="bantuan"><OperationalHelp /></RoleRoute>
+          } />
+
+          {/* Modul Agent Manager */}
+          <Route path="agent-submissions" element={
+            <RoleRoute path="agent-submissions"><AgentSubmissionsPage /></RoleRoute>
+          } />
+          <Route path="agent-monitoring" element={
+            <RoleRoute path="agent-monitoring"><AgentMonitoringPage /></RoleRoute>
+          } />
+          <Route path="agent-distribution" element={
+            <RoleRoute path="agent-distribution"><AgentDistributionPage /></RoleRoute>
+          } />
+          <Route path="agent-reports" element={
+            <RoleRoute path="agent-reports"><AgentReportsPage /></RoleRoute>
           } />
         </Route>
 

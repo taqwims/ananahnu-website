@@ -25,6 +25,8 @@ import {
     Wallet,
     Sliders,
     Ticket,
+    Activity,
+    Calculator,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -120,6 +122,15 @@ const GROUPS: SidebarGroup[] = [
         ],
     },
     {
+        name: 'Agent Manager',
+        links: [
+            { name: 'Daftar Pengajuan',  pathKey: 'agent-submissions',  to: '/dashboard/agent-submissions',  icon: FileText },
+            { name: 'Monitoring Proses', pathKey: 'agent-monitoring',   to: '/dashboard/agent-monitoring',  icon: Activity },
+            { name: 'Distribusi Agent',  pathKey: 'agent-distribution', to: '/dashboard/agent-distribution',icon: Users },
+            { name: 'Laporan',           pathKey: 'agent-reports',      to: '/dashboard/agent-reports',     icon: BarChart3 },
+        ],
+    },
+    {
         name: 'Manajer Operasional',
         links: [
             { name: 'Pengajuan Masuk',         pathKey: 'pengajuan-masuk',       to: '/dashboard/pengajuan-masuk',       icon: FileText },
@@ -152,6 +163,25 @@ const OPERATIONAL_MANAGER_GROUPS: SidebarGroup[] = [
         links: [
             { name: 'Notifikasi',              pathKey: 'notifikasi-operasional',to: '/dashboard/notifikasi-operasional',icon: MessageSquare },
             { name: 'Pengaturan',              pathKey: 'pengaturan-operasional',to: '/dashboard/pengaturan-operasional',icon: Settings },
+        ],
+    },
+];
+
+const AGENT_MANAGER_GROUPS: SidebarGroup[] = [
+    {
+        name: 'Agent Manager',
+        links: [
+            { name: 'Dashboard',         pathKey: '',                   to: '/dashboard',                   icon: LayoutDashboard },
+            { name: 'Daftar Pengajuan',  pathKey: 'agent-submissions',  to: '/dashboard/agent-submissions',  icon: FileText },
+            { name: 'Estimasi Tarif',    pathKey: 'estimasi',           to: '/dashboard/estimasi',          icon: Calculator },
+        ],
+    },
+    {
+        name: 'Monitoring & Distribusi',
+        links: [
+            { name: 'Monitoring Proses', pathKey: 'agent-monitoring',   to: '/dashboard/agent-monitoring',  icon: Activity },
+            { name: 'Distribusi Agent',  pathKey: 'agent-distribution', to: '/dashboard/agent-distribution',icon: Users },
+            { name: 'Laporan',           pathKey: 'agent-reports',      to: '/dashboard/agent-reports',     icon: BarChart3 },
         ],
     },
 ];
@@ -192,7 +222,7 @@ const Sidebar = ({ isOpen, toggle }: SidebarProps) => {
             if (link.pathKey === 'advisors') return 'Jaringan Halal Advisor';
             if (link.pathKey === 'referrals') return 'Insentif Saya';
         }
-        if (role === 'BUSINESS_DEVELOPMENT' || role === 'MARKETING') {
+        if (role === 'MARKETING') {
             if (link.pathKey === 'bizdev') return 'Dashboard Marketing';
             if (link.pathKey === 'vouchers') return 'Voucher Diskon & Promo';
         }
@@ -258,7 +288,7 @@ const Sidebar = ({ isOpen, toggle }: SidebarProps) => {
 
                     {/* Navigation */}
                     <nav className="flex-1 overflow-y-auto py-6 px-3 custom-scrollbar">
-                        {(role === 'MANAGER' ? OPERATIONAL_MANAGER_GROUPS : GROUPS).map((group) => {
+                        {(role === 'MANAGER' ? OPERATIONAL_MANAGER_GROUPS : role === 'BUSINESS_DEVELOPMENT' ? AGENT_MANAGER_GROUPS : GROUPS).map((group) => {
                             // Filter link berdasarkan RBAC — hanya tampilkan yang boleh diakses
                             const visibleLinks = group.links.filter(l => {
                                 // Untuk CLIENT: hanya tampilkan menu di Main Menu, dan sembunyikan 'pengajuan' & 'my-invoices'
@@ -268,14 +298,18 @@ const Sidebar = ({ isOpen, toggle }: SidebarProps) => {
                                 }
                                 // Non-client tidak perlu tampilkan link bantuan di Main Menu
                                 if (role !== 'CLIENT' && l.pathKey === 'bantuan' && group.name === 'Main Menu') return false;
+                                // Jangan duplikasi voucher di Pengaturan Sistem untuk Marketing/BD karena sudah ada di grup Manager Marketing
+                                if ((role === 'BUSINESS_DEVELOPMENT' || role === 'MARKETING') && group.name === 'Pengaturan Sistem' && l.pathKey === 'vouchers') return false;
                                 return canAccess(role, l.pathKey);
                             });
                             if (visibleLinks.length === 0) return null;
 
+                            const groupDisplayName = group.name === 'Manager Marketing' && role === 'MARKETING' ? 'Marketing' : group.name;
+
                             return (
                                 <div key={group.name} className="mb-6 last:mb-0">
                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-4">
-                                        {group.name}
+                                        {groupDisplayName}
                                     </p>
                                     <div className="space-y-1">
                                         {visibleLinks.map((link) => (

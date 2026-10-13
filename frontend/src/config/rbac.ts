@@ -51,7 +51,7 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   // ── Semua role bisa akses ──────────────────────────────────────────
   '':                       ALL_ROLES,   // /dashboard (home)
   'profile':                ALL_ROLES,
-  'estimasi':               ['DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'MARKETING', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'CLIENT'],
+  'estimasi':               ['DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'MARKETING', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'CLIENT', 'BUSINESS_DEVELOPMENT'],
 
   // ── Klien & Pengajuan ─────────────────────────────────────────────
   'pengajuan': [
@@ -59,10 +59,10 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   ],
   'clients': [
     'DIRECTOR', 'MANAGER', 'HALAL_DIRECTOR',
-    'DRAFTER', 'QC_OFFICER', 'VERIFIKATOR', 'MARKETING',
+    'DRAFTER', 'QC_OFFICER', 'VERIFIKATOR', 'MARKETING', 'BUSINESS_DEVELOPMENT',
   ],
   'clients/new': [
-    'DIRECTOR', 'MANAGER', 'HALAL_DIRECTOR', 'MARKETING',
+    'DIRECTOR', 'MANAGER', 'HALAL_DIRECTOR', 'MARKETING', 'BUSINESS_DEVELOPMENT',
   ],
   // clients/:id  → sama dengan clients/new (edit)
   'submissions': [
@@ -128,7 +128,7 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   'bizdev':                ['DIRECTOR', 'BUSINESS_DEVELOPMENT', 'MARKETING', 'MANAGER'],
 
   // ── SPH ────────────────────────────────────────────────────────────
-  'sph':                   ['DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR'],
+  'sph':                   ['DIRECTOR', 'MANAGER', 'HALAL_ADVISOR', 'HALAL_MANAGER', 'HALAL_DIRECTOR', 'BUSINESS_DEVELOPMENT', 'MARKETING'],
 
   // ── Modul Manajer Operasional ───────────────────────────────────────
   'pengajuan-masuk':       ['DIRECTOR', 'MANAGER'],
@@ -140,6 +140,12 @@ export const PAGE_ROLES: Record<string, AppRole[]> = {
   'notifikasi-operasional':['DIRECTOR', 'MANAGER'],
   'pengaturan-operasional':['DIRECTOR', 'MANAGER'],
   'bantuan':               [],
+
+  // ── Agent Manager ──────────────────────────────────────────────────
+  'agent-submissions':     ['BUSINESS_DEVELOPMENT', 'DIRECTOR'],
+  'agent-monitoring':      ['BUSINESS_DEVELOPMENT', 'DIRECTOR'],
+  'agent-distribution':    ['BUSINESS_DEVELOPMENT', 'DIRECTOR'],
+  'agent-reports':         ['BUSINESS_DEVELOPMENT', 'DIRECTOR'],
 };
 
 /**

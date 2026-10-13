@@ -39,6 +39,8 @@ export const UserTable = ({
             DRAFTER: 'bg-indigo-100 text-indigo-700',
             ADMIN_PELATIHAN: 'bg-teal-100 text-teal-700',
             ADMIN_KEUANGAN: 'bg-yellow-100 text-yellow-700',
+            BUSINESS_DEVELOPMENT: 'bg-emerald-100 text-emerald-800',
+            MARKETING: 'bg-sky-100 text-sky-700',
             CLIENT: 'bg-gray-100 text-gray-700',
         };
         return colors[name] || 'bg-gray-100 text-gray-700';

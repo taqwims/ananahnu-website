@@ -14,6 +14,7 @@ import HalalAdvisorDashboard from './HalalAdvisorDashboard';
 import FinanceDashboard from './FinanceDashboard';
 import DrafterDashboard from './DrafterDashboard';
 import DraftManagerDashboard from './DraftManagerDashboard';
+import { AgentManagerDashboard } from './AgentManagerDashboard';
 import { AuditAgendaPreview } from '../../components/dashboard/audit/AuditAgendaPreview';
 
 interface DashboardStats {
@@ -93,7 +94,11 @@ export default function DashboardHome() {
         return <OperationalManagerDashboard />;
     }
 
-    if (user?.role === 'BUSINESS_DEVELOPMENT' || user?.role === 'MARKETING') {
+    if (user?.role === 'BUSINESS_DEVELOPMENT') {
+        return <AgentManagerDashboard />;
+    }
+
+    if (user?.role === 'MARKETING') {
         return <MarketingManagerDashboard />;
     }
 

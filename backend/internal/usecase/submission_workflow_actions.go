@@ -299,7 +299,7 @@ func (uc *submissionWorkflowUsecase) BulkApproveWithDrafter(ids []uuid.UUID, use
 	return nil
 }
 
-func (uc *submissionWorkflowUsecase) AssignConsultant(id uuid.UUID, userID uuid.UUID, userRole string, consultantID uuid.UUID) error {
+func (uc *submissionWorkflowUsecase) AssignConsultant(id uuid.UUID, userID uuid.UUID, userRole string, consultantID uuid.UUID, reason ...string) error {
 	sub, err := uc.SubmissionRepo.FindByID(id)
 	if err != nil {
 		return err
@@ -322,7 +322,12 @@ func (uc *submissionWorkflowUsecase) AssignConsultant(id uuid.UUID, userID uuid.
 		_ = uc.SubmissionRepo.UpdateStatus(id, newStatus, 0)
 	}
 
-	uc.logChange(id, userID, "ASSIGN_CONSULTANT", sub.Status, newStatus, "Assigned to consultant")
+	noteMsg := "Assigned to consultant"
+	if len(reason) > 0 && strings.TrimSpace(reason[0]) != "" {
+		noteMsg = fmt.Sprintf("Assigned to consultant: %s", strings.TrimSpace(reason[0]))
+	}
+
+	uc.logChange(id, userID, "ASSIGN_CONSULTANT", sub.Status, newStatus, noteMsg)
 
 	consultant, _ := uc.UserRepo.FindByID(consultantID)
 	if consultant != nil {

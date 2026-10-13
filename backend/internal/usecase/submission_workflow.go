@@ -14,7 +14,7 @@ type SubmissionWorkflowUsecase interface {
 	Approve(id uuid.UUID, userID uuid.UUID, userRole string) error
 	ApproveWithDrafter(id uuid.UUID, userID uuid.UUID, userRole string, drafterID uuid.UUID) error
 	BulkApproveWithDrafter(ids []uuid.UUID, userID uuid.UUID, userRole string, drafterID uuid.UUID) error
-	AssignConsultant(id uuid.UUID, userID uuid.UUID, userRole string, consultantID uuid.UUID) error
+	AssignConsultant(id uuid.UUID, userID uuid.UUID, userRole string, consultantID uuid.UUID, reason ...string) error
 	Reject(id uuid.UUID, userID uuid.UUID, userRole string, input RejectInput) error
 	GetSubmissions(userID uuid.UUID, role string, filter map[string]interface{}) ([]domain.Submission, error)
 	GetSubmission(id uuid.UUID) (*domain.Submission, error)

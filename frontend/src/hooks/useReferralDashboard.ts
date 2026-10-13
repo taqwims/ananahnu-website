@@ -59,26 +59,34 @@ export const useReferralDashboard = () => {
         }
     }, [updateUser]);
 
+    const isOverride = (c: Commission) => c.type === 'OVERRIDE' || c.type === 'STRUCTURAL';
+
     const directSalesCommissions = useMemo(() => commissions.filter(c => c.type === 'DIRECT_SALES'), [commissions]);
     const referralCommissions = useMemo(() => commissions.filter(c => c.type === 'REFERRAL'), [commissions]);
-    const overrideSelfDeclareCommissions = useMemo(() => commissions.filter(c => c.type === 'OVERRIDE' && (c.submission?.service_type === 'SELF_DECLARE' || c.submission?.service_type === 'SELF_DECLARE_MANDIRI')), [commissions]);
-    const overrideRegulerCommissions = useMemo(() => commissions.filter(c => c.type === 'OVERRIDE' && c.submission?.service_type !== 'SELF_DECLARE' && c.submission?.service_type !== 'SELF_DECLARE_MANDIRI'), [commissions]);
+    const overrideSelfDeclareCommissions = useMemo(() => commissions.filter(c => isOverride(c) && (c.submission?.service_type === 'SELF_DECLARE' || c.submission?.service_type === 'SELF_DECLARE_MANDIRI')), [commissions]);
+    const overrideRegulerCommissions = useMemo(() => commissions.filter(c => isOverride(c) && c.submission?.service_type !== 'SELF_DECLARE' && c.submission?.service_type !== 'SELF_DECLARE_MANDIRI'), [commissions]);
 
     const directSalesStats = useMemo(() => {
         const totalIncentive = directSalesCommissions.reduce((sum, c) => sum + c.amount, 0);
+        const paidAmount = directSalesCommissions.filter(c => c.status === 'PAID').reduce((sum, c) => sum + c.amount, 0);
+        const pendingAmount = directSalesCommissions.filter(c => c.status === 'PENDING').reduce((sum, c) => sum + c.amount, 0);
         const paidCount = directSalesCommissions.filter(c => c.status === 'PAID').length;
         const pendingCount = directSalesCommissions.filter(c => c.status === 'PENDING').length;
-        return { totalIncentive, paidCount, pendingCount };
+        return { totalIncentive, paidAmount, pendingAmount, paidCount, pendingCount };
     }, [directSalesCommissions]);
 
     const referralStats = useMemo(() => {
         const totalIncentive = referralCommissions.reduce((sum, c) => sum + c.amount, 0);
+        const paidAmount = referralCommissions.filter(c => c.status === 'PAID').reduce((sum, c) => sum + c.amount, 0);
+        const pendingAmount = referralCommissions.filter(c => c.status === 'PENDING').reduce((sum, c) => sum + c.amount, 0);
         const paidCount = referralCommissions.filter(c => c.status === 'PAID').length;
         const pendingCount = referralCommissions.filter(c => c.status === 'PENDING').length;
         
         return {
             totalReferrals: referrals.length,
             totalIncentive,
+            paidAmount,
+            pendingAmount,
             paidCount,
             pendingCount
         };
@@ -86,16 +94,20 @@ export const useReferralDashboard = () => {
 
     const overrideSelfDeclareStats = useMemo(() => {
         const totalIncentive = overrideSelfDeclareCommissions.reduce((sum, c) => sum + c.amount, 0);
+        const paidAmount = overrideSelfDeclareCommissions.filter(c => c.status === 'PAID').reduce((sum, c) => sum + c.amount, 0);
+        const pendingAmount = overrideSelfDeclareCommissions.filter(c => c.status === 'PENDING').reduce((sum, c) => sum + c.amount, 0);
         const paidCount = overrideSelfDeclareCommissions.filter(c => c.status === 'PAID').length;
         const pendingCount = overrideSelfDeclareCommissions.filter(c => c.status === 'PENDING').length;
-        return { totalIncentive, paidCount, pendingCount };
+        return { totalIncentive, paidAmount, pendingAmount, paidCount, pendingCount };
     }, [overrideSelfDeclareCommissions]);
 
     const overrideRegulerStats = useMemo(() => {
         const totalIncentive = overrideRegulerCommissions.reduce((sum, c) => sum + c.amount, 0);
+        const paidAmount = overrideRegulerCommissions.filter(c => c.status === 'PAID').reduce((sum, c) => sum + c.amount, 0);
+        const pendingAmount = overrideRegulerCommissions.filter(c => c.status === 'PENDING').reduce((sum, c) => sum + c.amount, 0);
         const paidCount = overrideRegulerCommissions.filter(c => c.status === 'PAID').length;
         const pendingCount = overrideRegulerCommissions.filter(c => c.status === 'PENDING').length;
-        return { totalIncentive, paidCount, pendingCount };
+        return { totalIncentive, paidAmount, pendingAmount, paidCount, pendingCount };
     }, [overrideRegulerCommissions]);
 
     return {

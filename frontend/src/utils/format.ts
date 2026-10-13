@@ -50,8 +50,8 @@ export const formatDate = (dateStr: string) => {
 export const formatRoleName = (role: string): string => {
     if (!role) return '';
     const labels: Record<string, string> = {
-        'BUSINESS_DEVELOPMENT': 'Manager Marketing',
-        'MARKETING': 'Manager Marketing',
+        'BUSINESS_DEVELOPMENT': 'Agent Manager',
+        'MARKETING': 'Marketing',
         'DRAFT_MANAGER': 'Operasional Manager',
         'DRAFTER': 'HDO (Halal Documentation Officer)',
         'ADMIN_KEUANGAN': 'Finance',
@@ -77,5 +77,14 @@ export const formatWhatsAppUrl = (phone?: string, text?: string): string => {
     }
     const defaultText = text || "Halo HalalCore, saya ingin konsultasi mengenai pengurusan Sertifikat Halal.";
     return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(defaultText)}`;
+};
+
+export const maskPhone = (phone?: string): string => {
+    if (!phone) return '-';
+    const cleaned = phone.trim();
+    if (cleaned.length <= 6) return '****';
+    const start = cleaned.slice(0, 4);
+    const end = cleaned.slice(-4);
+    return `${start}****${end}`;
 };
 

@@ -99,6 +99,17 @@ class SubmissionService extends BaseService {
         }
     }
 
+    async updateAgentCoverage(userId: string, provinceId: number | null, regencyId: number | null = null): Promise<void> {
+        try {
+            await this.api.put(`/admin/users/${userId}/coverage`, {
+                province_id: provinceId,
+                regency_id: regencyId
+            });
+        } catch (error) {
+            this.handleError(error);
+        }
+    }
+
     async issueSH(id: string, shUrl: string): Promise<void> {
         try {
             await this.api.post(`/submissions/${id}/issue-sh`, { sh_url: shUrl });
@@ -156,9 +167,12 @@ class SubmissionService extends BaseService {
         }
     }
 
-    async assignConsultant(id: string, consultantId: string): Promise<void> {
+    async assignConsultant(id: string, consultantId: string, reason?: string): Promise<void> {
         try {
-            await this.api.post(`/submissions/${id}/assign-consultant`, { consultant_id: consultantId });
+            await this.api.post(`/submissions/${id}/assign-consultant`, { 
+                consultant_id: consultantId,
+                reason: reason || undefined
+            });
         } catch (error) {
             this.handleError(error);
         }

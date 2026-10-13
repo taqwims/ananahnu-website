@@ -95,7 +95,11 @@ func (r *submissionRepository) FindAll(filter map[string]interface{}) ([]domain.
 		Preload("Invoice").
 		Preload("Invoices").
 		Preload("Payments").
-		Preload("CostDetail")
+		Preload("Province").
+		Preload("Regency").
+		Preload("CostDetail").
+		Preload("CostDetail.Province").
+		Preload("CostDetail.Regency")
 	
 	if status, ok := filter["status"]; ok && status != "" {
 		db = db.Where("submissions.status = ?", status)
