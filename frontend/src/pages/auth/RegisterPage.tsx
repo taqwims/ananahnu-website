@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Mail, Lock, Phone, MapPin, Loader2, ArrowRight, ArrowLeft, CheckCircle2, ShieldCheck, Star, Eye, EyeOff, Store, UserCheck } from 'lucide-react';
+import { User, Mail, Lock, Phone, MapPin, Loader2, ArrowRight, ArrowLeft, CheckCircle2, ShieldCheck, Star, Eye, EyeOff, Store, UserCheck, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
 import Logo from '../../components/ui/Logo';
 import loginBg from '../../assets/login.png';
@@ -49,6 +49,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
@@ -58,7 +59,12 @@ export default function RegisterPage() {
     const [regencies, setRegencies] = useState<any[]>([]);
     const [currentStep, setCurrentStep] = useState(1);
 
-    const { register, handleSubmit, watch, setValue, trigger, formState: { errors } } = useForm<RegisterFormValues>({
+    // Referral lookup state
+    const [referralInfo, setReferralInfo] = useState<any | null>(null);
+    const [referralLoading, setReferralLoading] = useState(false);
+    const [referralError, setReferralError] = useState('');
+
+    const { register, handleSubmit, watch, setValue, trigger, setError: setFormError, formState: { errors } } = useForm<RegisterFormValues>({
         resolver: zodResolver(registerSchema),
         defaultValues: {
             role: 'HALAL_ADVISOR',
@@ -69,6 +75,61 @@ export default function RegisterPage() {
 
     const selectedRole = watch('role');
     const selectedProvince = watch('province_id');
+    const watchedReferral = watch('referral_code');
+    const watchedPassword = watch('password');
+    const watchedConfirmPassword = watch('confirm_password');
+    const passwordsMismatch = Boolean(watchedPassword && watchedConfirmPassword && watchedPassword !== watchedConfirmPassword);
+    const passwordsMatch = Boolean(watchedPassword && watchedConfirmPassword && watchedPassword === watchedConfirmPassword);
+
+    const checkReferralCode = async (code: string) => {
+        const trimmed = code.trim();
+        if (!trimmed) {
+            setReferralInfo(null);
+            setReferralError('');
+            return;
+        }
+        setReferralLoading(true);
+        setReferralError('');
+        try {
+            const res = await api.get(`/auth/advisors/lookup?code=${encodeURIComponent(trimmed)}`);
+            setReferralInfo(res.data);
+            setReferralError('');
+        } catch (err: any) {
+            setReferralInfo(null);
+            setReferralError(err.response?.data?.error || 'Kode referral tidak valid atau tidak terdaftar');
+        } finally {
+            setReferralLoading(false);
+        }
+    };
+
+    // Auto-detect referral parameter from URL (?ref=... or ?referral=...)
+    useEffect(() => {
+        const refCode = searchParams.get('ref') || searchParams.get('referral');
+        if (refCode) {
+            setValue('referral_code', refCode.trim().toUpperCase());
+            checkReferralCode(refCode.trim());
+        }
+    }, [searchParams, setValue]);
+
+    // Debounced referral lookup when typing
+    useEffect(() => {
+        if (selectedRole !== 'HALAL_ADVISOR') {
+            setReferralInfo(null);
+            setReferralError('');
+            return;
+        }
+        if (!watchedReferral || watchedReferral.trim().length < 3) {
+            setReferralInfo(null);
+            setReferralError('');
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            checkReferralCode(watchedReferral);
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [watchedReferral, selectedRole]);
 
     useEffect(() => {
         api.get('/geography/provinces').then(res => setProvinces(res.data || []));
@@ -85,12 +146,37 @@ export default function RegisterPage() {
 
     const nextStep = async () => {
         let fieldsToValidate: (keyof RegisterFormValues)[] = [];
-        if (currentStep === 1) fieldsToValidate = ['full_name', 'email', 'password', 'confirm_password', 'role'];
+        if (currentStep === 1) {
+            fieldsToValidate = ['full_name', 'email', 'password', 'confirm_password', 'role'];
+            const pwd = watch('password');
+            const cpwd = watch('confirm_password');
+            if (pwd && cpwd && pwd !== cpwd) {
+                setFormError('confirm_password', {
+                    type: 'manual',
+                    message: 'Konfirmasi password tidak cocok dengan password'
+                });
+                return;
+            }
+        }
         if (currentStep === 2) {
             fieldsToValidate = selectedRole === 'HALAL_ADVISOR' ? ['phone', 'referral_code'] : ['phone'];
+            if (selectedRole === 'HALAL_ADVISOR' && referralError) {
+                return;
+            }
         }
 
         const isStepValid = await trigger(fieldsToValidate);
+        if (currentStep === 1) {
+            const pwd = watch('password');
+            const cpwd = watch('confirm_password');
+            if (pwd !== cpwd) {
+                setFormError('confirm_password', {
+                    type: 'manual',
+                    message: 'Konfirmasi password tidak cocok dengan password'
+                });
+                return;
+            }
+        }
         if (isStepValid) setCurrentStep(prev => prev + 1);
     };
 
@@ -100,8 +186,7 @@ export default function RegisterPage() {
         setIsLoading(true);
         setError('');
         try {
-            // Strip confirm_password & agreed_privacy — backend tidak mengharapkan field ini
-            const { confirm_password: _omit, agreed_privacy: _omitPrivacy, ...payload } = data;
+            const { agreed_privacy: _omitPrivacy, ...payload } = data;
             if (payload.role === 'CLIENT') {
                 delete payload.referral_code;
             }
@@ -378,14 +463,23 @@ export default function RegisterPage() {
                                             {errors.password && <p className="text-red-500 text-[10px] mt-2 font-bold ml-1">{errors.password.message}</p>}
                                         </div>
                                         <div>
-                                            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">Konfirmasi <span className="text-red-500">*</span></label>
+                                            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                                                Konfirmasi Password <span className="text-red-500">*</span>
+                                            </label>
                                             <div className="relative group">
-                                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 group-focus-within:text-brand-600 transition-colors" />
+                                                <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${
+                                                    passwordsMismatch ? 'text-rose-500' :
+                                                    passwordsMatch ? 'text-emerald-500' :
+                                                    'text-gray-400 group-focus-within:text-brand-600'
+                                                }`} />
                                                 <input
                                                     {...register('confirm_password')}
                                                     type={showPassword ? "text" : "password"}
                                                     placeholder="••••••••"
-                                                    className="glass-input pl-12 pr-12 h-14 bg-white/50"
+                                                    className={`glass-input pl-12 pr-12 h-14 bg-white/50 transition-all ${
+                                                        passwordsMismatch ? 'border-rose-400 focus:border-rose-500 ring-2 ring-rose-100' :
+                                                        passwordsMatch ? 'border-emerald-400 focus:border-emerald-500 ring-2 ring-emerald-100' : ''
+                                                    }`}
                                                 />
                                                 <button
                                                     type="button"
@@ -395,7 +489,23 @@ export default function RegisterPage() {
                                                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                                 </button>
                                             </div>
-                                            {errors.confirm_password && <p className="text-red-500 text-[10px] mt-2 font-bold ml-1">{errors.confirm_password.message}</p>}
+
+                                            {/* Validator Notification */}
+                                            {passwordsMismatch && (
+                                                <div className="flex items-center gap-1.5 text-rose-500 text-xs font-bold mt-2 ml-1">
+                                                    <AlertCircle className="w-4 h-4 shrink-0" />
+                                                    <span>Konfirmasi password tidak sama dengan password</span>
+                                                </div>
+                                            )}
+                                            {passwordsMatch && (
+                                                <div className="flex items-center gap-1.5 text-emerald-600 text-xs font-bold mt-2 ml-1">
+                                                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                                                    <span>Password dan konfirmasi cocok</span>
+                                                </div>
+                                            )}
+                                            {!passwordsMismatch && !passwordsMatch && errors.confirm_password && (
+                                                <p className="text-red-500 text-[10px] mt-2 font-bold ml-1">{errors.confirm_password.message}</p>
+                                            )}
                                         </div>
                                     </div>
                                 </motion.div>
@@ -419,14 +529,57 @@ export default function RegisterPage() {
                                     </div>
 
                                     {selectedRole === 'HALAL_ADVISOR' && (
-                                        <div>
-                                            <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">Kode Referral <span className="text-red-500">*wajib</span></label>
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <label className="block text-[11px] font-black text-gray-500 uppercase tracking-widest">
+                                                    Kode Referral Halal Manager <span className="text-red-500">*wajib</span>
+                                                </label>
+                                                {referralLoading && (
+                                                    <span className="flex items-center gap-1 text-[11px] font-bold text-brand-600">
+                                                        <Loader2 className="w-3 h-3 animate-spin" /> Memeriksa...
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className="relative group">
                                                 <Star className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 group-focus-within:text-brand-600 transition-colors" />
-                                                <input {...register('referral_code')} placeholder="Masukkan kode referral rekan Anda" className="glass-input pl-12 h-14 bg-white/50" />
+                                                <input 
+                                                    {...register('referral_code')} 
+                                                    placeholder="Contoh: HM-10293 atau kode Halal Manager Anda" 
+                                                    className="glass-input pl-12 h-14 bg-white/50 uppercase font-mono font-bold tracking-wider" 
+                                                />
                                             </div>
-                                            {errors.referral_code && <p className="text-red-500 text-[10px] mt-2 font-bold ml-1">{errors.referral_code.message}</p>}
-                                            <p className="text-[10px] text-gray-400 mt-2 font-medium ml-1">Gunakan kode referral dari Halal Manager / Coordinator yang merekrut Anda.</p>
+                                            {errors.referral_code && <p className="text-red-500 text-[10px] mt-1 font-bold ml-1">{errors.referral_code.message}</p>}
+                                            {referralError && (
+                                                <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-red-600 text-xs font-semibold">
+                                                    <AlertCircle className="w-4 h-4 shrink-0" />
+                                                    <span>{referralError}</span>
+                                                </div>
+                                            )}
+                                            {referralInfo && (
+                                                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 shadow-sm">
+                                                    <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                                                        <UserCheck className="w-5 h-5" />
+                                                    </div>
+                                                    <div className="text-left flex-1 min-w-0">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-xs font-black text-emerald-900 truncate">
+                                                                {referralInfo.is_manager ? referralInfo.full_name : `${referralInfo.full_name}`}
+                                                            </span>
+                                                            <span className="px-1.5 py-0.5 bg-emerald-200 text-emerald-800 text-[9px] font-bold rounded">
+                                                                {referralInfo.is_manager ? 'Halal Manager' : 'Halal Advisor'}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-[11px] text-emerald-700 font-medium">
+                                                            {referralInfo.is_manager 
+                                                                ? '✓ Siap bergabung di tim Halal Manager ini' 
+                                                                : `✓ Halal Manager: ${referralInfo.manager_name || 'Terhubung'}`}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <p className="text-[10px] text-gray-400 font-medium ml-1">
+                                                Sebagai Halal Advisor baru, Anda wajib mendaftar melalui kode referral Halal Manager pembina Anda.
+                                            </p>
                                         </div>
                                     )}
 

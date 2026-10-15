@@ -12,7 +12,8 @@ interface TrainingFormModalProps {
     onSave: () => void;
     onClose: () => void;
     saving: boolean;
-    isCoordinator: boolean;
+    isCoordinator?: boolean;
+    isEdit?: boolean;
 }
 
 export const TrainingFormModal = ({
@@ -21,7 +22,8 @@ export const TrainingFormModal = ({
     onSave,
     onClose,
     saving,
-    isCoordinator
+    isCoordinator,
+    isEdit
 }: TrainingFormModalProps) => {
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -35,9 +37,13 @@ export const TrainingFormModal = ({
 
                 <div>
                     <h3 className="text-xl font-black text-gray-900 tracking-tight">
-                        {isCoordinator ? 'Ajukan Pelatihan Baru' : 'Buat Pelatihan Baru'}
+                        {isEdit ? 'Ubah Jadwal & Data Pelatihan' : (isCoordinator ? 'Ajukan Pelatihan Baru' : 'Buat Pelatihan Baru')}
                     </h3>
-                    <p className="text-xs text-gray-500 mt-1 font-medium">Lengkapi detail agenda pelatihan di bawah ini.</p>
+                    <p className="text-xs text-gray-500 mt-1 font-medium">
+                        {isEdit 
+                            ? 'Perbarui jadwal tanggal atau lokasi pelaksanaan. Notifikasi WA pembaruan jadwal akan dikirimkan otomatis ke peserta terdaftar.' 
+                            : 'Lengkapi detail agenda pelatihan di bawah ini.'}
+                    </p>
                 </div>
 
                 <div className="space-y-4">
@@ -103,7 +109,7 @@ export const TrainingFormModal = ({
                         className="px-8 py-2.5 bg-brand-600 text-white rounded-xl font-bold shadow-lg shadow-brand-100 hover:bg-brand-700 disabled:opacity-50 transition-all flex items-center gap-2"
                     >
                         {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                        {isCoordinator ? 'Ajukan Sekarang' : 'Simpan Pelatihan'}
+                        {isEdit ? 'Simpan Perubahan Jadwal' : (isCoordinator ? 'Ajukan Sekarang' : 'Simpan Pelatihan')}
                     </button>
                 </div>
             </div>

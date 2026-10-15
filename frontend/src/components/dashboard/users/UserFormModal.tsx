@@ -1,6 +1,7 @@
 import Modal from '../../ui/Modal';
 import type { Role, User } from '../../../types';
 import { formatRoleName } from '../../../utils/format';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface UserFormModalProps {
     isOpen: boolean;
@@ -77,6 +78,38 @@ export const UserFormModal = ({
                             placeholder={editingUser ? 'Kosongkan jika tidak diubah' : 'Kosongkan untuk generate otomatis'}
                         />
                     </div>
+                    {formData.password && (
+                        <div>
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                                Konfirmasi Password
+                            </label>
+                            <input
+                                className={`glass-input w-full transition-all ${
+                                    formData.confirm_password && formData.password !== formData.confirm_password
+                                        ? 'border-rose-400 focus:border-rose-500 ring-2 ring-rose-100'
+                                        : formData.confirm_password && formData.password === formData.confirm_password
+                                        ? 'border-emerald-400 focus:border-emerald-500 ring-2 ring-emerald-100'
+                                        : ''
+                                }`}
+                                type="text"
+                                value={formData.confirm_password || ''}
+                                onChange={e => setFormData({ ...formData, confirm_password: e.target.value })}
+                                placeholder="Ketik ulang password untuk konfirmasi"
+                            />
+                            {formData.confirm_password && formData.password !== formData.confirm_password && (
+                                <p className="text-rose-500 text-xs font-bold mt-1.5 flex items-center gap-1.5">
+                                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                    <span>Konfirmasi password tidak sama dengan password</span>
+                                </p>
+                            )}
+                            {formData.confirm_password && formData.password === formData.confirm_password && (
+                                <p className="text-emerald-600 text-xs font-bold mt-1.5 flex items-center gap-1.5">
+                                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                                    <span>Password dan konfirmasi cocok</span>
+                                </p>
+                            )}
+                        </div>
+                    )}
                     <div>
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Role</label>
                         <select
@@ -105,7 +138,7 @@ export const UserFormModal = ({
                                     .filter(c => {
                                         const rName = typeof c.role === 'string' ? c.role : (c.role as any)?.name;
                                         if (formData.role === 'HALAL_MANAGER') {
-                                            return rName === 'HALAL_DIRECTOR';
+                                             return rName === 'HALAL_DIRECTOR';
                                         }
                                         return rName === 'HALAL_MANAGER';
                                     })
@@ -121,7 +154,13 @@ export const UserFormModal = ({
                     <button onClick={onClose}
                         className="px-4 py-2 text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors">Batal</button>
                     <button onClick={onSave}
-                        disabled={saving || !formData.full_name || !formData.email || !formData.role}
+                        disabled={
+                            saving || 
+                            !formData.full_name || 
+                            !formData.email || 
+                            !formData.role ||
+                            (Boolean(formData.password) && (!formData.confirm_password || formData.password !== formData.confirm_password))
+                        }
                         className="px-8 py-3 bg-brand-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-brand-100 hover:bg-brand-700 disabled:opacity-30 transition-all">
                         {saving ? 'Menyimpan...' : (editingUser ? 'Simpan Perubahan' : 'Buat User Baru')}
                     </button>

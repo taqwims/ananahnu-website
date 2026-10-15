@@ -19,7 +19,7 @@ func NewTrainingRepository(db *gorm.DB) domain.TrainingRepository {
 
 func (r *trainingRepository) FindAll(filter map[string]interface{}) ([]domain.Training, error) {
 	var trainings []domain.Training
-	query := r.db.Preload("Proposer").Order("start_date DESC")
+	query := r.db.Preload("Proposer").Preload("Approver").Preload("Rejector").Order("start_date DESC")
 	
 	if status, ok := filter["status"]; ok {
 		query = query.Where("status = ?", status)
@@ -37,7 +37,7 @@ func (r *trainingRepository) FindAll(filter map[string]interface{}) ([]domain.Tr
 
 func (r *trainingRepository) FindByID(id int64) (*domain.Training, error) {
 	var training domain.Training
-	if err := r.db.Preload("Proposer").Preload("Participants.User").First(&training, id).Error; err != nil {
+	if err := r.db.Preload("Proposer").Preload("Approver").Preload("Rejector").Preload("Participants.User").First(&training, id).Error; err != nil {
 		return nil, err
 	}
 	return &training, nil
@@ -51,12 +51,23 @@ func (r *trainingRepository) Update(training *domain.Training) error {
 	return r.db.Save(training).Error
 }
 
-func (r *trainingRepository) UpdateStatus(id int64, status string, reason string) error {
+func (r *trainingRepository) UpdateStatus(id int64, status string, reason string, actorID *uuid.UUID) error {
 	updates := map[string]interface{}{
 		"status": status,
 	}
-	if reason != "" {
-		updates["rejected_reason"] = reason
+	if status == "APPROVED" {
+		updates["approved_at"] = gorm.Expr("NOW()")
+		if actorID != nil {
+			updates["approved_by"] = actorID
+		}
+	} else if status == "REJECTED" {
+		updates["rejected_at"] = gorm.Expr("NOW()")
+		if actorID != nil {
+			updates["rejected_by"] = actorID
+		}
+		if reason != "" {
+			updates["rejected_reason"] = reason
+		}
 	}
 	return r.db.Model(&domain.Training{}).Where("id = ?", id).Updates(updates).Error
 }

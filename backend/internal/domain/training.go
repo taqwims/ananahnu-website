@@ -17,6 +17,12 @@ type Training struct {
 	Status         string                `gorm:"default:'APPROVED'" json:"status"` // PENDING, APPROVED, REJECTED
 	ProposedBy     *uuid.UUID            `gorm:"type:uuid" json:"proposed_by,omitempty"`
 	Proposer       *User                 `gorm:"foreignKey:ProposedBy" json:"proposer,omitempty"`
+	ApprovedBy     *uuid.UUID            `gorm:"type:uuid" json:"approved_by,omitempty"`
+	Approver       *User                 `gorm:"foreignKey:ApprovedBy" json:"approver,omitempty"`
+	ApprovedAt     *time.Time            `json:"approved_at,omitempty"`
+	RejectedBy     *uuid.UUID            `gorm:"type:uuid" json:"rejected_by,omitempty"`
+	Rejector       *User                 `gorm:"foreignKey:RejectedBy" json:"rejector,omitempty"`
+	RejectedAt     *time.Time            `json:"rejected_at,omitempty"`
 	RejectedReason string                `json:"rejected_reason,omitempty"`
 	Participants   []TrainingParticipant `gorm:"foreignKey:TrainingID" json:"participants,omitempty"`
 	CreatedAt      time.Time             `json:"created_at"`
@@ -40,7 +46,7 @@ type TrainingRepository interface {
 	FindByID(id int64) (*Training, error)
 	Create(training *Training) error
 	Update(training *Training) error
-	UpdateStatus(id int64, status string, reason string) error
+	UpdateStatus(id int64, status string, reason string, approverID *uuid.UUID) error
 	Delete(id int64) error
 }
 

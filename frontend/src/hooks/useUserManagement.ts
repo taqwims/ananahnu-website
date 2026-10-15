@@ -27,6 +27,7 @@ export const useUserManagement = () => {
         role: '', 
         leader_id: '', 
         password: '', 
+        confirm_password: '',
         phone: '', 
         address: '' 
     });
@@ -85,7 +86,7 @@ export const useUserManagement = () => {
 
     const openCreate = () => {
         setEditingUser(null);
-        setFormData({ full_name: '', email: '', role: '', leader_id: '', password: '', phone: '', address: '' });
+        setFormData({ full_name: '', email: '', role: '', leader_id: '', password: '', confirm_password: '', phone: '', address: '' });
         setGeneratedPassword('');
         setShowModal(true);
     };
@@ -103,6 +104,7 @@ export const useUserManagement = () => {
             role: getRoleName(user.role),
             leader_id: user.leader_id || '',
             password: '',
+            confirm_password: '',
             phone: user.phone || '',
             address: user.address || '',
         });
@@ -111,6 +113,10 @@ export const useUserManagement = () => {
     };
 
     const handleSave = async () => {
+        if (formData.password && formData.password !== formData.confirm_password) {
+            toast.error('Konfirmasi password tidak cocok dengan password');
+            return;
+        }
         setSaving(true);
         try {
             const payload = {

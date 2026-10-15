@@ -300,6 +300,7 @@ func main() {
 		PromotionRepo:   promotionRepo,
 		CommissionRepo:  commissionRepo,
 		RoleRepo:        roleRepo,
+		NotifUC:         notificationUC,
 	})
 	consultantUC := usecase.NewConsultantUsecase(usecase.ConsultantUsecaseDeps{
 		ProfileRepo:    consultantRepo,

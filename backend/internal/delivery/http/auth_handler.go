@@ -168,12 +168,24 @@ func (h *AuthHandler) LookupAdvisor(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	resp := gin.H{
 		"id":            advisor.ID,
 		"full_name":     advisor.FullName,
 		"referral_code": advisor.ReferralCode,
 		"role":          advisor.Role.Name,
 		"phone":         advisor.Phone,
 		"avatar_url":    advisor.AvatarURL,
-	})
+	}
+
+	isManager := advisor.Role.Name == "HALAL_MANAGER" || advisor.Role.Name == "HALAL_DIRECTOR"
+	resp["is_manager"] = isManager
+	if isManager {
+		resp["manager_name"] = advisor.FullName
+		resp["manager_id"] = advisor.ID
+	} else if advisor.Leader != nil {
+		resp["manager_name"] = advisor.Leader.FullName
+		resp["manager_id"] = advisor.Leader.ID
+	}
+
+	c.JSON(http.StatusOK, resp)
 }

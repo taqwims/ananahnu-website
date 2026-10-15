@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Loader2, Clock, Users, Search, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, Loader2, Clock, Users, Search, CheckCircle, XCircle, AlertCircle, RefreshCw, Send, Trash2 } from 'lucide-react';
 import type { TrainingParticipant } from '../../../types';
 
 interface ParticipantManagementProps {
@@ -10,7 +10,12 @@ interface ParticipantManagementProps {
     setNewUserId: (id: string) => void;
     onAdd: () => void;
     onUpdateStatus: (userId: string, status: string) => void;
+    onResendSchedule?: (userId: string) => void;
+    onBroadcastSchedule?: () => void;
+    broadcasting?: boolean;
+    onRemoveParticipant?: (participantId: number, userName?: string) => void;
     canGraduate?: boolean;
+    canManageParticipants?: boolean;
     isExpired?: boolean;
 }
 
@@ -24,7 +29,12 @@ export const ParticipantManagement = ({
     setNewUserId,
     onAdd,
     onUpdateStatus,
+    onResendSchedule,
+    onBroadcastSchedule,
+    broadcasting,
+    onRemoveParticipant,
     canGraduate,
+    canManageParticipants = true,
     isExpired
 }: ParticipantManagementProps) => {
     const [search, setSearch] = useState('');
@@ -35,6 +45,9 @@ export const ParticipantManagement = ({
     const countPeserta = participants.filter(p => p.status === 'PESERTA' || !p.status).length;
     const countLulus = participants.filter(p => p.status === 'LULUS').length;
     const countTidakLulus = participants.filter(p => p.status === 'TIDAK_LULUS').length;
+
+    // Filter available advisors: users who are not yet participants in this batch
+    const availableUsers = allUsers.filter(u => !participants.some(p => p.user_id === u.id));
 
     // Filter logic
     const filteredParticipants = participants.filter(p => {
@@ -58,12 +71,27 @@ export const ParticipantManagement = ({
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
-                    <Users className="w-5 h-5 text-brand-600" /> Riwayat & Kelola Peserta Pelatihan
-                </h3>
-                <div className="text-xs text-gray-500 font-medium">
-                    Total: <span className="font-bold text-gray-800">{countAll} Peserta</span> ({countLulus} Lulus, {countTidakLulus} Tidak Lulus)
+                <div>
+                    <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                        <Users className="w-5 h-5 text-brand-600" /> Riwayat & Kelola Peserta Pelatihan
+                    </h3>
+                    <div className="text-xs text-gray-500 font-medium mt-0.5">
+                        Total: <span className="font-bold text-gray-800">{countAll} Peserta</span> ({countLulus} Lulus, {countTidakLulus} Tidak Lulus)
+                    </div>
                 </div>
+
+                {/* Bulk WA Broadcast Button */}
+                {onBroadcastSchedule && participants.length > 0 && (
+                    <button
+                        onClick={onBroadcastSchedule}
+                        disabled={broadcasting}
+                        title="Kirim pesan jadwal pelatihan ke seluruh peserta terdaftar via WhatsApp"
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-md shadow-emerald-200 disabled:opacity-50 shrink-0"
+                    >
+                        {broadcasting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        <span>{broadcasting ? 'Mengirim Broadcast...' : `Kirim WA ke Semua (${participants.length} Peserta)`}</span>
+                    </button>
+                )}
             </div>
 
             {/* Add Participant Form */}
@@ -78,21 +106,28 @@ export const ParticipantManagement = ({
                     <div className="flex flex-col sm:flex-row gap-2">
                         <div className="flex-1">
                             <select
-                                className="glass-input text-sm w-full bg-white"
+                                className="glass-input text-sm w-full bg-white disabled:bg-gray-100 disabled:text-gray-400"
                                 value={newUserId}
                                 onChange={e => setNewUserId(e.target.value)}
+                                disabled={availableUsers.length === 0}
                             >
-                                <option value="">-- Pilih Advisor Terdaftar --</option>
-                                {allUsers.map(u => (
-                                    <option key={u.id} value={u.id}>
-                                        {u.full_name} ({u.email})
-                                    </option>
-                                ))}
+                                {availableUsers.length === 0 ? (
+                                    <option value="">-- Semua advisor yang memenuhi syarat sudah ditambahkan --</option>
+                                ) : (
+                                    <>
+                                        <option value="">-- Pilih Advisor Terdaftar ({availableUsers.length} tersedia) --</option>
+                                        {availableUsers.map(u => (
+                                            <option key={u.id} value={u.id}>
+                                                {u.full_name} ({u.email})
+                                            </option>
+                                        ))}
+                                    </>
+                                )}
                             </select>
                         </div>
                         <button 
                             onClick={onAdd} 
-                            disabled={!newUserId}
+                            disabled={!newUserId || availableUsers.length === 0}
                             className="px-5 py-2.5 bg-brand-600 text-white rounded-xl text-xs font-bold hover:bg-brand-700 disabled:opacity-50 transition flex items-center justify-center gap-1.5 shadow-md shadow-brand-100"
                         >
                             <Plus className="w-4 h-4" /> Tambah Peserta
@@ -212,16 +247,28 @@ export const ParticipantManagement = ({
                                     )}
                                 </div>
 
-                                {canGraduate && (
-                                    <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0">
-                                        {isPeserta && (
-                                            <>
-                                                <button
-                                                    onClick={() => onUpdateStatus(p.user_id, 'LULUS')}
-                                                    className="px-3.5 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition shadow-sm flex items-center gap-1"
-                                                >
-                                                    <CheckCircle className="w-3.5 h-3.5" /> Luluskan
-                                                </button>
+                                <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0">
+                                    {onResendSchedule && (
+                                        <button
+                                            onClick={() => onResendSchedule(p.user_id)}
+                                            title="Kirim / kirim ulang jadwal pelatihan via WhatsApp"
+                                            className="px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                                        >
+                                            <Send className="w-3.5 h-3.5 text-emerald-600" />
+                                            <span>Kirim WA</span>
+                                        </button>
+                                    )}
+
+                                    {canGraduate && (
+                                        <>
+                                            {isPeserta && (
+                                                <>
+                                                    <button
+                                                        onClick={() => onUpdateStatus(p.user_id, 'LULUS')}
+                                                        className="px-3.5 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition shadow-sm flex items-center gap-1"
+                                                    >
+                                                        <CheckCircle className="w-3.5 h-3.5" /> Luluskan
+                                                    </button>
                                                 <button
                                                     onClick={() => onUpdateStatus(p.user_id, 'TIDAK_LULUS')}
                                                     className="px-3.5 py-1.5 bg-rose-50 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold hover:bg-rose-100 transition flex items-center gap-1"
@@ -256,8 +303,20 @@ export const ParticipantManagement = ({
                                                 <RefreshCw className="w-3.5 h-3.5" /> Batal Lulus
                                             </button>
                                         )}
-                                    </div>
-                                )}
+                                        </>
+                                    )}
+
+                                    {onRemoveParticipant && canManageParticipants && (
+                                        <button
+                                            onClick={() => onRemoveParticipant(p.id, p.user?.full_name)}
+                                            title="Batalkan keikutsertaan peserta dari pelatihan ini"
+                                            className="px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-sm"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                            <span>Batalkan</span>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         );
                     })}

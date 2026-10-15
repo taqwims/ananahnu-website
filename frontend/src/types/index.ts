@@ -219,6 +219,12 @@ export interface Training {
     status: 'PENDING' | 'APPROVED' | 'REJECTED';
     proposed_by?: string;
     proposer?: User;
+    approved_by?: string;
+    approver?: User;
+    approved_at?: string;
+    rejected_by?: string;
+    rejector?: User;
+    rejected_at?: string;
     rejected_reason?: string;
     participants?: TrainingParticipant[];
     created_at: string;

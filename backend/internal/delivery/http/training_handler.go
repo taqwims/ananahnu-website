@@ -6,6 +6,7 @@ import (
 	"ananahnu/internal/usecase"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -35,8 +36,11 @@ func NewTrainingHandler(r *gin.Engine, uc usecase.TrainingUsecase) {
 
 		// Participants
 		g.POST("/:id/participants", writeRoles, handler.AddParticipant)
+		g.POST("/:id/participants/:userId/resend-schedule", writeRoles, handler.ResendParticipantSchedule)
+		g.POST("/:id/broadcast-schedule", writeRoles, handler.BroadcastTrainingSchedule)
 		g.PUT("/:id/participants/:userId", middleware.RoleMiddleware("DIRECTOR", "MANAGER", "ADMIN_PELATIHAN"), handler.UpdateParticipantStatus)
 		g.DELETE("/participants/:participantId", writeRoles, handler.RemoveParticipant)
+		g.DELETE("/:id/participants/:participantId", writeRoles, handler.RemoveParticipant)
 
 		// List users available to be added as participants (HALAL_ADVISOR)
 		g.GET("/available-participants", writeRoles, handler.ListAvailableParticipants)
@@ -89,6 +93,9 @@ func (h *TrainingHandler) CreateTraining(c *gin.Context) {
 		input.ProposedBy = &userID
 	case "ADMIN_PELATIHAN", "MANAGER", "DIRECTOR":
 		input.Status = "APPROVED"
+		input.ApprovedBy = &userID
+		now := time.Now()
+		input.ApprovedAt = &now
 	default:
 		c.JSON(http.StatusForbidden, gin.H{"error": "only coordinator or admin can create training"})
 		return
@@ -118,11 +125,25 @@ func (h *TrainingHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	if err := h.trainingUC.UpdateTrainingStatus(id, input.Status, input.Reason); err != nil {
+	actorUserID := middleware.GetUserID(c)
+	if err := h.trainingUC.UpdateTrainingStatus(id, input.Status, input.Reason, &actorUserID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "status updated"})
+}
+
+func (h *TrainingHandler) BroadcastTrainingSchedule(c *gin.Context) {
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	count, err := h.trainingUC.BroadcastTrainingSchedule(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "Jadwal pelatihan berhasil dikirim ke seluruh peserta",
+		"sent_count": count,
+	})
 }
 
 func (h *TrainingHandler) UpdateTraining(c *gin.Context) {
@@ -182,6 +203,20 @@ func (h *TrainingHandler) AddParticipant(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "participant added"})
 }
 
+func (h *TrainingHandler) ResendParticipantSchedule(c *gin.Context) {
+	trainingID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	userID, err := uuid.Parse(c.Param("userId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
+		return
+	}
+	if err := h.trainingUC.ResendParticipantSchedule(trainingID, userID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "jadwal pelatihan berhasil dikirim ulang ke peserta"})
+}
+
 func (h *TrainingHandler) UpdateParticipantStatus(c *gin.Context) {
 	trainingID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	userID, err := uuid.Parse(c.Param("userId"))
@@ -230,6 +265,7 @@ func (h *TrainingHandler) GetUserTrainings(c *gin.Context) {
 // Accessible by ADMIN_PELATIHAN, MANAGER, DIRECTOR, HALAL_MANAGER.
 func (h *TrainingHandler) ListAvailableParticipants(c *gin.Context) {
 	search := c.Query("search")
+	trainingID, _ := strconv.ParseInt(c.Query("training_id"), 10, 64)
 	userIDVal, existsUserID := c.Get("userID")
 	roleVal, existsRole := c.Get("role")
 
@@ -247,7 +283,7 @@ func (h *TrainingHandler) ListAvailableParticipants(c *gin.Context) {
 		}
 	}
 
-	users, err := h.trainingUC.GetAvailableParticipants(search, userID, role)
+	users, err := h.trainingUC.GetAvailableParticipants(search, userID, role, trainingID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

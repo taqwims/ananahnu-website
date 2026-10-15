@@ -25,15 +25,16 @@ type AuthUsecase interface {
 }
 
 type RegisterInput struct {
-	FullName     string `json:"full_name" binding:"required"`
-	Email        string `json:"email" binding:"required,email"`
-	Password     string `json:"password" binding:"required,min=6"`
-	Role         string `json:"role" binding:"required"` // "HALAL_ADVISOR"
-	Address       string     `json:"address" binding:"required"`
-	Phone         string     `json:"phone" binding:"required"`
-	ProvinceID    string     `json:"province_id" binding:"required"`
-	RegencyID     string     `json:"regency_id" binding:"required"`
-	ReferralCode string `json:"referral_code"`
+	FullName        string `json:"full_name" binding:"required"`
+	Email           string `json:"email" binding:"required,email"`
+	Password        string `json:"password" binding:"required,min=6"`
+	ConfirmPassword string `json:"confirm_password"`
+	Role            string `json:"role" binding:"required"` // "HALAL_ADVISOR"
+	Address         string `json:"address" binding:"required"`
+	Phone           string `json:"phone" binding:"required"`
+	ProvinceID      string `json:"province_id" binding:"required"`
+	RegencyID       string `json:"regency_id" binding:"required"`
+	ReferralCode    string `json:"referral_code"`
 }
 
 type GenerateAccountInput struct {
@@ -101,6 +102,11 @@ func (uc *authUsecase) Login(email, password string) (string, string, *domain.Us
 }
 
 func (uc *authUsecase) Register(input RegisterInput) error {
+	// 0. Validate Confirm Password if provided
+	if input.ConfirmPassword != "" && input.Password != input.ConfirmPassword {
+		return errors.New("konfirmasi password tidak cocok dengan password")
+	}
+
 	// 1. Validate Role
 	if input.Role != "HALAL_ADVISOR" && input.Role != "CLIENT" {
 		return errors.New("invalid role for registration")
@@ -131,21 +137,32 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 	var leaderID *uuid.UUID
 
 	if input.Role == "HALAL_ADVISOR" {
-		if input.ReferralCode == "" {
-			return errors.New("kode referral wajib diisi")
+		cleanRefCode := strings.TrimSpace(input.ReferralCode)
+		if cleanRefCode == "" {
+			return errors.New("kode referral Halal Manager wajib diisi untuk pendaftaran Halal Advisor")
 		}
-		referrer, err := uc.UserRepo.FindByReferralCode(input.ReferralCode)
+		referrer, err := uc.UserRepo.FindByReferralCode(cleanRefCode)
 		if err != nil || referrer == nil {
-			return errors.New("kode referral tidak valid")
+			return errors.New("kode referral tidak valid atau tidak ditemukan")
 		}
-		referredByID = &referrer.ID
-		if referrer.Role.Name == "HALAL_ADVISOR" && referrer.LeaderID != nil {
-			leaderID = referrer.LeaderID
-		} else {
+
+		roleName := referrer.Role.Name
+		if roleName == "HALAL_MANAGER" || roleName == "HALAL_DIRECTOR" {
+			referredByID = &referrer.ID
 			leaderID = &referrer.ID
+		} else if roleName == "HALAL_ADVISOR" {
+			if referrer.LeaderID != nil {
+				referredByID = &referrer.ID
+				leaderID = referrer.LeaderID
+			} else {
+				return errors.New("kode referral tidak valid: Halal Advisor ini belum terhubung ke Halal Manager")
+			}
+		} else {
+			return errors.New("kode referral tidak valid: kode referral harus milik Halal Manager atau Halal Advisor binaannya")
 		}
 	} else if input.Role == "CLIENT" && input.ReferralCode != "" {
-		referrer, err := uc.UserRepo.FindByReferralCode(input.ReferralCode)
+		cleanRefCode := strings.TrimSpace(input.ReferralCode)
+		referrer, err := uc.UserRepo.FindByReferralCode(cleanRefCode)
 		if err == nil && referrer != nil {
 			referredByID = &referrer.ID
 			if referrer.Role.Name == "HALAL_ADVISOR" && referrer.LeaderID != nil {
