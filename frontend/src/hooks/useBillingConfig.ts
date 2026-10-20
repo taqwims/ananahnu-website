@@ -145,7 +145,7 @@ export const useBillingConfig = () => {
                 const payload = {
                     name: formData.name,
                     description: formData.description,
-                    business_type_id: parseInt(formData.businessTypeId)
+                    business_type_id: formData.businessTypeId ? parseInt(formData.businessTypeId) : null
                 };
                 if (editingId) {
                     await billingService.updateMaster(endpoint, editingId, payload);
@@ -160,7 +160,7 @@ export const useBillingConfig = () => {
                     endpoint = '/billing-config/business-scales';
                 } else if (activeTab === 'business_types') {
                     endpoint = '/billing-config/business-types';
-                } else if (activeTab === 'components') {
+                } else if (activeTab === 'components' || activeMainTab === 'components') {
                     endpoint = '/billing-config/components';
                     payload.category = formData.category;
                     const selectedTypes = (formData.types && formData.types.length > 0) ? formData.types : (formData.type ? formData.type.split(',') : ['FIXED']);
@@ -194,6 +194,11 @@ export const useBillingConfig = () => {
                     payload.discount_percent = parseFloat(formData.discountPercent) || 0;
                 }
 
+                if (!endpoint) {
+                    toast.error("Endpoint tidak ditemukan");
+                    return;
+                }
+
                 if (editingId) {
                     await billingService.updateMaster(endpoint, editingId, payload);
                 } else {
@@ -205,7 +210,7 @@ export const useBillingConfig = () => {
             fetchData();
             toast.success('Data berhasil disimpan');
         } catch (err: any) {
-            toast.error("Gagal menyimpan data");
+            toast.error(err?.response?.data?.error || "Gagal menyimpan data");
         }
     };
 

@@ -151,7 +151,7 @@ func (uc *sphUsecase) GenerateSPH(submissionID uuid.UUID) (*domain.SPH, error) {
 
 		var items []CostItem
 		for _, sc := range categoryMap {
-			unitPrice, multiplier, multiplierLabel := domain.CalculateComponentPriceAndMultiplier(sc.comp.Type, sc.comp.BaseAmount, sc.comp.ProductTiers, productCount, branchCount, 1)
+			unitPrice, multiplier, multiplierLabel := domain.CalculateComponentPriceAndMultiplier(sc.comp.Type, sc.comp.BaseAmount, sc.comp.GetProductTiers(), productCount, branchCount, 1)
 			amount := unitPrice * float64(multiplier)
 			name := sc.comp.Name + multiplierLabel
 

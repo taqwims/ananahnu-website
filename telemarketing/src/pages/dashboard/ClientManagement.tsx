@@ -8,7 +8,7 @@ import {
   Users, Search, Mail, Building2,
   Filter, Printer, MessageCircle, XCircle, Calculator,
   Sparkles, ShieldCheck, Plus, Trash2, MapPin, Package,
-  Layers, CheckCircle2, RefreshCw
+  Layers, CheckCircle2, RefreshCw, Loader2
 } from 'lucide-react';
 import { PenawaranLetter } from '../../components/PenawaranLetter';
 import toast from 'react-hot-toast';
@@ -87,6 +87,7 @@ export default function ClientManagement() {
   const [duration, setDuration] = useState('14 - 21 Hari Kerja');
   const [notes, setNotes] = useState('Pendampingan verifikasi bahan baku, penyusunan berkas manual SJPH, dan pendampingan audit hingga terbit sertifikat halal resmi.');
   const [advisorName, setAdvisorName] = useState('Tim HalalCore Indonesia');
+  const [sendingWA, setSendingWA] = useState(false);
 
   // Load all master reference data on mount
   useEffect(() => {
@@ -607,9 +608,14 @@ export default function ClientManagement() {
     window.print();
   };
 
-  const handleSendWhatsappEstimate = () => {
+  const handleSendWhatsappEstimate = async () => {
     if (!selectedForm) return;
     const phone = formatCleanPhone(selectedForm.phone);
+    if (!phone) {
+      toast.error('Nomor telepon klien tidak valid');
+      return;
+    }
+
     const selectedProv = provinces.find(p => p.id.toString() === provinceId)?.name || selectedForm.province?.name || 'Indonesia';
     const selectedScaleName = scales.find(s => s.id.toString() === businessScaleId)?.name || selectedForm.business_scale;
 
@@ -623,9 +629,39 @@ export default function ClientManagement() {
       .map((it, idx) => `${idx + 1}. *${it.name}*: ${formatRupiah(it.total)}`)
       .join('\n');
 
-    const text = `Halo Bapak/Ibu *${selectedForm.name}* (${selectedForm.business_type}),\n\nTerima kasih telah berkonsultasi dengan *HalalCore Indonesia* mengenai bimbingan Sertifikat Halal Resmi BPJPH.\n\nBerikut rincian kalkulasi estimasi biaya penawaran terstandarisasi kami sesuai data usaha Anda:\n━━━━━━━━━━━━━━━━━━\n📋 *Skema Layanan*: ${schemeTitle}\n📍 *Wilayah*: ${selectedProv}\n🏢 *Skala Usaha*: ${selectedScaleName}\n📦 *Spesifikasi*: ${branchCount} Outlet / Fasilitas &bull; ${productCount} Varian Produk (SKU)\n⏱️ *Estimasi Durasi*: ${duration}\n\n*Rincian Komponen Biaya:*\n${breakdownText}\n──────────────────\n💰 *TOTAL ESTIMASI BIAYA: ${formatRupiah(total)}*\n━━━━━━━━━━━━━━━━━━\n📌 *Catatan Layanan:*\n${notes}\n\nJika ada pertanyaan lebih lanjut atau ingin segera memproses penerbitan sertifikat halal, silakan balas pesan WhatsApp ini.\n\nSalam hormat,\n*${advisorName}*\nHalalCore - PT Ana Nahnu Indonesia`;
+    let text = `Halo Bapak/Ibu *${selectedForm.name}* (${selectedForm.business_type}),\n\nTerima kasih telah berkonsultasi dengan *HalalCore Indonesia* mengenai bimbingan Sertifikat Halal Resmi BPJPH.\n\nBerikut rincian kalkulasi estimasi biaya penawaran terstandarisasi kami sesuai data usaha Anda:\n━━━━━━━━━━━━━━━━━━\n📋 *Skema Layanan*: ${schemeTitle}\n📍 *Wilayah*: ${selectedProv}\n🏢 *Skala Usaha*: ${selectedScaleName}\n📦 *Spesifikasi*: ${branchCount} Outlet / Fasilitas &bull; ${productCount} Varian Produk (SKU)\n⏱️ *Estimasi Durasi*: ${duration}\n\n*Rincian Komponen Biaya:*\n${breakdownText}\n──────────────────\n💰 *TOTAL ESTIMASI BIAYA: ${formatRupiah(total)}*\n━━━━━━━━━━━━━━━━━━\n📌 *Catatan Layanan:*\n${notes}\n\nJika ada pertanyaan lebih lanjut atau ingin segera memproses penerbitan sertifikat halal, silakan balas pesan WhatsApp ini.\n\nSalam hormat,\n*${advisorName}*\nHalalCore - PT Ana Nahnu Indonesia`;
 
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+    const customTemplate = systemSettings['template_price_estimate'];
+    if (customTemplate && customTemplate.trim()) {
+      let custom = customTemplate;
+      custom = custom.replace(/{{client_name}}/g, selectedForm.name || 'Bapak/Ibu');
+      custom = custom.replace(/{{business_name}}/g, selectedForm.business_type || '-');
+      custom = custom.replace(/{{service_type}}/g, schemeTitle);
+      custom = custom.replace(/{{location}}/g, selectedProv || 'Indonesia');
+      custom = custom.replace(/{{scale}}/g, selectedScaleName);
+      custom = custom.replace(/{{branch_count}}/g, String(branchCount));
+      custom = custom.replace(/{{product_count}}/g, String(productCount));
+      custom = custom.replace(/{{breakdown}}/g, breakdownText);
+      custom = custom.replace(/{{total_amount}}/g, formatRupiah(total));
+      custom = custom.replace(/{{advisor_name}}/g, advisorName);
+      text = custom;
+    }
+
+    try {
+      setSendingWA(true);
+      const res = await api.post('/tele/send-estimate-wa', {
+        form_id: selectedForm.id,
+        phone: phone,
+        message: text,
+      });
+      toast.success(res.data?.message || 'Rincian estimasi biaya berhasil dikirim langsung ke WhatsApp klien via Fonnte!');
+    } catch (err: any) {
+      console.error('Failed to send WA via Fonnte:', err);
+      const errMsg = err.response?.data?.error || err.message || 'Gagal mengirim pesan WhatsApp via Fonnte';
+      toast.error(errMsg);
+    } finally {
+      setSendingWA(false);
+    }
   };
 
   const totalPages = Math.ceil(totalFormsCount / 15);
@@ -1468,9 +1504,18 @@ export default function ClientManagement() {
                       <button
                         type="button"
                         onClick={handleSendWhatsappEstimate}
-                        className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                        disabled={sendingWA}
+                        className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
                       >
-                        <MessageCircle className="w-4 h-4" /> Kirim Rincian ke WhatsApp
+                        {sendingWA ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" /> Mengirim via Fonnte...
+                          </>
+                        ) : (
+                          <>
+                            <MessageCircle className="w-4 h-4" /> Kirim Rincian ke WhatsApp
+                          </>
+                        )}
                       </button>
 
                       <button

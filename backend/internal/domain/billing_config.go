@@ -64,10 +64,18 @@ type BillingComponent struct {
 	FormFieldConfigID *int64            `json:"form_field_config_id,omitempty"`
 	FormFieldConfig   *FormFieldConfig  `gorm:"foreignKey:FormFieldConfigID" json:"form_field_config,omitempty"`
 
-	ProductTiers    string    `gorm:"type:jsonb" json:"product_tiers,omitempty"` // JSON array of ProductTier
+	ProductTiers    *string   `gorm:"type:jsonb" json:"product_tiers,omitempty"` // JSON array of ProductTier
 
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+// GetProductTiers returns the product tiers JSON string safely
+func (bc *BillingComponent) GetProductTiers() string {
+	if bc == nil || bc.ProductTiers == nil {
+		return ""
+	}
+	return *bc.ProductTiers
 }
 
 // ProductTier defines tiered pricing ranges for components that charge per product range

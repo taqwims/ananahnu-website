@@ -9,10 +9,10 @@ interface TemplateFieldProps {
     placeholder: string;
     onChange: (val: string) => void;
     onSave: () => void;
-    enableApp: boolean;
-    enableWA: boolean;
-    onToggleApp: (val: boolean) => void;
-    onToggleWA: (val: boolean) => void;
+    enableApp?: boolean;
+    enableWA?: boolean;
+    onToggleApp?: (val: boolean) => void;
+    onToggleWA?: (val: boolean) => void;
     disabled: boolean;
     hint: string;
     variables?: string[];
@@ -23,7 +23,7 @@ export const TemplateField = ({
     enableApp, enableWA, onToggleApp, onToggleWA,
     disabled, hint, variables = [] 
 }: TemplateFieldProps) => (
-    <div className="space-y-4 group/field">
+    <div className="space-y-3 group/field">
         <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-gray-100 text-gray-500 rounded-lg group-hover/field:bg-brand-50 group-hover/field:text-brand-600 transition-colors">
@@ -35,19 +35,23 @@ export const TemplateField = ({
                 </div>
             </div>
             
-            <div className="flex items-center gap-3">
-                <ChannelToggle 
-                    label="App" 
-                    icon={<Smartphone className="w-3 h-3" />} 
-                    checked={enableApp} 
-                    onChange={(val) => onToggleApp(val)} 
-                />
-                <ChannelToggle 
-                    label="WA" 
-                    icon={<MessageSquare className="w-3 h-3" />} 
-                    checked={enableWA} 
-                    onChange={(val) => onToggleWA(val)} 
-                />
+            <div className="flex items-center gap-2.5">
+                {onToggleApp && (
+                    <ChannelToggle 
+                        label="App" 
+                        icon={<Smartphone className="w-3 h-3" />} 
+                        checked={!!enableApp} 
+                        onChange={(val) => onToggleApp(val)} 
+                    />
+                )}
+                {onToggleWA && (
+                    <ChannelToggle 
+                        label="WA" 
+                        icon={<MessageSquare className="w-3 h-3" />} 
+                        checked={!!enableWA} 
+                        onChange={(val) => onToggleWA(val)} 
+                    />
+                )}
                 <button
                     onClick={onSave}
                     disabled={disabled}
@@ -65,17 +69,25 @@ export const TemplateField = ({
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
                 rows={4}
-                className="w-full px-5 py-4 bg-gray-50/50 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 focus:bg-white outline-none transition-all text-sm resize-none shadow-inner"
+                className="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 focus:bg-white outline-none transition-all text-xs resize-none shadow-inner leading-relaxed"
             />
-            {variables.length > 0 && (
-                <div className="absolute bottom-3 right-4 flex gap-1.5 opacity-40 hover:opacity-100 transition-opacity">
-                    {variables.map(v => (
-                        <span key={v} className="text-[9px] font-mono bg-gray-200 px-1.5 py-0.5 rounded text-gray-600">
-                            {`{{${v}}}`}
-                        </span>
-                    ))}
-                </div>
-            )}
         </div>
+
+        {variables.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <span className="text-[10px] text-gray-400 font-semibold mr-0.5">Variabel:</span>
+                {variables.map(v => (
+                    <button
+                        type="button"
+                        key={v}
+                        onClick={() => onChange(value ? `${value} {{${v}}}` : `{{${v}}}`)}
+                        title={`Klik untuk menambahkan {{${v}}}`}
+                        className="text-[9px] font-mono bg-gray-100 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 border border-gray-200 px-1.5 py-0.5 rounded text-gray-600 transition-all"
+                    >
+                        {`{{${v}}}`}
+                    </button>
+                ))}
+            </div>
+        )}
     </div>
 );

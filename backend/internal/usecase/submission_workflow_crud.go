@@ -808,7 +808,7 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 		qty := 1
 		var productTiers string
 		if bestPendampingan != nil {
-			productTiers = bestPendampingan.ProductTiers
+			productTiers = bestPendampingan.GetProductTiers()
 			if q, ok := optionalQuantities[bestPendampingan.ID]; ok && q > 0 {
 				qty = q
 			} else {
@@ -981,7 +981,7 @@ func (uc *submissionWorkflowUsecase) RecalculateAndSaveRegularCost(sub *domain.S
 			productCount = 1
 		}
 
-		unitPrice, multiplier, multiplierLabel := domain.CalculateComponentPriceAndMultiplier(comp.Type, comp.BaseAmount, comp.ProductTiers, productCount, branchCount, qty)
+		unitPrice, multiplier, multiplierLabel := domain.CalculateComponentPriceAndMultiplier(comp.Type, comp.BaseAmount, comp.GetProductTiers(), productCount, branchCount, qty)
 		amount = unitPrice * float64(multiplier)
 
 		discountAmount := 0.0

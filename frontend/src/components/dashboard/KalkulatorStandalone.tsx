@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Loader2, Download, Plus, Trash, BookOpen, Ticket, Tag, CheckCircle2, X } from 'lucide-react';
+import { Loader2, Download, Plus, Trash, BookOpen, Ticket, Tag, CheckCircle2, X, MessageSquare, Copy, Check, Send } from 'lucide-react';
 import api from '../../services/api';
 import { toast } from 'react-hot-toast';
 import type { BillingComponent } from '../../types';
@@ -74,6 +74,14 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
     const [appliedVoucher, setAppliedVoucher] = useState<Voucher | null>(null);
     const [validatingVoucher, setValidatingVoucher] = useState(false);
     const [voucherError, setVoucherError] = useState<string | null>(null);
+
+    // WhatsApp Direct Send State
+    const [showWAModal, setShowWAModal] = useState(false);
+    const [waPhone, setWaPhone] = useState('');
+    const [waClient, setWaClient] = useState('');
+    const [waBiz, setWaBiz] = useState('');
+    const [waMessage, setWaMessage] = useState('');
+    const [copied, setCopied] = useState(false);
 
     const formatCurrency = (val: number) => {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val);
@@ -608,6 +616,83 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
         }
     };
 
+    const buildEstimateMessage = (targetClient = clientName, targetBiz = businessName) => {
+        const selectedProv = provinces.find(p => p.id.toString() === provinceId)?.name || '';
+        const selectedReg = regencies.find(r => r.id.toString() === regencyId)?.name || '';
+        const selectedScale = scales.find(s => s.id.toString() === businessScaleId)?.name || 'Usaha Mikro / Kecil';
+        const serviceLabel = serviceType === 'REGULER' 
+            ? 'Sertifikasi Reguler BPJPH' 
+            : serviceType === 'SELF_DECLARE_MANDIRI' 
+            ? 'Self Declare Mandiri' 
+            : 'Self Declare Fasilitasi (Gratis)';
+        const locationStr = selectedReg ? `${selectedReg}, ${selectedProv || 'Indonesia'}` : (selectedProv || 'Indonesia');
+        
+        const breakdownText = breakdown
+            .map((item, idx) => `${idx + 1}. *${item.name}*: ${item.total < 0 ? `- ${formatCurrency(Math.abs(item.total))}` : formatCurrency(item.total)}`)
+            .join('\n');
+
+        const advisorName = user?.full_name || 'Tim Konsultan Halal';
+
+        const template = systemSettings['template_price_estimate'];
+        if (template && template.trim()) {
+            let text = template;
+            text = text.replace(/{{client_name}}/g, targetClient?.trim() || 'Bapak/Ibu');
+            text = text.replace(/{{business_name}}/g, targetBiz?.trim() || 'Usaha Anda');
+            text = text.replace(/{{service_type}}/g, serviceLabel);
+            text = text.replace(/{{location}}/g, locationStr);
+            text = text.replace(/{{scale}}/g, selectedScale);
+            text = text.replace(/{{branch_count}}/g, String(branchCount));
+            text = text.replace(/{{product_count}}/g, String(productCount));
+            text = text.replace(/{{breakdown}}/g, breakdownText || '-');
+            text = text.replace(/{{total_amount}}/g, formatCurrency(total));
+            text = text.replace(/{{advisor_name}}/g, advisorName);
+            return text;
+        }
+
+        return `Halo Bapak/Ibu *${targetClient?.trim() || 'Bapak/Ibu'}* (${targetBiz?.trim() || 'Usaha Anda'}),\n\nTerima kasih telah berkonsultasi mengenai bimbingan Sertifikat Halal Resmi.\n\nBerikut rincian kalkulasi estimasi biaya penawaran sesuai data usaha Anda:\n━━━━━━━━━━━━━━━━━━\n📋 *Layanan*: ${serviceLabel}\n📍 *Wilayah*: ${locationStr}\n🏢 *Skala Usaha*: ${selectedScale}\n📦 *Spesifikasi*: ${branchCount} Fasilitas/Cabang • ${productCount} Varian Produk\n\n*Rincian Komponen Biaya:*\n${breakdownText || '-'}\n──────────────────\n💰 *TOTAL ESTIMASI: ${formatCurrency(total)}*\n━━━━━━━━━━━━━━━━━━\n\nJika ada pertanyaan lebih lanjut atau ingin segera memproses penerbitan sertifikat halal, silakan balas pesan WhatsApp ini.\n\nSalam hormat,\n*${advisorName}*\nHalalCore Indonesia`;
+    };
+
+    const handleOpenWAModal = () => {
+        if (breakdown.length === 0) {
+            toast.error('Silakan lengkapi pilihan perhitungan terlebih dahulu');
+            return;
+        }
+        const c = clientName || '';
+        const b = businessName || '';
+        setWaClient(c);
+        setWaBiz(b);
+        setWaPhone('');
+        setWaMessage(buildEstimateMessage(c, b));
+        setShowWAModal(true);
+    };
+
+    const handleRefreshWAMessage = () => {
+        setWaMessage(buildEstimateMessage(waClient, waBiz));
+        toast.success('Pesan diperbarui sesuai input');
+    };
+
+    const handleCopyWAMessage = () => {
+        if (!waMessage) return;
+        navigator.clipboard.writeText(waMessage);
+        setCopied(true);
+        toast.success('Pesan estimasi berhasil disalin ke clipboard');
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handleSendWA = () => {
+        if (!waMessage) return;
+        let clean = waPhone.replace(/\D/g, '');
+        if (clean.startsWith('0')) clean = '62' + clean.slice(1);
+        else if (clean && !clean.startsWith('62')) clean = '62' + clean;
+
+        const url = clean 
+            ? `https://wa.me/${clean}?text=${encodeURIComponent(waMessage)}`
+            : `https://wa.me/?text=${encodeURIComponent(waMessage)}`;
+
+        window.open(url, '_blank');
+        toast.success('Membuka WhatsApp...');
+    };
+
     if (loading) return <div className="flex justify-center p-4"><Loader2 className="animate-spin text-brand-600 w-8 h-8" /></div>;
 
     return (
@@ -922,15 +1007,28 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                         </div>
                     </div>
 
-                    {/* Download Estimasi Button */}
-                    <button
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="w-full bg-brand-700 text-white font-bold py-3 rounded-lg shadow-md shadow-brand-100 hover:bg-brand-800 transition-all flex items-center justify-center gap-1.5 text-sm"
-                    >
-                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                        Simpan & Unduh Estimasi (PDF)
-                    </button>
+                    {/* Action Buttons: Download PDF and Direct WhatsApp Send */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                        <button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="w-full bg-brand-700 text-white font-bold py-3 px-3 rounded-xl shadow-md shadow-brand-100 hover:bg-brand-800 transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm"
+                        >
+                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                            Simpan & Unduh (PDF)
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={handleOpenWAModal}
+                            disabled={breakdown.length === 0}
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-3 px-3 rounded-xl shadow-md shadow-emerald-100 transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm"
+                        >
+                            <MessageSquare className="w-4 h-4" />
+                            Kirim via WhatsApp
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -1091,6 +1189,135 @@ export default function KalkulatorStandalone({ onSaveClick }: Props) {
                     </div>
                 </div>
             </div>
+
+            {/* Direct WhatsApp Send Modal */}
+            {showWAModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-gray-100 flex flex-col max-h-[90vh]">
+                        {/* Modal Header */}
+                        <div className="p-4 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-2 bg-white/10 rounded-xl">
+                                    <MessageSquare className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-sm">Kirim Estimasi via WhatsApp</h4>
+                                    <p className="text-[11px] text-emerald-100">Pesan otomatis sesuai template kalkulator</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowWAModal(false)}
+                                className="p-1.5 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-5 space-y-4 overflow-y-auto flex-1 text-xs">
+                            <div>
+                                <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">
+                                    Nomor WhatsApp Klien
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="tel"
+                                        placeholder="08123456789 (opsional, kosongkan jika ingin pilih kontak langsung di WhatsApp)"
+                                        value={waPhone}
+                                        onChange={e => setWaPhone(e.target.value)}
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                                    />
+                                </div>
+                                <span className="text-[10px] text-gray-400 mt-1 block">
+                                    Format lokal (08...) atau internasional (628...). Otomatis dikonversi ke tautan wa.me.
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">
+                                        Nama Klien
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={waClient}
+                                        onChange={e => setWaClient(e.target.value)}
+                                        placeholder="Nama klien..."
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">
+                                        Nama Usaha
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={waBiz}
+                                        onChange={e => setWaBiz(e.target.value)}
+                                        placeholder="Nama usaha..."
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="block text-[11px] font-bold text-gray-700 uppercase">
+                                        Isi Pesan WhatsApp (Dapat Diedit)
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={handleRefreshWAMessage}
+                                        className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
+                                    >
+                                        Perbarui Pesan
+                                    </button>
+                                </div>
+                                <textarea
+                                    rows={8}
+                                    value={waMessage}
+                                    onChange={e => setWaMessage(e.target.value)}
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs font-mono outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none leading-relaxed"
+                                />
+                                <span className="text-[10px] text-gray-400 mt-1 block">
+                                    Template pesan dapat diatur pada Pengaturan Notifikasi.
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
+                            <button
+                                type="button"
+                                onClick={handleCopyWAMessage}
+                                className="px-3 py-2 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 font-bold rounded-lg text-xs flex items-center gap-1.5 transition-colors"
+                            >
+                                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                {copied ? 'Tersalin' : 'Salin Pesan'}
+                            </button>
+
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowWAModal(false)}
+                                    className="px-3 py-2 text-gray-600 hover:bg-gray-200/60 rounded-lg text-xs font-bold transition-colors"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleSendWA}
+                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-md shadow-emerald-200 transition-all"
+                                >
+                                    <Send className="w-3.5 h-3.5" />
+                                    Buka & Kirim WhatsApp
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -8,7 +8,9 @@ import {
     Calendar,
     Award,
     RefreshCw,
-    ShieldCheck
+    ShieldCheck,
+    GraduationCap,
+    Calculator
 } from 'lucide-react';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import { useSystemSettings } from '../../hooks/useSystemSettings';
@@ -290,6 +292,36 @@ const NotificationSettings = () => {
                                 disabled={isSaving}
                                 hint="Drafter/Advisor • Feedback"
                                 variables={['drafter_name', 'business_name', 'note']}
+                            />
+
+                            <TemplateField 
+                                label="Jadwal Pelatihan (Peserta)"
+                                icon={<GraduationCap className="w-4 h-4" />}
+                                value={settings['template_training_schedule'] || ''}
+                                placeholder="Halo {{participant_name}}, Anda terdaftar pada pelatihan {{training_title}}..."
+                                onChange={(val) => updateLocalSetting('template_training_schedule', val)}
+                                onSave={() => updateSetting('template_training_schedule', settings['template_training_schedule'] || '')}
+                                enableApp={settings['enable_app_training_schedule'] !== 'false'}
+                                enableWA={settings['enable_wa_training_schedule'] !== 'false'}
+                                onToggleApp={(val) => updateSetting('enable_app_training_schedule', val ? 'true' : 'false')}
+                                onToggleWA={(val) => updateSetting('enable_wa_training_schedule', val ? 'true' : 'false')}
+                                disabled={isSaving}
+                                hint="Peserta • Jadwal Pelatihan"
+                                variables={['participant_name', 'training_title', 'training_date', 'training_location', 'training_description']}
+                            />
+
+                            <TemplateField 
+                                label="Estimasi Biaya / Penawaran (WhatsApp)"
+                                icon={<Calculator className="w-4 h-4" />}
+                                value={settings['template_price_estimate'] || ''}
+                                placeholder="Halo Bapak/Ibu {{client_name}} ({{business_name}}), berikut kalkulasi estimasi biaya sertifikasi halal..."
+                                onChange={(val) => updateLocalSetting('template_price_estimate', val)}
+                                onSave={() => updateSetting('template_price_estimate', settings['template_price_estimate'] || '')}
+                                enableWA={settings['enable_wa_price_estimate'] !== 'false'}
+                                onToggleWA={(val) => updateSetting('enable_wa_price_estimate', val ? 'true' : 'false')}
+                                disabled={isSaving}
+                                hint="Kalkulator • Direct WA Share"
+                                variables={['client_name', 'business_name', 'service_type', 'location', 'scale', 'branch_count', 'product_count', 'breakdown', 'total_amount', 'advisor_name']}
                             />
                         </div>
                     </div>

@@ -132,33 +132,32 @@ func (uc *authUsecase) Register(input RegisterInput) error {
 	// 5. Create User
 	userID := uuid.New()
 	
-	// Handle Referral Code (Mandatory only for HALAL_ADVISOR)
+	// Handle Referral Code (Optional for HALAL_ADVISOR and CLIENT)
 	var referredByID *uuid.UUID
 	var leaderID *uuid.UUID
 
 	if input.Role == "HALAL_ADVISOR" {
 		cleanRefCode := strings.TrimSpace(input.ReferralCode)
-		if cleanRefCode == "" {
-			return errors.New("kode referral Halal Manager wajib diisi untuk pendaftaran Halal Advisor")
-		}
-		referrer, err := uc.UserRepo.FindByReferralCode(cleanRefCode)
-		if err != nil || referrer == nil {
-			return errors.New("kode referral tidak valid atau tidak ditemukan")
-		}
-
-		roleName := referrer.Role.Name
-		if roleName == "HALAL_MANAGER" || roleName == "HALAL_DIRECTOR" {
-			referredByID = &referrer.ID
-			leaderID = &referrer.ID
-		} else if roleName == "HALAL_ADVISOR" {
-			if referrer.LeaderID != nil {
-				referredByID = &referrer.ID
-				leaderID = referrer.LeaderID
-			} else {
-				return errors.New("kode referral tidak valid: Halal Advisor ini belum terhubung ke Halal Manager")
+		if cleanRefCode != "" {
+			referrer, err := uc.UserRepo.FindByReferralCode(cleanRefCode)
+			if err != nil || referrer == nil {
+				return errors.New("kode referral tidak valid atau tidak ditemukan")
 			}
-		} else {
-			return errors.New("kode referral tidak valid: kode referral harus milik Halal Manager atau Halal Advisor binaannya")
+
+			roleName := referrer.Role.Name
+			if roleName == "HALAL_MANAGER" || roleName == "HALAL_DIRECTOR" {
+				referredByID = &referrer.ID
+				leaderID = &referrer.ID
+			} else if roleName == "HALAL_ADVISOR" {
+				if referrer.LeaderID != nil {
+					referredByID = &referrer.ID
+					leaderID = referrer.LeaderID
+				} else {
+					return errors.New("kode referral tidak valid: Halal Advisor ini belum terhubung ke Halal Manager")
+				}
+			} else {
+				return errors.New("kode referral tidak valid: kode referral harus milik Halal Manager atau Halal Advisor binaannya")
+			}
 		}
 	} else if input.Role == "CLIENT" && input.ReferralCode != "" {
 		cleanRefCode := strings.TrimSpace(input.ReferralCode)

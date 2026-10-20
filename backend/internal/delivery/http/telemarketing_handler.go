@@ -55,8 +55,9 @@ func NewTelemarketingHandler(r *gin.Engine, uc usecase.TelemarketingUsecase) {
 		tele.GET("/agreement/:formId", handler.GetAgreementByFormID)
 		tele.GET("/agreement/:formId/qr", handler.DownloadAgreementQR)
 
-		// Calculator
+		// Calculator & WA Estimation
 		tele.POST("/calculate-reguler", handler.CalculateReguler)
+		tele.POST("/send-estimate-wa", handler.SendWhatsappEstimate)
 
 		// Analytics & Dashboard
 		tele.GET("/analytics", handler.GetAnalytics)
@@ -492,3 +493,37 @@ func (h *TelemarketingHandler) GetPendampinganPricing(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, pricing)
 }
+
+type SendWhatsappEstimateRequest struct {
+	FormID  *string `json:"form_id"`
+	Phone   string  `json:"phone" binding:"required"`
+	Message string  `json:"message" binding:"required"`
+}
+
+func (h *TelemarketingHandler) SendWhatsappEstimate(c *gin.Context) {
+	var input SendWhatsappEstimateRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nomor WhatsApp dan pesan rincian wajib diisi"})
+		return
+	}
+
+	var formUUID *uuid.UUID
+	if input.FormID != nil && *input.FormID != "" {
+		parsed, err := uuid.Parse(*input.FormID)
+		if err == nil {
+			formUUID = &parsed
+		}
+	}
+
+	res, err := h.uc.SendWhatsappEstimate(formUUID, input.Phone, input.Message)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Rincian estimasi biaya berhasil dikirim langsung ke WhatsApp klien via Fonnte!",
+		"result":  res,
+	})
+}
+

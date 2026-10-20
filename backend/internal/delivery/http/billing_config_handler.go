@@ -291,6 +291,9 @@ func (h *BillingConfigHandler) CreateBillingComponent(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if input.ProductTiers != nil && (*input.ProductTiers == "" || *input.ProductTiers == "null") {
+		input.ProductTiers = nil
+	}
 	if err := h.uc.CreateBillingComponent(&input); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -311,6 +314,9 @@ func (h *BillingConfigHandler) UpdateBillingComponent(c *gin.Context) {
 		return
 	}
 	input.ID = id
+	if input.ProductTiers != nil && (*input.ProductTiers == "" || *input.ProductTiers == "null") {
+		input.ProductTiers = nil
+	}
 	if err := h.uc.UpdateBillingComponent(&input); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

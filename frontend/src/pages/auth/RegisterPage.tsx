@@ -35,14 +35,6 @@ const registerSchema = z.object({
 }).refine((data) => data.password === data.confirm_password, {
     message: "Password tidak cocok",
     path: ["confirm_password"],
-}).refine((data) => {
-    if (data.role === 'HALAL_ADVISOR') {
-        return !!data.referral_code && data.referral_code.trim().length > 0;
-    }
-    return true;
-}, {
-    message: "Kode referral wajib diisi untuk Pendamping Halal",
-    path: ["referral_code"],
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -532,7 +524,7 @@ export default function RegisterPage() {
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-between">
                                                 <label className="block text-[11px] font-black text-gray-500 uppercase tracking-widest">
-                                                    Kode Referral Halal Manager <span className="text-red-500">*wajib</span>
+                                                    Kode Referral Halal Manager <span className="text-gray-400 font-normal lowercase">(opsional)</span>
                                                 </label>
                                                 {referralLoading && (
                                                     <span className="flex items-center gap-1 text-[11px] font-bold text-brand-600">
@@ -578,7 +570,7 @@ export default function RegisterPage() {
                                                 </div>
                                             )}
                                             <p className="text-[10px] text-gray-400 font-medium ml-1">
-                                                Sebagai Halal Advisor baru, Anda wajib mendaftar melalui kode referral Halal Manager pembina Anda.
+                                                Kode referral bersifat opsional. Jika Anda belum memiliki pembina Halal Manager, Anda tetap dapat mendaftar dan mengikuti pelatihan.
                                             </p>
                                         </div>
                                     )}

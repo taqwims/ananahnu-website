@@ -30,7 +30,8 @@ func (r *billingConfigRepo) CreateBusinessType(bt *domain.BusinessType) error {
 }
 
 func (r *billingConfigRepo) UpdateBusinessType(bt *domain.BusinessType) error {
-	return r.db.Save(bt).Error
+	return r.db.Model(&domain.BusinessType{}).Where("id = ?", bt.ID).
+		Select("*").Omit("id", "created_at").Updates(bt).Error
 }
 
 func (r *billingConfigRepo) DeleteBusinessType(id int64) error {
@@ -53,7 +54,8 @@ func (r *billingConfigRepo) CreateProductCategory(pc *domain.ProductCategory) er
 }
 
 func (r *billingConfigRepo) UpdateProductCategory(pc *domain.ProductCategory) error {
-	return r.db.Save(pc).Error
+	return r.db.Model(&domain.ProductCategory{}).Where("id = ?", pc.ID).
+		Select("*").Omit("id", "created_at").Updates(pc).Error
 }
 
 func (r *billingConfigRepo) DeleteProductCategory(id int64) error {
@@ -72,7 +74,8 @@ func (r *billingConfigRepo) CreateBusinessScale(bs *domain.BusinessScale) error 
 }
 
 func (r *billingConfigRepo) UpdateBusinessScale(bs *domain.BusinessScale) error {
-	return r.db.Save(bs).Error
+	return r.db.Model(&domain.BusinessScale{}).Where("id = ?", bs.ID).
+		Select("*").Omit("id", "created_at").Updates(bs).Error
 }
 
 func (r *billingConfigRepo) DeleteBusinessScale(id int64) error {
@@ -151,11 +154,20 @@ func (r *billingConfigRepo) FindAllBillingComponents(filter map[string]interface
 }
 
 func (r *billingConfigRepo) CreateBillingComponent(bc *domain.BillingComponent) error {
+	if bc.ProductTiers != nil && (*bc.ProductTiers == "" || *bc.ProductTiers == "null") {
+		bc.ProductTiers = nil
+	}
 	return r.db.Create(bc).Error
 }
 
 func (r *billingConfigRepo) UpdateBillingComponent(bc *domain.BillingComponent) error {
-	return r.db.Save(bc).Error
+	if bc.ProductTiers != nil && (*bc.ProductTiers == "" || *bc.ProductTiers == "null") {
+		bc.ProductTiers = nil
+	}
+	return r.db.Model(&domain.BillingComponent{}).Where("id = ?", bc.ID).
+		Select("*").
+		Omit("id", "created_at").
+		Updates(bc).Error
 }
 
 func (r *billingConfigRepo) DeleteBillingComponent(id int64) error {

@@ -48,6 +48,9 @@ type TelemarketingUsecase interface {
 	// Reguler Estimation Calculator
 	CalculateReguler(input CalculateRegulerInput) (*RegulerEstimation, error)
 
+	// WhatsApp Estimation Dispatch
+	SendWhatsappEstimate(formID *uuid.UUID, phone, message string) (string, error)
+
 	// Analytics
 	GetAnalytics(filter map[string]interface{}) (*TeleAnalytics, error)
 	GetDashboard(userID uuid.UUID, role string) (*TeleDashboard, error)
@@ -929,7 +932,7 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 	qty := 1
 	var pendTiers string
 	if bestPendampingan != nil {
-		pendTiers = bestPendampingan.ProductTiers
+		pendTiers = bestPendampingan.GetProductTiers()
 		if input.OptionalQuantities != nil {
 			if q, ok := input.OptionalQuantities[bestPendampingan.ID]; ok && q > 0 {
 				qty = q
@@ -1040,7 +1043,7 @@ func (uc *telemarketingUsecase) CalculateReguler(input CalculateRegulerInput) (*
 			}
 		}
 
-		unitPrice, multiplier, label := domain.CalculateComponentPriceAndMultiplier(comp.Type, comp.BaseAmount, comp.ProductTiers, productCount, branchCount, qty)
+		unitPrice, multiplier, label := domain.CalculateComponentPriceAndMultiplier(comp.Type, comp.BaseAmount, comp.GetProductTiers(), productCount, branchCount, qty)
 		amount := unitPrice * float64(multiplier)
 		multiplierLabel := label
 
@@ -1374,3 +1377,26 @@ func (uc *telemarketingUsecase) GetPendampinganPricing() ([]PendampinganPrice, e
 
 	return result, nil
 }
+
+func (uc *telemarketingUsecase) SendWhatsappEstimate(formID *uuid.UUID, phone, message string) (string, error) {
+	if uc.WASender == nil {
+		return "", errors.New("gateway WhatsApp (Fonnte) belum dikonfigurasi pada server")
+	}
+
+	cleanPhone := strings.TrimSpace(phone)
+	if cleanPhone == "" {
+		return "", errors.New("nomor telepon WhatsApp klien tidak valid")
+	}
+
+	res, err := uc.WASender.SendSync(cleanPhone, message)
+	if err != nil {
+		return "", err
+	}
+
+	if formID != nil {
+		log.Printf("[TELEMARKETING] WhatsApp estimate sent via Fonnte to %s for form %s", cleanPhone, formID.String())
+	}
+
+	return res, nil
+}
+

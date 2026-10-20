@@ -82,16 +82,23 @@ func (uc *trainingUsecase) sendTrainingNotification(training *domain.Training, u
 		training.Description,
 	)
 
-	// 1. In-App Notification (fail-safe)
-	_ = uc.NotifUC.CreateNotification(user.ID, title, msg, uuid.Nil)
-
-	// 2. WhatsApp Notification (asynchronous & fail-safe)
-	phone := strings.TrimSpace(user.Phone)
-	if phone != "" {
-		go func(targetPhone, textMsg string) {
-			_ = uc.NotifUC.SendWhatsAppNotification(targetPhone, textMsg)
-		}(phone, msg)
+	replacements := map[string]string{
+		"participant_name":     user.FullName,
+		"training_title":       training.Title,
+		"training_date":        dateDisplay,
+		"training_location":    loc,
+		"training_description": training.Description,
 	}
+
+	_ = uc.NotifUC.SendWorkflowNotification(
+		"training_schedule",
+		replacements,
+		user.Phone,
+		&user.ID,
+		uuid.Nil,
+		title,
+		msg,
+	)
 }
 
 func (uc *trainingUsecase) GetTrainings(filter map[string]interface{}) ([]domain.Training, error) {
@@ -237,11 +244,12 @@ func (uc *trainingUsecase) AddParticipant(trainingID int64, targetUserID uuid.UU
 		return errors.New("peserta tidak ditemukan")
 	}
 
-	// Strictly restrict HALAL_MANAGER and HALAL_DIRECTOR: they can ONLY add participants from their own referral/team!
+	// Referral is optional for training: coordinators can add participants from their referral or without a referral
 	if actorRole == "HALAL_MANAGER" || actorRole == "HALAL_DIRECTOR" {
 		isReferred := (targetUser.ReferredByID != nil && *targetUser.ReferredByID == actorUserID) || (targetUser.LeaderID != nil && *targetUser.LeaderID == actorUserID)
-		if !isReferred {
-			return errors.New("Anda hanya dapat mendaftarkan peserta yang mendaftar menggunakan kode referral Anda atau anggota tim binaan Anda sendiri")
+		isOpen := targetUser.ReferredByID == nil && targetUser.LeaderID == nil
+		if !isReferred && !isOpen {
+			return errors.New("peserta ini sudah terdaftar di bawah binaan Halal Manager lain")
 		}
 	}
 
@@ -362,7 +370,8 @@ func (uc *trainingUsecase) GetAvailableParticipants(search string, userID uuid.U
 
 		if role == "HALAL_MANAGER" || role == "HALAL_DIRECTOR" {
 			isReferred := (user.ReferredByID != nil && *user.ReferredByID == userID) || (user.LeaderID != nil && *user.LeaderID == userID)
-			if !isReferred {
+			isOpen := user.ReferredByID == nil && user.LeaderID == nil
+			if !isReferred && !isOpen {
 				continue
 			}
 		}
